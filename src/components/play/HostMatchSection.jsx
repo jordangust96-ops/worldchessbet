@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
@@ -12,11 +11,10 @@ export const TIME_CONTROLS = [
   { value: "classical", emoji: "🧠", label: "Classical", display: "Classical (15+10)", detail: "15 min per player · 10s increment" },
 ];
 
-export default function HostMatchSection({ userId, balance }) {
+export default function HostMatchSection({ userId, balance, onHosted }) {
   const [wagerInput, setWagerInput] = useState("");
   const [timeControl, setTimeControl] = useState("rapid");
   const [hosting, setHosting] = useState(false);
-  const navigate = useNavigate();
 
   const wagerValue = parseFloat(wagerInput);
   const isValid = !isNaN(wagerValue) && wagerValue > 0;
@@ -44,7 +42,9 @@ export default function HostMatchSection({ userId, balance }) {
       display_name: selectedTimeControl.display,
       status: "searching",
     });
-    navigate(`/match/${match.id}`);
+    setWagerInput("");
+    setHosting(false);
+    onHosted?.(match);
   };
 
   const buttonWagerLabel = isValid ? `$${wagerValue.toFixed(2).replace(/\.00$/, "")}` : null;

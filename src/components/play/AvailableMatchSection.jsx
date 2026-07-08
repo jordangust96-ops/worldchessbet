@@ -5,7 +5,7 @@ import { User, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 
-export default function AvailableMatchSection({ userId }) {
+export default function AvailableMatchSection({ userId, activeMatch, onChallengeCancelled }) {
   const [opponents, setOpponents] = useState([]);
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -56,6 +56,10 @@ export default function AvailableMatchSection({ userId }) {
   const handleAccept = async () => {
     if (!current) return;
     setAccepting(true);
+    if (activeMatch) {
+      await base44.entities.Match.update(activeMatch.id, { status: "cancelled" });
+      onChallengeCancelled?.();
+    }
     await base44.entities.Match.update(current.id, {
       player2_id: userId,
       status: "matched",
