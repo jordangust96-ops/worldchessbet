@@ -50,13 +50,13 @@ export default function HostMatchSection({ userId, balance }) {
   const buttonWagerLabel = isValid ? `$${wagerValue.toFixed(2).replace(/\.00$/, "")}` : null;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 lg:space-y-3">
       <div>
         <h3 className="text-base font-bold text-white">Host a Match</h3>
-        <p className="text-xs text-white/40 mt-0.5">Choose your wager and wait for another player to accept.</p>
+        <p className="text-xs text-white/40 mt-0.5 lg:hidden">Choose your wager and wait for another player to accept.</p>
       </div>
 
-      <div className="grid grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-3 gap-2.5 lg:gap-2">
         {WAGER_OPTIONS.map((amount) => {
           const isActive = selectedPreset === amount;
           const canAfford = balance >= amount;
@@ -65,7 +65,7 @@ export default function HostMatchSection({ userId, balance }) {
               key={amount}
               onClick={() => canAfford && handlePresetClick(amount)}
               disabled={!canAfford}
-              className={`h-12 rounded-xl font-bold text-sm transition-all ${
+              className={`h-12 lg:h-10 rounded-xl font-bold text-sm transition-all ${
                 isActive
                   ? "gold-gradient text-black"
                   : canAfford
@@ -79,7 +79,7 @@ export default function HostMatchSection({ userId, balance }) {
         })}
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-2 lg:space-y-1.5">
         <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">
           Custom Wager
         </label>
@@ -93,23 +93,23 @@ export default function HostMatchSection({ userId, balance }) {
             value={wagerInput}
             onChange={handleInputChange}
             placeholder="Enter any amount"
-            className="w-full h-12 pl-8 pr-4 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder:text-white/20 text-sm font-semibold focus:border-[#C9A84C]/50 focus:outline-none transition-colors"
+            className="w-full h-12 lg:h-10 pl-8 pr-4 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder:text-white/20 text-sm font-semibold focus:border-[#C9A84C]/50 focus:outline-none transition-colors"
           />
         </div>
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-2 lg:space-y-1.5">
         <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">
           Time Control
         </label>
-        <div className="space-y-2">
+        <div className="space-y-2 lg:space-y-1.5">
           {TIME_CONTROLS.map((tc) => {
             const isActive = timeControl === tc.value;
             return (
               <button
                 key={tc.value}
                 onClick={() => setTimeControl(tc.value)}
-                className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all ${
+                className={`w-full flex items-center gap-3 p-3 lg:p-2 rounded-xl text-left transition-all ${
                   isActive
                     ? "gold-gradient text-black"
                     : "bg-white/[0.06] text-white border border-white/10 hover:border-[#C9A84C]/30"
@@ -118,7 +118,7 @@ export default function HostMatchSection({ userId, balance }) {
                 <span className="text-lg">{tc.emoji}</span>
                 <div className="flex-1">
                   <p className="font-bold text-sm">{tc.display}</p>
-                  <p className={`text-xs ${isActive ? "text-black/60" : "text-white/40"}`}>{tc.detail}</p>
+                  <p className={`text-xs ${isActive ? "text-black/60" : "text-white/40"} lg:hidden`}>{tc.detail}</p>
                 </div>
               </button>
             );
@@ -129,7 +129,7 @@ export default function HostMatchSection({ userId, balance }) {
       <Button
         onClick={handleHost}
         disabled={!isValid || hosting}
-        className="w-full h-12 rounded-2xl font-bold gold-gradient text-black hover:opacity-90 disabled:opacity-30 transition-opacity"
+        className="w-full h-12 lg:h-11 rounded-2xl font-bold gold-gradient text-black hover:opacity-90 disabled:opacity-30 transition-opacity"
       >
         {hosting ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
         {isValid ? `Host ${buttonWagerLabel} ${selectedTimeControl.label} Match` : "Host a Match"}

@@ -80,7 +80,7 @@ export default function AvailableMatchSection({ userId }) {
 
   return (
     <div>
-      <p className="text-[10px] uppercase tracking-widest text-white/30 mb-4">Available Match</p>
+      <p className="text-[10px] uppercase tracking-widest text-white/30 mb-4 lg:mb-2.5">Available Match</p>
       <AnimatePresence mode="wait">
         <motion.div
           key={current.id}
@@ -88,10 +88,10 @@ export default function AvailableMatchSection({ userId }) {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.2 }}
-          className="space-y-6"
+          className="space-y-6 lg:space-y-3"
         >
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-white/[0.06] flex items-center justify-center">
+            <div className="w-11 h-11 lg:w-9 lg:h-9 rounded-xl bg-white/[0.06] flex items-center justify-center">
               <User size={18} className="text-white/50" />
             </div>
             <div>
@@ -101,22 +101,22 @@ export default function AvailableMatchSection({ userId }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-2xl bg-[#C9A84C]/5 border border-[#C9A84C]/20 p-4">
+          <div className="grid grid-cols-2 gap-3 lg:gap-2">
+            <div className="rounded-2xl bg-[#C9A84C]/5 border border-[#C9A84C]/20 p-4 lg:p-2.5">
               <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]/60 mb-1">Wager</p>
               <p className="text-xl font-bold text-[#C9A84C]">${current.wager_amount.toFixed(2)}</p>
             </div>
-            <div className="rounded-2xl bg-white/[0.03] p-4">
+            <div className="rounded-2xl bg-white/[0.03] p-4 lg:p-2.5">
               <p className="text-[10px] uppercase tracking-widest text-white/30 mb-1">Time Control</p>
               <p className="text-base font-bold text-white">{current.display_name || "Rapid (10+0)"}</p>
             </div>
           </div>
 
-          <div className="space-y-2.5">
+          <div className="space-y-2.5 lg:space-y-2">
             <Button
               onClick={handleAccept}
               disabled={accepting}
-              className="w-full h-14 rounded-2xl text-base font-bold gold-gradient text-black hover:opacity-90 transition-opacity"
+              className="w-full h-14 lg:h-11 rounded-2xl text-base font-bold gold-gradient text-black hover:opacity-90 transition-opacity"
             >
               {accepting ? <Loader2 className="animate-spin mr-2" size={18} /> : null}
               Accept Match
@@ -125,7 +125,7 @@ export default function AvailableMatchSection({ userId }) {
               onClick={handleNext}
               variant="outline"
               disabled={accepting}
-              className="w-full h-12 rounded-2xl border-white/10 text-white/60 font-semibold hover:bg-white/5"
+              className="w-full h-12 lg:h-9 rounded-2xl border-white/10 text-white/60 font-semibold hover:bg-white/5"
             >
               Next Match
             </Button>

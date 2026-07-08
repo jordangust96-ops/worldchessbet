@@ -36,8 +36,8 @@ export default function ChessboardPreview() {
   }
 
   return (
-    <div className="w-full rounded-3xl overflow-hidden border border-[#C9A84C]/20 shadow-2xl shadow-black/50">
-      <div className="grid grid-cols-8 w-full">{squares}</div>
+    <div className="w-full lg:w-auto lg:h-full lg:aspect-square rounded-3xl overflow-hidden border border-[#C9A84C]/20 shadow-2xl shadow-black/50">
+      <div className="grid grid-cols-8 w-full h-full">{squares}</div>
     </div>
   );
 }

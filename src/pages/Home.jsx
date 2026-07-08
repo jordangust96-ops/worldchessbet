@@ -32,12 +32,12 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-screen px-5 pt-6">
+    <div className="min-h-screen px-5 pt-6 lg:h-screen lg:overflow-hidden lg:flex lg:flex-col lg:pb-24">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between mb-6"
+        className="flex items-center justify-between mb-6 lg:mb-4 lg:shrink-0"
       >
         <div className="flex items-center gap-2">
           <Crown size={18} className="text-[#C9A84C]" />
@@ -54,12 +54,12 @@ export default function Home() {
       </motion.div>
 
       {/* Main Layout */}
-      <div className="flex flex-col lg:flex-row gap-6 max-w-6xl mx-auto">
+      <div className="flex flex-col lg:flex-row gap-6 max-w-6xl mx-auto lg:flex-1 lg:min-h-0 w-full lg:items-stretch">
         {/* Board */}
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          className="lg:w-[65%] w-full"
+          className="lg:w-[62%] w-full lg:h-full lg:flex lg:items-center lg:justify-center"
         >
           <ChessboardPreview />
         </motion.div>
@@ -69,7 +69,7 @@ export default function Home() {
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="lg:w-[35%] w-full"
+          className="lg:w-[38%] w-full lg:h-full lg:min-h-0"
         >
           <MatchCenter userId={user?.id} balance={wallet?.balance || 0} />
         </motion.div>
