@@ -17,7 +17,6 @@ import ResetPassword from '@/pages/ResetPassword';
 // App pages
 import Landing from '@/pages/Landing';
 import Home from '@/pages/Home';
-import SearchMatch from '@/pages/SearchMatch';
 import MatchRoom from '@/pages/MatchRoom';
 import ActiveMatch from '@/pages/ActiveMatch';
 import Results from '@/pages/Results';
@@ -60,7 +59,6 @@ const AuthenticatedApp = () => {
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/landing" replace />} />}>
         <Route element={<AppLayout />}>
           <Route path="/" element={<Home />} />
-          <Route path="/search" element={<SearchMatch />} />
           <Route path="/match/:id" element={<MatchRoom />} />
           <Route path="/active/:id" element={<ActiveMatch />} />
           <Route path="/results/:id" element={<Results />} />
