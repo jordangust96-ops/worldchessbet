@@ -101,9 +101,15 @@ export default function AvailableMatchSection({ userId }) {
             </div>
           </div>
 
-          <div className="rounded-2xl bg-[#C9A84C]/5 border border-[#C9A84C]/20 p-4">
-            <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]/60 mb-1">Wager</p>
-            <p className="text-xl font-bold text-[#C9A84C]">${current.wager_amount.toFixed(2)}</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-2xl bg-[#C9A84C]/5 border border-[#C9A84C]/20 p-4">
+              <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]/60 mb-1">Wager</p>
+              <p className="text-xl font-bold text-[#C9A84C]">${current.wager_amount.toFixed(2)}</p>
+            </div>
+            <div className="rounded-2xl bg-white/[0.03] p-4">
+              <p className="text-[10px] uppercase tracking-widest text-white/30 mb-1">Time Control</p>
+              <p className="text-base font-bold text-white">{current.display_name || "Rapid (10+0)"}</p>
+            </div>
           </div>
 
           <div className="space-y-2.5">

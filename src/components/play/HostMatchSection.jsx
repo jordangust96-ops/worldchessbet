@@ -6,14 +6,22 @@ import { base44 } from "@/api/base44Client";
 
 const WAGER_OPTIONS = [1, 5, 10, 25, 50, 100];
 
+export const TIME_CONTROLS = [
+  { value: "blitz", emoji: "⚡", label: "Blitz", display: "Blitz (3+2)", detail: "3 min per player · 2s increment" },
+  { value: "rapid", emoji: "⏱", label: "Rapid", display: "Rapid (10+0)", detail: "10 min per player · No increment" },
+  { value: "classical", emoji: "🧠", label: "Classical", display: "Classical (15+10)", detail: "15 min per player · 10s increment" },
+];
+
 export default function HostMatchSection({ userId, balance }) {
   const [wagerInput, setWagerInput] = useState("");
+  const [timeControl, setTimeControl] = useState("rapid");
   const [hosting, setHosting] = useState(false);
   const navigate = useNavigate();
 
   const wagerValue = parseFloat(wagerInput);
   const isValid = !isNaN(wagerValue) && wagerValue > 0;
   const selectedPreset = WAGER_OPTIONS.find((amount) => amount === wagerValue);
+  const selectedTimeControl = TIME_CONTROLS.find((tc) => tc.value === timeControl);
 
   const handlePresetClick = (amount) => {
     setWagerInput(String(amount));
@@ -32,10 +40,14 @@ export default function HostMatchSection({ userId, balance }) {
     const match = await base44.entities.Match.create({
       player1_id: userId,
       wager_amount: wagerValue,
+      time_control: timeControl,
+      display_name: selectedTimeControl.display,
       status: "searching",
     });
     navigate(`/match/${match.id}`);
   };
+
+  const buttonWagerLabel = isValid ? `$${wagerValue.toFixed(2).replace(/\.00$/, "")}` : null;
 
   return (
     <div className="space-y-5">
@@ -86,13 +98,41 @@ export default function HostMatchSection({ userId, balance }) {
         </div>
       </div>
 
+      <div className="space-y-2">
+        <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">
+          Time Control
+        </label>
+        <div className="space-y-2">
+          {TIME_CONTROLS.map((tc) => {
+            const isActive = timeControl === tc.value;
+            return (
+              <button
+                key={tc.value}
+                onClick={() => setTimeControl(tc.value)}
+                className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all ${
+                  isActive
+                    ? "gold-gradient text-black"
+                    : "bg-white/[0.06] text-white border border-white/10 hover:border-[#C9A84C]/30"
+                }`}
+              >
+                <span className="text-lg">{tc.emoji}</span>
+                <div className="flex-1">
+                  <p className="font-bold text-sm">{tc.display}</p>
+                  <p className={`text-xs ${isActive ? "text-black/60" : "text-white/40"}`}>{tc.detail}</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <Button
         onClick={handleHost}
         disabled={!isValid || hosting}
         className="w-full h-12 rounded-2xl font-bold gold-gradient text-black hover:opacity-90 disabled:opacity-30 transition-opacity"
       >
         {hosting ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
-        {isValid ? `Host $${wagerValue.toFixed(2).replace(/\.00$/, "")} Match` : "Host a Match"}
+        {isValid ? `Host ${buttonWagerLabel} ${selectedTimeControl.label} Match` : "Host a Match"}
       </Button>
     </div>
   );

@@ -14,6 +14,20 @@
       "type": "number",
       "description": "Wager amount in USD"
     },
+    "time_control": {
+      "type": "string",
+      "enum": [
+        "blitz",
+        "rapid",
+        "classical"
+      ],
+      "default": "rapid",
+      "description": "Match time control"
+    },
+    "display_name": {
+      "type": "string",
+      "description": "Human-readable time control, e.g. 'Rapid (10+0)'"
+    },
     "status": {
       "type": "string",
       "enum": [
