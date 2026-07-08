@@ -6,7 +6,7 @@ import { base44 } from "@/api/base44Client";
 
 const WAGER_OPTIONS = [1, 5, 10, 25, 50, 100];
 
-export default function HostMatchPanel({ userId, balance }) {
+export default function HostMatchSection({ userId, balance }) {
   const [wagerInput, setWagerInput] = useState("");
   const [hosting, setHosting] = useState(false);
   const navigate = useNavigate();
@@ -21,7 +21,6 @@ export default function HostMatchPanel({ userId, balance }) {
 
   const handleInputChange = (e) => {
     const value = e.target.value;
-    // Allow only digits and up to 2 decimal places
     if (value === "" || /^\d*\.?\d{0,2}$/.test(value)) {
       setWagerInput(value);
     }
@@ -39,10 +38,10 @@ export default function HostMatchPanel({ userId, balance }) {
   };
 
   return (
-    <div className="rounded-3xl bg-white/[0.03] border border-white/5 p-6 space-y-5">
+    <div className="space-y-5">
       <div>
-        <h3 className="text-sm font-semibold text-white/70">Create Your Own Match</h3>
-        <p className="text-xs text-white/30 mt-0.5">Set a wager and wait for a challenger</p>
+        <h3 className="text-base font-bold text-white">Host a Match</h3>
+        <p className="text-xs text-white/40 mt-0.5">Choose your wager and wait for another player to accept.</p>
       </div>
 
       <div className="grid grid-cols-3 gap-2.5">
@@ -93,7 +92,7 @@ export default function HostMatchPanel({ userId, balance }) {
         className="w-full h-12 rounded-2xl font-bold gold-gradient text-black hover:opacity-90 disabled:opacity-30 transition-opacity"
       >
         {hosting ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
-        {isValid ? `Host $${wagerValue.toFixed(2).replace(/\.00$/, "")} Match` : "Host Match"}
+        {isValid ? `Host $${wagerValue.toFixed(2).replace(/\.00$/, "")} Match` : "Host a Match"}
       </Button>
     </div>
   );

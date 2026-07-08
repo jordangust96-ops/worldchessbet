@@ -3,8 +3,7 @@ import { motion } from "framer-motion";
 import { Crown } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import ChessboardPreview from "@/components/play/ChessboardPreview";
-import MatchDiscoveryCard from "@/components/play/MatchDiscoveryCard";
-import HostMatchPanel from "@/components/play/HostMatchPanel";
+import MatchCenter from "@/components/play/MatchCenter";
 
 export default function Home() {
   const [user, setUser] = useState(null);
@@ -65,15 +64,14 @@ export default function Home() {
           <ChessboardPreview />
         </motion.div>
 
-        {/* Match Discovery + Host */}
+        {/* Match Center */}
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="lg:w-[35%] w-full space-y-5"
+          className="lg:w-[35%] w-full"
         >
-          <MatchDiscoveryCard userId={user?.id} />
-          <HostMatchPanel userId={user?.id} balance={wallet?.balance || 0} />
+          <MatchCenter userId={user?.id} balance={wallet?.balance || 0} />
         </motion.div>
       </div>
     </div>
