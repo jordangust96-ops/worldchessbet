@@ -1,0 +1,35 @@
+{
+  "name": "Wallet",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "Owner user ID"
+    },
+    "balance": {
+      "type": "number",
+      "default": 0,
+      "description": "Current balance in USD"
+    },
+    "total_wagered": {
+      "type": "number",
+      "default": 0
+    },
+    "total_won": {
+      "type": "number",
+      "default": 0
+    },
+    "total_deposited": {
+      "type": "number",
+      "default": 0
+    },
+    "total_withdrawn": {
+      "type": "number",
+      "default": 0
+    }
+  },
+  "required": [
+    "user_id",
+    "balance"
+  ]
+}

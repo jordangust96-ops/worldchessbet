@@ -1,0 +1,66 @@
+{
+  "name": "Match",
+  "type": "object",
+  "properties": {
+    "player1_id": {
+      "type": "string",
+      "description": "User ID of player 1"
+    },
+    "player2_id": {
+      "type": "string",
+      "description": "User ID of player 2"
+    },
+    "wager_amount": {
+      "type": "number",
+      "description": "Wager amount in USD"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "searching",
+        "matched",
+        "deposited",
+        "in_progress",
+        "completed",
+        "cancelled",
+        "disputed"
+      ],
+      "default": "searching"
+    },
+    "winner_id": {
+      "type": "string",
+      "description": "User ID of the winner"
+    },
+    "chess_com_game_url": {
+      "type": "string",
+      "description": "Chess.com game URL"
+    },
+    "player1_deposited": {
+      "type": "boolean",
+      "default": false
+    },
+    "player2_deposited": {
+      "type": "boolean",
+      "default": false
+    },
+    "result": {
+      "type": "string",
+      "enum": [
+        "player1_win",
+        "player2_win",
+        "draw",
+        "cancelled"
+      ],
+      "description": "Match result"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "player1_id",
+    "wager_amount",
+    "status"
+  ]
+}
