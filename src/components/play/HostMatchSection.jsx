@@ -11,7 +11,7 @@ export const TIME_CONTROLS = [
   { value: "classical", emoji: "🧠", label: "Classical", display: "Classical (15+10)", detail: "15 min per player · 10s increment" },
 ];
 
-export default function HostMatchSection({ userId, balance, onHosted }) {
+export default function HostMatchSection({ userId, balance, onHosted, disabled }) {
   const [wagerInput, setWagerInput] = useState("");
   const [timeControl, setTimeControl] = useState("rapid");
   const [hosting, setHosting] = useState(false);
@@ -50,10 +50,15 @@ export default function HostMatchSection({ userId, balance, onHosted }) {
   const buttonWagerLabel = isValid ? `$${wagerValue.toFixed(2).replace(/\.00$/, "")}` : null;
 
   return (
-    <div className="space-y-5 lg:space-y-3">
+    <div className={`space-y-5 lg:space-y-3 ${disabled ? "opacity-40 pointer-events-none" : ""}`}>
       <div>
         <h3 className="text-base font-bold text-white">Host a Match</h3>
         <p className="text-xs text-white/40 mt-0.5 lg:hidden">Choose your wager and wait for another player to accept.</p>
+        {disabled && (
+          <p className="text-xs text-[#C9A84C]/70 mt-1">
+            You already have an active challenge. Cancel it to create a new one.
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-3 gap-2.5 lg:gap-2">
@@ -64,7 +69,7 @@ export default function HostMatchSection({ userId, balance, onHosted }) {
             <button
               key={amount}
               onClick={() => canAfford && handlePresetClick(amount)}
-              disabled={!canAfford}
+              disabled={!canAfford || disabled}
               className={`h-12 lg:h-10 rounded-xl font-bold text-sm transition-all ${
                 isActive
                   ? "gold-gradient text-black"
@@ -128,7 +133,7 @@ export default function HostMatchSection({ userId, balance, onHosted }) {
 
       <Button
         onClick={handleHost}
-        disabled={!isValid || hosting}
+        disabled={!isValid || hosting || disabled}
         className="w-full h-12 lg:h-11 rounded-2xl font-bold gold-gradient text-black hover:opacity-90 disabled:opacity-30 transition-opacity"
       >
         {hosting ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
