@@ -50,9 +50,9 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
   const buttonWagerLabel = isValid ? `$${wagerValue.toFixed(2).replace(/\.00$/, "")}` : null;
 
   return (
-    <div className={`space-y-5 lg:space-y-3 ${disabled ? "opacity-40 pointer-events-none" : ""}`}>
+    <div className={`space-y-5 lg:space-y-2 ${disabled ? "opacity-40 pointer-events-none" : ""}`}>
       <div>
-        <h3 className="text-base font-bold text-white">Host a Match</h3>
+        <h3 className="text-base lg:text-sm font-bold text-white">Host a Match</h3>
         <p className="text-xs text-white/40 mt-0.5 lg:hidden">Choose your wager and wait for another player to accept.</p>
         {disabled && (
           <p className="text-xs text-[#C9A84C]/70 mt-1">
@@ -61,7 +61,7 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
         )}
       </div>
 
-      <div className="grid grid-cols-3 gap-2.5 lg:gap-2">
+      <div className="grid grid-cols-3 gap-2.5 lg:gap-1.5">
         {WAGER_OPTIONS.map((amount) => {
           const isActive = selectedPreset === amount;
           const canAfford = balance >= amount;
@@ -70,7 +70,7 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
               key={amount}
               onClick={() => canAfford && handlePresetClick(amount)}
               disabled={!canAfford || disabled}
-              className={`h-12 lg:h-10 rounded-xl font-bold text-sm transition-all ${
+              className={`h-12 lg:h-8 rounded-xl font-bold text-sm lg:text-xs transition-all ${
                 isActive
                   ? "gold-gradient text-black"
                   : canAfford
@@ -84,7 +84,7 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
         })}
       </div>
 
-      <div className="space-y-2 lg:space-y-1.5">
+      <div className="space-y-2 lg:space-y-1">
         <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">
           Custom Wager
         </label>
@@ -98,31 +98,33 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
             value={wagerInput}
             onChange={handleInputChange}
             placeholder="Enter any amount"
-            className="w-full h-12 lg:h-10 pl-8 pr-4 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder:text-white/20 text-sm font-semibold focus:border-[#C9A84C]/50 focus:outline-none transition-colors"
+            disabled={disabled}
+            className="w-full h-12 lg:h-8 pl-8 pr-4 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder:text-white/20 text-sm lg:text-xs font-semibold focus:border-[#C9A84C]/50 focus:outline-none transition-colors"
           />
         </div>
       </div>
 
-      <div className="space-y-2 lg:space-y-1.5">
+      <div className="space-y-2 lg:space-y-1">
         <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">
           Time Control
         </label>
-        <div className="space-y-2 lg:space-y-1.5">
+        <div className="space-y-2 lg:space-y-1">
           {TIME_CONTROLS.map((tc) => {
             const isActive = timeControl === tc.value;
             return (
               <button
                 key={tc.value}
                 onClick={() => setTimeControl(tc.value)}
-                className={`w-full flex items-center gap-3 p-3 lg:p-2 rounded-xl text-left transition-all ${
+                disabled={disabled}
+                className={`w-full flex items-center gap-3 lg:gap-2 p-3 lg:p-1.5 rounded-xl text-left transition-all ${
                   isActive
                     ? "gold-gradient text-black"
                     : "bg-white/[0.06] text-white border border-white/10 hover:border-[#C9A84C]/30"
                 }`}
               >
-                <span className="text-lg">{tc.emoji}</span>
+                <span className="text-lg lg:text-sm">{tc.emoji}</span>
                 <div className="flex-1">
-                  <p className="font-bold text-sm">{tc.display}</p>
+                  <p className="font-bold text-sm lg:text-xs">{tc.display}</p>
                   <p className={`text-xs ${isActive ? "text-black/60" : "text-white/40"} lg:hidden`}>{tc.detail}</p>
                 </div>
               </button>
@@ -134,7 +136,7 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
       <Button
         onClick={handleHost}
         disabled={!isValid || hosting || disabled}
-        className="w-full h-12 lg:h-11 rounded-2xl font-bold gold-gradient text-black hover:opacity-90 disabled:opacity-30 transition-opacity"
+        className="w-full h-12 lg:h-9 lg:text-sm rounded-2xl font-bold gold-gradient text-black hover:opacity-90 disabled:opacity-30 transition-opacity"
       >
         {hosting ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
         {isValid ? `Host ${buttonWagerLabel} ${selectedTimeControl.label} Match` : "Host a Match"}

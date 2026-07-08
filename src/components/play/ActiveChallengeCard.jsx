@@ -45,8 +45,8 @@ export default function ActiveChallengeCard({ match, onCancel }) {
 
   return (
     <div>
-      <p className="text-[10px] uppercase tracking-widest text-white/30 mb-4 lg:mb-2.5">Your Active Challenge</p>
-      <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-4 min-h-[168px] flex flex-col justify-center">
+      <p className="text-[10px] uppercase tracking-widest text-white/30 mb-4 lg:mb-1.5">Your Active Challenge</p>
+      <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-4 lg:p-3 min-h-[168px] lg:min-h-[110px] flex flex-col justify-center">
         <AnimatePresence mode="wait">
           {!match && (
             <motion.div
@@ -54,9 +54,9 @@ export default function ActiveChallengeCard({ match, onCancel }) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="text-center space-y-1.5 py-2"
+              className="text-center space-y-1 lg:space-y-0.5 py-2 lg:py-0"
             >
-              <Swords size={18} className="text-white/20 mx-auto" />
+              <Swords size={18} className="text-white/20 mx-auto lg:hidden" />
               <p className="text-sm font-semibold text-white/50">No Active Challenge</p>
               <p className="text-xs text-white/30">You don't currently have a challenge posted.</p>
             </motion.div>
@@ -68,7 +68,7 @@ export default function ActiveChallengeCard({ match, onCancel }) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="space-y-3"
+              className="space-y-2 lg:space-y-1.5"
             >
               <div className="flex items-center gap-2 text-[#C9A84C]">
                 <Sparkles size={16} />
@@ -82,7 +82,7 @@ export default function ActiveChallengeCard({ match, onCancel }) {
               </div>
               <Button
                 onClick={() => navigate(`/match/${match.id}`)}
-                className="w-full h-11 rounded-xl font-bold gold-gradient text-black hover:opacity-90"
+                className="w-full h-11 lg:h-9 rounded-xl font-bold gold-gradient text-black hover:opacity-90"
               >
                 Join Match
               </Button>
@@ -95,7 +95,7 @@ export default function ActiveChallengeCard({ match, onCancel }) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="space-y-3"
+              className="space-y-2 lg:space-y-1.5"
             >
               <div className="flex items-center justify-between">
                 <p className="text-sm text-white/50">Waiting for an opponent...</p>

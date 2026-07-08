@@ -31,10 +31,10 @@ export default function MatchCenter({ userId, balance }) {
   };
 
   return (
-    <div className="rounded-3xl bg-gradient-to-br from-[#1A1A1A] to-[#111] border border-white/5 p-6 lg:p-5 lg:h-full lg:overflow-y-auto lg:flex lg:flex-col lg:justify-center space-y-5 lg:space-y-3">
+    <div className="rounded-3xl bg-gradient-to-br from-[#1A1A1A] to-[#111] border border-white/5 p-6 lg:p-4 lg:h-full lg:overflow-y-auto lg:flex lg:flex-col lg:justify-start space-y-5 lg:space-y-2.5">
       <ActiveChallengeCard match={activeMatch} onCancel={handleCancel} />
 
-      <div className="h-px bg-white/[0.06]" />
+      <div className="h-px bg-white/[0.06] shrink-0" />
 
       <AvailableMatchSection
         userId={userId}
@@ -42,7 +42,7 @@ export default function MatchCenter({ userId, balance }) {
         onChallengeCancelled={() => setActiveMatch(null)}
       />
 
-      <div className="h-px bg-white/[0.06]" />
+      <div className="h-px bg-white/[0.06] shrink-0" />
 
       <HostMatchSection userId={userId} balance={balance} onHosted={setActiveMatch} disabled={!!activeMatch} />
     </div>
