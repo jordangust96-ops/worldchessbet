@@ -92,7 +92,7 @@ export default function Profile() {
         {/* Chess.com Username */}
         <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-5 space-y-3">
           <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">
-            Chess.com Username
+            Public ChessBet Username
           </label>
           <div className="flex gap-2">
             <input
