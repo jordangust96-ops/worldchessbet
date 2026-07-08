@@ -66,7 +66,7 @@ export default function Profile() {
             </span>
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white">{user?.full_name || "Player"}</h1>
+            <h1 className="text-xl font-bold text-white">{chessUsername || user?.full_name || "Player"}</h1>
             <p className="text-sm text-white/40">{user?.email}</p>
           </div>
         </div>
