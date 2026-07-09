@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Shield, Check, Loader2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
+import FairPlayAttestation from "./FairPlayAttestation";
 
 export default function MatchAcceptedState({
   match,
@@ -15,6 +16,7 @@ export default function MatchAcceptedState({
   const [opponentName, setOpponentName] = useState("Opponent");
   const [depositing, setDepositing] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [fairPlayAccepted, setFairPlayAccepted] = useState(false);
 
   useEffect(() => {
     if (!opponentId) return;
@@ -122,10 +124,12 @@ export default function MatchAcceptedState({
         )}
       </div>
 
+      <FairPlayAttestation checked={fairPlayAccepted} onCheckedChange={setFairPlayAccepted} />
+
       <div className="space-y-2.5">
         <Button
           onClick={handleDeposit}
-          disabled={depositing}
+          disabled={depositing || !fairPlayAccepted}
           className="w-full h-12 rounded-2xl font-bold gold-gradient text-black hover:opacity-90"
         >
           {depositing ? <Loader2 className="animate-spin mr-2" size={16} /> : <Shield size={16} className="mr-2" />}
