@@ -13,7 +13,8 @@ export default function Home() {
   const [wallet, setWallet] = useState(null);
   const [myMatchId, setMyMatchId] = useState(null);
   const [boardState, setBoardState] = useState("marketplace");
-  const gameActive = boardState === "both_ready" || boardState === "in_progress";
+  const gameActive = boardState === "both_ready" || boardState === "in_progress" || boardState === "game_summary";
+  const isLive = boardState === "in_progress";
   const { fen, handleDrop, orientation, game } = useChessGame(myMatchId, user?.id, gameActive);
 
   useEffect(() => {
@@ -92,13 +93,13 @@ export default function Home() {
           animate={{ opacity: 1, y: 0 }}
           className="lg:w-[62%] w-full lg:h-full lg:flex lg:flex-col lg:items-center lg:justify-center gap-3"
         >
-          {gameActive && <PlayerClocks game={game} orientation={orientation} />}
+          {isLive && <PlayerClocks game={game} orientation={orientation} />}
           <ChessboardPreview
             state={boardState}
             fen={gameActive ? fen : undefined}
-            onPieceDrop={gameActive ? handleDrop : undefined}
+            onPieceDrop={isLive ? handleDrop : undefined}
             boardOrientation={orientation}
-            arePiecesDraggable={gameActive}
+            arePiecesDraggable={isLive}
           />
         </motion.div>
 

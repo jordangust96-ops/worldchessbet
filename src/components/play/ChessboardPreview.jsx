@@ -67,6 +67,16 @@ const STATE_STYLES = {
     sweep: false,
     vignette: false,
   },
+  game_summary: {
+    wrapperAnimate: { scale: 1, opacity: 1 },
+    wrapperTransition: { duration: 1.2, ease: "easeInOut" },
+    glow: "0 0 0 rgba(201,168,76,0)",
+    borderColor: "rgba(201,168,76,0.2)",
+    filter: "brightness(1) contrast(1)",
+    breathe: false,
+    sweep: false,
+    vignette: false,
+  },
 };
 
 export default function ChessboardPreview({

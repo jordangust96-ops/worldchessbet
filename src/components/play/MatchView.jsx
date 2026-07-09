@@ -6,6 +6,7 @@ import MatchAcceptedState from "@/components/play/matchview/MatchAcceptedState";
 import DepositWaitingState from "@/components/play/matchview/DepositWaitingState";
 import BothReadyState from "@/components/play/matchview/BothReadyState";
 import GameHUD from "@/components/play/matchview/GameHUD";
+import GameSummary from "@/components/play/matchview/GameSummary";
 import SettlementState from "@/components/play/matchview/SettlementState";
 
 export default function MatchView({ matchId, userId, onExit, onStateChange, game }) {
@@ -53,6 +54,9 @@ export default function MatchView({ matchId, userId, onExit, onStateChange, game
     if (match.status === "completed") {
       stateKey = "settlement";
       content = <SettlementState match={match} userId={userId} onReturn={onExit} />;
+    } else if (game?.status === "completed") {
+      stateKey = "game_summary";
+      content = <GameSummary match={match} game={game} userId={userId} onPlayAgain={onExit} />;
     } else if (match.status === "in_progress" && launched) {
       stateKey = "in_progress";
       content = <GameHUD match={match} userId={userId} game={game} />;
