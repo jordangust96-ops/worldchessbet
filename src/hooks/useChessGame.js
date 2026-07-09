@@ -5,6 +5,18 @@ import { useToast } from "@/components/ui/use-toast";
 
 const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
+// Derives the ply (half-move index) a FEN represents, so board updates can be
+// ordered and compared regardless of which source (poll, realtime, optimistic
+// local move) produced them. This is the single monotonic progress signal —
+// any incoming state with a lower ply than what's already rendered is stale
+// and must never be applied, or the board would visibly move backwards.
+function plyFromFen(fenStr) {
+  const parts = fenStr.split(" ");
+  const turn = parts[1];
+  const fullmove = parseInt(parts[5], 10) || 1;
+  return (fullmove - 1) * 2 + (turn === "b" ? 1 : 0);
+}
+
 // Starting clock time per ChessBet time control. No increments — clocks only count down.
 const TIME_CONTROLS = {
   blitz: { initialMs: 3 * 60 * 1000 },
@@ -20,6 +32,9 @@ export function useChessGame(matchId, userId, active) {
   const [game, setGame] = useState(null);
   const [color, setColor] = useState("white");
   const chessRef = useRef(new Chess());
+  // Ply of the position currently rendered — the single source of truth for
+  // ordering. Never let a lower-ply update overwrite it.
+  const renderedPlyRef = useRef(0);
   const { toast } = useToast();
 
   const loadGame = useCallback(async () => {
@@ -53,6 +68,7 @@ export function useChessGame(matchId, userId, active) {
     setGame(g);
     chessRef.current.load(g.fen || START_FEN);
     setFen(chessRef.current.fen());
+    renderedPlyRef.current = plyFromFen(chessRef.current.fen());
   }, [matchId, userId]);
 
   useEffect(() => {
@@ -62,6 +78,7 @@ export function useChessGame(matchId, userId, active) {
       setGame(null);
       setFen(START_FEN);
       chessRef.current = new Chess();
+      renderedPlyRef.current = 0;
       return;
     }
     loadGame();
@@ -71,10 +88,16 @@ export function useChessGame(matchId, userId, active) {
     if (!active || !game?.id) return;
 
     const applyLatest = (latest) => {
+      // Reject any state that is behind what's already rendered — this is what
+      // stops a delayed/in-flight poll or subscription event from ever
+      // rolling the board back to an earlier position.
+      const latestPly = plyFromFen(latest.fen);
+      if (latestPly < renderedPlyRef.current) return;
       if (latest.fen !== chessRef.current.fen()) {
         chessRef.current.load(latest.fen);
         setFen(chessRef.current.fen());
       }
+      renderedPlyRef.current = latestPly;
       setGame(latest);
     };
 
@@ -122,6 +145,10 @@ export function useChessGame(matchId, userId, active) {
       // Optimistic local update for responsiveness; corrected/confirmed by the server response.
       chessRef.current.load(preview.fen());
       setFen(preview.fen());
+      // Advance the progress marker immediately so any stale poll/subscription
+      // response still reflecting the pre-move position gets rejected by
+      // applyLatest instead of briefly rendering over this optimistic move.
+      renderedPlyRef.current = plyFromFen(preview.fen());
 
       (async () => {
         try {
@@ -137,6 +164,7 @@ export function useChessGame(matchId, userId, active) {
           // Server rejected the move — restore the previous position.
           chessRef.current.load(previousFen);
           setFen(previousFen);
+          renderedPlyRef.current = plyFromFen(previousFen);
           toast({
             title: "Move rejected",
             description: error?.response?.data?.error || "That move could not be made.",
