@@ -4,7 +4,6 @@ import { ArrowUpRight, ArrowDownLeft, Loader2, Plus, Minus } from "lucide-react"
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import moment from "moment";
-import { runEligibilityPipeline } from "@/lib/eligibilityPipeline";
 
 export default function WalletPage() {
   const [wallet, setWallet] = useState(null);
@@ -67,29 +66,9 @@ export default function WalletPage() {
     setLoading(false);
   };
 
-  // Executes the deposit itself. This function is only ever called once the
-  // eligibility pipeline has resolved successfully — it has no knowledge of
-  // identity verification or geolocation.
-  const handleDeposit = async (amount) => {
-    if (!amount || amount <= 0 || !wallet) return;
-    await base44.entities.Wallet.update(wallet.id, {
-      balance: wallet.balance + amount,
-      total_deposited: (wallet.total_deposited || 0) + amount,
-    });
-    await base44.entities.WalletTransaction.create({
-      user_id: wallet.user_id,
-      type: "deposit",
-      amount,
-      description: "Deposit to wallet",
-    });
-    setDepositAmount("");
-    setShowDeposit(false);
-    loadData();
-  };
-
-  // Called when the user confirms the amount. Holds the requested amount in
-  // a deposit session while the eligibility pipeline runs, then hands off to
-  // handleDeposit() only if the pipeline succeeds.
+  // Called when the user confirms the amount. The actual balance update and
+  // eligibility check both happen server-side in the depositFunds function —
+  // the client never computes or sends a resulting balance.
   const confirmDeposit = async () => {
     const requestedAmount = parseFloat(depositAmount);
     if (!requestedAmount || requestedAmount <= 0 || !wallet) return;
@@ -97,11 +76,13 @@ export default function WalletPage() {
     setIsProcessingDeposit(true);
     setDepositError("");
     try {
-      const { eligible, reason } = await runEligibilityPipeline(wallet.user_id, requestedAmount);
-      if (eligible) {
-        await handleDeposit(requestedAmount);
+      const { data } = await base44.functions.invoke("depositFunds", { amount: requestedAmount });
+      if (data?.eligible) {
+        setDepositAmount("");
+        setShowDeposit(false);
+        loadData();
       } else {
-        setDepositError(reason || "You're not currently eligible to deposit.");
+        setDepositError(data?.reason || data?.error || "You're not currently eligible to deposit.");
       }
     } finally {
       setIsProcessingDeposit(false);

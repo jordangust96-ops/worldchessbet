@@ -18,10 +18,10 @@ Deno.serve(async (req) => {
     const accountId = Deno.env.get('MAXMIND_ACCOUNT_ID');
     const licenseKey = Deno.env.get('MAXMIND_LICENSE_KEY');
 
-    const ip =
-      req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
-      req.headers.get('cf-connecting-ip') ||
-      '';
+    // cf-connecting-ip is set by Cloudflare's edge and cannot be spoofed by the
+    // client; x-forwarded-for is client-influenceable and must never be trusted
+    // as the primary source for a geolocation-based eligibility decision.
+    const ip = req.headers.get('cf-connecting-ip') || '';
 
     if (!ip) {
       return Response.json({ eligible: false, reason: 'Unable to determine your location. Please try again.' });

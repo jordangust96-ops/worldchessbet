@@ -32,12 +32,12 @@
     "content_markdown"
   ],
   "rls": {
+    "read": true,
     "create": {
       "user_condition": {
         "role": "admin"
       }
     },
-    "read": null,
     "update": {
       "user_condition": {
         "role": "admin"

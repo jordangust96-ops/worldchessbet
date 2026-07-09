@@ -11,12 +11,20 @@ export default function PrivacyPolicyAdmin() {
   const [saving, setSaving] = useState(false);
   const [supportEmail, setSupportEmail] = useState("");
   const [contentMarkdown, setContentMarkdown] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     load();
   }, []);
 
   const load = async () => {
+    const me = await base44.auth.me();
+    if (me?.role !== "admin") {
+      setIsAdmin(false);
+      setLoading(false);
+      return;
+    }
+    setIsAdmin(true);
     const configs = await base44.entities.PrivacyPolicyConfig.list("-version");
     setHistory(configs);
     const active = configs.find((c) => c.is_active) || configs[0];
@@ -50,6 +58,18 @@ export default function PrivacyPolicyAdmin() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0A0A0A]">
         <Loader2 className="animate-spin text-[#C9A84C]" size={28} />
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#0A0A0A] px-5 text-center">
+        <p className="text-white font-semibold mb-2">Access Restricted</p>
+        <p className="text-white/40 text-sm mb-4">You don't have permission to view this page.</p>
+        <Link to="/profile" className="text-xs text-[#C9A84C] hover:underline">
+          Back to Profile
+        </Link>
       </div>
     );
   }
