@@ -54,8 +54,7 @@ export default function ActiveChallengeCard({ match, onCancel }) {
 
   return (
     <div>
-      <p className="text-[10px] uppercase tracking-widest text-white/30 mb-4 lg:mb-1.5">Your Active Challenge</p>
-      <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-4 lg:p-3 min-h-[168px] lg:min-h-[110px] flex flex-col justify-center">
+      <div className="rounded-2xl bg-[#141210] border border-[#C9A84C]/30 shadow-[0_0_24px_rgba(201,168,76,0.08)] p-5 lg:p-4 min-h-[110px] lg:min-h-[90px] flex flex-col justify-center">
         <AnimatePresence mode="wait">
           {!match &&
           <motion.div
@@ -79,6 +78,7 @@ export default function ActiveChallengeCard({ match, onCancel }) {
             exit={{ opacity: 0 }}
             className="space-y-2 lg:space-y-1.5">
             
+              <p className="text-lg lg:text-base font-bold text-white mb-1">Your Active Challenge</p>
               <div className="flex items-center gap-2 text-[#C9A84C]">
                 <Sparkles size={16} />
                 <p className="text-xs font-bold uppercase tracking-widest">Opponent Found</p>
@@ -101,33 +101,33 @@ export default function ActiveChallengeCard({ match, onCancel }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="space-y-2 lg:space-y-1.5">
+            className="space-y-3 lg:space-y-2">
             
               <div className="flex items-center justify-between">
-                <p className="text-sm text-white/50">Waiting for an opponent...</p>
+                <p className="text-lg lg:text-base font-bold text-white">Your Active Challenge</p>
                 <button
                 onClick={() => setShowConfirm(true)}
                 disabled={cancelling}
-                className="text-xs font-semibold text-white/40 hover:text-white/70 transition-colors underline underline-offset-2">
+                className="text-sm font-semibold text-[#C9A84C] hover:text-[#E8D48B] transition-colors underline underline-offset-2">
                 
                   {cancelling ? <Loader2 size={14} className="animate-spin" /> : "Cancel Challenge"}
                 </button>
               </div>
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <div>
-                  <p className="text-[10px] uppercase tracking-wider text-white/30">Wager</p>
-                  <p className="text-sm font-bold text-[#C9A84C]">${match.wager_amount.toFixed(2)}</p>
+              <div className="flex items-center flex-wrap gap-3 lg:gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#C9A84C]/40" />
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-[#C9A84C]/70" />
+                  </span>
+                  <p className="text-sm lg:text-xs text-white/70">Waiting for an opponent...</p>
                 </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-wider text-white/30">Time</p>
-                  <p className="text-sm font-bold text-white">{match.display_name}</p>
+                <div className="rounded-full bg-white/[0.06] px-4 py-1.5 lg:px-3 lg:py-1">
+                  <span className="text-sm lg:text-xs text-[#C9A84C]/70">Wager: </span>
+                  <span className="text-sm lg:text-xs font-bold text-[#C9A84C]">${match.wager_amount.toFixed(2)}</span>
                 </div>
-                <div>
-                  
-                  
-
-
-                
+                <div className="rounded-full bg-white/[0.06] px-4 py-1.5 lg:px-3 lg:py-1">
+                  <span className="text-sm lg:text-xs text-[#C9A84C]/70">Time: </span>
+                  <span className="text-sm lg:text-xs font-bold text-white">{match.display_name}</span>
                 </div>
               </div>
             </motion.div>
