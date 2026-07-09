@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
-import { User, Loader2 } from "lucide-react";
+import { User, Loader2, SearchX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 
@@ -12,7 +12,7 @@ const AUTO_REFRESH_INTERVAL_MS = 7000;
 
 export default function AvailableMatchSection({ userId, balance, activeMatch, onChallengeCancelled, onAccepted }) {
   const [opponents, setOpponents] = useState([]);
-  const [index, setIndex] = useState(0);
+  const [declinedIds, setDeclinedIds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [accepting, setAccepting] = useState(false);
@@ -39,18 +39,31 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
     return () => clearInterval(interval);
   }, [userId, fetchMatches]);
 
+  // Hosting a match ends the current browsing session — start fresh next time.
+  useEffect(() => {
+    if (activeMatch) setDeclinedIds([]);
+  }, [activeMatch]);
+
   const handleFindMatch = async () => {
     setSearching(true);
     await fetchMatches();
     setSearching(false);
   };
 
-  const current = opponents[index];
+  const handleFindNewMatches = async () => {
+    setSearching(true);
+    setDeclinedIds([]);
+    await fetchMatches();
+    setSearching(false);
+  };
+
+  const visibleOpponents = opponents.filter((o) => !declinedIds.includes(o.id));
+  const current = visibleOpponents[0];
   const insufficientFunds = current ? (balance || 0) < current.wager_amount : false;
 
-  const handleNext = () => {
-    if (opponents.length === 0) return;
-    setIndex((i) => (i + 1) % opponents.length);
+  const handleDecline = () => {
+    if (!current) return;
+    setDeclinedIds((ids) => [...ids, current.id]);
   };
 
   const handleAccept = async () => {
@@ -64,6 +77,7 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
       player2_id: userId,
       status: "matched",
     });
+    setDeclinedIds([]);
     onAccepted?.(current.id);
   };
 
@@ -75,7 +89,7 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
     );
   }
 
-  if (!current) {
+  if (opponents.length === 0) {
     return (
       <div>
         <p className="text-[10px] uppercase tracking-widest text-white/30 mb-2 lg:mb-1.5">Available Match</p>
@@ -97,6 +111,35 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
               </>
             ) : (
               "Find Match"
+            )}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!current) {
+    return (
+      <div>
+        <p className="text-[10px] uppercase tracking-widest text-white/30 mb-2 lg:mb-1.5">Available Match</p>
+        <div className="text-center py-6 lg:py-3 px-2 space-y-2 lg:space-y-1">
+          <SearchX size={22} className="text-white/20 mx-auto" />
+          <p className="text-white font-bold text-base lg:text-sm">No More Matches</p>
+          <p className="text-white/40 text-sm lg:text-xs leading-relaxed max-w-xs mx-auto">
+            You've reviewed all currently available public matches. New matches may appear at any time.
+          </p>
+          <Button
+            onClick={handleFindNewMatches}
+            disabled={searching}
+            variant="outline"
+            className="h-11 lg:h-9 px-6 rounded-2xl border-white/10 text-white/60 font-semibold hover:bg-white/5 disabled:opacity-60"
+          >
+            {searching ? (
+              <>
+                <Loader2 className="animate-spin mr-2" size={16} /> Searching...
+              </>
+            ) : (
+              "Find New Matches"
             )}
           </Button>
         </div>
@@ -156,12 +199,12 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
               </p>
             )}
             <Button
-              onClick={handleNext}
+              onClick={handleDecline}
               variant="outline"
               disabled={accepting}
               className="w-full h-12 lg:h-8 rounded-2xl border-white/10 text-white/60 font-semibold hover:bg-white/5"
             >
-              Next Match
+              Decline Match
             </Button>
           </div>
         </motion.div>
