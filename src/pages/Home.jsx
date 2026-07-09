@@ -4,10 +4,27 @@ import { Crown } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import ChessboardPreview from "@/components/play/ChessboardPreview";
 import MatchCenter from "@/components/play/MatchCenter";
+import MatchView from "@/components/play/MatchView";
 
 export default function Home() {
   const [user, setUser] = useState(null);
   const [wallet, setWallet] = useState(null);
+  const [myMatchId, setMyMatchId] = useState(null);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const checkActiveMatch = async () => {
+      const asP1 = await base44.entities.Match.filter({ player1_id: user.id }, "-created_date", 5);
+      const asP2 = await base44.entities.Match.filter({ player2_id: user.id }, "-created_date", 5);
+      const active = [...asP1, ...asP2].find((m) =>
+        ["matched", "deposited", "in_progress"].includes(m.status)
+      );
+      if (active) setMyMatchId(active.id);
+    };
+    checkActiveMatch();
+    const poll = setInterval(checkActiveMatch, 2500);
+    return () => clearInterval(poll);
+  }, [user?.id]);
 
   useEffect(() => {
     const load = async () => {
@@ -71,7 +88,15 @@ export default function Home() {
           transition={{ delay: 0.1 }}
           className="lg:w-[38%] w-full lg:h-full lg:min-h-0"
         >
-          <MatchCenter userId={user?.id} balance={wallet?.balance || 0} />
+          {myMatchId ? (
+            <MatchView matchId={myMatchId} userId={user?.id} onExit={() => setMyMatchId(null)} />
+          ) : (
+            <MatchCenter
+              userId={user?.id}
+              balance={wallet?.balance || 0}
+              onMatchAccepted={(id) => setMyMatchId(id)}
+            />
+          )}
         </motion.div>
       </div>
     </div>

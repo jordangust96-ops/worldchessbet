@@ -4,7 +4,7 @@ import HostMatchSection from "@/components/play/HostMatchSection";
 import ActiveChallengeCard from "@/components/play/ActiveChallengeCard";
 import { base44 } from "@/api/base44Client";
 
-export default function MatchCenter({ userId, balance }) {
+export default function MatchCenter({ userId, balance, onMatchAccepted }) {
   const [activeMatch, setActiveMatch] = useState(null);
 
   const refreshActiveMatch = useCallback(async () => {
@@ -12,7 +12,10 @@ export default function MatchCenter({ userId, balance }) {
     const mine = await base44.entities.Match.filter({ player1_id: userId }, "-created_date", 5);
     const active = mine.find((m) => m.status === "searching" || m.status === "matched");
     setActiveMatch(active || null);
-  }, [userId]);
+    if (active?.status === "matched") {
+      onMatchAccepted?.(active.id);
+    }
+  }, [userId, onMatchAccepted]);
 
   useEffect(() => {
     refreshActiveMatch();
@@ -36,6 +39,7 @@ export default function MatchCenter({ userId, balance }) {
         userId={userId}
         activeMatch={activeMatch}
         onChallengeCancelled={() => setActiveMatch(null)}
+        onAccepted={onMatchAccepted}
       />
 
       <div className="h-px bg-white/[0.06] shrink-0" />

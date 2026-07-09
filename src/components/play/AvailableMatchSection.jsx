@@ -1,16 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { User, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 
-export default function AvailableMatchSection({ userId, activeMatch, onChallengeCancelled }) {
+export default function AvailableMatchSection({ userId, activeMatch, onChallengeCancelled, onAccepted }) {
   const [opponents, setOpponents] = useState([]);
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState(false);
-  const navigate = useNavigate();
 
   useEffect(() => {
     if (!userId) return;
@@ -64,7 +62,7 @@ export default function AvailableMatchSection({ userId, activeMatch, onChallenge
       player2_id: userId,
       status: "matched",
     });
-    navigate(`/match/${current.id}`);
+    onAccepted?.(current.id);
   };
 
   if (loading) {

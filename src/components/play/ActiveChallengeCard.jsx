@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Sparkles, Loader2, Swords } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 
 function formatElapsed(startDate) {
@@ -13,7 +11,6 @@ function formatElapsed(startDate) {
 }
 
 export default function ActiveChallengeCard({ match, onCancel }) {
-  const navigate = useNavigate();
   const [elapsed, setElapsed] = useState(match ? formatElapsed(match.created_date) : "00:00");
   const [opponentName, setOpponentName] = useState("");
   const [cancelling, setCancelling] = useState(false);
@@ -80,12 +77,9 @@ export default function ActiveChallengeCard({ match, onCancel }) {
                   ${match.wager_amount.toFixed(2)} · {match.display_name}
                 </p>
               </div>
-              <Button
-                onClick={() => navigate(`/match/${match.id}`)}
-                className="w-full h-11 lg:h-9 rounded-xl font-bold gold-gradient text-black hover:opacity-90"
-              >
-                Join Match
-              </Button>
+              <p className="text-xs text-white/40 flex items-center gap-1.5">
+                <Loader2 size={12} className="animate-spin" /> Entering match...
+              </p>
             </motion.div>
           )}
 
