@@ -23,7 +23,7 @@ export default function MatchCenter({ userId, balance, onMatchAccepted }) {
 
   useEffect(() => {
     if (!activeMatch) return;
-    const poll = setInterval(refreshActiveMatch, 2500);
+    const poll = setInterval(refreshActiveMatch, 4000);
     return () => clearInterval(poll);
   }, [activeMatch?.id, activeMatch?.status, refreshActiveMatch]);
 

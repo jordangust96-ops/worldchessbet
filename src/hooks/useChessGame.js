@@ -54,7 +54,7 @@ export function useChessGame(matchId, userId, active) {
         setFen(chessRef.current.fen());
       }
       setGame(latest);
-    }, 2000);
+    }, 4000);
     return () => clearInterval(poll);
   }, [active, game?.id]);
 

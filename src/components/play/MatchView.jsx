@@ -22,7 +22,7 @@ export default function MatchView({ matchId, userId, onExit, onStateChange }) {
   }, [refresh]);
 
   useEffect(() => {
-    const poll = setInterval(refresh, 2000);
+    const poll = setInterval(refresh, 4000);
     return () => clearInterval(poll);
   }, [refresh]);
 

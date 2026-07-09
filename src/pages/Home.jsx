@@ -26,7 +26,7 @@ export default function Home() {
       if (active) setMyMatchId(active.id);
     };
     checkActiveMatch();
-    const poll = setInterval(checkActiveMatch, 2500);
+    const poll = setInterval(checkActiveMatch, 4000);
     return () => clearInterval(poll);
   }, [user?.id]);
 
