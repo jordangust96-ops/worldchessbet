@@ -18,13 +18,13 @@ export default function LegalSection({ isAdmin }) {
         <ChevronRight size={16} className="text-white/20" />
       </Link>
 
-      <div className="flex items-center justify-between py-3 -mx-1 px-1 hidden">
-        <div className="flex items-center gap-3">
-          <FileText size={16} className="text-white/20" />
-          <span className="text-sm text-white/30">Terms of Service</span>
-        </div>
-        <span className="text-[10px] text-white/20 uppercase tracking-wider">Coming Soon</span>
-      </div>
+      
+
+
+
+
+
+      
 
       {isAdmin &&
       <Link
