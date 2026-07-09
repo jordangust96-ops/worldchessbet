@@ -9,8 +9,8 @@ export default function LegalSection({ isAdmin }) {
 
       <Link
         to="/privacy-policy"
-        className="flex items-center justify-between py-3 -mx-1 px-1 hover:bg-white/[0.03] rounded-xl transition-colors"
-      >
+        className="flex items-center justify-between py-3 -mx-1 px-1 hover:bg-white/[0.03] rounded-xl transition-colors">
+        
         <div className="flex items-center gap-3">
           <Shield size={16} className="text-white/40" />
           <span className="text-sm text-white">Privacy Policy</span>
@@ -18,7 +18,7 @@ export default function LegalSection({ isAdmin }) {
         <ChevronRight size={16} className="text-white/20" />
       </Link>
 
-      <div className="flex items-center justify-between py-3 -mx-1 px-1">
+      <div className="flex items-center justify-between py-3 -mx-1 px-1 hidden">
         <div className="flex items-center gap-3">
           <FileText size={16} className="text-white/20" />
           <span className="text-sm text-white/30">Terms of Service</span>
@@ -26,18 +26,18 @@ export default function LegalSection({ isAdmin }) {
         <span className="text-[10px] text-white/20 uppercase tracking-wider">Coming Soon</span>
       </div>
 
-      {isAdmin && (
-        <Link
-          to="/admin/privacy-policy"
-          className="flex items-center justify-between py-3 -mx-1 px-1 hover:bg-white/[0.03] rounded-xl transition-colors"
-        >
+      {isAdmin &&
+      <Link
+        to="/admin/privacy-policy"
+        className="flex items-center justify-between py-3 -mx-1 px-1 hover:bg-white/[0.03] rounded-xl transition-colors">
+        
           <div className="flex items-center gap-3">
             <Settings size={16} className="text-[#C9A84C]/60" />
             <span className="text-sm text-[#C9A84C]/80">Manage Privacy Policy</span>
           </div>
           <ChevronRight size={16} className="text-white/20" />
         </Link>
-      )}
-    </div>
-  );
+      }
+    </div>);
+
 }
