@@ -122,13 +122,13 @@ export default function Profile() {
 
         {/* Account Info */}
         <div className="rounded-2xl bg-white/[0.03] border border-white/5 space-y-4 px-5 my-1">
-          <div className="flex items-center gap-3 hidden">
-            <User size={16} className="text-white/30" />
-            <div>
-              <p className="text-[10px] text-white/30 uppercase">Name</p>
-              <p className="text-sm text-white">{user?.full_name || "—"}</p>
-            </div>
-          </div>
+          
+
+
+
+
+
+          
           <div className="flex items-center gap-3">
             <Mail size={16} className="text-white/30" />
             <div>
