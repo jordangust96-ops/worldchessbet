@@ -7,9 +7,9 @@ export default function AuthLayout({ icon: Icon, title, subtitle, footer, childr
       <div className="w-full max-w-md">
         <div className="text-center mb-10">
           <div className="flex items-center justify-center gap-2 mb-6">
-            <Crown className="text-[#C9A84C]" size={22} />
-            <span className="text-base font-bold tracking-tight text-white">
-              Chess<span className="text-[#C9A84C]">Bet</span>
+            <Crown className="text-[#C9A84C]" strokeWidth={1.5} size={22} />
+            <span className="text-base font-bold tracking-tight gold-text">
+              ChessBet
             </span>
           </div>
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl gold-gradient mb-4">

@@ -87,9 +87,9 @@ export default function Home() {
         className="flex items-center justify-between mb-6 lg:mb-4 lg:shrink-0"
       >
         <div className="flex items-center gap-2">
-          <Crown size={18} className="text-[#C9A84C]" />
-          <span className="text-sm font-bold tracking-tight text-white">
-            Chess<span className="text-[#C9A84C]">Bet</span>
+          <Crown size={18} strokeWidth={1.5} className="text-[#C9A84C]" />
+          <span className="text-sm font-bold tracking-tight gold-text">
+            ChessBet
           </span>
         </div>
         <div className="text-right">
