@@ -1,25 +1,49 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import { User, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 
+// How often the marketplace silently checks for newly available public
+// matches while the player has no active match. Purely additive to
+// matchmaking/subscriptions — does not touch acceptance or realtime gameplay.
+const AUTO_REFRESH_INTERVAL_MS = 7000;
+
 export default function AvailableMatchSection({ userId, balance, activeMatch, onChallengeCancelled, onAccepted }) {
   const [opponents, setOpponents] = useState([]);
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
   const [accepting, setAccepting] = useState(false);
+
+  const fetchMatches = useCallback(async () => {
+    if (!userId) return;
+    const res = await base44.functions.invoke("getAvailableMatches", {});
+    setOpponents(res.data.matches || []);
+  }, [userId]);
 
   useEffect(() => {
     if (!userId) return;
-    const load = async () => {
-      const res = await base44.functions.invoke("getAvailableMatches", {});
-      setOpponents(res.data.matches || []);
+    (async () => {
+      await fetchMatches();
       setLoading(false);
-    };
-    load();
-  }, [userId]);
+    })();
+  }, [userId, fetchMatches]);
+
+  // Automatic background refresh so newly hosted matches surface without
+  // requiring a page reload.
+  useEffect(() => {
+    if (!userId) return;
+    const interval = setInterval(fetchMatches, AUTO_REFRESH_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [userId, fetchMatches]);
+
+  const handleFindMatch = async () => {
+    setSearching(true);
+    await fetchMatches();
+    setSearching(false);
+  };
 
   const current = opponents[index];
   const insufficientFunds = current ? (balance || 0) < current.wager_amount : false;
@@ -61,6 +85,20 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
             No one is waiting to play right now. Host your own match below and we'll automatically
             present it to other players.
           </p>
+          <Button
+            onClick={handleFindMatch}
+            disabled={searching}
+            variant="outline"
+            className="h-11 lg:h-9 px-6 rounded-2xl border-white/10 text-white/60 font-semibold hover:bg-white/5 disabled:opacity-60"
+          >
+            {searching ? (
+              <>
+                <Loader2 className="animate-spin mr-2" size={16} /> Searching...
+              </>
+            ) : (
+              "Find Match"
+            )}
+          </Button>
         </div>
       </div>
     );
