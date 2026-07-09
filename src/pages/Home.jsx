@@ -23,10 +23,20 @@ export default function Home() {
     const checkActiveMatch = async () => {
       const asP1 = await base44.entities.Match.filter({ player1_id: user.id }, "-created_date", 5);
       const asP2 = await base44.entities.Match.filter({ player2_id: user.id }, "-created_date", 5);
-      const active = [...asP1, ...asP2].find((m) =>
+      const candidates = [...asP1, ...asP2].filter((m) =>
         ["matched", "deposited", "in_progress"].includes(m.status)
       );
-      if (active) setMyMatchId(active.id);
+      for (const m of candidates) {
+        if (m.status === "in_progress") {
+          // A match can stay "in_progress" for a moment after the game itself has
+          // finished, while settlement is pending. Don't restore the Match View
+          // (and its post-game summary) for those — treat it as no active match.
+          const games = await base44.entities.Game.filter({ match_id: m.id }, "-created_date", 1);
+          if (games[0]?.status === "completed") continue;
+        }
+        setMyMatchId(m.id);
+        return;
+      }
     };
     // One-time fetch to recover the authoritative state on mount or reconnect.
     checkActiveMatch();
