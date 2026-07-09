@@ -22,6 +22,7 @@ import Profile from '@/pages/Profile';
 import VerifyMfa from '@/pages/VerifyMfa';
 import PrivacyPolicy from '@/pages/PrivacyPolicy';
 import PrivacyPolicyAdmin from '@/pages/PrivacyPolicyAdmin';
+import FairPlayIntegrity from '@/pages/FairPlayIntegrity';
 
 // Layout
 import AppLayout from '@/components/layout/AppLayout';
@@ -68,6 +69,7 @@ const AuthenticatedApp = () => {
               <Route path="/" element={<Home />} />
               <Route path="/wallet" element={<WalletPage />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/fair-play-integrity" element={<FairPlayIntegrity />} />
             </Route>
           </Route>
         </Route>
