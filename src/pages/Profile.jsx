@@ -29,7 +29,7 @@ export default function Profile() {
       setStats({
         played: userMatches.length,
         won: wins,
-        winRate: userMatches.length > 0 ? Math.round((wins / userMatches.length) * 100) : 0,
+        winRate: userMatches.length > 0 ? Math.round(wins / userMatches.length * 100) : 0
       });
       setLoading(false);
     };
@@ -51,8 +51,8 @@ export default function Profile() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="animate-spin text-[#C9A84C]" size={28} />
-      </div>
-    );
+      </div>);
+
   }
 
   return (
@@ -60,8 +60,8 @@ export default function Profile() {
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="space-y-6"
-      >
+        className="space-y-6">
+        
         {/* Profile Header */}
         <div className="text-center space-y-3">
           <div className="w-20 h-20 rounded-full gold-gradient flex items-center justify-center mx-auto">
@@ -78,19 +78,19 @@ export default function Profile() {
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3">
           {[
-            { icon: Swords, label: "Played", value: stats.played },
-            { icon: Trophy, label: "Won", value: stats.won },
-            { icon: Crown, label: "Win Rate", value: `${stats.winRate}%` },
-          ].map(({ icon: Icon, label, value }) => (
-            <div
-              key={label}
-              className="rounded-2xl bg-white/[0.03] border border-white/5 p-4 text-center"
-            >
+          { icon: Swords, label: "Played", value: stats.played },
+          { icon: Trophy, label: "Won", value: stats.won },
+          { icon: Crown, label: "Win Rate", value: `${stats.winRate}%` }].
+          map(({ icon: Icon, label, value }) =>
+          <div
+            key={label}
+            className="rounded-2xl bg-white/[0.03] border border-white/5 p-4 text-center">
+            
               <Icon size={18} className="text-[#C9A84C] mx-auto mb-2" />
               <p className="text-lg font-bold text-white">{value}</p>
               <p className="text-[10px] text-white/40 uppercase tracking-wider">{label}</p>
             </div>
-          ))}
+          )}
         </div>
 
         {/* Chess.com Username */}
@@ -108,21 +108,21 @@ export default function Profile() {
               onChange={(e) => setChessUsername(e.target.value.slice(0, 16))}
               maxLength={16}
               placeholder="your_username"
-              className="flex-1 h-11 px-4 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder:text-white/20 text-sm focus:border-[#C9A84C]/50 focus:outline-none"
-            />
+              className="flex-1 h-11 px-4 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder:text-white/20 text-sm focus:border-[#C9A84C]/50 focus:outline-none" />
+            
             <Button
               onClick={handleSaveUsername}
               disabled={saving}
-              className="h-11 rounded-xl gold-gradient text-black font-bold hover:opacity-90 px-5"
-            >
+              className="h-11 rounded-xl gold-gradient text-black font-bold hover:opacity-90 px-5">
+              
               {saving ? <Loader2 size={14} className="animate-spin" /> : "Save"}
             </Button>
           </div>
         </div>
 
         {/* Account Info */}
-        <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-5 space-y-4">
-          <div className="flex items-center gap-3">
+        <div className="rounded-2xl bg-white/[0.03] border border-white/5 space-y-4 px-5 my-1">
+          <div className="flex items-center gap-3 hidden">
             <User size={16} className="text-white/30" />
             <div>
               <p className="text-[10px] text-white/30 uppercase">Name</p>
@@ -148,12 +148,12 @@ export default function Profile() {
         <Button
           onClick={handleLogout}
           variant="ghost"
-          className="w-full h-12 rounded-2xl text-red-400/70 hover:text-red-400 hover:bg-red-500/5 font-medium"
-        >
+          className="w-full h-12 rounded-2xl text-red-400/70 hover:text-red-400 hover:bg-red-500/5 font-medium">
+          
           <LogOut size={16} className="mr-2" />
           Sign Out
         </Button>
       </motion.div>
-    </div>
-  );
+    </div>);
+
 }
