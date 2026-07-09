@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Sparkles, Loader2, Swords } from "lucide-react";
+import { Sparkles, Loader2, Swords } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 function formatElapsed(startDate) {
   const secs = Math.max(0, Math.floor((Date.now() - new Date(startDate).getTime()) / 1000));
@@ -14,6 +24,7 @@ export default function ActiveChallengeCard({ match, onCancel }) {
   const [elapsed, setElapsed] = useState(match ? formatElapsed(match.created_date) : "00:00");
   const [opponentName, setOpponentName] = useState("");
   const [cancelling, setCancelling] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
     if (!match) return;
@@ -38,6 +49,7 @@ export default function ActiveChallengeCard({ match, onCancel }) {
     setCancelling(true);
     await onCancel();
     setCancelling(false);
+    setShowConfirm(false);
   };
 
   return (
@@ -94,11 +106,11 @@ export default function ActiveChallengeCard({ match, onCancel }) {
               <div className="flex items-center justify-between">
                 <p className="text-sm text-white/50">Waiting for an opponent...</p>
                 <button
-                  onClick={handleCancel}
+                  onClick={() => setShowConfirm(true)}
                   disabled={cancelling}
-                  className="text-white/30 hover:text-white/60 transition-colors"
+                  className="text-xs font-semibold text-white/40 hover:text-white/70 transition-colors underline underline-offset-2"
                 >
-                  {cancelling ? <Loader2 size={14} className="animate-spin" /> : <X size={16} />}
+                  {cancelling ? <Loader2 size={14} className="animate-spin" /> : "Cancel Challenge"}
                 </button>
               </div>
               <div className="grid grid-cols-3 gap-2 text-center">
@@ -122,6 +134,28 @@ export default function ActiveChallengeCard({ match, onCancel }) {
           )}
         </AnimatePresence>
       </div>
+
+      <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+        <AlertDialogContent className="bg-[#111] border-white/10">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">Cancel Challenge?</AlertDialogTitle>
+            <AlertDialogDescription className="text-white/50">
+              Your public challenge will be removed from the marketplace and other players will no longer be able to accept it.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-transparent border-white/10 text-white/70 hover:bg-white/5 hover:text-white">
+              Keep Waiting
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancel}
+              className="bg-red-500/90 text-white hover:bg-red-500"
+            >
+              Cancel Challenge
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
