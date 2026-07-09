@@ -44,16 +44,8 @@ const FAQS = [
     a: "No.\n\nExternal chess resources may not be consulted during a live ChessBet game.",
   },
   {
-    q: "What if I think my opponent cheated?",
-    a: "You will be able to report suspicious behavior after a match.\n\nChessBet reviews reports alongside its own detection systems before taking action.",
-  },
-  {
     q: "What happens if I disconnect?",
     a: "Temporary connection issues do not automatically result in disciplinary action.\n\nGame outcomes follow the platform's gameplay and timeout rules.",
-  },
-  {
-    q: "Can I appeal a decision?",
-    a: "Yes.\n\nPlayers may contact ChessBet Support to request a review of enforcement actions.",
   },
 ];
 
