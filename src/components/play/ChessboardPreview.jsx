@@ -10,13 +10,18 @@ const MARKETPLACE_SQUARES = { dark: "#171310", light: "#2A231A" };
 const ACTIVE_SQUARES = { dark: "#241C15", light: "#3A3021" };
 
 // Visual "energy level" per match state — the board comes alive as the match progresses.
+// Note: brightness is expressed via `ambientOpacity` (an overlay blend, not a CSS
+// `filter`). A CSS `filter`/`transform` on this wrapper would create a new containing
+// block for any `position: fixed` descendants — including react-chessboard's dragged
+// piece layer — which is what previously caused the piece to visibly drift away from
+// the cursor while dragging.
 const STATE_STYLES = {
   marketplace: {
-    wrapperAnimate: { scale: 1, opacity: 1 },
+    wrapperAnimate: { opacity: 1 },
     wrapperTransition: { duration: 0.8, ease: "easeOut" },
     glow: "0 0 0 rgba(201,168,76,0)",
     borderColor: "rgba(201,168,76,0.2)",
-    filter: "brightness(1) contrast(1)",
+    ambientOpacity: 0,
     breathe: false,
     sweep: false,
     vignette: false,
@@ -24,11 +29,11 @@ const STATE_STYLES = {
     ambient: false,
   },
   accepted: {
-    wrapperAnimate: { scale: 1, opacity: 1 },
+    wrapperAnimate: { opacity: 1 },
     wrapperTransition: { duration: 1, ease: "easeOut" },
     glow: "0 0 30px rgba(201,168,76,0.18)",
     borderColor: "rgba(201,168,76,0.35)",
-    filter: "brightness(1.12) contrast(1.05)",
+    ambientOpacity: 0.55,
     breathe: false,
     sweep: false,
     vignette: false,
@@ -36,11 +41,11 @@ const STATE_STYLES = {
     ambient: true,
   },
   deposit_waiting: {
-    wrapperAnimate: { scale: 1, opacity: 1 },
+    wrapperAnimate: { opacity: 1 },
     wrapperTransition: { duration: 1, ease: "easeOut" },
     glow: "0 0 30px rgba(201,168,76,0.18)",
     borderColor: "rgba(201,168,76,0.35)",
-    filter: "brightness(1.12) contrast(1.05)",
+    ambientOpacity: 0.55,
     breathe: true,
     sweep: false,
     vignette: false,
@@ -48,11 +53,11 @@ const STATE_STYLES = {
     ambient: true,
   },
   both_ready: {
-    wrapperAnimate: { scale: 1, opacity: 1 },
+    wrapperAnimate: { opacity: 1 },
     wrapperTransition: { duration: 0.8, ease: "easeOut" },
     glow: "0 0 45px rgba(201,168,76,0.3)",
     borderColor: "rgba(201,168,76,0.6)",
-    filter: "brightness(1.16) contrast(1.08)",
+    ambientOpacity: 0.75,
     breathe: false,
     sweep: true,
     vignette: true,
@@ -60,11 +65,11 @@ const STATE_STYLES = {
     ambient: true,
   },
   in_progress: {
-    wrapperAnimate: { scale: 1, opacity: 1 },
+    wrapperAnimate: { opacity: 1 },
     wrapperTransition: { duration: 0.8, ease: "easeOut" },
     glow: "0 0 60px rgba(201,168,76,0.45)",
     borderColor: "rgba(201,168,76,0.9)",
-    filter: "brightness(1.22) contrast(1.15)",
+    ambientOpacity: 1,
     breathe: false,
     sweep: true,
     vignette: true,
@@ -72,11 +77,11 @@ const STATE_STYLES = {
     ambient: true,
   },
   settlement: {
-    wrapperAnimate: { scale: 1, opacity: 1 },
+    wrapperAnimate: { opacity: 1 },
     wrapperTransition: { duration: 1.6, ease: "easeInOut" },
     glow: "0 0 0 rgba(201,168,76,0)",
     borderColor: "rgba(201,168,76,0.2)",
-    filter: "brightness(1) contrast(1)",
+    ambientOpacity: 0,
     breathe: false,
     sweep: false,
     vignette: false,
@@ -84,11 +89,11 @@ const STATE_STYLES = {
     ambient: false,
   },
   game_summary: {
-    wrapperAnimate: { scale: 1, opacity: 1 },
+    wrapperAnimate: { opacity: 1 },
     wrapperTransition: { duration: 1.2, ease: "easeInOut" },
     glow: "0 0 0 rgba(201,168,76,0)",
     borderColor: "rgba(201,168,76,0.2)",
-    filter: "brightness(1) contrast(1)",
+    ambientOpacity: 0,
     breathe: false,
     sweep: false,
     vignette: false,
@@ -114,7 +119,6 @@ export default function ChessboardPreview({
         ...style.wrapperAnimate,
         boxShadow: style.glow,
         borderColor: style.borderColor,
-        filter: style.filter,
       }}
       transition={style.wrapperTransition}
       className="relative w-full lg:w-auto lg:h-full lg:aspect-square rounded-3xl overflow-hidden border shadow-2xl shadow-black/50"
@@ -152,6 +156,7 @@ export default function ChessboardPreview({
             background:
               "radial-gradient(circle at 50% 45%, rgba(255,241,204,0.16), rgba(255,241,204,0.04) 55%, transparent 75%)",
             mixBlendMode: "soft-light",
+            opacity: style.ambientOpacity,
           }}
         />
       )}
