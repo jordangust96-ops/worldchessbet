@@ -57,11 +57,11 @@ export default function MatchCenter({ userId, balance, onMatchAccepted }) {
 
       <div className="h-px bg-white/[0.06] shrink-0" />
 
-      <HostMatchSection userId={userId} balance={balance} onHosted={setActiveMatch} disabled={!!activeMatch} />
-
-      <div className="h-px bg-white/[0.06] shrink-0" />
-
-      <ActiveChallengeCard match={activeMatch} onCancel={handleCancel} />
+      {activeMatch ? (
+        <ActiveChallengeCard match={activeMatch} onCancel={handleCancel} />
+      ) : (
+        <HostMatchSection userId={userId} balance={balance} onHosted={setActiveMatch} />
+      )}
     </div>
   );
 }
