@@ -7,6 +7,37 @@
         "admin",
         "user"
       ]
+    },
+    "identity_verification_status": {
+      "type": "string",
+      "description": "One-time identity/age/eligibility verification status, triggered on first wallet funding attempt. Future integration: Plaid.",
+      "enum": [
+        "not_started",
+        "pending",
+        "verified",
+        "failed"
+      ],
+      "default": "not_started"
+    },
+    "identity_verified_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp when identity verification was successfully completed. Once set, the user should not be re-verified unless required by future policy."
+    },
+    "last_geolocation_status": {
+      "type": "string",
+      "description": "Result of the most recent geolocation eligibility check. Checked on first wallet funding and again immediately before every real-money match. Future integration: MaxMind.",
+      "enum": [
+        "not_checked",
+        "eligible",
+        "ineligible"
+      ],
+      "default": "not_checked"
+    },
+    "last_geolocation_checked_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of the most recent geolocation check."
     }
   },
   "required": [
