@@ -89,7 +89,17 @@ export function useChessGame(matchId, userId, active) {
       }
     });
 
-    return () => unsubscribe();
+    // Realtime events can be missed or delayed (moves are written via the
+    // backend's service-role client). Poll as a fast fallback so an opponent's
+    // move never takes longer than ~1s to appear without needing a refresh.
+    const pollInterval = setInterval(() => {
+      base44.entities.Game.get(game.id).then(applyLatest);
+    }, 1000);
+
+    return () => {
+      unsubscribe();
+      clearInterval(pollInterval);
+    };
   }, [active, game?.id]);
 
   const handleDrop = useCallback(
