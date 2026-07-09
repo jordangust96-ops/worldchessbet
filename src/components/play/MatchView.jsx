@@ -41,6 +41,28 @@ export default function MatchView({ matchId, userId, onExit, onStateChange, game
     await base44.entities.Match.update(matchId, { status: "cancelled" });
   };
 
+  // Cancelling while waiting for the opponent's deposit must release the
+  // current user's own escrowed funds back to their wallet.
+  const handleCancelWithRefund = async (matchToCancel) => {
+    const wallets = await base44.entities.Wallet.filter({ user_id: userId });
+    if (wallets.length > 0) {
+      const wallet = wallets[0];
+      await base44.entities.Wallet.update(wallet.id, {
+        balance: wallet.balance + matchToCancel.wager_amount,
+        total_wagered: Math.max(0, (wallet.total_wagered || 0) - matchToCancel.wager_amount),
+      });
+      await base44.entities.WalletTransaction.create({
+        user_id: userId,
+        type: "wager_refund",
+        amount: matchToCancel.wager_amount,
+        match_id: matchToCancel.id,
+        description: "Escrow refunded — match cancelled while waiting for opponent",
+        status: "completed",
+      });
+    }
+    await base44.entities.Match.update(matchToCancel.id, { status: "cancelled" });
+  };
+
   const isActive = match && match.status !== "cancelled";
   const isP1 = isActive && match.player1_id === userId;
   const myDeposited = isActive && (isP1 ? match.player1_deposited : match.player2_deposited);
@@ -65,7 +87,7 @@ export default function MatchView({ matchId, userId, onExit, onStateChange, game
       content = <BothReadyState match={match} onLaunch={() => setLaunched(true)} />;
     } else if (myDeposited && !opponentDeposited) {
       stateKey = "deposit_waiting";
-      content = <DepositWaitingState match={match} />;
+      content = <DepositWaitingState match={match} onCancel={() => handleCancelWithRefund(match)} />;
     } else {
       stateKey = "accepted";
       content = (
