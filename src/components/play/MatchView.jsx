@@ -5,10 +5,10 @@ import { base44 } from "@/api/base44Client";
 import MatchAcceptedState from "@/components/play/matchview/MatchAcceptedState";
 import DepositWaitingState from "@/components/play/matchview/DepositWaitingState";
 import BothReadyState from "@/components/play/matchview/BothReadyState";
-import InProgressState from "@/components/play/matchview/InProgressState";
+import GameHUD from "@/components/play/matchview/GameHUD";
 import SettlementState from "@/components/play/matchview/SettlementState";
 
-export default function MatchView({ matchId, userId, onExit, onStateChange }) {
+export default function MatchView({ matchId, userId, onExit, onStateChange, game }) {
   const [match, setMatch] = useState(null);
   const [launched, setLaunched] = useState(false);
 
@@ -55,7 +55,7 @@ export default function MatchView({ matchId, userId, onExit, onStateChange }) {
       content = <SettlementState match={match} userId={userId} onReturn={onExit} />;
     } else if (match.status === "in_progress" && launched) {
       stateKey = "in_progress";
-      content = <InProgressState match={match} userId={userId} onSubmitted={refresh} />;
+      content = <GameHUD match={match} userId={userId} game={game} />;
     } else if (match.status === "in_progress" && !launched) {
       stateKey = "both_ready";
       content = <BothReadyState match={match} onLaunch={() => setLaunched(true)} />;

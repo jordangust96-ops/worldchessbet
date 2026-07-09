@@ -115,6 +115,7 @@ export default function Home() {
               userId={user?.id}
               onExit={() => setMyMatchId(null)}
               onStateChange={setBoardState}
+              game={game}
             />
           ) : (
             <MatchCenter
