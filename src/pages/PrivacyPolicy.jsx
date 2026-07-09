@@ -8,15 +8,15 @@ import {
   Accordion,
   AccordionContent,
   AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+  AccordionTrigger } from
+"@/components/ui/accordion";
 import ReactMarkdown from "react-markdown";
 
 function slugify(title) {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
+  return title.
+  toLowerCase().
+  replace(/[^a-z0-9]+/g, "-").
+  replace(/(^-|-$)/g, "");
 }
 
 function parseSections(markdown, supportEmail) {
@@ -44,12 +44,12 @@ export default function PrivacyPolicy() {
   }, []);
 
   const sections = useMemo(
-    () => (config ? parseSections(config.content_markdown, config.support_email) : []),
+    () => config ? parseSections(config.content_markdown, config.support_email) : [],
     [config]
   );
 
   const scrollToSection = (id) => {
-    setOpenSections((prev) => (prev.includes(id) ? prev : [...prev, id]));
+    setOpenSections((prev) => prev.includes(id) ? prev : [...prev, id]);
     setTimeout(() => {
       document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 50);
@@ -59,8 +59,8 @@ export default function PrivacyPolicy() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0A0A0A]">
         <Loader2 className="animate-spin text-[#C9A84C]" size={28} />
-      </div>
-    );
+      </div>);
+
   }
 
   return (
@@ -83,39 +83,39 @@ export default function PrivacyPolicy() {
       </div>
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="px-5 pt-6 max-w-2xl mx-auto">
-        {sections.length === 0 ? (
-          <p className="text-white/40 text-sm text-center py-10">Privacy Policy content is not yet available.</p>
-        ) : (
-          <>
+        {sections.length === 0 ?
+        <p className="text-white/40 text-sm text-center py-10">Privacy Policy content is not yet available.</p> :
+
+        <>
             {/* Anchor navigation */}
-            <div className="mb-6 rounded-2xl bg-white/[0.03] border border-white/5 p-4">
+            <div className="mb-6 rounded-2xl bg-white/[0.03] border border-white/5 p-4 hidden">
               <p className="text-[10px] uppercase tracking-widest text-white/30 mb-3">Quick Navigation</p>
               <div className="flex flex-wrap gap-2">
-                {sections.map((s) => (
-                  <button
-                    key={s.id}
-                    onClick={() => scrollToSection(s.id)}
-                    className="text-xs px-3 py-1.5 rounded-full bg-white/[0.05] text-white/60 hover:bg-[#C9A84C]/10 hover:text-[#C9A84C] transition-colors"
-                  >
+                {sections.map((s) =>
+              <button
+                key={s.id}
+                onClick={() => scrollToSection(s.id)}
+                className="text-xs px-3 py-1.5 rounded-full bg-white/[0.05] text-white/60 hover:bg-[#C9A84C]/10 hover:text-[#C9A84C] transition-colors">
+                
                     {s.title}
                   </button>
-                ))}
+              )}
               </div>
             </div>
 
             <Accordion
-              type="multiple"
-              value={openSections}
-              onValueChange={setOpenSections}
-              className="space-y-2"
-            >
-              {sections.map((s) => (
-                <AccordionItem
-                  key={s.id}
-                  value={s.id}
-                  id={s.id}
-                  className="rounded-2xl bg-white/[0.03] border border-white/5 px-4 scroll-mt-24"
-                >
+            type="multiple"
+            value={openSections}
+            onValueChange={setOpenSections}
+            className="space-y-2">
+            
+              {sections.map((s) =>
+            <AccordionItem
+              key={s.id}
+              value={s.id}
+              id={s.id}
+              className="rounded-2xl bg-white/[0.03] border border-white/5 px-4 scroll-mt-24">
+              
                   <AccordionTrigger className="text-sm font-semibold text-white hover:no-underline">
                     {s.title}
                   </AccordionTrigger>
@@ -125,15 +125,15 @@ export default function PrivacyPolicy() {
                     </div>
                   </AccordionContent>
                 </AccordionItem>
-              ))}
+            )}
             </Accordion>
 
             <p className="text-[11px] text-white/20 text-center mt-8">
               ChessBet, Inc. — Version {config?.version}
             </p>
           </>
-        )}
+        }
       </motion.div>
-    </div>
-  );
+    </div>);
+
 }
