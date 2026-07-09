@@ -30,24 +30,11 @@ export default function MatchAcceptedState({
 
   const handleDeposit = async () => {
     setDepositing(true);
-    const wallets = await base44.entities.Wallet.filter({ user_id: userId });
-    if (wallets.length > 0 && wallets[0].balance >= match.wager_amount) {
-      await base44.entities.Wallet.update(wallets[0].id, {
-        balance: wallets[0].balance - match.wager_amount,
-        total_wagered: (wallets[0].total_wagered || 0) + match.wager_amount,
-      });
-      await base44.entities.WalletTransaction.create({
-        user_id: userId,
-        type: "wager_lock",
-        amount: match.wager_amount,
-        match_id: match.id,
-        description: "Wager locked for match",
-      });
-
-      const isP1 = match.player1_id === userId;
-      const updates = isP1 ? { player1_deposited: true } : { player2_deposited: true };
-      updates.status = opponentDeposited ? "in_progress" : "deposited";
-      await base44.entities.Match.update(match.id, updates);
+    // The wallet deduction and match status update happen server-side
+    // (lockWager) — the Wallet entity can no longer be written to directly
+    // from the client.
+    const { data } = await base44.functions.invoke("lockWager", { matchId: match.id });
+    if (data?.match) {
       onDeposited();
     }
     setDepositing(false);

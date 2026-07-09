@@ -54,32 +54,12 @@ export default function MatchView({ matchId, userId, onExit, onStateChange, game
   }, [match?.status]);
 
   // Cancelling a pending match must release escrow back to whichever player(s)
-  // already deposited — the canceling user, the opponent, or neither.
+  // already deposited — the canceling user, the opponent, or neither. The
+  // wallet refund + status update happen server-side (cancelMatch) since the
+  // Wallet entity can no longer be written to directly from the client.
   const handleCancel = async (matchToCancel) => {
     selfCancelledRef.current = true;
-    const refundTargets = [];
-    if (matchToCancel.player1_deposited) refundTargets.push(matchToCancel.player1_id);
-    if (matchToCancel.player2_deposited) refundTargets.push(matchToCancel.player2_id);
-
-    for (const depositorId of refundTargets) {
-      const wallets = await base44.entities.Wallet.filter({ user_id: depositorId });
-      if (wallets.length > 0) {
-        const wallet = wallets[0];
-        await base44.entities.Wallet.update(wallet.id, {
-          balance: wallet.balance + matchToCancel.wager_amount,
-          total_wagered: Math.max(0, (wallet.total_wagered || 0) - matchToCancel.wager_amount),
-        });
-        await base44.entities.WalletTransaction.create({
-          user_id: depositorId,
-          type: "wager_refund",
-          amount: matchToCancel.wager_amount,
-          match_id: matchToCancel.id,
-          description: "Escrow refunded — match cancelled",
-          status: "completed",
-        });
-      }
-    }
-    await base44.entities.Match.update(matchToCancel.id, { status: "cancelled" });
+    await base44.functions.invoke("cancelMatch", { matchId: matchToCancel.id });
   };
 
   const isActive = match && match.status !== "cancelled";
