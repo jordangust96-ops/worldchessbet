@@ -14,32 +14,8 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
   useEffect(() => {
     if (!userId) return;
     const load = async () => {
-      const openMatches = await base44.entities.Match.filter({ status: "searching" }, "-created_date", 20);
-      const available = openMatches.filter((m) => m.player1_id !== userId);
-
-      const enriched = await Promise.all(
-        available.map(async (m) => {
-          let name = "Opponent";
-          try {
-            const users = await base44.entities.User.filter({ id: m.player1_id });
-            const opponent = users?.[0];
-            if (opponent?.chess_com_username?.trim()) {
-              name = opponent.chess_com_username.trim();
-            } else if (opponent?.full_name?.trim()) {
-              name = opponent.full_name.trim();
-            }
-          } catch (e) {
-            // fallback to default name
-          }
-          const played = await base44.entities.Match.filter({ status: "completed" });
-          const gamesPlayed = played.filter(
-            (pm) => pm.player1_id === m.player1_id || pm.player2_id === m.player1_id
-          ).length;
-          return { ...m, opponentName: name.trim(), gamesPlayed };
-        })
-      );
-
-      setOpponents(enriched);
+      const res = await base44.functions.invoke("getAvailableMatches", {});
+      setOpponents(res.data.matches || []);
       setLoading(false);
     };
     load();
