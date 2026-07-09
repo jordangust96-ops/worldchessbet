@@ -110,14 +110,11 @@ export default function GameSummary({ match, game, userId, onPlayAgain }) {
         </p>
       </div>
 
-      <p className="text-xs text-white/30">Settlement Pending</p>
+      <p className="text-xs text-white/30">Finalizing Match...</p>
 
       <div className="space-y-2">
         <Button onClick={onPlayAgain} className="w-full h-12 rounded-2xl font-bold gold-gradient text-black hover:opacity-90">
-          Play Again
-        </Button>
-        <Button disabled variant="outline" className="w-full h-11 rounded-2xl font-semibold border-white/10 text-white/30">
-          View Game
+          Find New Match
         </Button>
       </div>
     </div>
