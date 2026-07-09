@@ -15,7 +15,7 @@ export default function ShareOnXButton({ match, game, winnerName, opponentName, 
   const { toast } = useToast();
 
   const amountWon = match.wager_amount * 2 * 0.9;
-  const postText = `♟️ I just won $${amountWon.toFixed(2)} on ChessBet.\n\n💰 Winnings: $${amountWon.toFixed(2)}\n♟️ Time Control: ${match.display_name}\n🏆 Result: ${endReason}\n\nThink you can beat me?\n\n#ChessBet #Chess`;
+  const postText = `♟️ I just won $${amountWon.toFixed(2)} on @worldchessbet!\n\n💰 Winnings: $${amountWon.toFixed(2)}\n♟️ Time Control: ${match.display_name}\n🏆 Result: ${endReason}\n\nThink you can beat me?\n\n#ChessBet #Chess`;
 
   const downloadCard = async () => {
     const canvas = await html2canvas(cardRef.current, { backgroundColor: "#0A0A0A", scale: 2 });
