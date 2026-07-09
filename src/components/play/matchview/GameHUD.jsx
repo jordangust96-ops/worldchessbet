@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Chess } from "chess.js";
 import { base44 } from "@/api/base44Client";
 import { useChessClock } from "@/hooks/useChessClock";
+import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -36,9 +37,23 @@ export default function GameHUD({ match, game, userId }) {
   const [offeringDraw, setOfferingDraw] = useState(false);
   const [respondingDraw, setRespondingDraw] = useState(false);
   const displayMs = useChessClock(game);
+  const { toast } = useToast();
 
   const drawOfferedByMe = game?.draw_offered_by === userId;
   const drawOfferedByOpponent = !!game?.draw_offered_by && game.draw_offered_by !== userId;
+
+  // Notify the offering player when their draw offer is declined (as opposed to
+  // accepted, which instead ends the game and surfaces the GameSummary screen).
+  const prevDrawOfferedByMeRef = useRef(false);
+  useEffect(() => {
+    if (prevDrawOfferedByMeRef.current && !drawOfferedByMe && game?.status !== "completed") {
+      toast({
+        title: "Draw Declined",
+        description: "Your opponent declined the draw offer. The game continues.",
+      });
+    }
+    prevDrawOfferedByMeRef.current = drawOfferedByMe;
+  }, [drawOfferedByMe, game?.status, toast]);
 
   const handleResign = async () => {
     setResigning(true);
