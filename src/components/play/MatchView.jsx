@@ -17,6 +17,9 @@ export default function MatchView({ matchId, userId, onExit, onStateChange, game
   // Tracks whether this client is the one who initiated the cancellation, so the
   // "opponent cancelled" notification only surfaces for the other player.
   const selfCancelledRef = useRef(false);
+  // Ensures the cancellation toast + exit fire exactly once per match, even if
+  // this effect re-runs due to parent re-renders passing a new onExit/toast reference.
+  const cancelHandledRef = useRef(false);
 
   const refresh = useCallback(async () => {
     const m = await base44.entities.Match.get(matchId);
@@ -37,7 +40,8 @@ export default function MatchView({ matchId, userId, onExit, onStateChange, game
   }, [matchId, refresh]);
 
   useEffect(() => {
-    if (match?.status === "cancelled") {
+    if (match?.status === "cancelled" && !cancelHandledRef.current) {
+      cancelHandledRef.current = true;
       if (!selfCancelledRef.current) {
         toast({
           title: "Match Cancelled",
@@ -46,7 +50,8 @@ export default function MatchView({ matchId, userId, onExit, onStateChange, game
       }
       onExit();
     }
-  }, [match?.status, onExit, toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [match?.status]);
 
   // Cancelling a pending match must release escrow back to whichever player(s)
   // already deposited — the canceling user, the opponent, or neither.

@@ -1,8 +1,13 @@
 // Inspired by react-hot-toast library
 import { useState, useEffect } from "react";
 
-const TOAST_LIMIT = 20;
-const TOAST_REMOVE_DELAY = 3000;
+// Only one toast is ever visible at a time — additional toasts queue up and are
+// shown sequentially once the current one has finished, so notifications never
+// stack or overlap.
+const TOAST_LIMIT = 1;
+const TOAST_REMOVE_DELAY = 250; // time to let the exit animation finish before unmounting
+const DEFAULT_TOAST_DURATION = 2500; // standard informational toasts — brief, auto-dismissing
+const DESTRUCTIVE_TOAST_DURATION = 4000; // errors may linger slightly longer
 
 const actionTypes = {
   ADD_TOAST: "ADD_TOAST",
@@ -19,6 +24,33 @@ function genId() {
 }
 
 const toastTimeouts = new Map();
+const autoDismissTimeouts = new Map();
+// Toasts requested while one is already on screen wait here until it's gone.
+const pendingQueue = [];
+
+const clearAutoDismiss = (toastId) => {
+  const timeout = autoDismissTimeouts.get(toastId);
+  if (timeout) {
+    clearTimeout(timeout);
+    autoDismissTimeouts.delete(toastId);
+  }
+};
+
+const scheduleAutoDismiss = (toastId, duration) => {
+  const timeout = setTimeout(() => {
+    autoDismissTimeouts.delete(toastId);
+    dispatch({ type: actionTypes.DISMISS_TOAST, toastId });
+  }, duration);
+  autoDismissTimeouts.set(toastId, timeout);
+};
+
+function showNextQueuedToast() {
+  if (memoryState.toasts.length > 0) return; // a toast is still on screen
+  const next = pendingQueue.shift();
+  if (!next) return;
+  dispatch({ type: actionTypes.ADD_TOAST, toast: next });
+  scheduleAutoDismiss(next.id, next.duration);
+}
 
 const addToRemoveQueue = (toastId) => {
   if (toastTimeouts.has(toastId)) {
@@ -31,6 +63,7 @@ const addToRemoveQueue = (toastId) => {
       type: actionTypes.REMOVE_TOAST,
       toastId,
     });
+    showNextQueuedToast();
   }, TOAST_REMOVE_DELAY);
 
   toastTimeouts.set(toastId, timeout);
@@ -66,9 +99,11 @@ export const reducer = (state, action) => {
       // ! Side effects ! - This could be extracted into a dismissToast() action,
       // but I'll keep it here for simplicity
       if (toastId) {
+        clearAutoDismiss(toastId);
         addToRemoveQueue(toastId);
       } else {
         state.toasts.forEach((toast) => {
+          clearAutoDismiss(toast.id);
           addToRemoveQueue(toast.id);
         });
       }
@@ -112,6 +147,7 @@ function dispatch(action) {
 
 function toast({ ...props }) {
   const id = genId();
+  const duration = props.variant === "destructive" ? DESTRUCTIVE_TOAST_DURATION : DEFAULT_TOAST_DURATION;
 
   const update = (props) =>
     dispatch({
@@ -122,17 +158,24 @@ function toast({ ...props }) {
   const dismiss = () =>
     dispatch({ type: actionTypes.DISMISS_TOAST, toastId: id });
 
-  dispatch({
-    type: actionTypes.ADD_TOAST,
-    toast: {
-      ...props,
-      id,
-      open: true,
-      onOpenChange: (open) => {
-        if (!open) dismiss();
-      },
+  const newToast = {
+    ...props,
+    id,
+    duration,
+    open: true,
+    onOpenChange: (open) => {
+      if (!open) dismiss();
     },
-  });
+  };
+
+  if (memoryState.toasts.length > 0) {
+    // Something is already on screen — queue this one so toasts are shown
+    // sequentially instead of stacking or overlapping.
+    pendingQueue.push(newToast);
+  } else {
+    dispatch({ type: actionTypes.ADD_TOAST, toast: newToast });
+    scheduleAutoDismiss(id, duration);
+  }
 
   return {
     id,
