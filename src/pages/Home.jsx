@@ -10,6 +10,7 @@ export default function Home() {
   const [user, setUser] = useState(null);
   const [wallet, setWallet] = useState(null);
   const [myMatchId, setMyMatchId] = useState(null);
+  const [boardState, setBoardState] = useState("marketplace");
 
   useEffect(() => {
     if (!user?.id) return;
@@ -78,7 +79,7 @@ export default function Home() {
           animate={{ opacity: 1, y: 0 }}
           className="lg:w-[62%] w-full lg:h-full lg:flex lg:items-center lg:justify-center"
         >
-          <ChessboardPreview />
+          <ChessboardPreview state={boardState} />
         </motion.div>
 
         {/* Match Center */}
@@ -89,7 +90,12 @@ export default function Home() {
           className="lg:w-[38%] w-full lg:h-full lg:min-h-0"
         >
           {myMatchId ? (
-            <MatchView matchId={myMatchId} userId={user?.id} onExit={() => setMyMatchId(null)} />
+            <MatchView
+              matchId={myMatchId}
+              userId={user?.id}
+              onExit={() => setMyMatchId(null)}
+              onStateChange={setBoardState}
+            />
           ) : (
             <MatchCenter
               userId={user?.id}
