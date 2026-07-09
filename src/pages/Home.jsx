@@ -5,6 +5,7 @@ import { base44 } from "@/api/base44Client";
 import ChessboardPreview from "@/components/play/ChessboardPreview";
 import MatchCenter from "@/components/play/MatchCenter";
 import MatchView from "@/components/play/MatchView";
+import PlayerClocks from "@/components/play/PlayerClocks";
 import { useChessGame } from "@/hooks/useChessGame";
 
 export default function Home() {
@@ -13,7 +14,7 @@ export default function Home() {
   const [myMatchId, setMyMatchId] = useState(null);
   const [boardState, setBoardState] = useState("marketplace");
   const gameActive = boardState === "both_ready" || boardState === "in_progress";
-  const { fen, handleDrop, orientation } = useChessGame(myMatchId, user?.id, gameActive);
+  const { fen, handleDrop, orientation, game } = useChessGame(myMatchId, user?.id, gameActive);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -89,8 +90,9 @@ export default function Home() {
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          className="lg:w-[62%] w-full lg:h-full lg:flex lg:items-center lg:justify-center"
+          className="lg:w-[62%] w-full lg:h-full lg:flex lg:flex-col lg:items-center lg:justify-center gap-3"
         >
+          {gameActive && <PlayerClocks game={game} orientation={orientation} />}
           <ChessboardPreview
             state={boardState}
             fen={gameActive ? fen : undefined}

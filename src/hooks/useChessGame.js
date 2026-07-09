@@ -5,6 +5,13 @@ import { useToast } from "@/components/ui/use-toast";
 
 const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
+// Starting clock time and increment per ChessBet time control.
+const TIME_CONTROLS = {
+  blitz: { initialMs: 3 * 60 * 1000, incrementMs: 2 * 1000 },
+  rapid: { initialMs: 10 * 60 * 1000, incrementMs: 0 },
+  classical: { initialMs: 15 * 60 * 1000, incrementMs: 10 * 1000 },
+};
+
 // Manages loading/creating the Game entity for a match, hydrating the board,
 // and submitting moves to the submitMove backend function (the sole authority
 // over FEN, PGN, status, result, and winner_id).
@@ -28,12 +35,17 @@ export function useChessGame(matchId, userId, active) {
       if (existing.length > 0) {
         g = existing[0];
       } else {
+        const tc = TIME_CONTROLS[match.time_control] || TIME_CONTROLS.rapid;
         g = await base44.entities.Game.create({
           match_id: matchId,
           status: "active",
           fen: START_FEN,
           pgn: "",
           result: "unfinished",
+          white_time_ms: tc.initialMs,
+          black_time_ms: tc.initialMs,
+          increment_ms: tc.incrementMs,
+          turn_started_at: new Date().toISOString(),
         });
         await base44.entities.Match.update(matchId, { game_id: g.id });
       }
@@ -123,5 +135,5 @@ export function useChessGame(matchId, userId, active) {
     [game, toast]
   );
 
-  return { fen, handleDrop, orientation: color, gameStatus: game?.status };
+  return { fen, handleDrop, orientation: color, gameStatus: game?.status, game };
 }

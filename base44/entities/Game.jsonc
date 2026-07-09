@@ -49,6 +49,24 @@
       "type": "string",
       "format": "date-time",
       "description": "Set when the game officially ends"
+    },
+    "white_time_ms": {
+      "type": "number",
+      "description": "White's remaining clock time in milliseconds, authoritative server value"
+    },
+    "black_time_ms": {
+      "type": "number",
+      "description": "Black's remaining clock time in milliseconds, authoritative server value"
+    },
+    "increment_ms": {
+      "type": "number",
+      "default": 0,
+      "description": "Increment in milliseconds added to a player's clock after their move"
+    },
+    "turn_started_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Server timestamp when the current side-to-move's clock started ticking"
     }
   },
   "required": [

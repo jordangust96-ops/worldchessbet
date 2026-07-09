@@ -35,6 +35,26 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Not your turn' }, { status: 400 });
     }
 
+    // Server-authoritative clock: deduct time elapsed since this player's clock started.
+    const now = Date.now();
+    const turnStartedAt = game.turn_started_at ? new Date(game.turn_started_at).getTime() : now;
+    const elapsedMs = Math.max(0, now - turnStartedAt);
+    const incrementMs = game.increment_ms || 0;
+    const moverTimeField = myColor === 'w' ? 'white_time_ms' : 'black_time_ms';
+    const moverRemainingMs = (game[moverTimeField] ?? 0) - elapsedMs;
+
+    if (moverRemainingMs <= 0) {
+      const timeoutUpdates = {
+        status: 'completed',
+        result: myColor === 'w' ? 'black_win' : 'white_win',
+        winner_id: myColor === 'w' ? match.player2_id : match.player1_id,
+        completed_at: new Date().toISOString(),
+        [moverTimeField]: 0,
+      };
+      const timedOutGame = await base44.asServiceRole.entities.Game.update(gameId, timeoutUpdates);
+      return Response.json({ game: timedOutGame });
+    }
+
     let move;
     try {
       move = chess.move({ from, to, promotion: promotion || 'q' });
@@ -49,6 +69,8 @@ Deno.serve(async (req) => {
     const updates = {
       fen: chess.fen(),
       pgn: chess.pgn(),
+      [moverTimeField]: moverRemainingMs + incrementMs,
+      turn_started_at: new Date().toISOString(),
     };
     if (!game.started_at) {
       updates.started_at = new Date().toISOString();
