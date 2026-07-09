@@ -70,13 +70,10 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
     if (!current) return;
     setAccepting(true);
     if (activeMatch) {
-      await base44.entities.Match.update(activeMatch.id, { status: "cancelled" });
+      await base44.functions.invoke("cancelMatch", { matchId: activeMatch.id });
       onChallengeCancelled?.();
     }
-    await base44.entities.Match.update(current.id, {
-      player2_id: userId,
-      status: "matched",
-    });
+    await base44.functions.invoke("acceptMatch", { matchId: current.id });
     setDeclinedIds([]);
     onAccepted?.(current.id);
   };
