@@ -213,14 +213,6 @@ export default function GameHUD({ match, game, userId }) {
           <span className="text-xs text-white/40">Last Move</span>
           <span className="text-xs font-semibold text-white/80 font-mono">{lastMove || "Opening Position"}</span>
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-white/40">Total Moves</span>
-          <span className="text-xs font-semibold text-white/80">{totalMoves}</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-white/40">Captured Pieces</span>
-          <span className="text-xs text-white/20">—</span>
-        </div>
       </div>
 
       {/* Section 4 — Connection Status */}
