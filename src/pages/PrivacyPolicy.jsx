@@ -88,20 +88,20 @@ export default function PrivacyPolicy() {
 
         <>
             {/* Anchor navigation */}
-            <div className="mb-6 rounded-2xl bg-white/[0.03] border border-white/5 p-4 hidden">
-              <p className="text-[10px] uppercase tracking-widest text-white/30 mb-3">Quick Navigation</p>
-              <div className="flex flex-wrap gap-2">
-                {sections.map((s) =>
-              <button
-                key={s.id}
-                onClick={() => scrollToSection(s.id)}
-                className="text-xs px-3 py-1.5 rounded-full bg-white/[0.05] text-white/60 hover:bg-[#C9A84C]/10 hover:text-[#C9A84C] transition-colors">
-                
-                    {s.title}
-                  </button>
-              )}
-              </div>
-            </div>
+            
+
+
+
+
+
+
+
+
+
+
+
+
+          
 
             <Accordion
             type="multiple"
