@@ -19,9 +19,11 @@ import Landing from '@/pages/Landing';
 import Home from '@/pages/Home';
 import WalletPage from '@/pages/WalletPage';
 import Profile from '@/pages/Profile';
+import VerifyMfa from '@/pages/VerifyMfa';
 
 // Layout
 import AppLayout from '@/components/layout/AppLayout';
+import MfaGuard from '@/components/MfaGuard';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -54,10 +56,13 @@ const AuthenticatedApp = () => {
 
       {/* Protected routes */}
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/landing" replace />} />}>
-        <Route element={<AppLayout />}>
-          <Route path="/" element={<Home />} />
-          <Route path="/wallet" element={<WalletPage />} />
-          <Route path="/profile" element={<Profile />} />
+        <Route path="/verify-mfa" element={<VerifyMfa />} />
+        <Route element={<MfaGuard />}>
+          <Route element={<AppLayout />}>
+            <Route path="/" element={<Home />} />
+            <Route path="/wallet" element={<WalletPage />} />
+            <Route path="/profile" element={<Profile />} />
+          </Route>
         </Route>
       </Route>
 

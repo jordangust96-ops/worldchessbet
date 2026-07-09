@@ -3,6 +3,8 @@ import { motion } from "framer-motion";
 import { User, Mail, Trophy, Swords, LogOut, Loader2, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
+import SecuritySection from "@/components/profile/SecuritySection";
+import { clearMfaVerified } from "@/lib/mfaSession";
 
 export default function Profile() {
   const [user, setUser] = useState(null);
@@ -40,6 +42,7 @@ export default function Profile() {
   };
 
   const handleLogout = () => {
+    clearMfaVerified();
     base44.auth.logout("/landing");
   };
 
@@ -133,6 +136,9 @@ export default function Profile() {
             </div>
           </div>
         </div>
+
+        {/* Security */}
+        <SecuritySection email={user?.email} />
 
         {/* Logout */}
         <Button

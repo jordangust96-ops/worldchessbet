@@ -1,0 +1,47 @@
+{
+  "name": "MfaCode",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "ID of the user this OTP was issued to"
+    },
+    "email": {
+      "type": "string",
+      "description": "Email address the code was sent to"
+    },
+    "code_hash": {
+      "type": "string",
+      "description": "SHA-256 hash of (salt + 6-digit code). The plain code is never stored."
+    },
+    "salt": {
+      "type": "string",
+      "description": "Random per-code salt used when hashing"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "attempts": {
+      "type": "number",
+      "default": 0,
+      "description": "Number of incorrect verification attempts made against this code"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "verified",
+        "expired",
+        "invalidated"
+      ],
+      "default": "active"
+    }
+  },
+  "required": [
+    "user_id",
+    "code_hash",
+    "salt",
+    "expires_at"
+  ]
+}

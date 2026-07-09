@@ -1,0 +1,30 @@
+{
+  "name": "MfaAuditLog",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string"
+    },
+    "event": {
+      "type": "string",
+      "enum": [
+        "otp_requested",
+        "otp_verified",
+        "otp_failed",
+        "otp_expired",
+        "otp_locked",
+        "rate_limited"
+      ]
+    },
+    "detail": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "user_id",
+    "event"
+  ]
+}
