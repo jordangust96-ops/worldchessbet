@@ -18,14 +18,27 @@ export default function MatchCenter({ userId, balance, onMatchAccepted }) {
   }, [userId, onMatchAccepted]);
 
   useEffect(() => {
+    // One-time fetch to recover the authoritative state on mount or reconnect.
     refreshActiveMatch();
   }, [refreshActiveMatch]);
 
   useEffect(() => {
-    if (!activeMatch) return;
-    const poll = setInterval(refreshActiveMatch, 4000);
-    return () => clearInterval(poll);
-  }, [activeMatch?.id, activeMatch?.status, refreshActiveMatch]);
+    if (!userId) return;
+    const unsubscribe = base44.entities.Match.subscribe((event) => {
+      if (event.data?.player1_id !== userId) return;
+      if (event.type === "update" || event.type === "create") {
+        if (event.data.status === "searching" || event.data.status === "matched") {
+          setActiveMatch(event.data);
+          if (event.data.status === "matched") {
+            onMatchAccepted?.(event.data.id);
+          }
+        } else if (activeMatch?.id === event.data.id) {
+          setActiveMatch(null);
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, [userId, activeMatch?.id, onMatchAccepted]);
 
   const handleCancel = async () => {
     if (!activeMatch) return;

@@ -17,6 +17,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!user?.id) return;
+
     const checkActiveMatch = async () => {
       const asP1 = await base44.entities.Match.filter({ player1_id: user.id }, "-created_date", 5);
       const asP2 = await base44.entities.Match.filter({ player2_id: user.id }, "-created_date", 5);
@@ -25,9 +26,17 @@ export default function Home() {
       );
       if (active) setMyMatchId(active.id);
     };
+    // One-time fetch to recover the authoritative state on mount or reconnect.
     checkActiveMatch();
-    const poll = setInterval(checkActiveMatch, 4000);
-    return () => clearInterval(poll);
+
+    const unsubscribe = base44.entities.Match.subscribe((event) => {
+      if (event.data?.player1_id !== user.id && event.data?.player2_id !== user.id) return;
+      if (event.type !== "update" && event.type !== "create") return;
+      if (["matched", "deposited", "in_progress"].includes(event.data.status)) {
+        setMyMatchId(event.data.id);
+      }
+    });
+    return () => unsubscribe();
   }, [user?.id]);
 
   useEffect(() => {

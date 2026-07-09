@@ -18,13 +18,17 @@ export default function MatchView({ matchId, userId, onExit, onStateChange }) {
   }, [matchId]);
 
   useEffect(() => {
+    // One-time fetch to recover the authoritative state on mount, refresh, or reconnect.
     refresh();
-  }, [refresh]);
 
-  useEffect(() => {
-    const poll = setInterval(refresh, 4000);
-    return () => clearInterval(poll);
-  }, [refresh]);
+    const unsubscribe = base44.entities.Match.subscribe((event) => {
+      if (event.data?.id !== matchId) return;
+      if (event.type === "update" || event.type === "create") {
+        setMatch(event.data);
+      }
+    });
+    return () => unsubscribe();
+  }, [matchId, refresh]);
 
   useEffect(() => {
     if (match?.status === "cancelled") {
