@@ -9,6 +9,7 @@ import { runEligibilityPipeline } from "@/lib/eligibilityPipeline";
 export default function WalletPage() {
   const [wallet, setWallet] = useState(null);
   const [transactions, setTransactions] = useState([]);
+  const [stats, setStats] = useState({ won: 0, lost: 0, wagered: 0 });
   const [loading, setLoading] = useState(true);
   const [depositAmount, setDepositAmount] = useState("");
   const [showDeposit, setShowDeposit] = useState(false);
@@ -41,6 +42,28 @@ export default function WalletPage() {
       20
     );
     setTransactions(txs);
+
+    // Won/Lost/Wagered are derived from completed matches only — the wallet's
+    // total_won/total_wagered fields aren't reliably updated by settlement, so
+    // these are computed straight from Match history for accuracy.
+    const completedMatches = await base44.entities.Match.filter({ status: "completed" });
+    const myMatches = completedMatches.filter(
+      (m) => m.player1_id === me.id || m.player2_id === me.id
+    );
+    let won = 0;
+    let lost = 0;
+    let wagered = 0;
+    myMatches.forEach((m) => {
+      wagered += m.wager_amount || 0;
+      if (m.result === "draw" || !m.winner_id) return;
+      if (m.winner_id === me.id) {
+        won += (m.wager_amount || 0) * 2 * 0.9;
+      } else {
+        lost += m.wager_amount || 0;
+      }
+    });
+    setStats({ won, lost, wagered });
+
     setLoading(false);
   };
 
@@ -117,12 +140,17 @@ export default function WalletPage() {
           <div className="flex items-center justify-center gap-6 mt-4">
             <div>
               <p className="text-[10px] text-white/30 uppercase">Won</p>
-              <p className="text-sm font-bold text-[#C9A84C]">${wallet?.total_won?.toFixed(2) || "0.00"}</p>
+              <p className="text-sm font-bold text-[#C9A84C]">${stats.won.toFixed(2)}</p>
+            </div>
+            <div className="w-px h-6 bg-white/10" />
+            <div>
+              <p className="text-[10px] text-white/30 uppercase">Lost</p>
+              <p className="text-sm font-bold text-red-400">${stats.lost.toFixed(2)}</p>
             </div>
             <div className="w-px h-6 bg-white/10" />
             <div>
               <p className="text-[10px] text-white/30 uppercase">Wagered</p>
-              <p className="text-sm font-bold text-white/60">${wallet?.total_wagered?.toFixed(2) || "0.00"}</p>
+              <p className="text-sm font-bold text-white/60">${stats.wagered.toFixed(2)}</p>
             </div>
           </div>
         </div>
