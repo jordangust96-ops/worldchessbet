@@ -41,19 +41,23 @@
     "amount"
   ],
   "rls": {
-    "read": {
-      "created_by_id": "{{user.id}}"
-    },
     "create": {
       "user_condition": {
         "role": "admin"
       }
+    },
+    "read": {
+      "created_by_id": "{{user.id}}"
     },
     "update": {
       "user_condition": {
         "role": "admin"
       }
     },
-    "delete": false
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
   }
 }
