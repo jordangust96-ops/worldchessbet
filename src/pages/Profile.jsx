@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { User, Mail, Trophy, Swords, LogOut, Loader2, Crown } from "lucide-react";
+import { User, Mail, Trophy, Swords, LogOut, Loader2, Crown, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import SecuritySection from "@/components/profile/SecuritySection";
@@ -9,7 +9,7 @@ import { clearMfaVerified } from "@/lib/mfaSession";
 
 export default function Profile() {
   const [user, setUser] = useState(null);
-  const [stats, setStats] = useState({ played: 0, won: 0, winRate: 0 });
+  const [stats, setStats] = useState({ played: 0, won: 0, lost: 0, winRate: 0 });
   const [chessUsername, setChessUsername] = useState("");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -26,9 +26,11 @@ export default function Profile() {
         (m) => m.player1_id === me.id || m.player2_id === me.id
       );
       const wins = userMatches.filter((m) => m.winner_id === me.id).length;
+      const losses = userMatches.filter((m) => m.winner_id && m.winner_id !== me.id).length;
       setStats({
         played: userMatches.length,
         won: wins,
+        lost: losses,
         winRate: userMatches.length > 0 ? Math.round(wins / userMatches.length * 100) : 0
       });
       setLoading(false);
@@ -76,10 +78,11 @@ export default function Profile() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-4 gap-3">
           {[
           { icon: Swords, label: "Played", value: stats.played },
           { icon: Trophy, label: "Won", value: stats.won },
+          { icon: XCircle, label: "Lost", value: stats.lost },
           { icon: Crown, label: "Win Rate", value: `${stats.winRate}%` }].
           map(({ icon: Icon, label, value }) =>
           <div
