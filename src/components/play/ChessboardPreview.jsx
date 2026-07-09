@@ -1,12 +1,9 @@
-import React from "react";
+import React, { useRef } from "react";
 import { motion } from "framer-motion";
+import { Chessboard } from "react-chessboard";
+import { useSize } from "@/hooks/use-size";
 
-const PIECES = {
-  0: { 0: "♜", 1: "♞", 2: "♝", 3: "♛", 4: "♚", 5: "♝", 6: "♞", 7: "♜" },
-  1: { 0: "♟", 1: "♟", 2: "♟", 3: "♟", 4: "♟", 5: "♟", 6: "♟", 7: "♟" },
-  6: { 0: "♙", 1: "♙", 2: "♙", 3: "♙", 4: "♙", 5: "♙", 6: "♙", 7: "♙" },
-  7: { 0: "♖", 1: "♘", 2: "♗", 3: "♕", 4: "♔", 5: "♗", 6: "♘", 7: "♖" },
-};
+const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 // Visual "energy level" per match state — the board comes alive as the match progresses.
 const STATE_STYLES = {
@@ -72,35 +69,16 @@ const STATE_STYLES = {
   },
 };
 
-export default function ChessboardPreview({ state = "marketplace" }) {
+export default function ChessboardPreview({
+  state = "marketplace",
+  fen,
+  onPieceDrop,
+  boardOrientation = "white",
+  arePiecesDraggable = false,
+}) {
   const style = STATE_STYLES[state] || STATE_STYLES.marketplace;
-
-  const squares = [];
-  for (let row = 0; row < 8; row++) {
-    for (let col = 0; col < 8; col++) {
-      const isDark = (row + col) % 2 === 1;
-      const piece = PIECES[row]?.[col];
-      squares.push(
-        <div
-          key={`${row}-${col}`}
-          className={`aspect-square flex items-center justify-center ${
-            isDark ? "bg-[#171310]" : "bg-[#2A231A]"
-          }`}
-        >
-          {piece && (
-            <span
-              className={`text-[clamp(16px,5vw,42px)] leading-none select-none ${
-                row < 2 ? "text-[#8A8A8A]" : "text-[#C9A84C]"
-              }`}
-              style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))" }}
-            >
-              {piece}
-            </span>
-          )}
-        </div>
-      );
-    }
-  }
+  const containerRef = useRef(null);
+  const size = useSize(containerRef);
 
   return (
     <motion.div
@@ -148,7 +126,21 @@ export default function ChessboardPreview({ state = "marketplace" }) {
         />
       )}
 
-      <div className="grid grid-cols-8 w-full h-full relative">{squares}</div>
+      <div ref={containerRef} className="w-full h-full relative">
+        {size?.width ? (
+          <Chessboard
+            position={fen || START_FEN}
+            onPieceDrop={onPieceDrop}
+            boardOrientation={boardOrientation}
+            arePiecesDraggable={arePiecesDraggable}
+            boardWidth={Math.min(size.width, size.height || size.width)}
+            customDarkSquareStyle={{ backgroundColor: "#171310" }}
+            customLightSquareStyle={{ backgroundColor: "#2A231A" }}
+            customBoardStyle={{ borderRadius: "0px" }}
+            animationDuration={200}
+          />
+        ) : null}
+      </div>
     </motion.div>
   );
 }

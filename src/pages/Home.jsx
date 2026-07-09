@@ -5,12 +5,15 @@ import { base44 } from "@/api/base44Client";
 import ChessboardPreview from "@/components/play/ChessboardPreview";
 import MatchCenter from "@/components/play/MatchCenter";
 import MatchView from "@/components/play/MatchView";
+import { useChessGame } from "@/hooks/useChessGame";
 
 export default function Home() {
   const [user, setUser] = useState(null);
   const [wallet, setWallet] = useState(null);
   const [myMatchId, setMyMatchId] = useState(null);
   const [boardState, setBoardState] = useState("marketplace");
+  const gameActive = boardState === "both_ready" || boardState === "in_progress";
+  const { fen, handleDrop, orientation } = useChessGame(myMatchId, user?.id, gameActive);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -79,7 +82,13 @@ export default function Home() {
           animate={{ opacity: 1, y: 0 }}
           className="lg:w-[62%] w-full lg:h-full lg:flex lg:items-center lg:justify-center"
         >
-          <ChessboardPreview state={boardState} />
+          <ChessboardPreview
+            state={boardState}
+            fen={gameActive ? fen : undefined}
+            onPieceDrop={gameActive ? handleDrop : undefined}
+            boardOrientation={orientation}
+            arePiecesDraggable={gameActive}
+          />
         </motion.div>
 
         {/* Match Center */}
