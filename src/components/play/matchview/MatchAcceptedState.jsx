@@ -82,6 +82,33 @@ export default function MatchAcceptedState({
         </div>
       </div>
 
+      <div className="rounded-2xl bg-white/[0.03] p-4 space-y-2">
+        <p className="text-[10px] uppercase tracking-widest text-white/30 mb-1">Match Summary</p>
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-white/50">Your Wager</span>
+          <span className="font-semibold text-white/80">${match.wager_amount.toFixed(2)}</span>
+        </div>
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-white/50">Opponent Wager</span>
+          <span className="font-semibold text-white/80">${match.wager_amount.toFixed(2)}</span>
+        </div>
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-white/50">Prize Pool</span>
+          <span className="font-semibold text-white/80">${(match.wager_amount * 2).toFixed(2)}</span>
+        </div>
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-white/50">Platform Fee (10%)</span>
+          <span className="font-semibold text-white/50">-${(match.wager_amount * 2 * 0.1).toFixed(2)}</span>
+        </div>
+        <div className="flex items-center justify-between pt-2 border-t border-white/10">
+          <span className="text-sm font-semibold text-white/70">Winner Receives</span>
+          <span className="text-lg font-extrabold text-[#C9A84C]">${(match.wager_amount * 2 * 0.9).toFixed(2)}</span>
+        </div>
+        <p className="text-[11px] text-white/30 pt-1">
+          ChessBet collects a 10% platform fee from the total prize pool. The remaining 90% is paid to the winner.
+        </p>
+      </div>
+
       <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03]">
         <span className="text-sm text-white/70">Opponent Deposit</span>
         {opponentDeposited ? (

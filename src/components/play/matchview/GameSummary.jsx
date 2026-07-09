@@ -86,7 +86,7 @@ export default function GameSummary({ match, game, userId, onPlayAgain }) {
       </div>
 
       <div
-        className={`rounded-2xl p-4 border ${
+        className={`rounded-2xl p-4 border space-y-2 ${
           draw
             ? "bg-white/[0.03] border-white/10"
             : won
@@ -94,23 +94,51 @@ export default function GameSummary({ match, game, userId, onPlayAgain }) {
             : "bg-red-500/5 border-red-500/20"
         }`}
       >
-        <p
-          className={`text-[10px] uppercase tracking-widest mb-1 ${
-            draw ? "text-white/40" : won ? "text-[#C9A84C]/60" : "text-red-400/60"
-          }`}
-        >
-          {draw ? "Result" : won ? "You Won" : "You Lost"}
-        </p>
-        <p
-          className={`text-3xl font-extrabold ${
-            draw ? "text-white/60" : won ? "text-[#C9A84C]" : "text-red-400"
-          }`}
-        >
-          {draw ? "$0.00" : `${won ? "+" : "-"}$${match.wager_amount.toFixed(2)}`}
-        </p>
+        {draw ? (
+          <>
+            <p className="text-[10px] uppercase tracking-widest mb-1 text-white/40">Result</p>
+            <p className="text-3xl font-extrabold text-white/60">$0.00</p>
+          </>
+        ) : won ? (
+          <>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-white/50">Prize Pool</span>
+              <span className="font-semibold text-white/80">${(match.wager_amount * 2).toFixed(2)}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-white/50">Platform Fee (10%)</span>
+              <span className="font-semibold text-white/50">-${(match.wager_amount * 2 * 0.1).toFixed(2)}</span>
+            </div>
+            <div className="flex items-center justify-between pt-2 border-t border-white/10">
+              <span className="text-xs uppercase tracking-widest text-[#C9A84C]/60">You Receive</span>
+              <span className="text-3xl font-extrabold text-[#C9A84C]">
+                +${(match.wager_amount * 2 * 0.9).toFixed(2)}
+              </span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-white/50">Your Wager</span>
+              <span className="font-semibold text-red-400">-${match.wager_amount.toFixed(2)}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-white/50">Platform Fee</span>
+              <span className="font-semibold text-white/50">Included in winner payout</span>
+            </div>
+          </>
+        )}
       </div>
 
-      <p className="text-xs text-white/30">Finalizing Match...</p>
+      <p className="text-xs text-white/30">
+        {draw
+          ? "Both players receive the appropriate settlement according to ChessBet's draw rules."
+          : won
+          ? "You won your match and received 90% of the total prize pool after the ChessBet platform fee."
+          : "Your wager was forfeited as part of the completed match."}
+      </p>
+
+      <p className="text-xs text-white/20">Finalizing Match...</p>
 
       <div className="space-y-2">
         <Button onClick={onPlayAgain} className="w-full h-12 rounded-2xl font-bold gold-gradient text-black hover:opacity-90">
