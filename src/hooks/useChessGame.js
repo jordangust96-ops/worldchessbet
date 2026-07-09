@@ -1,16 +1,19 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Chess } from "chess.js";
 import { base44 } from "@/api/base44Client";
+import { useToast } from "@/components/ui/use-toast";
 
 const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 // Manages loading/creating the Game entity for a match, hydrating the board,
-// enforcing turns, persisting moves, and detecting game completion.
+// and submitting moves to the submitMove backend function (the sole authority
+// over FEN, PGN, status, result, and winner_id).
 export function useChessGame(matchId, userId, active) {
   const [fen, setFen] = useState(START_FEN);
   const [game, setGame] = useState(null);
   const [color, setColor] = useState("white");
   const chessRef = useRef(new Chess());
+  const { toast } = useToast();
 
   const loadGame = useCallback(async () => {
     if (!matchId || !userId) return;
@@ -61,50 +64,51 @@ export function useChessGame(matchId, userId, active) {
   const handleDrop = useCallback(
     (sourceSquare, targetSquare) => {
       if (!game || game.status === "completed") return false;
-      const isMyTurn = chessRef.current.turn() === (color === "white" ? "w" : "b");
-      if (!isMyTurn) return false;
 
-      let move;
+      // Quick client-side legality check purely for instant snap-back UX.
+      // The server remains the sole authority over the persisted game state.
+      const preview = new Chess(chessRef.current.fen());
+      let previewMove;
       try {
-        move = chessRef.current.move({ from: sourceSquare, to: targetSquare, promotion: "q" });
+        previewMove = preview.move({ from: sourceSquare, to: targetSquare, promotion: "q" });
       } catch (e) {
-        return false;
+        previewMove = null;
       }
-      if (!move) return false;
+      if (!previewMove) return false;
 
-      const newFen = chessRef.current.fen();
-      const newPgn = chessRef.current.pgn();
-      setFen(newFen);
+      const previousFen = chessRef.current.fen();
 
-      const updates = { fen: newFen, pgn: newPgn };
-      if (!game.started_at) {
-        updates.started_at = new Date().toISOString();
-      }
-
-      if (chessRef.current.isGameOver()) {
-        updates.status = "completed";
-        updates.completed_at = new Date().toISOString();
-        if (chessRef.current.isCheckmate()) {
-          updates.result = move.color === "w" ? "white_win" : "black_win";
-        } else {
-          updates.result = "draw";
-        }
-      }
+      // Optimistic local update for responsiveness; corrected/confirmed by the server response.
+      chessRef.current.load(preview.fen());
+      setFen(preview.fen());
 
       (async () => {
-        const match = await base44.entities.Match.get(matchId);
-        if (updates.result === "white_win") {
-          updates.winner_id = match.player1_id;
-        } else if (updates.result === "black_win") {
-          updates.winner_id = match.player2_id;
+        try {
+          const response = await base44.functions.invoke("submitMove", {
+            gameId: game.id,
+            from: sourceSquare,
+            to: targetSquare,
+            promotion: "q",
+          });
+          const updatedGame = response.data.game;
+          chessRef.current.load(updatedGame.fen);
+          setFen(updatedGame.fen);
+          setGame(updatedGame);
+        } catch (error) {
+          // Server rejected the move — restore the previous position.
+          chessRef.current.load(previousFen);
+          setFen(previousFen);
+          toast({
+            title: "Move rejected",
+            description: error?.response?.data?.error || "That move could not be made.",
+            variant: "destructive",
+          });
         }
-        const updated = await base44.entities.Game.update(game.id, updates);
-        setGame(updated);
       })();
 
       return true;
     },
-    [game, color, matchId]
+    [game, toast]
   );
 
   return { fen, handleDrop, orientation: color, gameStatus: game?.status };
