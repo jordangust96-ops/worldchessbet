@@ -31,8 +31,14 @@ export default function Landing() {
           className="space-y-8 max-w-md"
         >
           <div className="space-y-4">
-            <h1 className="text-5xl sm:text-6xl font-extrabold tracking-tight text-white leading-[1.1]">
-              Wanna Bet?
+            <h1 className="text-5xl sm:text-6xl font-extrabold tracking-tight leading-[1.1]">
+              <span className="gold-text">Wanna</span>{" "}
+              <span
+                className="text-transparent"
+                style={{ WebkitTextStroke: "1.5px rgba(255,255,255,0.7)" }}
+              >
+                Bet?
+              </span>
             </h1>
             <p className="text-white/50 text-lg leading-relaxed max-w-sm mx-auto">
               The fastest way to put money on a chess match. Pick a stake, find an opponent, play, and win.
