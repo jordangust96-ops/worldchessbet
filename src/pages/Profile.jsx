@@ -4,6 +4,7 @@ import { User, Mail, Trophy, Swords, LogOut, Loader2, Crown } from "lucide-react
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import SecuritySection from "@/components/profile/SecuritySection";
+import LegalSection from "@/components/profile/LegalSection";
 import { clearMfaVerified } from "@/lib/mfaSession";
 
 export default function Profile() {
@@ -139,6 +140,9 @@ export default function Profile() {
 
         {/* Security */}
         <SecuritySection email={user?.email} />
+
+        {/* Legal */}
+        <LegalSection isAdmin={user?.role === "admin"} />
 
         {/* Logout */}
         <Button

@@ -1,0 +1,24 @@
+{
+  "name": "PrivacyPolicyAcceptance",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "ID of the user who accepted the policy"
+    },
+    "policy_version": {
+      "type": "number",
+      "description": "Version number of the PrivacyPolicyConfig that was accepted"
+    },
+    "accepted_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of acceptance"
+    }
+  },
+  "required": [
+    "user_id",
+    "policy_version",
+    "accepted_at"
+  ]
+}

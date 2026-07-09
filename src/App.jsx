@@ -20,10 +20,13 @@ import Home from '@/pages/Home';
 import WalletPage from '@/pages/WalletPage';
 import Profile from '@/pages/Profile';
 import VerifyMfa from '@/pages/VerifyMfa';
+import PrivacyPolicy from '@/pages/PrivacyPolicy';
+import PrivacyPolicyAdmin from '@/pages/PrivacyPolicyAdmin';
 
 // Layout
 import AppLayout from '@/components/layout/AppLayout';
 import MfaGuard from '@/components/MfaGuard';
+import PolicyAcceptanceGuard from '@/components/legal/PolicyAcceptanceGuard';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -53,15 +56,19 @@ const AuthenticatedApp = () => {
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
       {/* Protected routes */}
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/landing" replace />} />}>
         <Route path="/verify-mfa" element={<VerifyMfa />} />
         <Route element={<MfaGuard />}>
-          <Route element={<AppLayout />}>
-            <Route path="/" element={<Home />} />
-            <Route path="/wallet" element={<WalletPage />} />
-            <Route path="/profile" element={<Profile />} />
+          <Route element={<PolicyAcceptanceGuard />}>
+            <Route path="/admin/privacy-policy" element={<PrivacyPolicyAdmin />} />
+            <Route element={<AppLayout />}>
+              <Route path="/" element={<Home />} />
+              <Route path="/wallet" element={<WalletPage />} />
+              <Route path="/profile" element={<Profile />} />
+            </Route>
           </Route>
         </Route>
       </Route>

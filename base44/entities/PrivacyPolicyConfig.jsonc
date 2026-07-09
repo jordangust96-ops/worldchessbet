@@ -1,0 +1,34 @@
+{
+  "name": "PrivacyPolicyConfig",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "number",
+      "description": "Incrementing policy version number"
+    },
+    "last_updated": {
+      "type": "string",
+      "format": "date",
+      "description": "Date this version of the policy was published"
+    },
+    "support_email": {
+      "type": "string",
+      "description": "Support email shown in the Contact Information section"
+    },
+    "content_markdown": {
+      "type": "string",
+      "description": "Full policy body in markdown. Sections are delimited by '## ' headings. Use {{SUPPORT_EMAIL}} as a placeholder for the support email."
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Only one config should be active at a time; older versions are kept for history with is_active=false"
+    }
+  },
+  "required": [
+    "version",
+    "last_updated",
+    "support_email",
+    "content_markdown"
+  ]
+}

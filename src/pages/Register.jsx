@@ -18,12 +18,17 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [showOtp, setShowOtp] = useState(false);
   const [otpCode, setOtpCode] = useState("");
+  const [agreedToPolicy, setAgreedToPolicy] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     if (password !== confirmPassword) {
       setError("Passwords do not match");
+      return;
+    }
+    if (!agreedToPolicy) {
+      setError("You must agree to the Privacy Policy to create an account");
       return;
     }
     setLoading(true);
@@ -44,6 +49,20 @@ export default function Register() {
       const result = await base44.auth.verifyOtp({ email, otpCode });
       if (result?.access_token) {
         base44.auth.setToken(result.access_token);
+      }
+      try {
+        const configs = await base44.entities.PrivacyPolicyConfig.filter({ is_active: true }, "-version", 1);
+        const activeConfig = configs?.[0];
+        if (activeConfig) {
+          const me = await base44.auth.me();
+          await base44.entities.PrivacyPolicyAcceptance.create({
+            user_id: me.id,
+            policy_version: activeConfig.version,
+            accepted_at: new Date().toISOString(),
+          });
+        }
+      } catch (acceptanceErr) {
+        // Non-fatal: acceptance recording should not block account access.
       }
       window.location.href = "/";
     } catch (err) {
@@ -212,7 +231,24 @@ export default function Register() {
             />
           </div>
         </div>
-        <Button type="submit" className="w-full h-12 font-medium" disabled={loading}>
+        <label className="flex items-start gap-2.5 cursor-pointer pt-1">
+          <input
+            type="checkbox"
+            checked={agreedToPolicy}
+            onChange={(e) => setAgreedToPolicy(e.target.checked)}
+            className="mt-0.5 w-4 h-4 rounded accent-primary"
+            required
+          />
+          <span className="text-sm text-muted-foreground">
+            I have read and agree to the{" "}
+            <Link to="/privacy-policy" target="_blank" rel="noreferrer" className="text-primary font-medium hover:underline">
+              Privacy Policy
+            </Link>
+            .
+          </span>
+        </label>
+
+        <Button type="submit" className="w-full h-12 font-medium" disabled={loading || !agreedToPolicy}>
           {loading ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
