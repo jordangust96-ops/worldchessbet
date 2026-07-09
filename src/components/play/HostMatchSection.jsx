@@ -7,9 +7,9 @@ import { base44 } from "@/api/base44Client";
 const WAGER_OPTIONS = [1, 5, 10, 25, 50, 100];
 
 export const TIME_CONTROLS = [
-  { value: "blitz", emoji: "⚡", label: "Blitz", display: "Blitz (3+2)", detail: "3 min per player · 2s increment" },
-  { value: "rapid", emoji: "⏱", label: "Rapid", display: "Rapid (10+0)", detail: "10 min per player · No increment" },
-  { value: "classical", emoji: "🧠", label: "Classical", display: "Classical (15+10)", detail: "15 min per player · 10s increment" },
+  { value: "blitz", emoji: "⚡", label: "Blitz", minutes: 3 },
+  { value: "rapid", emoji: "⏱", label: "Rapid", minutes: 10 },
+  { value: "classical", emoji: "🧠", label: "Classical", minutes: 15 },
 ];
 
 export default function HostMatchSection({ userId, balance, onHosted, disabled }) {
@@ -41,7 +41,7 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
       player1_id: userId,
       wager_amount: wagerValue,
       time_control: timeControl,
-      display_name: selectedTimeControl.display,
+      display_name: selectedTimeControl.label,
       status: "searching",
     });
     setWagerInput("");
@@ -139,8 +139,8 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
                 >
                   <span className="text-lg lg:text-sm">{tc.emoji}</span>
                   <div className="flex-1">
-                    <p className="font-bold text-sm lg:text-xs">{tc.display}</p>
-                    <p className={`text-xs ${isActive ? "text-black/60" : "text-white/40"} lg:hidden`}>{tc.detail}</p>
+                    <p className="font-bold text-sm lg:text-xs">{tc.label}</p>
+                    <p className={`text-xs ${isActive ? "text-black/60" : "text-white/40"}`}>{tc.minutes} Minutes</p>
                   </div>
                 </button>
               );

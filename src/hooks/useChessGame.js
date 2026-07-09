@@ -5,11 +5,11 @@ import { useToast } from "@/components/ui/use-toast";
 
 const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
-// Starting clock time and increment per ChessBet time control.
+// Starting clock time per ChessBet time control. No increments — clocks only count down.
 const TIME_CONTROLS = {
-  blitz: { initialMs: 3 * 60 * 1000, incrementMs: 2 * 1000 },
-  rapid: { initialMs: 10 * 60 * 1000, incrementMs: 0 },
-  classical: { initialMs: 15 * 60 * 1000, incrementMs: 10 * 1000 },
+  blitz: { initialMs: 3 * 60 * 1000 },
+  rapid: { initialMs: 10 * 60 * 1000 },
+  classical: { initialMs: 15 * 60 * 1000 },
 };
 
 // Manages loading/creating the Game entity for a match, hydrating the board,
@@ -44,7 +44,7 @@ export function useChessGame(matchId, userId, active) {
           result: "unfinished",
           white_time_ms: tc.initialMs,
           black_time_ms: tc.initialMs,
-          increment_ms: tc.incrementMs,
+          increment_ms: 0,
           turn_started_at: new Date().toISOString(),
         });
         await base44.entities.Match.update(matchId, { game_id: g.id });

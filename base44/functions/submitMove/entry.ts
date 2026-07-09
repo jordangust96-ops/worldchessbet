@@ -39,7 +39,6 @@ Deno.serve(async (req) => {
     const now = Date.now();
     const turnStartedAt = game.turn_started_at ? new Date(game.turn_started_at).getTime() : now;
     const elapsedMs = Math.max(0, now - turnStartedAt);
-    const incrementMs = game.increment_ms || 0;
     const moverTimeField = myColor === 'w' ? 'white_time_ms' : 'black_time_ms';
     const moverRemainingMs = (game[moverTimeField] ?? 0) - elapsedMs;
 
@@ -69,7 +68,7 @@ Deno.serve(async (req) => {
     const updates = {
       fen: chess.fen(),
       pgn: chess.pgn(),
-      [moverTimeField]: moverRemainingMs + incrementMs,
+      [moverTimeField]: moverRemainingMs,
       turn_started_at: new Date().toISOString(),
     };
     if (!game.started_at) {

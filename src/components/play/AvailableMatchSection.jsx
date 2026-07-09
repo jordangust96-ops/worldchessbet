@@ -120,7 +120,7 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
             </div>
             <div className="rounded-2xl bg-white/[0.03] p-4 lg:p-2">
               <p className="text-[10px] uppercase tracking-widest text-white/30 mb-1">Time Control</p>
-              <p className="text-base lg:text-sm font-bold text-white">{current.display_name || "Rapid (10+0)"}</p>
+              <p className="text-base lg:text-sm font-bold text-white">{current.display_name || "Rapid"}</p>
             </div>
           </div>
 
