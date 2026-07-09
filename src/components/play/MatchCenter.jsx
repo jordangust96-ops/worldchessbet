@@ -50,6 +50,7 @@ export default function MatchCenter({ userId, balance, onMatchAccepted }) {
     <div className="rounded-3xl bg-gradient-to-br from-[#1A1A1A] to-[#111] border border-white/5 p-6 lg:p-4 lg:h-full lg:overflow-y-auto lg:flex lg:flex-col lg:justify-start space-y-5 lg:space-y-2.5">
       <AvailableMatchSection
         userId={userId}
+        balance={balance}
         activeMatch={activeMatch}
         onChallengeCancelled={() => setActiveMatch(null)}
         onAccepted={onMatchAccepted}

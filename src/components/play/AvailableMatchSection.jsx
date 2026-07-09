@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Link } from "react-router-dom";
 import { User, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 
-export default function AvailableMatchSection({ userId, activeMatch, onChallengeCancelled, onAccepted }) {
+export default function AvailableMatchSection({ userId, balance, activeMatch, onChallengeCancelled, onAccepted }) {
   const [opponents, setOpponents] = useState([]);
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -45,6 +46,7 @@ export default function AvailableMatchSection({ userId, activeMatch, onChallenge
   }, [userId]);
 
   const current = opponents[index];
+  const insufficientFunds = current ? (balance || 0) < current.wager_amount : false;
 
   const handleNext = () => {
     if (opponents.length === 0) return;
@@ -125,12 +127,20 @@ export default function AvailableMatchSection({ userId, activeMatch, onChallenge
           <div className="space-y-2.5 lg:space-y-1.5">
             <Button
               onClick={handleAccept}
-              disabled={accepting}
-              className="w-full h-14 lg:h-10 rounded-2xl text-base lg:text-sm font-bold gold-gradient text-black hover:opacity-90 transition-opacity"
+              disabled={accepting || insufficientFunds}
+              className="w-full h-14 lg:h-10 rounded-2xl text-base lg:text-sm font-bold gold-gradient text-black hover:opacity-90 transition-opacity disabled:opacity-30"
             >
               {accepting ? <Loader2 className="animate-spin mr-2" size={18} /> : null}
               Accept Match
             </Button>
+            {insufficientFunds && (
+              <p className="text-[11px] text-center text-[#C9A84C]/70">
+                {(balance || 0) <= 0 ? "Fund your wallet to accept matches." : "Insufficient balance for this wager."}{" "}
+                <Link to="/wallet" className="underline font-semibold hover:text-[#C9A84C]">
+                  Add Funds
+                </Link>
+              </p>
+            )}
             <Button
               onClick={handleNext}
               variant="outline"
