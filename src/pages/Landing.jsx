@@ -10,9 +10,9 @@ export default function Landing() {
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-5">
         <div className="flex items-center gap-2">
-          <Crown className="text-[#C9A84C]" size={24} />
-          <span className="text-lg font-bold tracking-tight text-white">
-            Chess<span className="text-[#C9A84C]">Bet</span>
+          <Crown className="text-[#C9A84C]" strokeWidth={1.5} size={24} />
+          <span className="text-lg font-bold tracking-tight gold-text">
+            ChessBet
           </span>
         </div>
         <Link to="/login">
