@@ -10,8 +10,8 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  AlertDialogTitle } from
+"@/components/ui/alert-dialog";
 
 function formatElapsed(startDate) {
   const secs = Math.max(0, Math.floor((Date.now() - new Date(startDate).getTime()) / 1000));
@@ -57,28 +57,28 @@ export default function ActiveChallengeCard({ match, onCancel }) {
       <p className="text-[10px] uppercase tracking-widest text-white/30 mb-4 lg:mb-1.5">Your Active Challenge</p>
       <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-4 lg:p-3 min-h-[168px] lg:min-h-[110px] flex flex-col justify-center">
         <AnimatePresence mode="wait">
-          {!match && (
-            <motion.div
-              key="empty"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="text-center space-y-1 lg:space-y-0.5 py-2 lg:py-0"
-            >
+          {!match &&
+          <motion.div
+            key="empty"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="text-center space-y-1 lg:space-y-0.5 py-2 lg:py-0">
+            
               <Swords size={18} className="text-white/20 mx-auto lg:hidden" />
               <p className="text-sm font-semibold text-white/50">No Active Challenge</p>
               <p className="text-xs text-white/30">You don't currently have a challenge posted.</p>
             </motion.div>
-          )}
+          }
 
-          {match && match.status === "matched" && (
-            <motion.div
-              key="matched"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="space-y-2 lg:space-y-1.5"
-            >
+          {match && match.status === "matched" &&
+          <motion.div
+            key="matched"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="space-y-2 lg:space-y-1.5">
+            
               <div className="flex items-center gap-2 text-[#C9A84C]">
                 <Sparkles size={16} />
                 <p className="text-xs font-bold uppercase tracking-widest">Opponent Found</p>
@@ -93,23 +93,23 @@ export default function ActiveChallengeCard({ match, onCancel }) {
                 <Loader2 size={12} className="animate-spin" /> Entering match...
               </p>
             </motion.div>
-          )}
+          }
 
-          {match && match.status === "searching" && (
-            <motion.div
-              key="searching"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="space-y-2 lg:space-y-1.5"
-            >
+          {match && match.status === "searching" &&
+          <motion.div
+            key="searching"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="space-y-2 lg:space-y-1.5">
+            
               <div className="flex items-center justify-between">
                 <p className="text-sm text-white/50">Waiting for an opponent...</p>
                 <button
-                  onClick={() => setShowConfirm(true)}
-                  disabled={cancelling}
-                  className="text-xs font-semibold text-white/40 hover:text-white/70 transition-colors underline underline-offset-2"
-                >
+                onClick={() => setShowConfirm(true)}
+                disabled={cancelling}
+                className="text-xs font-semibold text-white/40 hover:text-white/70 transition-colors underline underline-offset-2">
+                
                   {cancelling ? <Loader2 size={14} className="animate-spin" /> : "Cancel Challenge"}
                 </button>
               </div>
@@ -123,15 +123,15 @@ export default function ActiveChallengeCard({ match, onCancel }) {
                   <p className="text-sm font-bold text-white">{match.display_name}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase tracking-wider text-white/30">Elapsed</p>
-                  <p className="text-sm font-bold text-white flex items-center justify-center gap-1">
+                  <p className="text-[10px] uppercase tracking-wider text-white/30 hidden">Elapsed</p>
+                  <p className="text-sm font-bold text-white flex items-center justify-center gap-1 hidden">
                     <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
                     {elapsed}
                   </p>
                 </div>
               </div>
             </motion.div>
-          )}
+          }
         </AnimatePresence>
       </div>
 
@@ -149,13 +149,13 @@ export default function ActiveChallengeCard({ match, onCancel }) {
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleCancel}
-              className="bg-red-500/90 text-white hover:bg-red-500"
-            >
+              className="bg-red-500/90 text-white hover:bg-red-500">
+              
               Cancel Challenge
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
-  );
+    </div>);
+
 }
