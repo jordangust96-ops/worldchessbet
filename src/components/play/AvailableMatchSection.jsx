@@ -22,10 +22,10 @@ export default function AvailableMatchSection({ userId, activeMatch, onChallenge
           try {
             const users = await base44.entities.User.filter({ id: m.player1_id });
             const opponent = users?.[0];
-            if (opponent?.chess_com_username) {
-              name = opponent.chess_com_username;
-            } else if (opponent?.full_name) {
-              name = opponent.full_name.split(" ")[0] + " " + (opponent.full_name.split(" ")[1]?.[0] || "");
+            if (opponent?.chess_com_username?.trim()) {
+              name = opponent.chess_com_username.trim();
+            } else if (opponent?.full_name?.trim()) {
+              name = opponent.full_name.trim();
             }
           } catch (e) {
             // fallback to default name
