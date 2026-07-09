@@ -1,0 +1,58 @@
+{
+  "name": "Game",
+  "type": "object",
+  "properties": {
+    "match_id": {
+      "type": "string",
+      "description": "ID of the Match this game belongs to"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "waiting",
+        "active",
+        "completed",
+        "abandoned"
+      ],
+      "default": "waiting",
+      "description": "Status of the chess game itself, not the financial match"
+    },
+    "fen": {
+      "type": "string",
+      "description": "Current board position in standard FEN notation",
+      "default": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+    },
+    "pgn": {
+      "type": "string",
+      "description": "Complete move history in PGN notation, authoritative game record"
+    },
+    "result": {
+      "type": "string",
+      "enum": [
+        "white_win",
+        "black_win",
+        "draw",
+        "unfinished"
+      ],
+      "default": "unfinished"
+    },
+    "winner_id": {
+      "type": "string",
+      "description": "User ID of the winner, null for draws or unfinished games"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Set when the first legal move is made"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Set when the game officially ends"
+    }
+  },
+  "required": [
+    "match_id",
+    "status"
+  ]
+}
