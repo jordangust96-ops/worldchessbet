@@ -13,6 +13,7 @@ export default function WalletPage() {
   const [depositAmount, setDepositAmount] = useState("");
   const [showDeposit, setShowDeposit] = useState(false);
   const [isProcessingDeposit, setIsProcessingDeposit] = useState(false);
+  const [depositError, setDepositError] = useState("");
 
   useEffect(() => {
     loadData();
@@ -71,10 +72,13 @@ export default function WalletPage() {
     if (!requestedAmount || requestedAmount <= 0 || !wallet) return;
 
     setIsProcessingDeposit(true);
+    setDepositError("");
     try {
-      const { eligible } = await runEligibilityPipeline(wallet.user_id, requestedAmount);
+      const { eligible, reason } = await runEligibilityPipeline(wallet.user_id, requestedAmount);
       if (eligible) {
         await handleDeposit(requestedAmount);
+      } else {
+        setDepositError(reason || "You're not currently eligible to deposit.");
       }
     } finally {
       setIsProcessingDeposit(false);
@@ -160,6 +164,9 @@ export default function WalletPage() {
             >
               {isProcessingDeposit ? "Confirming..." : "Confirm Deposit"}
             </Button>
+            {depositError && (
+              <p className="text-xs text-red-400 text-center">{depositError}</p>
+            )}
           </motion.div>
         )}
 

@@ -1,16 +1,30 @@
+import { base44 } from "@/api/base44Client";
+
 // Eligibility Pipeline
 //
-// Runs before every deposit is executed. This is the single insertion point
-// for future compliance checks:
-//   - Identity Verification (one-time, via Plaid) — future
-//   - Geolocation Check (every deposit, via MaxMind) — future
+// Runs before every deposit is executed. It knows nothing about any specific
+// provider's business logic — it just runs an ordered list of validation
+// steps, each returning { eligible, reason }, and stops at the first failure.
 //
-// For now this always passes through immediately. handleDeposit() in the
-// Wallet page should never know about identity/geolocation logic directly —
-// it only executes once this pipeline resolves as eligible.
+// Current order:
+//   1. Geolocation Check (MaxMind) — every deposit
+//   2. (future) Identity Verification (Plaid) — one-time
+const steps = [runGeolocationCheck];
+
 export async function runEligibilityPipeline(/* user, amount */) {
-  // Placeholder: future steps will run identity verification (if not yet
-  // verified) and a fresh geolocation check here, returning
-  // { eligible: false, reason: '...' } when a check fails.
+  for (const step of steps) {
+    const result = await step();
+    if (!result.eligible) return result;
+  }
   return { eligible: true };
+}
+
+// Verifies the user is currently in an eligible jurisdiction via MaxMind.
+// Fully self-contained: the pipeline only ever sees its eligible/reason result.
+async function runGeolocationCheck() {
+  const { data } = await base44.functions.invoke("checkGeolocation", {});
+  if (data?.error) {
+    return { eligible: false, reason: "Unable to verify your location right now. Please try again shortly." };
+  }
+  return { eligible: data.eligible, reason: data.reason };
 }
