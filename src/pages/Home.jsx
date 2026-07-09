@@ -127,6 +127,7 @@ export default function Home() {
         >
           {myMatchId ? (
             <MatchView
+              key={myMatchId}
               matchId={myMatchId}
               userId={user?.id}
               onExit={() => {
