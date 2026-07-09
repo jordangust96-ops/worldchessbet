@@ -108,16 +108,14 @@ export function useChessGame(matchId, userId, active) {
 
       (async () => {
         try {
-          const response = await base44.functions.invoke("submitMove", {
+          // The HTTP response only confirms success/failure. The authoritative board
+          // update for both players comes exclusively from the Game realtime subscription.
+          await base44.functions.invoke("submitMove", {
             gameId: game.id,
             from: sourceSquare,
             to: targetSquare,
             promotion: "q",
           });
-          const updatedGame = response.data.game;
-          chessRef.current.load(updatedGame.fen);
-          setFen(updatedGame.fen);
-          setGame(updatedGame);
         } catch (error) {
           // Server rejected the move — restore the previous position.
           chessRef.current.load(previousFen);
