@@ -110,7 +110,7 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
                 <Loader2 className="animate-spin mr-2" size={16} /> Searching...
               </>
             ) : (
-              "Find Match"
+              "Refresh Available Matches"
             )}
           </Button>
         </div>
