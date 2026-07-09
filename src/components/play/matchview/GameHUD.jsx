@@ -2,6 +2,25 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Chess } from "chess.js";
 import { base44 } from "@/api/base44Client";
 import { useChessClock } from "@/hooks/useChessClock";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 function formatClock(ms) {
   const totalSeconds = Math.max(0, Math.ceil((ms ?? 0) / 1000));
@@ -12,7 +31,42 @@ function formatClock(ms) {
 
 export default function GameHUD({ match, game, userId }) {
   const [names, setNames] = useState({ me: "You", opponent: "Opponent" });
+  const [showResignConfirm, setShowResignConfirm] = useState(false);
+  const [resigning, setResigning] = useState(false);
+  const [offeringDraw, setOfferingDraw] = useState(false);
+  const [respondingDraw, setRespondingDraw] = useState(false);
   const displayMs = useChessClock(game);
+
+  const drawOfferedByMe = game?.draw_offered_by === userId;
+  const drawOfferedByOpponent = !!game?.draw_offered_by && game.draw_offered_by !== userId;
+
+  const handleResign = async () => {
+    setResigning(true);
+    try {
+      await base44.functions.invoke("resignGame", { gameId: game.id });
+    } finally {
+      setResigning(false);
+      setShowResignConfirm(false);
+    }
+  };
+
+  const handleOfferDraw = async () => {
+    setOfferingDraw(true);
+    try {
+      await base44.functions.invoke("respondDraw", { gameId: game.id, action: "offer" });
+    } finally {
+      setOfferingDraw(false);
+    }
+  };
+
+  const handleDrawResponse = async (action) => {
+    setRespondingDraw(true);
+    try {
+      await base44.functions.invoke("respondDraw", { gameId: game.id, action });
+    } finally {
+      setRespondingDraw(false);
+    }
+  };
 
   const isP1 = match.player1_id === userId;
   const myColor = isP1 ? "w" : "b";
@@ -160,8 +214,69 @@ export default function GameHUD({ match, game, userId }) {
         <span className="text-[10px] text-white/30">Live</span>
       </div>
 
-      {/* Future Space — reserved for Resign / Offer Draw / Chat / Analysis */}
-      <div className="h-10" />
+      {/* Section 5 — Game Controls */}
+      <div className="flex items-center gap-2 pt-1">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowResignConfirm(true)}
+          className="flex-1 h-9 rounded-xl text-xs font-semibold border-white/10 text-white/50 hover:text-red-400 hover:border-red-400/30 bg-transparent"
+        >
+          Resign
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={drawOfferedByMe || drawOfferedByOpponent || offeringDraw}
+          onClick={handleOfferDraw}
+          className="flex-1 h-9 rounded-xl text-xs font-semibold border-white/10 text-white/50 hover:text-white/80 bg-transparent"
+        >
+          {drawOfferedByMe ? "Draw Offered" : "Offer Draw"}
+        </Button>
+      </div>
+
+      <AlertDialog open={showResignConfirm} onOpenChange={setShowResignConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Resign this game?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will immediately end the game and your opponent will be declared the winner.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={resigning}>Cancel</AlertDialogCancel>
+            <AlertDialogAction disabled={resigning} onClick={handleResign} className="bg-red-500 hover:bg-red-500/90">
+              Confirm Resignation
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={drawOfferedByOpponent} onOpenChange={() => {}}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Draw Offer</DialogTitle>
+            <DialogDescription>Your opponent has offered a draw.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={respondingDraw}
+              onClick={() => handleDrawResponse("decline")}
+              className="border-white/10"
+            >
+              Decline
+            </Button>
+            <Button
+              disabled={respondingDraw}
+              onClick={() => handleDrawResponse("accept")}
+              className="gold-gradient text-black hover:opacity-90"
+            >
+              Accept Draw
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

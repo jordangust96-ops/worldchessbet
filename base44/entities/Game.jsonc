@@ -67,6 +67,10 @@
       "type": "string",
       "format": "date-time",
       "description": "Server timestamp when the current side-to-move's clock started ticking"
+    },
+    "draw_offered_by": {
+      "type": "string",
+      "description": "User ID of the player who currently has an open draw offer pending, empty/null when there is none"
     }
   },
   "required": [
