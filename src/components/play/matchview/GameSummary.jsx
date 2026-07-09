@@ -3,6 +3,7 @@ import { Chess } from "chess.js";
 import { Trophy, Minus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
+import ShareOnXButton from "./ShareOnXButton";
 
 // Derives a human-readable end reason from the final position. Timeout can't be
 // detected from the FEN/PGN alone, so any non-terminal position is classified as
@@ -28,6 +29,7 @@ function getEndReason(game) {
 
 export default function GameSummary({ match, game, userId, onPlayAgain }) {
   const [opponentName, setOpponentName] = useState("Opponent");
+  const [winnerName, setWinnerName] = useState("You");
 
   const isP1 = match.player1_id === userId;
   const opponentId = isP1 ? match.player2_id : match.player1_id;
@@ -44,6 +46,17 @@ export default function GameSummary({ match, game, userId, onPlayAgain }) {
     };
     load();
   }, [opponentId]);
+
+  useEffect(() => {
+    const load = async () => {
+      if (!userId) return;
+      const users = await base44.entities.User.filter({ id: userId });
+      if (users[0]) {
+        setWinnerName(users[0].chess_com_username || users[0].full_name?.split(" ")[0] || "You");
+      }
+    };
+    load();
+  }, [userId]);
 
   const endReason = useMemo(() => getEndReason(game), [game]);
 
@@ -144,6 +157,9 @@ export default function GameSummary({ match, game, userId, onPlayAgain }) {
         <Button onClick={onPlayAgain} className="w-full h-12 rounded-2xl font-bold gold-gradient text-black hover:opacity-90">
           Find New Match
         </Button>
+        {won && (
+          <ShareOnXButton match={match} game={game} winnerName={winnerName} opponentName={opponentName} endReason={endReason} />
+        )}
       </div>
     </div>
   );
