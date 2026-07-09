@@ -50,15 +50,27 @@ export function useChessGame(matchId, userId, active) {
 
   useEffect(() => {
     if (!active || !game?.id) return;
-    const poll = setInterval(async () => {
-      const latest = await base44.entities.Game.get(game.id);
+
+    const applyLatest = (latest) => {
       if (latest.fen !== chessRef.current.fen()) {
         chessRef.current.load(latest.fen);
         setFen(chessRef.current.fen());
       }
       setGame(latest);
-    }, 4000);
-    return () => clearInterval(poll);
+    };
+
+    // Recover the authoritative state immediately on (re)subscribe, e.g. after a
+    // browser refresh or a dropped realtime connection being re-established.
+    base44.entities.Game.get(game.id).then(applyLatest);
+
+    const unsubscribe = base44.entities.Game.subscribe((event) => {
+      if (event.data?.id !== game.id) return;
+      if (event.type === "update" || event.type === "create") {
+        applyLatest(event.data);
+      }
+    });
+
+    return () => unsubscribe();
   }, [active, game?.id]);
 
   const handleDrop = useCallback(
