@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Crown } from "lucide-react";
 import { base44 } from "@/api/base44Client";
@@ -13,6 +13,9 @@ export default function Home() {
   const [wallet, setWallet] = useState(null);
   const [myMatchId, setMyMatchId] = useState(null);
   const [boardState, setBoardState] = useState("marketplace");
+  // Tracks the last match the player explicitly dismissed (via "Find New Match"),
+  // so a lagging realtime update for that same completed match never restores it.
+  const dismissedMatchIdRef = useRef(null);
   const gameActive = boardState === "both_ready" || boardState === "in_progress" || boardState === "game_summary";
   const isLive = boardState === "in_progress";
   const { fen, handleDrop, orientation, game } = useChessGame(myMatchId, user?.id, gameActive);
@@ -44,6 +47,8 @@ export default function Home() {
     const unsubscribe = base44.entities.Match.subscribe((event) => {
       if (event.data?.player1_id !== user.id && event.data?.player2_id !== user.id) return;
       if (event.type !== "update" && event.type !== "create") return;
+      // Never restore a match the player already dismissed via Find New Match.
+      if (event.data.id === dismissedMatchIdRef.current) return;
       if (["matched", "deposited", "in_progress"].includes(event.data.status)) {
         setMyMatchId(event.data.id);
       }
@@ -124,7 +129,11 @@ export default function Home() {
             <MatchView
               matchId={myMatchId}
               userId={user?.id}
-              onExit={() => setMyMatchId(null)}
+              onExit={() => {
+                dismissedMatchIdRef.current = myMatchId;
+                setMyMatchId(null);
+                setBoardState("marketplace");
+              }}
               onStateChange={setBoardState}
               game={game}
             />

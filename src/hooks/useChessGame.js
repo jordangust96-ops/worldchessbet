@@ -56,7 +56,14 @@ export function useChessGame(matchId, userId, active) {
   }, [matchId, userId]);
 
   useEffect(() => {
-    if (!active) return;
+    if (!active) {
+      // Clear any previous match's game data so a dismissed/completed game can
+      // never bleed into the next match's initial render.
+      setGame(null);
+      setFen(START_FEN);
+      chessRef.current = new Chess();
+      return;
+    }
     loadGame();
   }, [active, loadGame]);
 
