@@ -52,7 +52,7 @@ export default function Landing() {
                 size="lg"
                 className="w-full gold-gradient text-black font-bold text-lg h-14 rounded-2xl hover:opacity-90 transition-opacity"
               >
-                Play Now
+                Get Started
               </Button>
             </Link>
             <p className="text-white/30 text-xs mt-4">
