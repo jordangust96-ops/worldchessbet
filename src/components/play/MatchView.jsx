@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { useToast } from "@/components/ui/use-toast";
 import MatchAcceptedState from "@/components/play/matchview/MatchAcceptedState";
 import DepositWaitingState from "@/components/play/matchview/DepositWaitingState";
 import BothReadyState from "@/components/play/matchview/BothReadyState";
@@ -12,6 +13,10 @@ import SettlementState from "@/components/play/matchview/SettlementState";
 export default function MatchView({ matchId, userId, onExit, onStateChange, game }) {
   const [match, setMatch] = useState(null);
   const [launched, setLaunched] = useState(false);
+  const { toast } = useToast();
+  // Tracks whether this client is the one who initiated the cancellation, so the
+  // "opponent cancelled" notification only surfaces for the other player.
+  const selfCancelledRef = useRef(false);
 
   const refresh = useCallback(async () => {
     const m = await base44.entities.Match.get(matchId);
@@ -33,13 +38,20 @@ export default function MatchView({ matchId, userId, onExit, onStateChange, game
 
   useEffect(() => {
     if (match?.status === "cancelled") {
+      if (!selfCancelledRef.current) {
+        toast({
+          title: "Match Cancelled",
+          description: "Your opponent cancelled the match. Any escrowed funds have been returned to your wallet.",
+        });
+      }
       onExit();
     }
-  }, [match?.status, onExit]);
+  }, [match?.status, onExit, toast]);
 
   // Cancelling a pending match must release escrow back to whichever player(s)
   // already deposited — the canceling user, the opponent, or neither.
   const handleCancel = async (matchToCancel) => {
+    selfCancelledRef.current = true;
     const refundTargets = [];
     if (matchToCancel.player1_deposited) refundTargets.push(matchToCancel.player1_id);
     if (matchToCancel.player2_deposited) refundTargets.push(matchToCancel.player2_id);
