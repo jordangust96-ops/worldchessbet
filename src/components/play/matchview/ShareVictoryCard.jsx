@@ -14,38 +14,42 @@ function Row({ label, value }) {
 }
 
 // Rendered off-screen and captured via html2canvas — never shown directly to the user.
+// Amount won is the visual focal point; board, win method, wager, and branding are secondary.
 const ShareVictoryCard = forwardRef(function ShareVictoryCard(
   { winnerName, opponentName, wagerAmount, timeControl, amountWon, endReason, fen },
   ref
 ) {
   return (
-    <div ref={ref} style={{ width: 1200, height: 630 }} className="flex items-stretch gap-10 p-12 bg-[#0A0A0A]">
-      <div className="flex items-center justify-center rounded-3xl bg-white/[0.04] border border-white/5 p-6" style={{ width: 550 }}>
-        <Chessboard
-          position={fen || START_FEN}
-          boardWidth={470}
-          arePiecesDraggable={false}
-          customBoardStyle={{ borderRadius: "12px" }}
-        />
+    <div ref={ref} style={{ width: 1200, height: 630 }} className="flex flex-col p-10 bg-[#0A0A0A]">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <Crown className="text-[#C9A84C]" size={26} />
+          <span className="text-xl font-extrabold gold-text">ChessBet</span>
+        </div>
+        <span className="text-sm font-semibold text-white/40 uppercase tracking-widest">{winnerName} won</span>
       </div>
-      <div className="flex-1 flex flex-col justify-center gap-7 text-white">
-        <div className="flex items-center gap-3">
-          <Crown className="text-[#C9A84C]" size={36} />
-          <span className="text-3xl font-extrabold gold-text">ChessBet</span>
+
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-2xl font-bold text-[#C9A84C]/70 uppercase tracking-widest">Amount Won</p>
+          <p className="text-[160px] leading-none font-extrabold text-[#C9A84C] my-2">${amountWon.toFixed(2)}</p>
+          <p className="text-2xl text-white/50">vs {opponentName}</p>
         </div>
-        <div>
-          <p className="text-6xl font-extrabold text-[#C9A84C]">Victory</p>
-          <p className="text-xl text-white/40 mt-2">{endReason}</p>
+      </div>
+
+      <div className="flex items-center gap-6">
+        <div className="rounded-2xl bg-white/[0.04] border border-white/5 p-3">
+          <Chessboard
+            position={fen || START_FEN}
+            boardWidth={140}
+            arePiecesDraggable={false}
+            customBoardStyle={{ borderRadius: "8px" }}
+          />
         </div>
-        <div className="space-y-3 text-2xl">
-          <Row label="Winner" value={winnerName} />
-          <Row label="Opponent" value={opponentName} />
+        <div className="flex-1 space-y-2 text-lg">
+          <Row label="Won By" value={endReason} />
           <Row label="Wager" value={`$${wagerAmount.toFixed(2)}`} />
           <Row label="Time Control" value={timeControl} />
-        </div>
-        <div className="rounded-2xl bg-[#C9A84C]/10 border border-[#C9A84C]/30 p-5">
-          <p className="text-sm uppercase tracking-widest text-[#C9A84C]/70">Amount Won</p>
-          <p className="text-5xl font-extrabold text-[#C9A84C]">${amountWon.toFixed(2)}</p>
         </div>
       </div>
     </div>
