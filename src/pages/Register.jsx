@@ -9,6 +9,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import AuthLayout from "@/components/AuthLayout";
 import GoogleIcon from "@/components/GoogleIcon";
 import { toast } from "@/components/ui/use-toast";
+import { setMfaVerified } from "@/lib/mfaSession";
 
 export default function Register() {
   const [email, setEmail] = useState("");
@@ -64,6 +65,9 @@ export default function Register() {
       } catch (acceptanceErr) {
         // Non-fatal: acceptance recording should not block account access.
       }
+      // The registration OTP already confirmed control of this email address —
+      // don't immediately trigger a second, separate MFA verification email.
+      setMfaVerified();
       window.location.href = "/";
     } catch (err) {
       setError(err.message || "Invalid verification code");
