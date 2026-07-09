@@ -4,6 +4,7 @@ import { ArrowUpRight, ArrowDownLeft, Loader2, Plus, Minus } from "lucide-react"
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import moment from "moment";
+import { runEligibilityPipeline } from "@/lib/eligibilityPipeline";
 
 export default function WalletPage() {
   const [wallet, setWallet] = useState(null);
@@ -11,6 +12,7 @@ export default function WalletPage() {
   const [loading, setLoading] = useState(true);
   const [depositAmount, setDepositAmount] = useState("");
   const [showDeposit, setShowDeposit] = useState(false);
+  const [isProcessingDeposit, setIsProcessingDeposit] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -41,8 +43,10 @@ export default function WalletPage() {
     setLoading(false);
   };
 
-  const handleDeposit = async () => {
-    const amount = parseFloat(depositAmount);
+  // Executes the deposit itself. This function is only ever called once the
+  // eligibility pipeline has resolved successfully — it has no knowledge of
+  // identity verification or geolocation.
+  const handleDeposit = async (amount) => {
     if (!amount || amount <= 0 || !wallet) return;
     await base44.entities.Wallet.update(wallet.id, {
       balance: wallet.balance + amount,
@@ -57,6 +61,24 @@ export default function WalletPage() {
     setDepositAmount("");
     setShowDeposit(false);
     loadData();
+  };
+
+  // Called when the user confirms the amount. Holds the requested amount in
+  // a deposit session while the eligibility pipeline runs, then hands off to
+  // handleDeposit() only if the pipeline succeeds.
+  const confirmDeposit = async () => {
+    const requestedAmount = parseFloat(depositAmount);
+    if (!requestedAmount || requestedAmount <= 0 || !wallet) return;
+
+    setIsProcessingDeposit(true);
+    try {
+      const { eligible } = await runEligibilityPipeline(wallet.user_id, requestedAmount);
+      if (eligible) {
+        await handleDeposit(requestedAmount);
+      }
+    } finally {
+      setIsProcessingDeposit(false);
+    }
   };
 
   if (loading) {
@@ -132,11 +154,11 @@ export default function WalletPage() {
               className="w-full h-12 px-4 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder:text-white/20 text-sm focus:border-[#C9A84C]/50 focus:outline-none"
             />
             <Button
-              onClick={handleDeposit}
-              disabled={!depositAmount || parseFloat(depositAmount) <= 0}
+              onClick={confirmDeposit}
+              disabled={!depositAmount || parseFloat(depositAmount) <= 0 || isProcessingDeposit}
               className="w-full h-12 rounded-xl gold-gradient text-black font-bold hover:opacity-90 disabled:opacity-30"
             >
-              Confirm Deposit
+              {isProcessingDeposit ? "Confirming..." : "Confirm Deposit"}
             </Button>
           </motion.div>
         )}
