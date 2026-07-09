@@ -223,7 +223,7 @@ export default function WalletPage() {
                       <div>
                         <p className="text-sm font-semibold text-white">{config.label}</p>
                         <p className="text-[11px] text-white/30">
-                          {moment(tx.created_date).fromNow()}
+                          {moment(tx.created_date).format("MMM D, YYYY")}
                         </p>
                       </div>
                     </div>
