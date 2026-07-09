@@ -5,6 +5,10 @@ import { useSize } from "@/hooks/use-size";
 
 const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
+// Board surface colors — marketplace stays quiet/dark, active states get a brighter, illuminated surface.
+const MARKETPLACE_SQUARES = { dark: "#171310", light: "#2A231A" };
+const ACTIVE_SQUARES = { dark: "#241C15", light: "#3A3021" };
+
 // Visual "energy level" per match state — the board comes alive as the match progresses.
 const STATE_STYLES = {
   marketplace: {
@@ -16,46 +20,56 @@ const STATE_STYLES = {
     breathe: false,
     sweep: false,
     vignette: false,
+    squares: MARKETPLACE_SQUARES,
+    ambient: false,
   },
   accepted: {
     wrapperAnimate: { scale: 1, opacity: 1 },
     wrapperTransition: { duration: 1, ease: "easeOut" },
     glow: "0 0 30px rgba(201,168,76,0.18)",
     borderColor: "rgba(201,168,76,0.35)",
-    filter: "brightness(1.05) contrast(1.05)",
+    filter: "brightness(1.12) contrast(1.05)",
     breathe: false,
     sweep: false,
     vignette: false,
+    squares: ACTIVE_SQUARES,
+    ambient: true,
   },
   deposit_waiting: {
     wrapperAnimate: { scale: 1, opacity: 1 },
     wrapperTransition: { duration: 1, ease: "easeOut" },
     glow: "0 0 30px rgba(201,168,76,0.18)",
     borderColor: "rgba(201,168,76,0.35)",
-    filter: "brightness(1.05) contrast(1.05)",
+    filter: "brightness(1.12) contrast(1.05)",
     breathe: true,
     sweep: false,
     vignette: false,
+    squares: ACTIVE_SQUARES,
+    ambient: true,
   },
   both_ready: {
     wrapperAnimate: { scale: 1, opacity: 1 },
     wrapperTransition: { duration: 0.8, ease: "easeOut" },
     glow: "0 0 45px rgba(201,168,76,0.3)",
     borderColor: "rgba(201,168,76,0.6)",
-    filter: "brightness(1.1) contrast(1.08)",
+    filter: "brightness(1.16) contrast(1.08)",
     breathe: false,
     sweep: true,
     vignette: true,
+    squares: ACTIVE_SQUARES,
+    ambient: true,
   },
   in_progress: {
     wrapperAnimate: { scale: 1, opacity: 1 },
     wrapperTransition: { duration: 0.8, ease: "easeOut" },
     glow: "0 0 60px rgba(201,168,76,0.45)",
     borderColor: "rgba(201,168,76,0.9)",
-    filter: "brightness(1.18) contrast(1.15)",
+    filter: "brightness(1.22) contrast(1.15)",
     breathe: false,
     sweep: true,
     vignette: true,
+    squares: ACTIVE_SQUARES,
+    ambient: true,
   },
   settlement: {
     wrapperAnimate: { scale: 1, opacity: 1 },
@@ -66,6 +80,8 @@ const STATE_STYLES = {
     breathe: false,
     sweep: false,
     vignette: false,
+    squares: MARKETPLACE_SQUARES,
+    ambient: false,
   },
   game_summary: {
     wrapperAnimate: { scale: 1, opacity: 1 },
@@ -76,6 +92,8 @@ const STATE_STYLES = {
     breathe: false,
     sweep: false,
     vignette: false,
+    squares: MARKETPLACE_SQUARES,
+    ambient: false,
   },
 };
 
@@ -127,6 +145,17 @@ export default function ChessboardPreview({
         </motion.div>
       )}
 
+      {style.ambient && (
+        <div
+          className="absolute inset-0 pointer-events-none rounded-3xl"
+          style={{
+            background:
+              "radial-gradient(circle at 50% 45%, rgba(255,241,204,0.16), rgba(255,241,204,0.04) 55%, transparent 75%)",
+            mixBlendMode: "soft-light",
+          }}
+        />
+      )}
+
       {style.vignette && (
         <div
           className="absolute inset-0 pointer-events-none rounded-3xl"
@@ -144,8 +173,8 @@ export default function ChessboardPreview({
             boardOrientation={boardOrientation}
             arePiecesDraggable={arePiecesDraggable}
             boardWidth={Math.min(size.width, size.height || size.width)}
-            customDarkSquareStyle={{ backgroundColor: "#171310" }}
-            customLightSquareStyle={{ backgroundColor: "#2A231A" }}
+            customDarkSquareStyle={{ backgroundColor: style.squares.dark }}
+            customLightSquareStyle={{ backgroundColor: style.squares.light }}
             customBoardStyle={{ borderRadius: "0px" }}
             animationDuration={200}
           />
