@@ -123,11 +123,11 @@ export default function ActiveChallengeCard({ match, onCancel }) {
                   <p className="text-sm font-bold text-white">{match.display_name}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase tracking-wider text-white/30 hidden">Elapsed</p>
-                  <p className="text-sm font-bold text-white flex items-center justify-center gap-1 hidden">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                    {elapsed}
-                  </p>
+                  
+                  
+
+
+                
                 </div>
               </div>
             </motion.div>
