@@ -93,42 +93,36 @@ export default function Profile() {
           )}
         </div>
 
-        {/* Chess.com Username */}
-        <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-5 space-y-3">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">
-              Public ChessBet Username
-            </label>
-            <span className="text-[10px] text-white/30">{chessUsername.length}/16</span>
-          </div>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={chessUsername}
-              onChange={(e) => setChessUsername(e.target.value.slice(0, 16))}
-              maxLength={16}
-              placeholder="your_username"
-              className="flex-1 h-11 px-4 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder:text-white/20 text-sm focus:border-[#C9A84C]/50 focus:outline-none" />
-            
-            <Button
-              onClick={handleSaveUsername}
-              disabled={saving}
-              className="h-11 rounded-xl gold-gradient text-black font-bold hover:opacity-90 px-5">
-              
-              {saving ? <Loader2 size={14} className="animate-spin" /> : "Save"}
-            </Button>
-          </div>
-        </div>
-
         {/* Account Info */}
-        <div className="rounded-2xl bg-white/[0.03] border border-white/5 space-y-4 px-5 my-1">
-          
+        <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-5 space-y-5">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">
+                Public ChessBet Username
+              </label>
+              <span className="text-[10px] text-white/30">{chessUsername.length}/16</span>
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={chessUsername}
+                onChange={(e) => setChessUsername(e.target.value.slice(0, 16))}
+                maxLength={16}
+                placeholder="your_username"
+                className="flex-1 h-11 px-4 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder:text-white/20 text-sm focus:border-[#C9A84C]/50 focus:outline-none" />
+              
+              <Button
+                onClick={handleSaveUsername}
+                disabled={saving}
+                className="h-11 rounded-xl gold-gradient text-black font-bold hover:opacity-90 px-5">
+                
+                {saving ? <Loader2 size={14} className="animate-spin" /> : "Save"}
+              </Button>
+            </div>
+          </div>
 
+          <div className="h-px bg-white/[0.06]" />
 
-
-
-
-          
           <div className="flex items-center gap-3">
             <Mail size={16} className="text-white/30" />
             <div>
