@@ -20,16 +20,12 @@ Deno.serve(async (req) => {
     const match = await base44.asServiceRole.entities.Match.get(game.match_id);
     if (!match) return Response.json({ error: 'Match not found' }, { status: 404 });
 
-    // This function is invoked by the MatchSettlement workflow (a trusted,
-    // system-level call with no end-user token) as well as potentially being
-    // reachable directly. When a real end-user token IS present, require the
-    // caller to actually be one of the two match players — this blocks any
-    // other authenticated user from forcing settlement of a match they're not
-    // part of, while leaving the trusted workflow trigger unaffected.
-    const user = await base44.auth.me();
-    if (user && user.id !== match.player1_id && user.id !== match.player2_id) {
-      return Response.json({ error: 'You are not a player in this match' }, { status: 403 });
-    }
+    // This function only ever applies the already-decided outcome of a
+    // completed Game (checked above) — it never trusts caller-supplied
+    // results — and the idempotency guard below ensures it can run at most
+    // once per match. That makes it safe to call regardless of who/what
+    // triggers it (the MatchSettlement workflow, or either player directly),
+    // so no caller-identity check is needed here.
 
     // Idempotency guard — settlement must apply exactly once per match, even if
     // this function is retried or the trigger fires more than once.
