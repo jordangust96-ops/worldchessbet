@@ -13,9 +13,11 @@ export default function Home() {
   const [wallet, setWallet] = useState(null);
   const [myMatchId, setMyMatchId] = useState(null);
   const [boardState, setBoardState] = useState("marketplace");
-  // Tracks the last match the player explicitly dismissed (via "Find New Match"),
-  // so a lagging realtime update for that same completed match never restores it.
-  const dismissedMatchIdRef = useRef(null);
+  // Tracks the last match the player explicitly dismissed (via "Find New Match").
+  // Persisted in sessionStorage (not just a ref) because navigating to another
+  // tab (Wallet, Profile) unmounts Home entirely — a plain ref would reset to
+  // null on remount and let the same dismissed match resurface.
+  const dismissedMatchIdRef = useRef(sessionStorage.getItem("chessbet_dismissed_match_id"));
   const gameActive = boardState === "both_ready" || boardState === "in_progress" || boardState === "game_summary";
   const isLive = boardState === "in_progress";
   const { fen, handleDrop, orientation, game } = useChessGame(myMatchId, user?.id, gameActive);
@@ -23,22 +25,28 @@ export default function Home() {
   useEffect(() => {
     if (!user?.id) return;
 
+    // A match can stay "in_progress" for a moment after the game itself has
+    // finished, while settlement is pending. Don't restore the Match View (and
+    // its post-game summary) for those — treat it as no active match. Shared by
+    // both the initial fetch and the realtime handler below so a stale/replayed
+    // event can never resurrect a match whose game already ended.
+    const isMatchGenuinelyActive = async (m) => {
+      if (m.status !== "in_progress") return true;
+      const games = await base44.entities.Game.filter({ match_id: m.id }, "-created_date", 1);
+      return games[0]?.status !== "completed";
+    };
+
     const checkActiveMatch = async () => {
       const asP1 = await base44.entities.Match.filter({ player1_id: user.id }, "-created_date", 5);
       const asP2 = await base44.entities.Match.filter({ player2_id: user.id }, "-created_date", 5);
-      const candidates = [...asP1, ...asP2].filter((m) =>
-        ["matched", "deposited", "in_progress"].includes(m.status)
+      const candidates = [...asP1, ...asP2].filter(
+        (m) => ["matched", "deposited", "in_progress"].includes(m.status) && m.id !== dismissedMatchIdRef.current
       );
       for (const m of candidates) {
-        if (m.status === "in_progress") {
-          // A match can stay "in_progress" for a moment after the game itself has
-          // finished, while settlement is pending. Don't restore the Match View
-          // (and its post-game summary) for those — treat it as no active match.
-          const games = await base44.entities.Game.filter({ match_id: m.id }, "-created_date", 1);
-          if (games[0]?.status === "completed") continue;
+        if (await isMatchGenuinelyActive(m)) {
+          setMyMatchId(m.id);
+          return;
         }
-        setMyMatchId(m.id);
-        return;
       }
     };
     // One-time fetch to recover the authoritative state on mount or reconnect.
@@ -49,9 +57,12 @@ export default function Home() {
       if (event.type !== "update" && event.type !== "create") return;
       // Never restore a match the player already dismissed via Find New Match.
       if (event.data.id === dismissedMatchIdRef.current) return;
-      if (["matched", "deposited", "in_progress"].includes(event.data.status)) {
-        setMyMatchId(event.data.id);
-      }
+      if (!["matched", "deposited", "in_progress"].includes(event.data.status)) return;
+      isMatchGenuinelyActive(event.data).then((genuinelyActive) => {
+        if (genuinelyActive && event.data.id !== dismissedMatchIdRef.current) {
+          setMyMatchId(event.data.id);
+        }
+      });
     });
     return () => unsubscribe();
   }, [user?.id]);
@@ -132,6 +143,7 @@ export default function Home() {
               userId={user?.id}
               onExit={() => {
                 dismissedMatchIdRef.current = myMatchId;
+                sessionStorage.setItem("chessbet_dismissed_match_id", myMatchId);
                 setMyMatchId(null);
                 setBoardState("marketplace");
               }}
