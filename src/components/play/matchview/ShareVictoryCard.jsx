@@ -34,8 +34,8 @@ const ShareVictoryCard = forwardRef(function ShareVictoryCard(
 
       <div className="flex-1 flex flex-col justify-center min-w-0">
         <div className="flex items-center gap-2.5 mb-8">
-          <Crown className="text-[#C9A84C]" size={28} />
-          <span className="text-2xl font-extrabold gold-text">ChessBet</span>
+          <Crown size={28} strokeWidth={1.5} className="text-[#C9A84C]" />
+          <span className="text-2xl font-bold tracking-tight text-white">ChessBet</span>
         </div>
 
         <p className="text-2xl font-extrabold text-white/50 uppercase tracking-[0.3em] mb-2">Victory</p>
