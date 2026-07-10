@@ -60,7 +60,13 @@ export function useChessGame(matchId, userId, active) {
           white_time_ms: tc.initialMs,
           black_time_ms: tc.initialMs,
           increment_ms: 0,
-          turn_started_at: new Date().toISOString(),
+          // turn_started_at is intentionally left unset here. Stamping it at
+          // creation time (a client-side event) is what caused White's clock
+          // to appear at 0:00 — any delay between Game creation and the first
+          // move was being silently deducted from White's time. It is now
+          // stamped exclusively by the server (submitMove), the moment the
+          // first move is actually made, which is the only authoritative
+          // "live gameplay has begun" signal.
         });
         await base44.entities.Match.update(matchId, { game_id: g.id });
       }
