@@ -38,25 +38,14 @@ export default function GameSummary({ match, game, userId, onPlayAgain }) {
 
   useEffect(() => {
     const load = async () => {
-      if (!opponentId) return;
-      const users = await base44.entities.User.filter({ id: opponentId });
-      if (users[0]) {
-        setOpponentName(users[0].chess_com_username || users[0].full_name?.split(" ")[0] || "Opponent");
-      }
+      const ids = [userId, opponentId].filter(Boolean);
+      if (ids.length === 0) return;
+      const { data } = await base44.functions.invoke("getUserDisplayNames", { userIds: ids });
+      if (opponentId) setOpponentName(data?.names?.[opponentId] || "Opponent");
+      if (userId) setWinnerName(data?.names?.[userId] || "You");
     };
     load();
-  }, [opponentId]);
-
-  useEffect(() => {
-    const load = async () => {
-      if (!userId) return;
-      const users = await base44.entities.User.filter({ id: userId });
-      if (users[0]) {
-        setWinnerName(users[0].chess_com_username || users[0].full_name?.split(" ")[0] || "You");
-      }
-    };
-    load();
-  }, [userId]);
+  }, [userId, opponentId]);
 
   const endReason = useMemo(() => getEndReason(game), [game]);
 

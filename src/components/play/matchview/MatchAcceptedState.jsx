@@ -21,9 +21,8 @@ export default function MatchAcceptedState({
   useEffect(() => {
     if (!opponentId) return;
     const load = async () => {
-      const users = await base44.entities.User.filter({ id: opponentId });
-      const opponent = users?.[0];
-      setOpponentName(opponent?.chess_com_username || opponent?.full_name?.split(" ")[0] || "Opponent");
+      const { data } = await base44.functions.invoke("getUserDisplayNames", { userIds: [opponentId] });
+      setOpponentName(data?.names?.[opponentId] || "Opponent");
     };
     load();
   }, [opponentId]);

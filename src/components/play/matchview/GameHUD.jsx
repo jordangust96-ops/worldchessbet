@@ -91,12 +91,10 @@ export default function GameHUD({ match, game, userId }) {
     const load = async () => {
       const ids = [userId, opponentId].filter(Boolean);
       if (ids.length === 0) return;
-      const users = await base44.entities.User.filter({ id: { $in: ids } });
-      const me = users.find((u) => u.id === userId);
-      const opponent = users.find((u) => u.id === opponentId);
+      const { data } = await base44.functions.invoke("getUserDisplayNames", { userIds: ids });
       setNames({
-        me: me?.chess_com_username || me?.full_name?.split(" ")[0] || "You",
-        opponent: opponent?.chess_com_username || opponent?.full_name?.split(" ")[0] || "Opponent",
+        me: data?.names?.[userId] || "You",
+        opponent: data?.names?.[opponentId] || "Opponent",
       });
     };
     load();
