@@ -39,17 +39,28 @@ export function useChessGame(matchId, userId, active) {
 
   const loadGame = useCallback(async () => {
     if (!matchId || !userId) return;
-    const match = await base44.entities.Match.get(matchId);
-    setColor(match.player1_id === userId ? "white" : "black");
+    let match = await base44.entities.Match.get(matchId);
+    const isHost = match.player1_id === userId;
+    setColor(isHost ? "white" : "black");
 
+    // Only the host (player1) ever creates the Game record. Previously both
+    // players raced to create one the moment they loaded the match, which
+    // could produce two separate Game entities for the same match — each
+    // player then played on a different one, leaving one player's copy
+    // abandoned (its clock silently ticking down to 0 and freezing there).
+    // Player2 instead waits/polls until the host's Game becomes available.
     let g = null;
-    if (match.game_id) {
-      g = await base44.entities.Game.get(match.game_id);
-    } else {
+    for (let attempt = 0; attempt < 20; attempt++) {
+      if (match.game_id) {
+        g = await base44.entities.Game.get(match.game_id);
+        break;
+      }
       const existing = await base44.entities.Game.filter({ match_id: matchId }, "-created_date", 1);
       if (existing.length > 0) {
         g = existing[0];
-      } else {
+        break;
+      }
+      if (isHost) {
         const tc = TIME_CONTROLS[match.time_control] || TIME_CONTROLS.rapid;
         g = await base44.entities.Game.create({
           match_id: matchId,
@@ -63,8 +74,12 @@ export function useChessGame(matchId, userId, active) {
           turn_started_at: new Date().toISOString(),
         });
         await base44.entities.Match.update(matchId, { game_id: g.id });
+        break;
       }
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      match = await base44.entities.Match.get(matchId);
     }
+    if (!g) return;
     setGame(g);
     chessRef.current.load(g.fen || START_FEN);
     setFen(chessRef.current.fen());
