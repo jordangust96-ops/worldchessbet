@@ -9,6 +9,19 @@ import { base44 } from "@/api/base44Client";
 export function useChessClock(game) {
   const [displayMs, setDisplayMs] = useState({ w: 0, b: 0 });
   const timeoutFlaggedRef = useRef(false);
+  // Estimated (server time - client time) skew, in ms. Client device clocks are
+  // frequently off from the server's — sometimes by many seconds — which made the
+  // local countdown run fast/slow on whichever device had a skewed clock, even
+  // though the stored server values were always correct. Recomputed on every
+  // fresh Game snapshot (poll/subscription) from its server-set updated_date, so
+  // raw Date.now() is never used directly against the server's turn_started_at.
+  const clockSkewMsRef = useRef(0);
+
+  useEffect(() => {
+    if (game?.updated_date) {
+      clockSkewMsRef.current = new Date(game.updated_date).getTime() - Date.now();
+    }
+  }, [game?.updated_date]);
 
   useEffect(() => {
     if (!game || game.status === "completed") return;
@@ -17,8 +30,9 @@ export function useChessClock(game) {
     timeoutFlaggedRef.current = false;
 
     const tick = () => {
-      const turnStartedAt = game.turn_started_at ? new Date(game.turn_started_at).getTime() : Date.now();
-      const elapsed = Math.max(0, Date.now() - turnStartedAt);
+      const now = Date.now() + clockSkewMsRef.current;
+      const turnStartedAt = game.turn_started_at ? new Date(game.turn_started_at).getTime() : now;
+      const elapsed = Math.max(0, now - turnStartedAt);
 
       const whiteMs = activeColor === "w" ? Math.max(0, (game.white_time_ms ?? 0) - elapsed) : game.white_time_ms ?? 0;
       const blackMs = activeColor === "b" ? Math.max(0, (game.black_time_ms ?? 0) - elapsed) : game.black_time_ms ?? 0;
