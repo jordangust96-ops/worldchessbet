@@ -1,13 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ArrowUpRight, ArrowDownLeft, Loader2, Plus, Minus } from "lucide-react";
+import { ArrowUpRight, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
-import moment from "moment";
+import TransactionHistory from "@/components/wallet/TransactionHistory";
+
+const TX_PAGE_SIZE = 20;
 
 export default function WalletPage() {
   const [wallet, setWallet] = useState(null);
+  const [userId, setUserId] = useState(null);
   const [transactions, setTransactions] = useState([]);
+  const [txPage, setTxPage] = useState(1);
+  const [txTotalCount, setTxTotalCount] = useState(0);
   const [stats, setStats] = useState({ won: 0, lost: 0, wagered: 0 });
   const [loading, setLoading] = useState(true);
   const [depositAmount, setDepositAmount] = useState("");
@@ -19,8 +24,28 @@ export default function WalletPage() {
     loadData();
   }, []);
 
+  // Loads only the transactions needed for the given page, plus a lightweight
+  // (ids-only) count of the full history for the "Showing X-Y of Z" label and
+  // page count — never pulls the full transaction history into the browser.
+  const loadTransactions = async (uid, page) => {
+    const skip = (page - 1) * TX_PAGE_SIZE;
+    const [txs, allIds] = await Promise.all([
+      base44.entities.WalletTransaction.filter({ user_id: uid }, "-created_date", TX_PAGE_SIZE, skip),
+      base44.entities.WalletTransaction.filter({ user_id: uid }, "-created_date", 5000, 0, ["id"]),
+    ]);
+    setTransactions(txs);
+    setTxTotalCount(allIds.length);
+    setTxPage(page);
+  };
+
+  const handleTxPageChange = (page) => {
+    if (!userId) return;
+    loadTransactions(userId, page);
+  };
+
   const loadData = async () => {
     const me = await base44.auth.me();
+    setUserId(me.id);
     const wallets = await base44.entities.Wallet.filter({ user_id: me.id });
     if (wallets.length > 0) {
       setWallet(wallets[0]);
@@ -35,12 +60,7 @@ export default function WalletPage() {
       });
       setWallet(w);
     }
-    const txs = await base44.entities.WalletTransaction.filter(
-      { user_id: me.id },
-      "-created_date",
-      20
-    );
-    setTransactions(txs);
+    await loadTransactions(me.id, 1);
 
     // Won/Lost/Wagered are derived from completed matches only — the wallet's
     // total_won/total_wagered fields aren't reliably updated by settlement, so
@@ -96,14 +116,6 @@ export default function WalletPage() {
       </div>
     );
   }
-
-  const typeConfig = {
-    deposit: { icon: ArrowDownLeft, color: "text-green-400", bg: "bg-green-500/10", label: "Deposit" },
-    withdrawal: { icon: ArrowUpRight, color: "text-red-400", bg: "bg-red-500/10", label: "Withdrawal" },
-    wager_lock: { icon: Minus, color: "text-orange-400", bg: "bg-orange-500/10", label: "Wager Locked" },
-    wager_refund: { icon: Plus, color: "text-blue-400", bg: "bg-blue-500/10", label: "Wager Refund" },
-    payout: { icon: ArrowDownLeft, color: "text-[#C9A84C]", bg: "bg-[#C9A84C]/10", label: "Payout" },
-  };
 
   return (
     <div className="min-h-screen px-5 pt-8">
@@ -182,40 +194,13 @@ export default function WalletPage() {
         {/* Transactions */}
         <div>
           <h3 className="text-sm font-semibold text-white/70 mb-4">Transaction History</h3>
-          {transactions.length === 0 ? (
-            <div className="text-center py-10 rounded-2xl bg-white/[0.02] border border-white/5">
-              <p className="text-white/30 text-sm">No transactions yet</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {transactions.map((tx) => {
-                const config = typeConfig[tx.type] || typeConfig.deposit;
-                const Icon = config.icon;
-                const isIncoming = ["deposit", "payout", "wager_refund"].includes(tx.type);
-                return (
-                  <div
-                    key={tx.id}
-                    className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.03] border border-white/5"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${config.bg}`}>
-                        <Icon size={16} className={config.color} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-white">{config.label}</p>
-                        <p className="text-[11px] text-white/30">
-                          {moment(tx.created_date).format("MMM D, YYYY")}
-                        </p>
-                      </div>
-                    </div>
-                    <p className={`text-sm font-bold ${isIncoming ? "text-green-400" : "text-red-400"}`}>
-                      {isIncoming ? "+" : "-"}${tx.amount?.toFixed(2)}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          <TransactionHistory
+            transactions={transactions}
+            page={txPage}
+            pageSize={TX_PAGE_SIZE}
+            totalCount={txTotalCount}
+            onPageChange={handleTxPageChange}
+          />
         </div>
       </motion.div>
     </div>
