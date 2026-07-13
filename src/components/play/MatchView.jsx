@@ -66,7 +66,7 @@ export default function MatchView({
   if (isActive) {
     if (match.status === "completed") {
       stateKey = "settlement";
-      content = <SettlementState match={match} userId={userId} onReturn={onExit} />;
+      content = <SettlementState match={match} game={game} userId={userId} onReturn={onExit} />;
     } else if (game?.status === "completed") {
       stateKey = "game_summary";
       content = <GameSummary match={match} game={game} userId={userId} onPlayAgain={onExit} />;

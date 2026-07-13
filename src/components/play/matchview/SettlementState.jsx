@@ -1,10 +1,31 @@
-import React from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Trophy, Minus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { base44 } from "@/api/base44Client";
+import { getEndReason } from "@/lib/gameEndReason";
+import ShareOnXButton from "./ShareOnXButton";
 
-export default function SettlementState({ match, userId, onReturn }) {
+export default function SettlementState({ match, game, userId, onReturn }) {
+  const [opponentName, setOpponentName] = useState("Opponent");
+  const [winnerName, setWinnerName] = useState("You");
+
   const won = match.winner_id === userId;
   const draw = match.result === "draw";
+  const isP1 = match.player1_id === userId;
+  const opponentId = isP1 ? match.player2_id : match.player1_id;
+
+  useEffect(() => {
+    const load = async () => {
+      const ids = [userId, opponentId].filter(Boolean);
+      if (ids.length === 0) return;
+      const { data } = await base44.functions.invoke("getUserDisplayNames", { userIds: ids });
+      if (opponentId) setOpponentName(data?.names?.[opponentId] || "Opponent");
+      if (userId) setWinnerName(data?.names?.[userId] || "You");
+    };
+    load();
+  }, [userId, opponentId]);
+
+  const endReason = useMemo(() => getEndReason(game), [game]);
 
   return (
     <div className="space-y-5 lg:space-y-3 text-center py-4">
@@ -40,9 +61,14 @@ export default function SettlementState({ match, userId, onReturn }) {
         </div>
       )}
       <p className="text-xs text-white/30">Wallet Updated</p>
-      <Button onClick={onReturn} className="w-full h-12 rounded-2xl font-bold gold-gradient text-black hover:opacity-90">
-        Return to Marketplace
-      </Button>
+      <div className="space-y-2">
+        <Button onClick={onReturn} className="w-full h-12 rounded-2xl font-bold gold-gradient text-black hover:opacity-90">
+          Return to Marketplace
+        </Button>
+        {won && (
+          <ShareOnXButton match={match} game={game} winnerName={winnerName} opponentName={opponentName} endReason={endReason} />
+        )}
+      </div>
     </div>
   );
 }
