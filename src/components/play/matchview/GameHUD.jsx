@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { useChessClock } from "@/hooks/useChessClock";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
+import MovementModeToggle from "@/components/play/MovementModeToggle";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,7 +31,7 @@ function formatClock(ms) {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
-export default function GameHUD({ match, game, userId }) {
+export default function GameHUD({ match, game, userId, movementMode, onMovementModeChange }) {
   const [names, setNames] = useState({ me: "You", opponent: "Opponent" });
   const [showResignConfirm, setShowResignConfirm] = useState(false);
   const [resigning, setResigning] = useState(false);
@@ -217,6 +218,12 @@ export default function GameHUD({ match, game, userId }) {
       <div className="flex items-center justify-center gap-1.5 pt-1">
         <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
         <span className="text-[10px] text-white/30">Live</span>
+      </div>
+
+      {/* Section 4.5 — Movement Mode */}
+      <div className="space-y-1.5">
+        <p className="text-[10px] uppercase tracking-widest text-white/30 px-1">Movement Mode</p>
+        <MovementModeToggle mode={movementMode} onChange={onMovementModeChange} />
       </div>
 
       {/* Section 5 — Game Controls */}

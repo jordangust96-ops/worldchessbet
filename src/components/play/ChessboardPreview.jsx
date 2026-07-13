@@ -106,12 +106,27 @@ export default function ChessboardPreview({
   state = "marketplace",
   fen,
   onPieceDrop,
+  onSquareClick,
+  selectedSquare,
+  legalTargets,
   boardOrientation = "white",
   arePiecesDraggable = false,
 }) {
   const style = STATE_STYLES[state] || STATE_STYLES.marketplace;
   const containerRef = useRef(null);
   const size = useSize(containerRef);
+
+  // Click to Move highlighting — selected square gets a gold ring, legal
+  // destinations get a soft gold dot. Empty when Drag & Drop mode is active.
+  const customSquareStyles = {};
+  if (selectedSquare) {
+    customSquareStyles[selectedSquare] = { boxShadow: "inset 0 0 0 3px rgba(201,168,76,0.9)" };
+  }
+  (legalTargets || []).forEach((sq) => {
+    customSquareStyles[sq] = {
+      background: "radial-gradient(circle, rgba(201,168,76,0.55) 22%, transparent 26%)",
+    };
+  });
 
   return (
     <motion.div
@@ -175,6 +190,8 @@ export default function ChessboardPreview({
           <Chessboard
             position={fen || START_FEN}
             onPieceDrop={onPieceDrop}
+            onSquareClick={onSquareClick}
+            customSquareStyles={customSquareStyles}
             boardOrientation={boardOrientation}
             arePiecesDraggable={arePiecesDraggable}
             boardWidth={Math.min(size.width, size.height || size.width)}

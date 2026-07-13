@@ -28,6 +28,8 @@ export function useChessGame(matchId, userId, active) {
   // Ply of the position currently rendered — the single source of truth for
   // ordering. Never let a lower-ply update overwrite it.
   const renderedPlyRef = useRef(0);
+  const [selectedSquare, setSelectedSquare] = useState(null);
+  const [legalTargets, setLegalTargets] = useState([]);
   const { toast } = useToast();
 
   const loadGame = useCallback(async () => {
@@ -75,6 +77,10 @@ export function useChessGame(matchId, userId, active) {
       }
       renderedPlyRef.current = latestPly;
       setGame(latest);
+      // Any externally-sourced position change (opponent's move, reconnect,
+      // poll) invalidates whatever square was selected for click-to-move.
+      setSelectedSquare(null);
+      setLegalTargets([]);
     };
 
     // Recover the authoritative state immediately on (re)subscribe, e.g. after a
@@ -101,7 +107,10 @@ export function useChessGame(matchId, userId, active) {
     };
   }, [active, game?.id]);
 
-  const handleDrop = useCallback(
+  // Shared core used by both Drag & Drop (handleDrop) and Click to Move
+  // (handleSquareClick) — the single path that ever calls submitMove, so both
+  // input methods run through identical validation/optimistic-update/rollback logic.
+  const attemptMove = useCallback(
     (sourceSquare, targetSquare) => {
       if (!game || game.status === "completed") return false;
 
@@ -125,6 +134,8 @@ export function useChessGame(matchId, userId, active) {
       // response still reflecting the pre-move position gets rejected by
       // applyLatest instead of briefly rendering over this optimistic move.
       renderedPlyRef.current = plyFromFen(preview.fen());
+      setSelectedSquare(null);
+      setLegalTargets([]);
 
       (async () => {
         try {
@@ -154,5 +165,61 @@ export function useChessGame(matchId, userId, active) {
     [game, toast]
   );
 
-  return { fen, handleDrop, orientation: color, gameStatus: game?.status, game };
+  const handleDrop = useCallback(
+    (sourceSquare, targetSquare) => attemptMove(sourceSquare, targetSquare),
+    [attemptMove]
+  );
+
+  // Click to Move: click a legal piece to select it (highlighting legal
+  // destinations), click a destination to complete the move, click the same
+  // piece or an empty/illegal square to clear the selection.
+  const handleSquareClick = useCallback(
+    (square) => {
+      if (!game || game.status === "completed") return;
+      const chess = chessRef.current;
+      const turn = chess.turn();
+
+      if (selectedSquare) {
+        if (square === selectedSquare) {
+          setSelectedSquare(null);
+          setLegalTargets([]);
+          return;
+        }
+        if (legalTargets.includes(square)) {
+          attemptMove(selectedSquare, square);
+          return;
+        }
+        const piece = chess.get(square);
+        if (piece && piece.color === turn) {
+          const moves = chess.moves({ square, verbose: true });
+          setSelectedSquare(moves.length > 0 ? square : null);
+          setLegalTargets(moves.map((m) => m.to));
+        } else {
+          setSelectedSquare(null);
+          setLegalTargets([]);
+        }
+        return;
+      }
+
+      const piece = chess.get(square);
+      if (piece && piece.color === turn) {
+        const moves = chess.moves({ square, verbose: true });
+        if (moves.length === 0) return;
+        setSelectedSquare(square);
+        setLegalTargets(moves.map((m) => m.to));
+      }
+    },
+    [game, selectedSquare, legalTargets, attemptMove]
+  );
+
+  return {
+    fen,
+    handleDrop,
+    handleSquareClick,
+    selectedSquare,
+    legalTargets,
+    orientation: color,
+    gameStatus: game?.status,
+    game,
+  };
 }

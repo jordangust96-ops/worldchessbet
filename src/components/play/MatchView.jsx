@@ -9,7 +9,7 @@ import GameHUD from "@/components/play/matchview/GameHUD";
 import GameSummary from "@/components/play/matchview/GameSummary";
 import SettlementState from "@/components/play/matchview/SettlementState";
 
-export default function MatchView({ matchId, userId, onExit, onStateChange, game }) {
+export default function MatchView({ matchId, userId, onExit, onStateChange, game, movementMode, onMovementModeChange }) {
   const [match, setMatch] = useState(null);
   const { toast } = useToast();
   // Tracks whether this client is the one who initiated the cancellation, so the
@@ -81,7 +81,15 @@ export default function MatchView({ matchId, userId, onExit, onStateChange, game
       // no manual "Launch" step required, which previously could strand a
       // player on the Both Ready screen and make it look like they couldn't move.
       stateKey = "in_progress";
-      content = <GameHUD match={match} userId={userId} game={game} />;
+      content = (
+        <GameHUD
+          match={match}
+          userId={userId}
+          game={game}
+          movementMode={movementMode}
+          onMovementModeChange={onMovementModeChange}
+        />
+      );
     } else if (myDeposited && !opponentDeposited) {
       stateKey = "deposit_waiting";
       content = <DepositWaitingState match={match} onCancel={() => handleCancel(match)} />;

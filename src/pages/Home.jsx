@@ -21,7 +21,14 @@ export default function Home() {
   const dismissedMatchIdRef = useRef(sessionStorage.getItem("chessbet_dismissed_match_id"));
   const gameActive = boardState === "in_progress" || boardState === "game_summary";
   const isLive = boardState === "in_progress";
-  const { fen, handleDrop, orientation, game } = useChessGame(myMatchId, user?.id, gameActive);
+  const [movementMode, setMovementMode] = useState("drag");
+  const { fen, handleDrop, handleSquareClick, selectedSquare, legalTargets, orientation, game } =
+    useChessGame(myMatchId, user?.id, gameActive);
+
+  const handleMovementModeChange = (mode) => {
+    setMovementMode(mode);
+    base44.auth.updateMe({ movement_mode: mode });
+  };
 
   useEffect(() => {
     if (!user?.id) return;
@@ -72,6 +79,7 @@ export default function Home() {
     const load = async () => {
       const me = await base44.auth.me();
       setUser(me);
+      setMovementMode(me.movement_mode === "click" ? "click" : "drag");
       const wallets = await base44.entities.Wallet.filter({ user_id: me.id });
       if (wallets.length > 0) {
         setWallet(wallets[0]);
@@ -122,9 +130,12 @@ export default function Home() {
           <ChessboardPreview
             state={boardState}
             fen={gameActive ? fen : undefined}
-            onPieceDrop={isLive ? handleDrop : undefined}
+            onPieceDrop={isLive && movementMode === "drag" ? handleDrop : undefined}
+            onSquareClick={isLive && movementMode === "click" ? handleSquareClick : undefined}
+            selectedSquare={isLive && movementMode === "click" ? selectedSquare : null}
+            legalTargets={isLive && movementMode === "click" ? legalTargets : []}
             boardOrientation={orientation}
-            arePiecesDraggable={isLive}
+            arePiecesDraggable={isLive && movementMode === "drag"}
           />
         </motion.div>
 
@@ -148,6 +159,8 @@ export default function Home() {
               }}
               onStateChange={setBoardState}
               game={game}
+              movementMode={movementMode}
+              onMovementModeChange={handleMovementModeChange}
             />
           ) : (
             <MatchCenter
