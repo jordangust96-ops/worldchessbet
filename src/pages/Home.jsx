@@ -6,6 +6,7 @@ import ChessboardPreview from "@/components/play/ChessboardPreview";
 import MatchCenter from "@/components/play/MatchCenter";
 import MatchView from "@/components/play/MatchView";
 import PlayerClocks from "@/components/play/PlayerClocks";
+import DemoModeNotice from "@/components/DemoModeNotice";
 import { useChessGame } from "@/hooks/useChessGame";
 
 export default function Home() {
@@ -95,20 +96,23 @@ export default function Home() {
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between mb-6 lg:mb-4 lg:shrink-0"
+        className="mb-6 lg:mb-4 lg:shrink-0"
       >
-        <div className="flex items-center gap-2">
-          <Crown size={18} strokeWidth={1.5} className="text-[#C9A84C]" />
-          <span className="text-sm font-bold tracking-tight gold-text">
-            ChessBet
-          </span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Crown size={18} strokeWidth={1.5} className="text-[#C9A84C]" />
+            <span className="text-sm font-bold tracking-tight gold-text">
+              ChessBet
+            </span>
+          </div>
+          <div className="text-right">
+            <p className="text-[10px] uppercase tracking-widest text-white/40 mb-0.5">Balance</p>
+            <p className="text-lg font-bold text-[#C9A84C]">
+              ${wallet?.balance?.toFixed(2) || "0.00"}
+            </p>
+          </div>
         </div>
-        <div className="text-right">
-          <p className="text-[10px] uppercase tracking-widest text-white/40 mb-0.5">Balance</p>
-          <p className="text-lg font-bold text-[#C9A84C]">
-            ${wallet?.balance?.toFixed(2) || "0.00"}
-          </p>
-        </div>
+        <DemoModeNotice />
       </motion.div>
 
       {/* Main Layout */}
