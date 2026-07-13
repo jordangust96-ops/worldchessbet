@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Crown, Zap, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import NotifyAtLaunchModal from "@/components/NotifyAtLaunchModal";
+import Logo from "@/components/Logo";
 
 export default function Landing() {
   const [notifyModalOpen, setNotifyModalOpen] = useState(false);
@@ -12,12 +13,7 @@ export default function Landing() {
     <div className="min-h-screen bg-[#0A0A0A] flex flex-col">
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-5">
-        <div className="flex items-center gap-2">
-          <Crown className="text-[#C9A84C]" strokeWidth={1.5} size={24} />
-          <span className="text-lg font-bold tracking-tight gold-text">
-            ChessBet
-          </span>
-        </div>
+        <Logo size="md" />
         <Link to="/login">
           <Button variant="ghost" className="text-white/70 hover:text-white text-sm">
             Sign In
@@ -34,12 +30,7 @@ export default function Landing() {
           className="space-y-8 max-w-md"
         >
           <div className="space-y-4">
-            <div className="flex items-center justify-center gap-3">
-              <Crown className="text-[#C9A84C]" strokeWidth={1.5} size={48} />
-              <h1 className="text-5xl sm:text-6xl font-extrabold tracking-tight gold-text">
-                ChessBet
-              </h1>
-            </div>
+            <Logo size="lg" className="justify-center" />
             <p className="text-white/70 text-xl font-semibold leading-snug max-w-sm mx-auto">
               The home of competitive chess wagering.
             </p>

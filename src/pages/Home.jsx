@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { Crown } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import Logo from "@/components/Logo";
 import ChessboardPreview from "@/components/play/ChessboardPreview";
 import MatchCenter from "@/components/play/MatchCenter";
 import MatchView from "@/components/play/MatchView";
@@ -99,12 +99,7 @@ export default function Home() {
         className="mb-6 lg:mb-4 lg:shrink-0"
       >
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Crown size={18} strokeWidth={1.5} className="text-[#C9A84C]" />
-            <span className="text-sm font-bold tracking-tight gold-text">
-              ChessBet
-            </span>
-          </div>
+          <Logo size="sm" />
           <div className="text-right">
             <p className="text-[10px] uppercase tracking-widest text-white/40 mb-0.5">Balance</p>
             <p className="text-lg font-bold text-[#C9A84C]">
