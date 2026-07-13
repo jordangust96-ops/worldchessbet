@@ -1,0 +1,44 @@
+{
+  "name": "LaunchNotification",
+  "type": "object",
+  "properties": {
+    "email": {
+      "type": "string",
+      "description": "Email address to notify at launch"
+    },
+    "user_id": {
+      "type": "string",
+      "description": "User ID if the visitor was logged in when they signed up"
+    },
+    "username": {
+      "type": "string",
+      "description": "ChessBet display name, if available"
+    },
+    "submitted_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of submission"
+    }
+  },
+  "required": [
+    "email"
+  ],
+  "rls": {
+    "create": true,
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
