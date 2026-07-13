@@ -17,13 +17,6 @@ function plyFromFen(fenStr) {
   return (fullmove - 1) * 2 + (turn === "b" ? 1 : 0);
 }
 
-// Starting clock time per ChessBet time control. No increments — clocks only count down.
-const TIME_CONTROLS = {
-  blitz: { initialMs: 3 * 60 * 1000 },
-  rapid: { initialMs: 10 * 60 * 1000 },
-  classical: { initialMs: 15 * 60 * 1000 },
-};
-
 // Manages loading/creating the Game entity for a match, hydrating the board,
 // and submitting moves to the submitMove backend function (the sole authority
 // over FEN, PGN, status, result, and winner_id).
@@ -42,35 +35,12 @@ export function useChessGame(matchId, userId, active) {
     const match = await base44.entities.Match.get(matchId);
     setColor(match.player1_id === userId ? "white" : "black");
 
-    let g = null;
-    if (match.game_id) {
-      g = await base44.entities.Game.get(match.game_id);
-    } else {
-      const existing = await base44.entities.Game.filter({ match_id: matchId }, "-created_date", 1);
-      if (existing.length > 0) {
-        g = existing[0];
-      } else {
-        const tc = TIME_CONTROLS[match.time_control] || TIME_CONTROLS.rapid;
-        g = await base44.entities.Game.create({
-          match_id: matchId,
-          status: "active",
-          fen: START_FEN,
-          pgn: "",
-          result: "unfinished",
-          white_time_ms: tc.initialMs,
-          black_time_ms: tc.initialMs,
-          increment_ms: 0,
-          // turn_started_at is intentionally left unset here. Stamping it at
-          // creation time (a client-side event) is what caused White's clock
-          // to appear at 0:00 — any delay between Game creation and the first
-          // move was being silently deducted from White's time. It is now
-          // stamped exclusively by the server (submitMove), the moment the
-          // first move is actually made, which is the only authoritative
-          // "live gameplay has begun" signal.
-        });
-        await base44.entities.Match.update(matchId, { game_id: g.id });
-      }
-    }
+    // getOrCreateGame is the single authoritative, idempotent source for the
+    // Match's Game — both players calling this concurrently always converge
+    // on the same Game id, eliminating the prior client-side race where each
+    // player could independently create their own Game record.
+    const { data } = await base44.functions.invoke("getOrCreateGame", { matchId });
+    const g = data.game;
     setGame(g);
     chessRef.current.load(g.fen || START_FEN);
     setFen(chessRef.current.fen());

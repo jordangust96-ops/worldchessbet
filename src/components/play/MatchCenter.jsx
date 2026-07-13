@@ -43,7 +43,10 @@ export default function MatchCenter({ userId, balance, onMatchAccepted }) {
 
   const handleCancel = async () => {
     if (!activeMatch) return;
-    await base44.entities.Match.update(activeMatch.id, { status: "cancelled" });
+    // Route through the shared cancelMatch backend function — the single
+    // authoritative place for status updates, refunds, and cleanup — instead
+    // of updating Match.status directly from the client.
+    await base44.functions.invoke("cancelMatch", { matchId: activeMatch.id });
     setActiveMatch(null);
   };
 
