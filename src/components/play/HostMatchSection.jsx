@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Loader2, Wallet } from "lucide-react";
+import { Loader2, Wallet, Lock } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
 const WAGER_OPTIONS = [1, 5, 10, 25, 50, 100];
@@ -12,7 +12,10 @@ export const TIME_CONTROLS = [
   { value: "classical", emoji: "🧠", label: "Classical", minutes: 15 },
 ];
 
-export default function HostMatchSection({ userId, balance, onHosted, disabled, title = "Host a Match", isPrivate = false }) {
+// A single wager/time-control configuration, published either publicly (to
+// the marketplace) or privately (via an invite link) — same Match, same
+// escrow/gameplay/settlement flow either way. Only the publish button differs.
+export default function HostMatchSection({ userId, balance, onHosted, disabled }) {
   const [wagerInput, setWagerInput] = useState("");
   const [timeControl, setTimeControl] = useState("rapid");
   const [hosting, setHosting] = useState(false);
@@ -34,7 +37,7 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled, 
     }
   };
 
-  const handleHost = async () => {
+  const handleHost = async (isPrivate) => {
     if (!isValid || !userId) return;
     setHosting(true);
     const match = await base44.entities.Match.create({
@@ -71,12 +74,8 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled, 
 
       <div className={`space-y-5 lg:space-y-2 ${disabled || noFunds ? "opacity-40 pointer-events-none" : ""}`}>
         <div>
-          <h3 className="text-base lg:text-sm font-bold text-white">{title}</h3>
-          <p className="text-xs text-white/40 mt-0.5 lg:hidden">
-            {isPrivate
-              ? "Choose your wager and share an invite link with a friend."
-              : "Choose your wager and wait for another player to accept."}
-          </p>
+          <h3 className="text-base lg:text-sm font-bold text-white">Host a Match</h3>
+          <p className="text-xs text-white/40 mt-0.5 lg:hidden">Choose your wager and time control, then host publicly or privately.</p>
           {disabled && (
             <p className="text-xs text-[#C9A84C]/70 mt-1">
               You already have an active challenge. Cancel it to create a new one.
@@ -156,16 +155,25 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled, 
           </div>
         </div>
 
-        <Button
-          onClick={handleHost}
-          disabled={!isValid || hosting || disabled || noFunds}
-          className="w-full h-12 lg:h-9 lg:text-sm rounded-2xl font-bold gold-gradient text-black hover:opacity-90 disabled:opacity-30 transition-opacity"
-        >
-          {hosting ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
-          {isValid
-            ? `Host ${buttonWagerLabel} ${selectedTimeControl.label} ${isPrivate ? "Private " : ""}Match`
-            : title}
-        </Button>
+        <div className="space-y-2 lg:space-y-1.5">
+          <Button
+            onClick={() => handleHost(false)}
+            disabled={!isValid || hosting || disabled || noFunds}
+            className="w-full h-12 lg:h-9 lg:text-sm rounded-2xl font-bold gold-gradient text-black hover:opacity-90 disabled:opacity-30 transition-opacity"
+          >
+            {hosting ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
+            {isValid ? `Host ${buttonWagerLabel} ${selectedTimeControl.label} Match` : "Host a Public Match"}
+          </Button>
+          <Button
+            onClick={() => handleHost(true)}
+            disabled={!isValid || hosting || disabled || noFunds}
+            variant="outline"
+            className="w-full h-12 lg:h-9 lg:text-sm rounded-2xl font-bold border-white/10 text-white/70 hover:bg-white/5 hover:text-white disabled:opacity-30 transition-colors"
+          >
+            {hosting ? <Loader2 className="animate-spin mr-2" size={16} /> : <Lock size={14} className="mr-2" />}
+            Host a Private Match
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -66,17 +66,7 @@ export default function MatchCenter({ userId, balance, onMatchAccepted }) {
           <ActiveChallengeCard match={activeMatch} onCancel={handleCancel} />
         )
       ) : (
-        <div className="space-y-5 lg:space-y-3">
-          <HostMatchSection userId={userId} balance={balance} onHosted={setActiveMatch} title="Host a Public Match" />
-          <div className="h-px bg-white/[0.06] shrink-0" />
-          <HostMatchSection
-            userId={userId}
-            balance={balance}
-            onHosted={setActiveMatch}
-            title="Host a Private Match"
-            isPrivate
-          />
-        </div>
+        <HostMatchSection userId={userId} balance={balance} onHosted={setActiveMatch} />
       )}
     </div>
   );
