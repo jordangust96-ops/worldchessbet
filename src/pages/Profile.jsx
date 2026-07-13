@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import { User, Mail, Trophy, Swords, LogOut, Loader2, Crown, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
+import Logo from "@/components/Logo";
 import SecuritySection from "@/components/profile/SecuritySection";
 import LegalSection from "@/components/profile/LegalSection";
 import { clearMfaVerified } from "@/lib/mfaSession";
@@ -63,7 +65,11 @@ export default function Profile() {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         className="space-y-6">
-        
+
+        <Link to="/" className="inline-block">
+          <Logo size="sm" />
+        </Link>
+
         {/* Profile Header */}
         <div className="text-center space-y-3">
           <div className="w-20 h-20 rounded-full gold-gradient flex items-center justify-center mx-auto">

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import { ArrowUpRight, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
+import Logo from "@/components/Logo";
 import TransactionHistory from "@/components/wallet/TransactionHistory";
 
 const TX_PAGE_SIZE = 20;
@@ -124,6 +126,10 @@ export default function WalletPage() {
         animate={{ opacity: 1, y: 0 }}
         className="space-y-6"
       >
+        <Link to="/" className="inline-block">
+          <Logo size="sm" />
+        </Link>
+
         {/* Balance Card */}
         <div className="rounded-3xl bg-gradient-to-br from-[#1A1A1A] to-[#111] border border-white/5 p-6 text-center">
           <p className="text-xs uppercase tracking-widest text-white/40 mb-2">Total Balance</p>
