@@ -27,7 +27,8 @@ export default function Home() {
   // tab (Wallet, Profile) unmounts Home entirely — a plain ref would reset to
   // null on remount and let the same dismissed match resurface.
   const dismissedMatchIdRef = useRef(sessionStorage.getItem("chessbet_dismissed_match_id"));
-  const gameActive = boardState === "in_progress" || boardState === "game_summary";
+  const gameActive =
+    boardState === "in_progress" || boardState === "game_summary" || boardState === "settlement";
   const isLive = boardState === "in_progress";
   const [movementMode, setMovementMode] = useState("drag");
   const { fen, handleDrop, handleSquareClick, selectedSquare, legalTargets, orientation, game } =
