@@ -5,6 +5,7 @@ import { ArrowUpRight, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import Logo from "@/components/Logo";
+import DemoModeNotice from "@/components/DemoModeNotice";
 import TransactionHistory from "@/components/wallet/TransactionHistory";
 
 const TX_PAGE_SIZE = 20;
@@ -129,6 +130,7 @@ export default function WalletPage() {
         <Link to="/" className="inline-block">
           <Logo size="sm" />
         </Link>
+        <DemoModeNotice />
 
         {/* Balance Card */}
         <div className="rounded-3xl bg-gradient-to-br from-[#1A1A1A] to-[#111] border border-white/5 p-6 text-center">

@@ -9,8 +9,10 @@ const HIDE_NAV_PATHS = ["/landing", "/login", "/register", "/forgot-password", "
 export default function AppLayout() {
   const location = useLocation();
   const hideNav = HIDE_NAV_PATHS.some(p => location.pathname.startsWith(p));
-  // Home renders its own notice beneath the logo, so avoid a duplicate here.
-  const showHere = location.pathname !== "/";
+  // Home, Wallet, and Profile each render their own notice beneath their
+  // header logo, so avoid a duplicate here.
+  const NOTICE_RENDERED_BY_PAGE = ["/", "/wallet", "/profile"];
+  const showHere = !NOTICE_RENDERED_BY_PAGE.includes(location.pathname);
 
   return (
     <div className="min-h-screen bg-background">

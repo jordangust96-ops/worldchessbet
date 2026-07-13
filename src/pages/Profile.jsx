@@ -5,6 +5,7 @@ import { User, Mail, Trophy, Swords, LogOut, Loader2, Crown, XCircle } from "luc
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import Logo from "@/components/Logo";
+import DemoModeNotice from "@/components/DemoModeNotice";
 import SecuritySection from "@/components/profile/SecuritySection";
 import LegalSection from "@/components/profile/LegalSection";
 import { clearMfaVerified } from "@/lib/mfaSession";
@@ -69,6 +70,7 @@ export default function Profile() {
         <Link to="/" className="inline-block">
           <Logo size="sm" />
         </Link>
+        <DemoModeNotice />
 
         {/* Profile Header */}
         <div className="text-center space-y-3">
