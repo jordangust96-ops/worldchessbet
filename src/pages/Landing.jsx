@@ -76,7 +76,7 @@ export default function Landing() {
               onClick={() => setNotifyModalOpen(true)}
               className="text-[#C9A84C] font-semibold hover:underline underline-offset-2"
             >
-              Notify me at launch →
+              Get notified when real-money wagering launches.
             </button>
           </p>
         </motion.div>
