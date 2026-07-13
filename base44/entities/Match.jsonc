@@ -87,17 +87,17 @@
     "notify_on_accept": {
       "type": "boolean",
       "default": true,
-      "description": "Whether the host (player1) wants to be notified when an opponent accepts this challenge. Only relevant while the match is searching for an opponent."
+      "description": "Whether the host (player1) wants to be notified when an opponent accepts this challenge. Only relevant while the match is searching for an opponent. Only the host (created_by_id) can update this record client-side \u2014 the accepting opponent has no client-side write access to Match at all."
     },
     "accept_notification_sent": {
       "type": "boolean",
       "default": false,
-      "description": "Set once the match-accepted notification has been sent, to guarantee it is only ever sent once per match."
+      "description": "Set once the match-accepted notification has been sent, to guarantee it is only ever sent once per match. Written only by the notifyMatchAccepted backend function (service role) \u2014 never by any client."
     },
     "creator_viewed_acceptance": {
       "type": "boolean",
       "default": false,
-      "description": "Set by the host's own client when it receives the real-time 'matched' update while connected, signalling the host is already active in the app and does not need a notification."
+      "description": "Deprecated in favor of presence-based detection (User.last_active_at). No longer written by any client or backend function; retained only for historical records."
     },
     "description": {
       "type": "string",
@@ -139,9 +139,6 @@
       "$or": [
         {
           "created_by_id": "{{user.id}}"
-        },
-        {
-          "data.player2_id": "{{user.id}}"
         },
         {
           "user_condition": {
