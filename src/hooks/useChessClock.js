@@ -6,6 +6,17 @@ import { base44 } from "@/api/base44Client";
 // on every realtime update. The client never decides the official time — it only
 // interpolates between server snapshots for a smooth countdown, and flags a
 // timeout to the backend (checkTimeout) for authoritative confirmation.
+// Server timestamps are always UTC but can come back without a timezone
+// designator (e.g. "2026-07-13T23:48:07.212273"). Parsing a designator-less
+// date-time string with the JS Date constructor treats it as LOCAL time, not
+// UTC — on any non-UTC device this silently injects a multi-hour skew. Always
+// force UTC interpretation by appending 'Z' when no offset is present.
+function parseServerDate(dateStr) {
+  if (!dateStr) return null;
+  const hasTz = /Z$|[+-]\d{2}:?\d{2}$/.test(dateStr);
+  return new Date(hasTz ? dateStr : `${dateStr}Z`);
+}
+
 export function useChessClock(game) {
   const [displayMs, setDisplayMs] = useState({ w: 0, b: 0 });
   const timeoutFlaggedRef = useRef(false);
@@ -19,7 +30,7 @@ export function useChessClock(game) {
 
   useEffect(() => {
     if (game?.updated_date) {
-      clockSkewMsRef.current = new Date(game.updated_date).getTime() - Date.now();
+      clockSkewMsRef.current = parseServerDate(game.updated_date).getTime() - Date.now();
     }
   }, [game?.updated_date]);
 
@@ -31,7 +42,7 @@ export function useChessClock(game) {
 
     const tick = () => {
       const now = Date.now() + clockSkewMsRef.current;
-      const turnStartedAt = game.turn_started_at ? new Date(game.turn_started_at).getTime() : now;
+      const turnStartedAt = game.turn_started_at ? parseServerDate(game.turn_started_at).getTime() : now;
       const elapsed = Math.max(0, now - turnStartedAt);
 
       const whiteMs = activeColor === "w" ? Math.max(0, (game.white_time_ms ?? 0) - elapsed) : game.white_time_ms ?? 0;
