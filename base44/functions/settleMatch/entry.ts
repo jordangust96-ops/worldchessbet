@@ -36,6 +36,24 @@ Deno.serve(async (req) => {
     const wagerAmount = match.wager_amount || 0;
     const isDraw = game.result === 'draw' || !game.winner_id;
 
+    // Updates the player-facing stats cache on the User entity
+    // (games_played/games_won/games_lost/win_percentage) so the marketplace
+    // can read stored values instead of recomputing them on every load.
+    const updatePlayerStats = async (playerId, outcome) => {
+      if (!playerId) return;
+      const player = await base44.asServiceRole.entities.User.get(playerId);
+      const gamesPlayed = (player.games_played || 0) + 1;
+      const gamesWon = (player.games_won || 0) + (outcome === 'win' ? 1 : 0);
+      const gamesLost = (player.games_lost || 0) + (outcome === 'loss' ? 1 : 0);
+      const winPercentage = Math.round((gamesWon / gamesPlayed) * 100);
+      await base44.asServiceRole.entities.User.update(playerId, {
+        games_played: gamesPlayed,
+        games_won: gamesWon,
+        games_lost: gamesLost,
+        win_percentage: winPercentage,
+      });
+    };
+
     if (isDraw) {
       // Refund both players' escrowed wager — no winner, no loser.
       for (const playerId of [match.player1_id, match.player2_id].filter(Boolean)) {
@@ -54,6 +72,7 @@ Deno.serve(async (req) => {
             status: 'completed',
           });
         }
+        await updatePlayerStats(playerId, 'draw');
       }
     } else {
       const winnerId = game.winner_id;
@@ -77,6 +96,10 @@ Deno.serve(async (req) => {
       }
       // The loser's wager was already deducted from their balance when they
       // deposited into escrow — no further balance change is needed here.
+
+      const loserId = [match.player1_id, match.player2_id].filter(Boolean).find((id) => id !== winnerId);
+      await updatePlayerStats(winnerId, 'win');
+      await updatePlayerStats(loserId, 'loss');
     }
 
     const updatedMatch = await base44.asServiceRole.entities.Match.update(match.id, {

@@ -52,6 +52,26 @@
         "click"
       ],
       "default": "drag"
+    },
+    "games_played": {
+      "type": "number",
+      "default": 0,
+      "description": "Total completed matches (wins + losses + draws). Updated only by settleMatch \u2014 never computed at read time."
+    },
+    "games_won": {
+      "type": "number",
+      "default": 0,
+      "description": "Total completed matches won. Updated only by settleMatch."
+    },
+    "games_lost": {
+      "type": "number",
+      "default": 0,
+      "description": "Total completed matches lost. Updated only by settleMatch."
+    },
+    "win_percentage": {
+      "type": "number",
+      "default": 0,
+      "description": "games_won / games_played * 100, rounded to the nearest whole number. Updated only by settleMatch."
     }
   },
   "required": [

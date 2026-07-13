@@ -163,7 +163,11 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
             <div>
               <p className="text-[10px] uppercase tracking-widest text-white/30">Opponent</p>
               <p className="text-lg lg:text-sm font-bold text-white">{current.opponentName}</p>
-              <p className="text-xs text-white/30">{current.gamesPlayed} Games Played</p>
+              <p className="text-xs text-white/30">
+                {current.gamesPlayed > 0
+                  ? `${current.gamesPlayed} Games • ${current.winPercentage}% Win Rate`
+                  : "New Player"}
+              </p>
             </div>
           </div>
 

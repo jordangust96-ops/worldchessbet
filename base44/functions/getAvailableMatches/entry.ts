@@ -15,11 +15,14 @@ Deno.serve(async (req) => {
     // surfaced in the public marketplace or its refreshes.
     const available = openMatches.filter((m) => m.player1_id !== user.id && !m.is_private);
 
-    const completedMatches = await base44.asServiceRole.entities.Match.filter({ status: 'completed' });
-
+    // Games played and win percentage are read directly from the User
+    // entity (maintained by settleMatch on every completed match) — never
+    // recomputed from Match history here, to keep the marketplace fast.
     const enriched = await Promise.all(
       available.map(async (m) => {
         let name = 'Opponent';
+        let gamesPlayed = 0;
+        let winPercentage = 0;
         try {
           const opponent = await base44.asServiceRole.entities.User.get(m.player1_id);
           if (opponent?.chess_com_username?.trim()) {
@@ -27,13 +30,12 @@ Deno.serve(async (req) => {
           } else if (opponent?.full_name?.trim()) {
             name = opponent.full_name.trim();
           }
+          gamesPlayed = opponent?.games_played || 0;
+          winPercentage = opponent?.win_percentage || 0;
         } catch (e) {
-          // fallback to default name
+          // fallback to default name/stats
         }
-        const gamesPlayed = completedMatches.filter(
-          (pm) => pm.player1_id === m.player1_id || pm.player2_id === m.player1_id
-        ).length;
-        return { ...m, opponentName: name, gamesPlayed };
+        return { ...m, opponentName: name, gamesPlayed, winPercentage };
       })
     );
 
