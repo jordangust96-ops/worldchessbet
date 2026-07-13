@@ -99,7 +99,27 @@
     "create": {
       "created_by_id": "{{user.id}}"
     },
-    "read": null,
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "data.player2_id": "{{user.id}}"
+        },
+        {
+          "data.status": "searching"
+        },
+        {
+          "data.status": "completed"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
     "update": {
       "$or": [
         {
