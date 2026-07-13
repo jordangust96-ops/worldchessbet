@@ -2,6 +2,7 @@ import React from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import BottomNav from "./BottomNav";
 import DemoModeNotice from "@/components/DemoModeNotice";
+import PresenceHeartbeat from "@/components/PresenceHeartbeat";
 
 const HIDE_NAV_PATHS = ["/landing", "/login", "/register", "/forgot-password", "/reset-password"];
 
@@ -13,6 +14,7 @@ export default function AppLayout() {
 
   return (
     <div className="min-h-screen bg-background">
+      <PresenceHeartbeat />
       <main className={hideNav ? "" : "pb-24"}>
         {showHere && (
           <div className="px-5 pt-6">

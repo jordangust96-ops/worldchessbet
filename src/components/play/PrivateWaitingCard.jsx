@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Copy, Check, Share2, Loader2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import NotifyOnAcceptToggle from "@/components/play/NotifyOnAcceptToggle";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -79,6 +80,8 @@ export default function PrivateWaitingCard({ match, onCancel }) {
         <div className="rounded-xl bg-white/[0.04] border border-white/10 px-3 py-2 truncate text-xs text-white/40">
           {inviteLink}
         </div>
+
+        <NotifyOnAcceptToggle match={match} />
 
         <div className="grid grid-cols-2 gap-2">
           <Button

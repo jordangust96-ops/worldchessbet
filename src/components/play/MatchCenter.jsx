@@ -32,11 +32,6 @@ export default function MatchCenter({ userId, balance, onMatchAccepted }) {
           setActiveMatch(event.data);
           if (event.data.status === "matched") {
             onMatchAccepted?.(event.data.id);
-            // The host's own client just received this update live — that
-            // means they're actively connected, so no notification is needed.
-            if (!event.data.creator_viewed_acceptance) {
-              base44.entities.Match.update(event.data.id, { creator_viewed_acceptance: true });
-            }
           }
         } else if (activeMatch?.id === event.data.id) {
           setActiveMatch(null);

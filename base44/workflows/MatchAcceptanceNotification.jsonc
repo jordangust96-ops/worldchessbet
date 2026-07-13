@@ -1,6 +1,6 @@
 {
   "name": "Match Acceptance Notification",
-  "description": "When a hosted match gets accepted, waits briefly to see if the host is already active in the app, then sends an optional one-time notification if not.",
+  "description": "When a hosted match gets accepted, waits briefly for a presence check, then sends an optional one-time notification, retrying up to 3 times (1m, 5m, 15m backoff) on transient failure.",
   "trigger": {
     "config": {
       "trigger_type": "entity",
@@ -22,15 +22,132 @@
       {
         "grace_period": {
           "wait": "PT30S",
-          "then": "notify_host",
+          "then": "attempt_1",
           "x-base44": {
             "title": "Grace period",
-            "description": "Let host's client mark itself as viewing"
+            "description": "Allow presence check to settle"
           }
         }
       },
       {
-        "notify_host": {
+        "attempt_1": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "notifyMatchAccepted",
+            "args": {
+              "matchId": "${ .trigger.entity_id }"
+            }
+          },
+          "then": "check_attempt_1",
+          "x-base44": {
+            "title": "Notify host (attempt 1)"
+          }
+        }
+      },
+      {
+        "check_attempt_1": {
+          "switch": [
+            {
+              "when": "${ .attempt_1.status == \"failed\" }",
+              "then": "wait_1"
+            },
+            {
+              "when": "${ true }",
+              "then": "end"
+            }
+          ]
+        }
+      },
+      {
+        "wait_1": {
+          "wait": "PT1M",
+          "then": "attempt_2",
+          "x-base44": {
+            "title": "Wait 1 minute",
+            "description": "Before retry 1"
+          }
+        }
+      },
+      {
+        "attempt_2": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "notifyMatchAccepted",
+            "args": {
+              "matchId": "${ .trigger.entity_id }"
+            }
+          },
+          "then": "check_attempt_2",
+          "x-base44": {
+            "title": "Notify host (attempt 2)"
+          }
+        }
+      },
+      {
+        "check_attempt_2": {
+          "switch": [
+            {
+              "when": "${ .attempt_2.status == \"failed\" }",
+              "then": "wait_2"
+            },
+            {
+              "when": "${ true }",
+              "then": "end"
+            }
+          ]
+        }
+      },
+      {
+        "wait_2": {
+          "wait": "PT5M",
+          "then": "attempt_3",
+          "x-base44": {
+            "title": "Wait 5 minutes",
+            "description": "Before retry 2"
+          }
+        }
+      },
+      {
+        "attempt_3": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "notifyMatchAccepted",
+            "args": {
+              "matchId": "${ .trigger.entity_id }"
+            }
+          },
+          "then": "check_attempt_3",
+          "x-base44": {
+            "title": "Notify host (attempt 3)"
+          }
+        }
+      },
+      {
+        "check_attempt_3": {
+          "switch": [
+            {
+              "when": "${ .attempt_3.status == \"failed\" }",
+              "then": "wait_3"
+            },
+            {
+              "when": "${ true }",
+              "then": "end"
+            }
+          ]
+        }
+      },
+      {
+        "wait_3": {
+          "wait": "PT15M",
+          "then": "attempt_4",
+          "x-base44": {
+            "title": "Wait 15 minutes",
+            "description": "Before final retry"
+          }
+        }
+      },
+      {
+        "attempt_4": {
           "call": "invoke_backend_function",
           "with": {
             "function_name": "notifyMatchAccepted",
@@ -40,8 +157,7 @@
           },
           "then": "end",
           "x-base44": {
-            "title": "Notify host",
-            "description": "Send acceptance notification if needed"
+            "title": "Notify host (final attempt)"
           }
         }
       }

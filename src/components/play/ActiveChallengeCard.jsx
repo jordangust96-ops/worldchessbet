@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Loader2, Swords } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { Switch } from "@/components/ui/switch";
+import NotifyOnAcceptToggle from "@/components/play/NotifyOnAcceptToggle";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,11 +26,6 @@ export default function ActiveChallengeCard({ match, onCancel }) {
   const [opponentName, setOpponentName] = useState("");
   const [cancelling, setCancelling] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [notifyOnAccept, setNotifyOnAccept] = useState(match?.notify_on_accept ?? true);
-
-  useEffect(() => {
-    setNotifyOnAccept(match?.notify_on_accept ?? true);
-  }, [match?.id, match?.notify_on_accept]);
 
   useEffect(() => {
     if (!match) return;
@@ -56,11 +51,6 @@ export default function ActiveChallengeCard({ match, onCancel }) {
     await onCancel();
     setCancelling(false);
     setShowConfirm(false);
-  };
-
-  const handleToggleNotify = async (checked) => {
-    setNotifyOnAccept(checked);
-    await base44.entities.Match.update(match.id, { notify_on_accept: checked });
   };
 
   return (
@@ -141,10 +131,7 @@ export default function ActiveChallengeCard({ match, onCancel }) {
                   <span className="text-sm lg:text-xs font-bold text-white">{match.display_name}</span>
                 </div>
               </div>
-              <div className="flex items-center justify-between pt-2 lg:pt-1 mt-1 border-t border-white/[0.06]">
-                <p className="text-xs text-white/50 pr-3">Notify me when this match is accepted</p>
-                <Switch checked={notifyOnAccept} onCheckedChange={handleToggleNotify} />
-              </div>
+              <NotifyOnAcceptToggle match={match} />
             </motion.div>
           }
         </AnimatePresence>

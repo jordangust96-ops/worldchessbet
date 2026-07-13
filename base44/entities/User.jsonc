@@ -38,6 +38,11 @@
       "type": "string",
       "format": "date-time",
       "description": "Timestamp of the most recent geolocation check."
+    },
+    "last_active_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of the user's most recent presence heartbeat while ChessBet was open in their browser. Used to determine whether a user is genuinely away before sending them a notification email."
     }
   },
   "required": [
