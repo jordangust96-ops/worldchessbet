@@ -60,16 +60,6 @@ export default function Landing() {
             </p>
           </motion.div>
 
-          <p className="text-white/35 text-xs">
-            Early Access: ChessBet is currently in early access. Real-money wagering will be
-            available soon.{" "}
-            <button
-              onClick={() => setNotifyModalOpen(true)}
-              className="text-[#C9A84C] font-semibold hover:underline underline-offset-2"
-            >
-              Get notified when real-money wagering launches.
-            </button>
-          </p>
         </motion.div>
 
         {/* Features */}
@@ -95,6 +85,17 @@ export default function Landing() {
             </div>
           ))}
         </motion.div>
+
+        <p className="text-white/35 text-xs mt-8 max-w-sm">
+          Early Access: ChessBet is currently in early access. Real-money wagering will be
+          available soon.{" "}
+          <button
+            onClick={() => setNotifyModalOpen(true)}
+            className="text-[#C9A84C] font-semibold hover:underline underline-offset-2"
+          >
+            Get notified when real-money wagering launches.
+          </button>
+        </p>
       </div>
 
       {/* Footer */}
