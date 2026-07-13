@@ -84,6 +84,21 @@
       "type": "string",
       "description": "Unique, hard-to-guess token used to build the invitation link for private matches (e.g. /join/{invite_code}). Unused for public matches."
     },
+    "notify_on_accept": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether the host (player1) wants to be notified when an opponent accepts this challenge. Only relevant while the match is searching for an opponent."
+    },
+    "accept_notification_sent": {
+      "type": "boolean",
+      "default": false,
+      "description": "Set once the match-accepted notification has been sent, to guarantee it is only ever sent once per match."
+    },
+    "creator_viewed_acceptance": {
+      "type": "boolean",
+      "default": false,
+      "description": "Set by the host's own client when it receives the real-time 'matched' update while connected, signalling the host is already active in the app and does not need a notification."
+    },
     "description": {
       "type": "string",
       "maxLength": 1000,

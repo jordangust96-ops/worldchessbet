@@ -1,0 +1,50 @@
+{
+  "name": "Match Acceptance Notification",
+  "description": "When a hosted match gets accepted, waits briefly to see if the host is already active in the app, then sends an optional one-time notification if not.",
+  "trigger": {
+    "config": {
+      "trigger_type": "entity",
+      "entity_name": "Match",
+      "events": [
+        "update"
+      ]
+    },
+    "condition": "${ .trigger.data.status == \"matched\" and .trigger.old_data.status == \"searching\" }"
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "match_acceptance_notification",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "grace_period": {
+          "wait": "PT30S",
+          "then": "notify_host",
+          "x-base44": {
+            "title": "Grace period",
+            "description": "Let host's client mark itself as viewing"
+          }
+        }
+      },
+      {
+        "notify_host": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "notifyMatchAccepted",
+            "args": {
+              "matchId": "${ .trigger.entity_id }"
+            }
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Notify host",
+            "description": "Send acceptance notification if needed"
+          }
+        }
+      }
+    ]
+  }
+}
