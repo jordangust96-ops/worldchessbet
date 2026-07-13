@@ -78,10 +78,16 @@ export default function MatchView({ matchId, userId, onExit, onStateChange, game
     } else if (game?.status === "completed") {
       stateKey = "game_summary";
       content = <GameSummary match={match} game={game} userId={userId} onPlayAgain={onExit} />;
-    } else if (match.status === "in_progress" && launched) {
+    } else if (match.status === "in_progress" && (launched || game?.started_at)) {
+      // game.started_at is server-stamped the instant the first move is made.
+      // Deferring to it (not just the local `launched` flag) means a remount —
+      // e.g. switching to the Wallet tab and back — never strands a player on
+      // the "Both Ready" screen after the game has actually begun, which was
+      // hiding their ticking clock and making it appear to "jump" when they
+      // finally returned to it.
       stateKey = "in_progress";
       content = <GameHUD match={match} userId={userId} game={game} />;
-    } else if (match.status === "in_progress" && !launched) {
+    } else if (match.status === "in_progress" && !launched && !game?.started_at) {
       stateKey = "both_ready";
       content = <BothReadyState match={match} onLaunch={() => setLaunched(true)} />;
     } else if (myDeposited && !opponentDeposited) {
