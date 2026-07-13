@@ -5,14 +5,12 @@ import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import MatchAcceptedState from "@/components/play/matchview/MatchAcceptedState";
 import DepositWaitingState from "@/components/play/matchview/DepositWaitingState";
-import BothReadyState from "@/components/play/matchview/BothReadyState";
 import GameHUD from "@/components/play/matchview/GameHUD";
 import GameSummary from "@/components/play/matchview/GameSummary";
 import SettlementState from "@/components/play/matchview/SettlementState";
 
 export default function MatchView({ matchId, userId, onExit, onStateChange, game }) {
   const [match, setMatch] = useState(null);
-  const [launched, setLaunched] = useState(false);
   const { toast } = useToast();
   // Tracks whether this client is the one who initiated the cancellation, so the
   // "opponent cancelled" notification only surfaces for the other player.
@@ -78,18 +76,12 @@ export default function MatchView({ matchId, userId, onExit, onStateChange, game
     } else if (game?.status === "completed") {
       stateKey = "game_summary";
       content = <GameSummary match={match} game={game} userId={userId} onPlayAgain={onExit} />;
-    } else if (match.status === "in_progress" && (launched || game?.started_at)) {
-      // game.started_at is server-stamped the instant the first move is made.
-      // Deferring to it (not just the local `launched` flag) means a remount —
-      // e.g. switching to the Wallet tab and back — never strands a player on
-      // the "Both Ready" screen after the game has actually begun, which was
-      // hiding their ticking clock and making it appear to "jump" when they
-      // finally returned to it.
+    } else if (match.status === "in_progress") {
+      // Board becomes interactive immediately once both players have deposited —
+      // no manual "Launch" step required, which previously could strand a
+      // player on the Both Ready screen and make it look like they couldn't move.
       stateKey = "in_progress";
       content = <GameHUD match={match} userId={userId} game={game} />;
-    } else if (match.status === "in_progress" && !launched && !game?.started_at) {
-      stateKey = "both_ready";
-      content = <BothReadyState match={match} onLaunch={() => setLaunched(true)} />;
     } else if (myDeposited && !opponentDeposited) {
       stateKey = "deposit_waiting";
       content = <DepositWaitingState match={match} onCancel={() => handleCancel(match)} />;
