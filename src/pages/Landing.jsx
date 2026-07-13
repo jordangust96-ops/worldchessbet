@@ -1,10 +1,13 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Crown, Zap, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import NotifyAtLaunchModal from "@/components/NotifyAtLaunchModal";
 
 export default function Landing() {
+  const [notifyModalOpen, setNotifyModalOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-[#0A0A0A] flex flex-col">
       {/* Header */}
@@ -37,8 +40,11 @@ export default function Landing() {
                 ChessBet
               </h1>
             </div>
+            <p className="text-white/70 text-xl font-semibold leading-snug max-w-sm mx-auto">
+              The home of competitive chess wagering.
+            </p>
             <p className="text-white/50 text-lg leading-relaxed max-w-sm mx-auto">
-              The fastest way to put money on a chess match. Pick a stake, find an opponent, play, and win.
+              Set the stakes, find an opponent, and play to win.
             </p>
           </div>
 
@@ -62,6 +68,17 @@ export default function Landing() {
               </Link>
             </p>
           </motion.div>
+
+          <p className="text-white/35 text-xs">
+            🚧 Early Access: ChessBet is currently in early access. Real-money wagering will be
+            available soon.{" "}
+            <button
+              onClick={() => setNotifyModalOpen(true)}
+              className="text-[#C9A84C] font-semibold hover:underline underline-offset-2"
+            >
+              Notify me at launch →
+            </button>
+          </p>
         </motion.div>
 
         {/* Features */}
@@ -95,6 +112,8 @@ export default function Landing() {
           © 2026 ChessBet. All rights reserved.
         </p>
       </footer>
+
+      <NotifyAtLaunchModal open={notifyModalOpen} onOpenChange={setNotifyModalOpen} />
     </div>
   );
 }
