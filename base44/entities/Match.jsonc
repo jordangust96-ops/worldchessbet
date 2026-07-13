@@ -83,6 +83,11 @@
     "invite_code": {
       "type": "string",
       "description": "Unique, hard-to-guess token used to build the invitation link for private matches (e.g. /join/{invite_code}). Unused for public matches."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional description"
     }
   },
   "required": [

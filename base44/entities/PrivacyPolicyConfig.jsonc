@@ -23,6 +23,11 @@
       "type": "boolean",
       "default": true,
       "description": "Only one config should be active at a time; older versions are kept for history with is_active=false"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional description"
     }
   },
   "required": [

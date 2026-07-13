@@ -26,6 +26,11 @@
     "total_withdrawn": {
       "type": "number",
       "default": 0
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional description"
     }
   },
   "required": [

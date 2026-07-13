@@ -36,6 +36,11 @@
         "invalidated"
       ],
       "default": "active"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional description"
     }
   },
   "required": [

@@ -18,6 +18,11 @@
       "type": "string",
       "format": "date-time",
       "description": "Timestamp of submission"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional description"
     }
   },
   "required": [

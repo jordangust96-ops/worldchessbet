@@ -71,6 +71,11 @@
     "draw_offered_by": {
       "type": "string",
       "description": "User ID of the player who currently has an open draw offer pending, empty/null when there is none"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional description"
     }
   },
   "required": [
