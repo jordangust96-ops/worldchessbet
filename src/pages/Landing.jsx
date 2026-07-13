@@ -70,7 +70,7 @@ export default function Landing() {
           </motion.div>
 
           <p className="text-white/35 text-xs">
-            🚧 Early Access: ChessBet is currently in early access. Real-money wagering will be
+            Early Access: ChessBet is currently in early access. Real-money wagering will be
             available soon.{" "}
             <button
               onClick={() => setNotifyModalOpen(true)}
