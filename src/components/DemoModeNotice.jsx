@@ -19,7 +19,7 @@ export default function DemoModeNotice() {
             onClick={() => setModalOpen(true)}
             className="text-[#C9A84C] font-semibold underline underline-offset-2 hover:text-[#E8D48B]"
           >
-            Notify me at launch →
+            Notify me when real-money wagering launches.
           </button>
         </span>
       </p>
