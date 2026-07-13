@@ -13,6 +13,14 @@ export default function Home() {
   const [user, setUser] = useState(null);
   const [wallet, setWallet] = useState(null);
   const [myMatchId, setMyMatchId] = useState(null);
+  // The single authoritative Match record for the active match — sourced from
+  // the one Match subscription below, and passed down to MatchView as a prop
+  // instead of MatchView opening its own duplicate subscription.
+  const [activeMatch, setActiveMatch] = useState(null);
+  const myMatchIdRef = useRef(myMatchId);
+  useEffect(() => {
+    myMatchIdRef.current = myMatchId;
+  }, [myMatchId]);
   const [boardState, setBoardState] = useState("marketplace");
   // Tracks the last match the player explicitly dismissed (via "Find New Match").
   // Persisted in sessionStorage (not just a ref) because navigating to another
@@ -53,6 +61,7 @@ export default function Home() {
       for (const m of candidates) {
         if (await isMatchGenuinelyActive(m)) {
           setMyMatchId(m.id);
+          setActiveMatch(m);
           return;
         }
       }
@@ -63,17 +72,42 @@ export default function Home() {
     const unsubscribe = base44.entities.Match.subscribe((event) => {
       if (event.data?.player1_id !== user.id && event.data?.player2_id !== user.id) return;
       if (event.type !== "update" && event.type !== "create") return;
+
+      // This is the single authoritative Match subscription for whichever
+      // match is currently active — keep it in sync for every status
+      // (including cancelled/completed), not just the ones that trigger
+      // switching into MatchView below.
+      if (event.data.id === myMatchIdRef.current) {
+        setActiveMatch(event.data);
+      }
+
       // Never restore a match the player already dismissed via Find New Match.
       if (event.data.id === dismissedMatchIdRef.current) return;
       if (!["matched", "deposited", "in_progress"].includes(event.data.status)) return;
       isMatchGenuinelyActive(event.data).then((genuinelyActive) => {
         if (genuinelyActive && event.data.id !== dismissedMatchIdRef.current) {
           setMyMatchId(event.data.id);
+          setActiveMatch(event.data);
         }
       });
     });
     return () => unsubscribe();
   }, [user?.id]);
+
+  // Recovery fetch for the active match — covers paths that set myMatchId
+  // without already having the full record (e.g. accepting a match from
+  // MatchCenter), plus the initial load. Only fires when needed, never polls.
+  useEffect(() => {
+    if (!myMatchId) return;
+    if (activeMatch?.id === myMatchId) return;
+    base44.entities.Match.get(myMatchId).then(setActiveMatch);
+  }, [myMatchId, activeMatch?.id]);
+
+  const handleRefreshActiveMatch = async () => {
+    if (!myMatchId) return;
+    const m = await base44.entities.Match.get(myMatchId);
+    setActiveMatch(m);
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -155,10 +189,13 @@ export default function Home() {
                 dismissedMatchIdRef.current = myMatchId;
                 sessionStorage.setItem("chessbet_dismissed_match_id", myMatchId);
                 setMyMatchId(null);
+                setActiveMatch(null);
                 setBoardState("marketplace");
               }}
               onStateChange={setBoardState}
               game={game}
+              match={activeMatch}
+              onRefresh={handleRefreshActiveMatch}
               movementMode={movementMode}
               onMovementModeChange={handleMovementModeChange}
             />

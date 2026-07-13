@@ -87,23 +87,47 @@ export function useChessGame(matchId, userId, active) {
     // browser refresh or a dropped realtime connection being re-established.
     base44.entities.Game.get(game.id).then(applyLatest);
 
+    // Fallback polling only runs while the realtime channel is suspected down —
+    // browser offline, or the brief window right after reconnecting before the
+    // next realtime event confirms the channel is healthy again. It stops the
+    // instant any realtime event arrives, so normal gameplay never polls.
+    let fallbackInterval = null;
+    const stopFallback = () => {
+      if (fallbackInterval) {
+        clearInterval(fallbackInterval);
+        fallbackInterval = null;
+      }
+    };
+    const startFallback = () => {
+      if (fallbackInterval) return;
+      fallbackInterval = setInterval(() => {
+        base44.entities.Game.get(game.id).then(applyLatest);
+      }, 2000);
+    };
+
     const unsubscribe = base44.entities.Game.subscribe((event) => {
       if (event.data?.id !== game.id) return;
       if (event.type === "update" || event.type === "create") {
         applyLatest(event.data);
+        // A live event proves realtime is healthy — no fallback needed.
+        stopFallback();
       }
     });
 
-    // Realtime events can be missed or delayed (moves are written via the
-    // backend's service-role client). Poll as a fast fallback so an opponent's
-    // move never takes longer than ~1s to appear without needing a refresh.
-    const pollInterval = setInterval(() => {
+    const handleOffline = () => startFallback();
+    const handleOnline = () => {
       base44.entities.Game.get(game.id).then(applyLatest);
-    }, 1000);
+      startFallback();
+    };
+    window.addEventListener("offline", handleOffline);
+    window.addEventListener("online", handleOnline);
+    if (typeof navigator !== "undefined" && navigator.onLine === false) startFallback();
 
     return () => {
       unsubscribe();
-      clearInterval(pollInterval);
+      stopFallback();
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("online", handleOnline);
     };
   }, [active, game?.id]);
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
@@ -9,8 +9,20 @@ import GameHUD from "@/components/play/matchview/GameHUD";
 import GameSummary from "@/components/play/matchview/GameSummary";
 import SettlementState from "@/components/play/matchview/SettlementState";
 
-export default function MatchView({ matchId, userId, onExit, onStateChange, game, movementMode, onMovementModeChange }) {
-  const [match, setMatch] = useState(null);
+// Match data is sourced entirely from the parent (Home), which owns the single
+// authoritative Match subscription for the active match — this component no
+// longer opens its own duplicate subscription/fetch for the same record.
+export default function MatchView({
+  matchId,
+  userId,
+  onExit,
+  onStateChange,
+  game,
+  match,
+  onRefresh,
+  movementMode,
+  onMovementModeChange,
+}) {
   const { toast } = useToast();
   // Tracks whether this client is the one who initiated the cancellation, so the
   // "opponent cancelled" notification only surfaces for the other player.
@@ -18,24 +30,6 @@ export default function MatchView({ matchId, userId, onExit, onStateChange, game
   // Ensures the cancellation toast + exit fire exactly once per match, even if
   // this effect re-runs due to parent re-renders passing a new onExit/toast reference.
   const cancelHandledRef = useRef(false);
-
-  const refresh = useCallback(async () => {
-    const m = await base44.entities.Match.get(matchId);
-    setMatch(m);
-  }, [matchId]);
-
-  useEffect(() => {
-    // One-time fetch to recover the authoritative state on mount, refresh, or reconnect.
-    refresh();
-
-    const unsubscribe = base44.entities.Match.subscribe((event) => {
-      if (event.data?.id !== matchId) return;
-      if (event.type === "update" || event.type === "create") {
-        setMatch(event.data);
-      }
-    });
-    return () => unsubscribe();
-  }, [matchId, refresh]);
 
   useEffect(() => {
     if (match?.status === "cancelled" && !cancelHandledRef.current) {
@@ -102,7 +96,7 @@ export default function MatchView({ matchId, userId, onExit, onStateChange, game
           opponentId={opponentId}
           myDeposited={myDeposited}
           opponentDeposited={opponentDeposited}
-          onDeposited={refresh}
+          onDeposited={onRefresh}
           onCancel={() => handleCancel(match)}
         />
       );
