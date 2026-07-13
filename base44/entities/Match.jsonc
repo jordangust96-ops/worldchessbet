@@ -74,6 +74,15 @@
     "completed_at": {
       "type": "string",
       "format": "date-time"
+    },
+    "is_private": {
+      "type": "boolean",
+      "default": false,
+      "description": "Private matches are hidden from the public marketplace and are only joinable via their invite_code link"
+    },
+    "invite_code": {
+      "type": "string",
+      "description": "Unique, hard-to-guess token used to build the invitation link for private matches (e.g. /join/{invite_code}). Unused for public matches."
     }
   },
   "required": [

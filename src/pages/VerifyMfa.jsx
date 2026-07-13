@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import AuthLayout from "@/components/AuthLayout";
 import { setMfaVerified, clearMfaVerified } from "@/lib/mfaSession";
+import { getPostAuthRedirect } from "@/lib/postAuthRedirect";
 
 function formatTime(seconds) {
   const m = Math.floor(seconds / 60);
@@ -61,7 +62,7 @@ export default function VerifyMfa() {
     try {
       await base44.functions.invoke("verifyMfaOtp", { code });
       setMfaVerified();
-      window.location.href = "/";
+      window.location.href = getPostAuthRedirect() || "/";
     } catch (err) {
       const message = err?.response?.data?.message || "Invalid code. Please try again.";
       setError(message);

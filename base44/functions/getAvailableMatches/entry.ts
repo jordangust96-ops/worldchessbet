@@ -11,7 +11,9 @@ Deno.serve(async (req) => {
       '-created_date',
       20
     );
-    const available = openMatches.filter((m) => m.player1_id !== user.id);
+    // Private matches are only discoverable via their invite link — never
+    // surfaced in the public marketplace or its refreshes.
+    const available = openMatches.filter((m) => m.player1_id !== user.id && !m.is_private);
 
     const completedMatches = await base44.asServiceRole.entities.Match.filter({ status: 'completed' });
 

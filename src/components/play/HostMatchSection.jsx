@@ -12,7 +12,7 @@ export const TIME_CONTROLS = [
   { value: "classical", emoji: "🧠", label: "Classical", minutes: 15 },
 ];
 
-export default function HostMatchSection({ userId, balance, onHosted, disabled }) {
+export default function HostMatchSection({ userId, balance, onHosted, disabled, title = "Host a Match", isPrivate = false }) {
   const [wagerInput, setWagerInput] = useState("");
   const [timeControl, setTimeControl] = useState("rapid");
   const [hosting, setHosting] = useState(false);
@@ -43,6 +43,10 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
       time_control: timeControl,
       display_name: selectedTimeControl.label,
       status: "searching",
+      is_private: isPrivate,
+      // A random, hard-to-guess token — this becomes the /join/{invite_code}
+      // link. Unused for public matches.
+      ...(isPrivate ? { invite_code: crypto.randomUUID() } : {}),
     });
     setWagerInput("");
     setHosting(false);
@@ -67,8 +71,12 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
 
       <div className={`space-y-5 lg:space-y-2 ${disabled || noFunds ? "opacity-40 pointer-events-none" : ""}`}>
         <div>
-          <h3 className="text-base lg:text-sm font-bold text-white">Host a Match</h3>
-          <p className="text-xs text-white/40 mt-0.5 lg:hidden">Choose your wager and wait for another player to accept.</p>
+          <h3 className="text-base lg:text-sm font-bold text-white">{title}</h3>
+          <p className="text-xs text-white/40 mt-0.5 lg:hidden">
+            {isPrivate
+              ? "Choose your wager and share an invite link with a friend."
+              : "Choose your wager and wait for another player to accept."}
+          </p>
           {disabled && (
             <p className="text-xs text-[#C9A84C]/70 mt-1">
               You already have an active challenge. Cancel it to create a new one.
@@ -154,7 +162,9 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
           className="w-full h-12 lg:h-9 lg:text-sm rounded-2xl font-bold gold-gradient text-black hover:opacity-90 disabled:opacity-30 transition-opacity"
         >
           {hosting ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
-          {isValid ? `Host ${buttonWagerLabel} ${selectedTimeControl.label} Match` : "Host a Match"}
+          {isValid
+            ? `Host ${buttonWagerLabel} ${selectedTimeControl.label} ${isPrivate ? "Private " : ""}Match`
+            : title}
         </Button>
       </div>
     </div>

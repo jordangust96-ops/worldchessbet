@@ -24,6 +24,7 @@ import VerifyMfa from '@/pages/VerifyMfa';
 import PrivacyPolicy from '@/pages/PrivacyPolicy';
 import PrivacyPolicyAdmin from '@/pages/PrivacyPolicyAdmin';
 import FairPlayIntegrity from '@/pages/FairPlayIntegrity';
+import JoinMatch from '@/pages/JoinMatch';
 
 // Layout
 import AppLayout from '@/components/layout/AppLayout';
@@ -59,6 +60,9 @@ const AuthenticatedApp = () => {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+      {/* Handles its own auth/MFA gating so it can return the visitor to this
+          exact invitation after they sign in. */}
+      <Route path="/join/:inviteCode" element={<JoinMatch />} />
 
       {/* Protected routes */}
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/landing" replace />} />}>

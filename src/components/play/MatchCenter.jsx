@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import AvailableMatchSection from "@/components/play/AvailableMatchSection";
 import HostMatchSection from "@/components/play/HostMatchSection";
 import ActiveChallengeCard from "@/components/play/ActiveChallengeCard";
+import PrivateWaitingCard from "@/components/play/PrivateWaitingCard";
 import { base44 } from "@/api/base44Client";
 
 export default function MatchCenter({ userId, balance, onMatchAccepted }) {
@@ -59,9 +60,23 @@ export default function MatchCenter({ userId, balance, onMatchAccepted }) {
       <div className="h-px bg-white/[0.06] shrink-0" />
 
       {activeMatch ? (
-        <ActiveChallengeCard match={activeMatch} onCancel={handleCancel} />
+        activeMatch.is_private ? (
+          <PrivateWaitingCard match={activeMatch} onCancel={handleCancel} />
+        ) : (
+          <ActiveChallengeCard match={activeMatch} onCancel={handleCancel} />
+        )
       ) : (
-        <HostMatchSection userId={userId} balance={balance} onHosted={setActiveMatch} />
+        <div className="space-y-5 lg:space-y-3">
+          <HostMatchSection userId={userId} balance={balance} onHosted={setActiveMatch} title="Host a Public Match" />
+          <div className="h-px bg-white/[0.06] shrink-0" />
+          <HostMatchSection
+            userId={userId}
+            balance={balance}
+            onHosted={setActiveMatch}
+            title="Host a Private Match"
+            isPrivate
+          />
+        </div>
       )}
     </div>
   );

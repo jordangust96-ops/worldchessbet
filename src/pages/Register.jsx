@@ -10,6 +10,7 @@ import AuthLayout from "@/components/AuthLayout";
 import GoogleIcon from "@/components/GoogleIcon";
 import { toast } from "@/components/ui/use-toast";
 import { setMfaVerified } from "@/lib/mfaSession";
+import { getPostAuthRedirect } from "@/lib/postAuthRedirect";
 
 export default function Register() {
   const [email, setEmail] = useState("");
@@ -68,7 +69,7 @@ export default function Register() {
       // The registration OTP already confirmed control of this email address —
       // don't immediately trigger a second, separate MFA verification email.
       setMfaVerified();
-      window.location.href = "/";
+      window.location.href = getPostAuthRedirect() || "/";
     } catch (err) {
       setError(err.message || "Invalid verification code");
     } finally {
