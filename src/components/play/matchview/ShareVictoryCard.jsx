@@ -47,6 +47,8 @@ const ShareVictoryCard = forwardRef(function ShareVictoryCard(
           <Stat label="Time Control" value={timeControl} />
           <Stat label="Wager" value={`$${wagerAmount.toFixed(2)}`} />
         </div>
+
+        <p className="mt-10 text-lg font-bold text-white/40 tracking-wide">Play now at worldchessbet.com</p>
       </div>
     </div>
   );
