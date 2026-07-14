@@ -1,10 +1,23 @@
 import { Chess } from "chess.js";
 
-// Derives a human-readable end reason from the final position. Timeout can't be
-// detected from the FEN/PGN alone, so any non-terminal position is classified as
-// a timeout — the backend already guarantees status is only "completed" for a
-// real game-ending condition (checkmate, draw rule, or a clock expiring).
+const END_REASON_LABELS = {
+  checkmate: "Checkmate",
+  resignation: "Resignation",
+  timeout: "Timeout",
+  draw_agreement: "Draw by Agreement",
+  stalemate: "Stalemate",
+  threefold_repetition: "Threefold Repetition",
+  insufficient_material: "Insufficient Material",
+  fifty_move_rule: "Fifty-Move Rule",
+};
+
+// Prefers the authoritative end_reason set server-side by whichever function
+// completed the game. Only falls back to guessing from the final position for
+// older records created before end_reason existed.
 export function getEndReason(game) {
+  if (game?.end_reason && END_REASON_LABELS[game.end_reason]) {
+    return END_REASON_LABELS[game.end_reason];
+  }
   if (!game?.fen) return "Game Over";
   try {
     const chess = new Chess();

@@ -55,6 +55,7 @@ Deno.serve(async (req) => {
       status: 'completed',
       result: 'draw',
       winner_id: '',
+      end_reason: 'draw_agreement',
       completed_at: new Date().toISOString(),
       draw_offered_by: '',
     });

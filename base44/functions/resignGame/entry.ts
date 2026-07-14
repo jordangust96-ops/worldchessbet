@@ -31,6 +31,7 @@ Deno.serve(async (req) => {
       status: 'completed',
       result,
       winner_id: winnerId,
+      end_reason: 'resignation',
       completed_at: new Date().toISOString(),
       draw_offered_by: '',
     });

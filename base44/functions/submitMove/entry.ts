@@ -47,6 +47,7 @@ Deno.serve(async (req) => {
         status: 'completed',
         result: myColor === 'w' ? 'black_win' : 'white_win',
         winner_id: myColor === 'w' ? match.player2_id : match.player1_id,
+        end_reason: 'timeout',
         completed_at: new Date().toISOString(),
         [moverTimeField]: 0,
       };
@@ -81,8 +82,13 @@ Deno.serve(async (req) => {
       if (chess.isCheckmate()) {
         updates.result = move.color === 'w' ? 'white_win' : 'black_win';
         updates.winner_id = move.color === 'w' ? match.player1_id : match.player2_id;
+        updates.end_reason = 'checkmate';
       } else {
         updates.result = 'draw';
+        if (chess.isStalemate()) updates.end_reason = 'stalemate';
+        else if (chess.isThreefoldRepetition()) updates.end_reason = 'threefold_repetition';
+        else if (chess.isInsufficientMaterial()) updates.end_reason = 'insufficient_material';
+        else updates.end_reason = 'fifty_move_rule';
       }
     }
 

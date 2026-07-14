@@ -40,6 +40,20 @@
       "type": "string",
       "description": "User ID of the winner, null for draws or unfinished games"
     },
+    "end_reason": {
+      "type": "string",
+      "enum": [
+        "checkmate",
+        "resignation",
+        "timeout",
+        "draw_agreement",
+        "stalemate",
+        "threefold_repetition",
+        "insufficient_material",
+        "fifty_move_rule"
+      ],
+      "description": "Authoritative reason the game ended, set server-side by whichever function completed it. Never inferred client-side."
+    },
     "started_at": {
       "type": "string",
       "format": "date-time",

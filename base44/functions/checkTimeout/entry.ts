@@ -39,6 +39,7 @@ Deno.serve(async (req) => {
       status: 'completed',
       result: sideToMove === 'w' ? 'black_win' : 'white_win',
       winner_id: sideToMove === 'w' ? match.player2_id : match.player1_id,
+      end_reason: 'timeout',
       completed_at: new Date().toISOString(),
       [timeField]: 0,
     };
