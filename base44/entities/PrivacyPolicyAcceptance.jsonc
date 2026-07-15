@@ -6,9 +6,19 @@
       "type": "string",
       "description": "ID of the user who accepted the policy"
     },
+    "policy_type": {
+      "type": "string",
+      "enum": [
+        "privacy_policy",
+        "terms_of_service",
+        "official_rules"
+      ],
+      "default": "privacy_policy",
+      "description": "Which legal document this acceptance is for"
+    },
     "policy_version": {
       "type": "number",
-      "description": "Version number of the PrivacyPolicyConfig that was accepted"
+      "description": "Version number of the PrivacyPolicyConfig (scoped to policy_type) that was accepted"
     },
     "accepted_at": {
       "type": "string",

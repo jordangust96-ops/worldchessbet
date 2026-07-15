@@ -23,6 +23,10 @@ import Profile from '@/pages/Profile';
 import VerifyMfa from '@/pages/VerifyMfa';
 import PrivacyPolicy from '@/pages/PrivacyPolicy';
 import PrivacyPolicyAdmin from '@/pages/PrivacyPolicyAdmin';
+import TermsOfService from '@/pages/TermsOfService';
+import TermsOfServiceAdmin from '@/pages/TermsOfServiceAdmin';
+import OfficialRules from '@/pages/OfficialRules';
+import OfficialRulesAdmin from '@/pages/OfficialRulesAdmin';
 import FairPlayIntegrity from '@/pages/FairPlayIntegrity';
 import JoinMatch from '@/pages/JoinMatch';
 import IntegrityReviewQueue from '@/pages/IntegrityReviewQueue';
@@ -62,6 +66,8 @@ const AuthenticatedApp = () => {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+      <Route path="/terms-of-service" element={<TermsOfService />} />
+      <Route path="/official-rules" element={<OfficialRules />} />
       {/* Handles its own auth/MFA gating so it can return the visitor to this
           exact invitation after they sign in. */}
       <Route path="/join/:inviteCode" element={<JoinMatch />} />
@@ -72,6 +78,8 @@ const AuthenticatedApp = () => {
         <Route element={<MfaGuard />}>
           <Route element={<PolicyAcceptanceGuard />}>
             <Route path="/admin/privacy-policy" element={<PrivacyPolicyAdmin />} />
+            <Route path="/admin/terms-of-service" element={<TermsOfServiceAdmin />} />
+            <Route path="/admin/official-rules" element={<OfficialRulesAdmin />} />
             <Route path="/admin/integrity" element={<IntegrityReviewQueue />} />
             <Route path="/admin/integrity/:userId" element={<AdminUserIntegrity />} />
             <Route element={<AppLayout />}>

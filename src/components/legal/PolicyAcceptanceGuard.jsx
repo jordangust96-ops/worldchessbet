@@ -2,15 +2,17 @@ import React, { useState, useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import AcceptPolicyPrompt from "@/components/legal/AcceptPolicyPrompt";
+import { POLICY_TYPE_ORDER } from "@/lib/legalDocumentTypes";
 
 // Sits inside MfaGuard: before rendering any protected page, checks whether
-// the current user has accepted the latest active Privacy Policy version.
-// If not (new user edge case, or the policy was updated since their last
-// acceptance), blocks navigation with an in-page prompt until they accept.
+// the current user has accepted the latest active version of every legal
+// document (Privacy Policy, Terms of Service, Official Rules). If not (new
+// user edge case, or a policy was updated since their last acceptance),
+// blocks navigation with an in-page prompt, one document at a time, until
+// they've accepted all of them.
 export default function PolicyAcceptanceGuard() {
   const [loading, setLoading] = useState(true);
-  const [activeConfig, setActiveConfig] = useState(null);
-  const [needsAcceptance, setNeedsAcceptance] = useState(false);
+  const [pendingQueue, setPendingQueue] = useState([]);
 
   useEffect(() => {
     check();
@@ -18,18 +20,23 @@ export default function PolicyAcceptanceGuard() {
 
   const check = async () => {
     const me = await base44.auth.me();
-    const configs = await base44.entities.PrivacyPolicyConfig.filter({ is_active: true }, "-version", 1);
-    const active = configs?.[0] || null;
-    setActiveConfig(active);
-
-    if (active) {
+    const pending = [];
+    for (const policyType of POLICY_TYPE_ORDER) {
+      const configs = await base44.entities.PrivacyPolicyConfig.filter(
+        { is_active: true, policy_type: policyType },
+        "-version",
+        1
+      );
+      const active = configs?.[0];
+      if (!active) continue;
       const acceptances = await base44.entities.PrivacyPolicyAcceptance.filter(
-        { user_id: me.id, policy_version: active.version },
+        { user_id: me.id, policy_version: active.version, policy_type: policyType },
         "-accepted_at",
         1
       );
-      setNeedsAcceptance(acceptances.length === 0);
+      if (acceptances.length === 0) pending.push({ policyType, config: active });
     }
+    setPendingQueue(pending);
     setLoading(false);
   };
 
@@ -41,8 +48,15 @@ export default function PolicyAcceptanceGuard() {
     );
   }
 
-  if (needsAcceptance && activeConfig) {
-    return <AcceptPolicyPrompt config={activeConfig} onAccepted={() => setNeedsAcceptance(false)} />;
+  if (pendingQueue.length > 0) {
+    const current = pendingQueue[0];
+    return (
+      <AcceptPolicyPrompt
+        config={current.config}
+        policyType={current.policyType}
+        onAccepted={() => setPendingQueue((prev) => prev.slice(1))}
+      />
+    );
   }
 
   return <Outlet />;

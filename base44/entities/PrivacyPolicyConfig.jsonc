@@ -2,9 +2,19 @@
   "name": "PrivacyPolicyConfig",
   "type": "object",
   "properties": {
+    "policy_type": {
+      "type": "string",
+      "enum": [
+        "privacy_policy",
+        "terms_of_service",
+        "official_rules"
+      ],
+      "default": "privacy_policy",
+      "description": "Which legal document this config version belongs to"
+    },
     "version": {
       "type": "number",
-      "description": "Incrementing policy version number"
+      "description": "Incrementing policy version number (scoped to policy_type)"
     },
     "last_updated": {
       "type": "string",
@@ -22,7 +32,7 @@
     "is_active": {
       "type": "boolean",
       "default": true,
-      "description": "Only one config should be active at a time; older versions are kept for history with is_active=false"
+      "description": "Only one config per policy_type should be active at a time; older versions are kept for history with is_active=false"
     },
     "description": {
       "type": "string",

@@ -11,6 +11,7 @@ import GoogleIcon from "@/components/GoogleIcon";
 import { toast } from "@/components/ui/use-toast";
 import { setMfaVerified } from "@/lib/mfaSession";
 import { getPostAuthRedirect } from "@/lib/postAuthRedirect";
+import { POLICY_TYPE_ORDER } from "@/lib/legalDocumentTypes";
 
 export default function Register() {
   const [email, setEmail] = useState("");
@@ -30,7 +31,7 @@ export default function Register() {
       return;
     }
     if (!agreedToPolicy) {
-      setError("You must agree to the Privacy Policy to create an account");
+      setError("You must agree to the Terms of Service, Privacy Policy, and Official Rules to create an account");
       return;
     }
     setLoading(true);
@@ -53,15 +54,22 @@ export default function Register() {
         base44.auth.setToken(result.access_token);
       }
       try {
-        const configs = await base44.entities.PrivacyPolicyConfig.filter({ is_active: true }, "-version", 1);
-        const activeConfig = configs?.[0];
-        if (activeConfig) {
-          const me = await base44.auth.me();
-          await base44.entities.PrivacyPolicyAcceptance.create({
-            user_id: me.id,
-            policy_version: activeConfig.version,
-            accepted_at: new Date().toISOString(),
-          });
+        const me = await base44.auth.me();
+        for (const policyType of POLICY_TYPE_ORDER) {
+          const configs = await base44.entities.PrivacyPolicyConfig.filter(
+            { is_active: true, policy_type: policyType },
+            "-version",
+            1
+          );
+          const activeConfig = configs?.[0];
+          if (activeConfig) {
+            await base44.entities.PrivacyPolicyAcceptance.create({
+              user_id: me.id,
+              policy_type: policyType,
+              policy_version: activeConfig.version,
+              accepted_at: new Date().toISOString(),
+            });
+          }
         }
       } catch (acceptanceErr) {
         // Non-fatal: acceptance recording should not block account access.
@@ -246,8 +254,16 @@ export default function Register() {
           />
           <span className="text-sm text-muted-foreground">
             I have read and agree to the{" "}
+            <Link to="/terms-of-service" target="_blank" rel="noreferrer" className="text-primary font-medium hover:underline">
+              Terms of Service
+            </Link>
+            ,{" "}
             <Link to="/privacy-policy" target="_blank" rel="noreferrer" className="text-primary font-medium hover:underline">
               Privacy Policy
+            </Link>
+            , and{" "}
+            <Link to="/official-rules" target="_blank" rel="noreferrer" className="text-primary font-medium hover:underline">
+              Official Rules
             </Link>
             .
           </span>

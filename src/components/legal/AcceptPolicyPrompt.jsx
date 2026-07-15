@@ -4,16 +4,19 @@ import { ShieldCheck, Loader2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import moment from "moment";
+import { LEGAL_DOCUMENT_TYPES } from "@/lib/legalDocumentTypes";
 
-export default function AcceptPolicyPrompt({ config, onAccepted }) {
+export default function AcceptPolicyPrompt({ config, policyType, onAccepted }) {
   const [checked, setChecked] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const docMeta = LEGAL_DOCUMENT_TYPES[policyType];
 
   const handleAccept = async () => {
     setSubmitting(true);
     const me = await base44.auth.me();
     await base44.entities.PrivacyPolicyAcceptance.create({
       user_id: me.id,
+      policy_type: policyType,
       policy_version: config.version,
       accepted_at: new Date().toISOString(),
     });
@@ -28,20 +31,20 @@ export default function AcceptPolicyPrompt({ config, onAccepted }) {
           <ShieldCheck size={22} className="text-[#C9A84C]" />
         </div>
         <div>
-          <h2 className="text-lg font-extrabold text-white">Updated Privacy Policy</h2>
+          <h2 className="text-lg font-extrabold text-white">Updated {docMeta.label}</h2>
           <p className="text-sm text-white/40 mt-1">
-            We've updated our Privacy Policy (Version {config.version}, {moment(config.last_updated).format("MMMM D, YYYY")}).
+            We've updated our {docMeta.label} (Version {config.version}, {moment(config.last_updated).format("MMMM D, YYYY")}).
             Please review and accept it to continue using ChessBet.
           </p>
         </div>
 
         <Link
-          to="/privacy-policy"
+          to={docMeta.route}
           target="_blank"
           rel="noreferrer"
           className="inline-flex items-center gap-1.5 text-sm text-[#C9A84C] hover:underline"
         >
-          Read the Privacy Policy <ExternalLink size={13} />
+          Read the {docMeta.label} <ExternalLink size={13} />
         </Link>
 
         <label className="flex items-start gap-3 cursor-pointer">
@@ -52,7 +55,7 @@ export default function AcceptPolicyPrompt({ config, onAccepted }) {
             className="mt-0.5 w-4 h-4 rounded accent-[#C9A84C]"
           />
           <span className="text-sm text-white/70">
-            I have read and agree to the updated Privacy Policy.
+            I have read and agree to the updated {docMeta.label}.
           </span>
         </label>
 
