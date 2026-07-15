@@ -1,0 +1,90 @@
+{
+  "name": "CaseAppeal",
+  "type": "object",
+  "properties": {
+    "case_id": {
+      "type": "string",
+      "description": "ID of the original DisputeCase being appealed. A case may have at most one appeal."
+    },
+    "case_number": {
+      "type": "number",
+      "description": "Denormalized Case ID for readability"
+    },
+    "appealing_user_id": {
+      "type": "string",
+      "description": "The user who was the subject of the adverse determination and is appealing it"
+    },
+    "appeal_reason": {
+      "type": "string",
+      "maxLength": 4000
+    },
+    "supporting_information": {
+      "type": "string",
+      "maxLength": 4000
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "submitted",
+        "under_review",
+        "additional_information_requested",
+        "granted",
+        "denied",
+        "closed"
+      ],
+      "default": "submitted"
+    },
+    "original_admin_id": {
+      "type": "string",
+      "description": "The administrator who authored the original CaseResolution being appealed, so reviewers can avoid reviewing their own determination"
+    },
+    "assigned_admin_id": {
+      "type": "string"
+    },
+    "resolution_notes": {
+      "type": "string",
+      "maxLength": 2000,
+      "description": "Internal-only administrator notes on the appeal outcome."
+    },
+    "resolved_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional description"
+    }
+  },
+  "required": [
+    "case_id",
+    "appealing_user_id",
+    "appeal_reason",
+    "status"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.appealing_user_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": false
+  }
+}

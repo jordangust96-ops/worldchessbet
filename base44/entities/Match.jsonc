@@ -99,6 +99,11 @@
       "default": false,
       "description": "Deprecated in favor of presence-based detection (User.last_active_at). No longer written by any client or backend function; retained only for historical records."
     },
+    "settlement_hold": {
+      "type": "boolean",
+      "default": false,
+      "description": "Set by an administrator (via a Dispute Case pre-settlement hold) to pause automatic settlement while an investigation is open. While true, settleMatch takes no action even after the Game completes \u2014 both players' funds remain in the Contest Clearing Account. Cleared only by the administrator releasing the hold, which resumes settlement."
+    },
     "description": {
       "type": "string",
       "maxLength": 1000,

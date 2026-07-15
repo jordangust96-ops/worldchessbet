@@ -12,7 +12,7 @@
     },
     "author_id": {
       "type": "string",
-      "description": "ID of whoever authored this note \u2014 an admin or the reporting user themself"
+      "description": "ID of whoever authored this note \u2014 an admin, the reporting user, or the system"
     },
     "author_name": {
       "type": "string",
@@ -43,7 +43,10 @@
         "resolved",
         "hold_placed",
         "hold_released",
-        "account_restricted"
+        "account_restricted",
+        "referred",
+        "appeal_submitted",
+        "appeal_resolved"
       ]
     },
     "content": {

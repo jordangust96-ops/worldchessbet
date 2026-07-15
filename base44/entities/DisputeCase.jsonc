@@ -72,7 +72,7 @@
         "closed"
       ],
       "default": "open",
-      "description": "Administrator-controlled case status. Every report automatically enters the Investigation Queue with status 'open'. Never changed automatically by gameplay or settlement logic."
+      "description": "Administrator-controlled case status. Every report automatically enters the Investigation Queue with status 'open'. A case may only reach 'resolved' through the resolve_case action (which records a formal, immutable CaseResolution) \u2014 never via a direct status change."
     },
     "priority": {
       "type": "string",
@@ -94,11 +94,28 @@
     "resolution": {
       "type": "string",
       "maxLength": 2000,
-      "description": "Administrator-facing resolution summary. Visible to the reporting user once the case is resolved/closed."
+      "description": "High-level, user-facing resolution summary. Visible to the reporting (and reported) user once the case is resolved. Never contains internal evidence, investigation methods, or anti-cheat details."
     },
     "resolution_timestamp": {
       "type": "string",
       "format": "date-time"
+    },
+    "resolution_type": {
+      "type": "string",
+      "enum": [
+        "no_violation",
+        "contest_reversed",
+        "contest_voided",
+        "account_suspended",
+        "account_closed",
+        "funds_forfeited",
+        "referred"
+      ],
+      "description": "Denormalized from the case's CaseResolution record, for quick display. The CaseResolution itself is the immutable system of record."
+    },
+    "violation_found": {
+      "type": "boolean",
+      "description": "Denormalized from the case's CaseResolution record."
     },
     "time_control": {
       "type": "string",
@@ -207,6 +224,37 @@
       "type": "string",
       "format": "date-time",
       "description": "Internal-only. Timestamp the hold was released."
+    },
+    "referral_destination": {
+      "type": "string",
+      "enum": [
+        "legal_counsel",
+        "law_enforcement",
+        "financial_institution",
+        "regulatory_authority"
+      ],
+      "description": "Internal-only. Never shown to users."
+    },
+    "referral_reference_number": {
+      "type": "string",
+      "description": "Internal-only. Never shown to users."
+    },
+    "referred_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Internal-only."
+    },
+    "referred_by_admin_id": {
+      "type": "string",
+      "description": "Internal-only."
+    },
+    "evidence_id": {
+      "type": "string",
+      "description": "Internal-only. ID of this case's immutable CaseEvidence package, captured automatically at intake."
+    },
+    "appeal_id": {
+      "type": "string",
+      "description": "ID of the CaseAppeal filed against this case's resolution, if any. A case may have at most one appeal."
     },
     "cheat_detection_results": {
       "type": "string",

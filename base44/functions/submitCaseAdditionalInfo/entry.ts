@@ -1,10 +1,11 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 
 // Lets the reporting user add further information to their own case, most
-// commonly after an administrator requests it. Creates an append-only
-// DisputeCaseNote and, if the case was awaiting information, moves it back
-// to under_review so administrators know a response has arrived. Never
-// exposes or modifies internal investigation notes.
+// commonly after an administrator requests it. Creates an append-only,
+// user-visible DisputeCaseNote and, if the case was awaiting information,
+// moves it back to under_review so administrators know a response has
+// arrived. Never exposes or modifies internal investigation notes, flags,
+// financial holds, or the case's resolution.
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -17,17 +18,22 @@ Deno.serve(async (req) => {
 
     const disputeCase = await base44.asServiceRole.entities.DisputeCase.get(caseId);
     if (!disputeCase) return Response.json({ error: 'Case not found' }, { status: 404 });
-    if (disputeCase.created_by_id !== user.id) {
+    if (disputeCase.reporting_user_id !== user.id) {
       return Response.json({ error: 'You do not have access to this case' }, { status: 403 });
+    }
+    if (disputeCase.status === 'resolved' || disputeCase.status === 'closed') {
+      return Response.json({ error: 'This case is closed and no longer accepting updates' }, { status: 400 });
     }
 
     const note = await base44.asServiceRole.entities.DisputeCaseNote.create({
       case_id: caseId,
+      reporting_user_id: user.id,
       author_role: 'user',
       author_id: user.id,
       author_name: user.full_name || user.email || 'User',
-      note_type: 'user_response',
+      action_type: 'info_submitted',
       content: content.trim(),
+      visible_to_user: true,
     });
 
     let updatedCase = disputeCase;
@@ -41,8 +47,8 @@ Deno.serve(async (req) => {
           admins.map((admin) =>
             base44.asServiceRole.integrations.Core.SendEmail({
               to: admin.email,
-              subject: `New Information Submitted — Case #${disputeCase.case_number}`,
-              body: `The reporting user has submitted additional information for Case #${disputeCase.case_number}.`,
+              subject: `New Information Submitted — Case #CB-${String(disputeCase.case_number).padStart(6, '0')}`,
+              body: `The reporting user has submitted additional information for Case #CB-${String(disputeCase.case_number).padStart(6, '0')}.`,
             }).catch(() => {})
           )
         )

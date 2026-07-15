@@ -1,0 +1,158 @@
+{
+  "name": "CaseResolution",
+  "type": "object",
+  "properties": {
+    "case_id": {
+      "type": "string",
+      "description": "ID of the DisputeCase this resolution concludes. Exactly one CaseResolution should exist per case \u2014 created once via the resolve_case action and never edited afterward."
+    },
+    "case_number": {
+      "type": "number",
+      "description": "Denormalized Case ID for readability"
+    },
+    "resolution_type": {
+      "type": "string",
+      "enum": [
+        "no_violation",
+        "contest_reversed",
+        "contest_voided",
+        "account_suspended",
+        "account_closed",
+        "funds_forfeited",
+        "referred"
+      ],
+      "description": "The formal outcome of the investigation"
+    },
+    "violation_found": {
+      "type": "boolean",
+      "default": false
+    },
+    "administrator_id": {
+      "type": "string"
+    },
+    "administrator_name": {
+      "type": "string"
+    },
+    "resolution_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "internal_rationale": {
+      "type": "string",
+      "maxLength": 4000,
+      "description": "Internal-only. Never shown to users."
+    },
+    "admin_notes": {
+      "type": "string",
+      "maxLength": 4000,
+      "description": "Internal-only. Never shown to users."
+    },
+    "user_facing_summary": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "High-level summary communicated to affected users. Must never include internal evidence, investigation methods, anti-cheat systems, or administrative notes."
+    },
+    "target_user_id": {
+      "type": "string",
+      "description": "The user this resolution's remedy primarily applies to (e.g. the suspended/closed account, or the reversed contest's original winner)"
+    },
+    "fee_treatment": {
+      "type": "string",
+      "enum": [
+        "refunded",
+        "retained"
+      ],
+      "description": "Only relevant for resolution_type = contest_reversed"
+    },
+    "reversal_ledger_entry_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Balancing Internal Ledger entries created to reverse the original settlement. The original entries are never modified."
+    },
+    "void_ledger_entry_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Internal Ledger entries created to refund both participants for a voided contest."
+    },
+    "suspension_scope": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "contest_participation",
+          "hosting",
+          "joining",
+          "withdrawals"
+        ]
+      },
+      "description": "Only relevant for resolution_type = account_suspended"
+    },
+    "suspension_duration_type": {
+      "type": "string",
+      "enum": [
+        "temporary",
+        "permanent"
+      ]
+    },
+    "suspension_expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "closure_reason": {
+      "type": "string",
+      "maxLength": 2000,
+      "description": "Only relevant for resolution_type = account_closed"
+    },
+    "forfeiture_amount": {
+      "type": "number",
+      "description": "Future-ready data slot for resolution_type = funds_forfeited. Recorded only \u2014 never automated until outside counsel finalizes the legal framework. Disabled by default."
+    },
+    "forfeiture_legal_reference": {
+      "type": "string",
+      "description": "Legal authority/reference supporting a recorded (not yet automated) funds forfeiture."
+    },
+    "referral_destination": {
+      "type": "string",
+      "enum": [
+        "legal_counsel",
+        "law_enforcement",
+        "financial_institution",
+        "regulatory_authority"
+      ],
+      "description": "Only relevant for resolution_type = referred. Internal-only; never shown to users."
+    },
+    "referral_reference_number": {
+      "type": "string",
+      "description": "Internal-only."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional description"
+    }
+  },
+  "required": [
+    "case_id",
+    "resolution_type",
+    "administrator_id",
+    "resolution_timestamp"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": false,
+    "delete": false
+  }
+}

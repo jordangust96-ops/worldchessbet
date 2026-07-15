@@ -85,6 +85,14 @@ Deno.serve(async (req) => {
     const match = await base44.asServiceRole.entities.Match.get(game.match_id);
     if (!match) return Response.json({ error: 'Match not found' }, { status: 404 });
 
+    // Administrative pre-settlement hold — set only via a Dispute Case
+    // (manageDisputeCase). While active, settlement is paused entirely and
+    // both players' funds stay in the Contest Clearing Account. Releasing
+    // the hold re-invokes this same function to resume settlement.
+    if (match.settlement_hold) {
+      return Response.json({ held: true, match });
+    }
+
     // This function only ever applies the already-decided outcome of a
     // completed Game (checked above) — it never trusts caller-supplied
     // results — and the idempotency guard below ensures it can run at most

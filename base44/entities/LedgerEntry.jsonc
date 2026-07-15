@@ -36,7 +36,9 @@
         "platform_fee",
         "refund",
         "admin_adjustment",
-        "reversal"
+        "reversal",
+        "investigation_hold",
+        "investigation_hold_release"
       ]
     },
     "debit_amount": {
