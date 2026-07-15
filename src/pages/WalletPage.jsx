@@ -23,6 +23,7 @@ export default function WalletPage() {
   const [isProcessingDeposit, setIsProcessingDeposit] = useState(false);
   const [depositError, setDepositError] = useState("");
   const [withdrawalHold, setWithdrawalHold] = useState(false);
+  const [accountState, setAccountState] = useState("verified");
 
   useEffect(() => {
     loadData();
@@ -51,6 +52,7 @@ export default function WalletPage() {
     const me = await base44.auth.me();
     setUserId(me.id);
     setWithdrawalHold(!!me.withdrawal_hold);
+    setAccountState(me.account_state || "verified");
     const wallets = await base44.entities.Wallet.filter({ user_id: me.id });
     if (wallets.length > 0) {
       setWallet(wallets[0]);
@@ -168,7 +170,7 @@ export default function WalletPage() {
           </Button>
           <Button
             variant="outline"
-            disabled={withdrawalHold}
+            disabled={withdrawalHold || accountState !== "verified"}
             className="h-12 rounded-2xl border-white/10 text-white/70 font-bold hover:bg-white/5 disabled:opacity-40"
           >
             <ArrowUpRight size={16} className="mr-2" /> Withdraw Funds
@@ -177,6 +179,21 @@ export default function WalletPage() {
         {withdrawalHold && (
           <p className="text-xs text-red-400/80 text-center -mt-2">
             Withdrawals are temporarily on hold while we complete a routine account review.
+          </p>
+        )}
+        {!withdrawalHold && accountState === "provisional" && (
+          <p className="text-xs text-white/40 text-center -mt-2">
+            Complete identity verification to unlock deposits and withdrawals.
+          </p>
+        )}
+        {!withdrawalHold && accountState === "suspended" && (
+          <p className="text-xs text-red-400/80 text-center -mt-2">
+            Your account is currently suspended. Deposits and withdrawals are unavailable.
+          </p>
+        )}
+        {!withdrawalHold && accountState === "closed" && (
+          <p className="text-xs text-red-400/80 text-center -mt-2">
+            This account is closed. Deposits and withdrawals are unavailable.
           </p>
         )}
 

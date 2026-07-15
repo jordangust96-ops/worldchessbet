@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import IntegrityFlagCard from "@/components/integrity/IntegrityFlagCard";
 import NewIntegrityFlagForm from "@/components/integrity/NewIntegrityFlagForm";
+import AccountStateControl from "@/components/integrity/AccountStateControl";
 
 export default function AdminUserIntegrity() {
   const { userId } = useParams();
@@ -96,6 +97,13 @@ export default function AdminUserIntegrity() {
           </span>
         )}
       </div>
+
+      {targetUser && (
+        <AccountStateControl
+          targetUser={targetUser}
+          onChanged={(account_state) => setTargetUser((u) => ({ ...u, account_state }))}
+        />
+      )}
 
       <div className="mt-6 flex items-center justify-between">
         <h2 className="text-sm font-bold text-white/80">Current Risk Flags</h2>
