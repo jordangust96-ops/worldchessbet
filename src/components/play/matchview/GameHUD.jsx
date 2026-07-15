@@ -37,8 +37,21 @@ export default function GameHUD({ match, game, userId, movementMode, onMovementM
   const [resigning, setResigning] = useState(false);
   const [offeringDraw, setOfferingDraw] = useState(false);
   const [respondingDraw, setRespondingDraw] = useState(false);
+  const [integrityReviewActive, setIntegrityReviewActive] = useState(false);
   const displayMs = useChessClock(game);
   const { toast } = useToast();
+
+  // Admin-only visibility: surfaces whether this contest is linked to an open
+  // integrity flag. Never shown to the flagged player(s).
+  useEffect(() => {
+    const checkIntegrityReview = async () => {
+      const me = await base44.auth.me();
+      if (me?.role !== "admin" || !match?.id) return;
+      const linkedFlags = await base44.entities.IntegrityFlag.filter({ match_id: match.id });
+      setIntegrityReviewActive(linkedFlags.some((f) => f.status === "open" || f.status === "under_review"));
+    };
+    checkIntegrityReview();
+  }, [match?.id]);
 
   const drawOfferedByMe = game?.draw_offered_by === userId;
   const drawOfferedByOpponent = !!game?.draw_offered_by && game.draw_offered_by !== userId;
@@ -168,6 +181,11 @@ export default function GameHUD({ match, game, userId, movementMode, onMovementM
           <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
           <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Live Match</p>
         </div>
+        {integrityReviewActive && (
+          <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-3 py-2">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-red-400">Integrity Review Active</p>
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-2.5">
           <div className="rounded-2xl bg-[#C9A84C]/5 border border-[#C9A84C]/20 p-3">
             <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]/60 mb-0.5">Entry Amount</p>

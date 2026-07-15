@@ -1,0 +1,72 @@
+{
+  "name": "IntegrityAuditLog",
+  "type": "object",
+  "properties": {
+    "flag_id": {
+      "type": "string",
+      "description": "ID of the IntegrityFlag this log entry belongs to"
+    },
+    "admin_id": {
+      "type": "string",
+      "description": "ID of the admin who performed the action"
+    },
+    "admin_name": {
+      "type": "string",
+      "description": "Display name of the admin at the time of the action, for readability"
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "flag_created",
+        "mark_under_review",
+        "mark_cleared",
+        "mark_action_taken",
+        "add_notes",
+        "freeze_withdrawals",
+        "unfreeze_withdrawals",
+        "request_identity_verification"
+      ]
+    },
+    "previous_status": {
+      "type": "string"
+    },
+    "new_status": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string",
+      "maxLength": 4000
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional description"
+    }
+  },
+  "required": [
+    "flag_id",
+    "action"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

@@ -109,6 +109,12 @@ Deno.serve(async (req) => {
       completed_at: game.completed_at || new Date().toISOString(),
     });
 
+    // Fire the lightweight integrity check after settlement so it never
+    // delays or blocks the contest's own settlement/response.
+    await base44.asServiceRole.functions
+      .invoke('runIntegrityCheck', { matchId: match.id, gameId: game.id })
+      .catch(() => {});
+
     return Response.json({ match: updatedMatch });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });

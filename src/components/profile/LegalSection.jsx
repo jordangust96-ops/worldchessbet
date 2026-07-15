@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight, Shield, ShieldCheck, FileText, Settings } from "lucide-react";
+import { ChevronRight, Shield, ShieldCheck, FileText, Settings, ShieldAlert } from "lucide-react";
 
 export default function LegalSection({ isAdmin }) {
   return (
@@ -39,6 +39,19 @@ export default function LegalSection({ isAdmin }) {
           <div className="flex items-center gap-3">
             <Settings size={16} className="text-[#C9A84C]/60" />
             <span className="text-sm text-[#C9A84C]/80">Manage Privacy Policy</span>
+          </div>
+          <ChevronRight size={16} className="text-white/20" />
+        </Link>
+      }
+
+      {isAdmin &&
+      <Link
+        to="/admin/integrity"
+        className="flex items-center justify-between py-3 -mx-1 px-1 hover:bg-white/[0.03] rounded-xl transition-colors">
+        
+          <div className="flex items-center gap-3">
+            <ShieldAlert size={16} className="text-[#C9A84C]/60" />
+            <span className="text-sm text-[#C9A84C]/80">Integrity Review Queue</span>
           </div>
           <ChevronRight size={16} className="text-white/20" />
         </Link>

@@ -72,6 +72,11 @@
       "type": "number",
       "default": 0,
       "description": "games_won / games_played * 100, rounded to the nearest whole number. Updated only by settleMatch."
+    },
+    "withdrawal_hold": {
+      "type": "boolean",
+      "default": false,
+      "description": "Set by an admin (via the Integrity Review Queue) to temporarily block this user's withdrawals while an integrity review is active. Never set automatically."
     }
   },
   "required": [

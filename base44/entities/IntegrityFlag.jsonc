@@ -1,0 +1,97 @@
+{
+  "name": "IntegrityFlag",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "ID of the user this integrity flag is about"
+    },
+    "match_id": {
+      "type": "string",
+      "description": "ID of the related Match/contest, if applicable"
+    },
+    "flag_type": {
+      "type": "string",
+      "enum": [
+        "repeated_opponent_pairing",
+        "unusual_resignation_pattern",
+        "unusual_timeout_pattern",
+        "high_number_short_contests",
+        "multiple_accounts_same_email_domain",
+        "same_ip_multiple_accounts",
+        "same_device_fingerprint",
+        "rapid_deposit_contest_withdrawal",
+        "repeated_payment_failures",
+        "chargeback",
+        "vpn_detected",
+        "geolocation_mismatch",
+        "manual"
+      ],
+      "description": "The category of suspicious activity that triggered this flag"
+    },
+    "severity": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "default": "low"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "open",
+        "under_review",
+        "cleared",
+        "action_taken"
+      ],
+      "default": "open"
+    },
+    "action_taken": {
+      "type": "string",
+      "description": "Free-text description of any enforcement action taken as a result of this flag"
+    },
+    "assigned_admin_id": {
+      "type": "string",
+      "description": "ID of the admin currently assigned to review this flag"
+    },
+    "notes": {
+      "type": "string",
+      "maxLength": 4000,
+      "description": "Admin-facing investigation notes"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional short summary of why this flag was raised"
+    }
+  },
+  "required": [
+    "user_id",
+    "flag_type",
+    "severity"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

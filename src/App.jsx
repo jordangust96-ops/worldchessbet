@@ -25,6 +25,8 @@ import PrivacyPolicy from '@/pages/PrivacyPolicy';
 import PrivacyPolicyAdmin from '@/pages/PrivacyPolicyAdmin';
 import FairPlayIntegrity from '@/pages/FairPlayIntegrity';
 import JoinMatch from '@/pages/JoinMatch';
+import IntegrityReviewQueue from '@/pages/IntegrityReviewQueue';
+import AdminUserIntegrity from '@/pages/AdminUserIntegrity';
 
 // Layout
 import AppLayout from '@/components/layout/AppLayout';
@@ -70,6 +72,8 @@ const AuthenticatedApp = () => {
         <Route element={<MfaGuard />}>
           <Route element={<PolicyAcceptanceGuard />}>
             <Route path="/admin/privacy-policy" element={<PrivacyPolicyAdmin />} />
+            <Route path="/admin/integrity" element={<IntegrityReviewQueue />} />
+            <Route path="/admin/integrity/:userId" element={<AdminUserIntegrity />} />
             <Route element={<AppLayout />}>
               <Route path="/" element={<Home />} />
               <Route path="/wallet" element={<WalletPage />} />

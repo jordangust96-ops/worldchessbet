@@ -22,6 +22,7 @@ export default function WalletPage() {
   const [showDeposit, setShowDeposit] = useState(false);
   const [isProcessingDeposit, setIsProcessingDeposit] = useState(false);
   const [depositError, setDepositError] = useState("");
+  const [withdrawalHold, setWithdrawalHold] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -49,6 +50,7 @@ export default function WalletPage() {
   const loadData = async () => {
     const me = await base44.auth.me();
     setUserId(me.id);
+    setWithdrawalHold(!!me.withdrawal_hold);
     const wallets = await base44.entities.Wallet.filter({ user_id: me.id });
     if (wallets.length > 0) {
       setWallet(wallets[0]);
@@ -166,11 +168,17 @@ export default function WalletPage() {
           </Button>
           <Button
             variant="outline"
-            className="h-12 rounded-2xl border-white/10 text-white/70 font-bold hover:bg-white/5"
+            disabled={withdrawalHold}
+            className="h-12 rounded-2xl border-white/10 text-white/70 font-bold hover:bg-white/5 disabled:opacity-40"
           >
             <ArrowUpRight size={16} className="mr-2" /> Withdraw Funds
           </Button>
         </div>
+        {withdrawalHold && (
+          <p className="text-xs text-red-400/80 text-center -mt-2">
+            Withdrawals are temporarily on hold while we complete a routine account review.
+          </p>
+        )}
 
         {/* Deposit Input */}
         {showDeposit && (
