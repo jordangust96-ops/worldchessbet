@@ -10,6 +10,11 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
+    // Only Verified accounts may enter new contests (Provisional/Suspended/Closed cannot).
+    if (user.account_state !== 'verified') {
+      return Response.json({ error: 'Your account must be verified before you can enter a contest' }, { status: 403 });
+    }
+
     const { matchId } = await req.json();
     if (!matchId) return Response.json({ error: 'matchId is required' }, { status: 400 });
 

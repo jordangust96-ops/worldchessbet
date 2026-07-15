@@ -18,6 +18,18 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Invalid funding amount' }, { status: 400 });
     }
 
+    // Only Verified accounts may deposit funds (Provisional/Suspended/Closed cannot).
+    if (user.account_state !== 'verified') {
+      return Response.json({
+        eligible: false,
+        reason: user.account_state === 'suspended'
+          ? 'Your account is currently suspended and cannot deposit funds.'
+          : user.account_state === 'closed'
+          ? 'This account is closed and cannot deposit funds.'
+          : 'You must complete identity verification before you can deposit funds.',
+      });
+    }
+
     // Re-verify eligibility server-side rather than trusting a prior client-side check.
     const geoRes = await base44.functions.invoke('checkGeolocation', {});
     if (geoRes.data?.error || !geoRes.data?.eligible) {

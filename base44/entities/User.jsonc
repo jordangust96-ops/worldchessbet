@@ -77,6 +77,17 @@
       "type": "boolean",
       "default": false,
       "description": "Set by an admin (via the Integrity Review Queue) to temporarily block this user's withdrawals while an integrity review is active. Never set automatically."
+    },
+    "account_state": {
+      "type": "string",
+      "description": "Internal account status. provisional: created but not identity-verified \u2014 may access the Platform but not deposit, withdraw, or enter paid Contests. verified: identity verification complete \u2014 full participation, subject to ongoing eligibility checks. suspended: temporarily restricted (investigation/dispute/compliance/integrity hold) \u2014 no new Contests, deposits, or withdrawals; existing balance preserved but held. closed: permanently closed. Set by an admin.",
+      "enum": [
+        "provisional",
+        "verified",
+        "suspended",
+        "closed"
+      ],
+      "default": "provisional"
     }
   },
   "required": [
