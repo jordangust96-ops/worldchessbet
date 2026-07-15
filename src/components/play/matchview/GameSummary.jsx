@@ -60,7 +60,7 @@ export default function GameSummary({ match, game, userId, onPlayAgain }) {
           <span className="text-xs font-semibold text-white/80">{match.display_name}</span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-xs text-white/40">Wager</span>
+          <span className="text-xs text-white/40">Entry Amount</span>
           <span className="text-xs font-semibold text-white/80">${match.wager_amount.toFixed(2)}</span>
         </div>
       </div>
@@ -82,11 +82,11 @@ export default function GameSummary({ match, game, userId, onPlayAgain }) {
         ) : won ? (
           <>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-white/50">Prize Pool</span>
+              <span className="text-white/50">Contest Prize</span>
               <span className="font-semibold text-white/80">${(match.wager_amount * 2).toFixed(2)}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-white/50">Platform Fee (10%)</span>
+              <span className="text-white/50">Platform Service Fee (10%)</span>
               <span className="font-semibold text-white/50">-${(match.wager_amount * 2 * 0.1).toFixed(2)}</span>
             </div>
             <div className="flex items-center justify-between pt-2 border-t border-white/10">
@@ -99,11 +99,11 @@ export default function GameSummary({ match, game, userId, onPlayAgain }) {
         ) : (
           <>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-white/50">Your Wager</span>
+              <span className="text-white/50">Your Entry Amount</span>
               <span className="font-semibold text-red-400">-${match.wager_amount.toFixed(2)}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-white/50">Platform Fee</span>
+              <span className="text-white/50">Platform Service Fee</span>
               <span className="font-semibold text-white/50">Included in winner payout</span>
             </div>
           </>
@@ -112,13 +112,13 @@ export default function GameSummary({ match, game, userId, onPlayAgain }) {
 
       <p className="text-xs text-white/30">
         {draw
-          ? "Both players receive the appropriate settlement according to ChessBet's draw rules."
+          ? "Both players receive the appropriate contest settlement according to ChessBet's draw rules."
           : won
-          ? "You won your match and received 90% of the total prize pool after the ChessBet platform fee."
-          : "Your wager was forfeited as part of the completed match."}
+          ? "You won your match and received 90% of the total contest prize after the ChessBet platform service fee."
+          : "Your entry amount was forfeited as part of the completed match."}
       </p>
 
-      <p className="text-xs text-white/20">Finalizing Match...</p>
+      <p className="text-xs text-white/20">Finalizing Contest Settlement...</p>
 
       <div className="space-y-2">
         <Button onClick={onPlayAgain} className="w-full h-12 rounded-2xl font-bold gold-gradient text-black hover:opacity-90">

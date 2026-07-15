@@ -29,7 +29,7 @@ function buildEmailBody({ opponentName, wagerAmount, timeControlLabel, appUrl })
           <td style="padding: 8px 0; text-align:right; font-weight:bold;">${opponentName}</td>
         </tr>
         <tr>
-          <td style="padding: 8px 0; color:#555;">Wager</td>
+          <td style="padding: 8px 0; color:#555;">Entry Amount</td>
           <td style="padding: 8px 0; text-align:right; font-weight:bold;">$${wagerAmount.toFixed(2)}</td>
         </tr>
         <tr>

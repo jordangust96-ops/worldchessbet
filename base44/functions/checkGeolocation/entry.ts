@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
     const data = await maxmindRes.json();
     const countryCode = data?.country?.iso_code;
     const eligible = !!countryCode && !RESTRICTED_COUNTRIES.has(countryCode);
-    const reason = eligible ? undefined : 'Deposits are not available in your current location.';
+    const reason = eligible ? undefined : 'Account funding is not available in your current location.';
 
     await base44.asServiceRole.entities.User.update(user.id, {
       last_geolocation_status: eligible ? 'eligible' : 'ineligible',

@@ -57,7 +57,7 @@ export default function NotifyAtLaunchModal({ open, onOpenChange }) {
           <div className="text-center py-4">
             <p className="text-lg font-bold text-[#C9A84C] mb-2">You're on the list!</p>
             <p className="text-sm text-white/50">
-              We'll let you know as soon as real-money wagering becomes available on ChessBet.
+              We'll let you know as soon as real-money competitive play becomes available on ChessBet.
             </p>
           </div>
         ) : (
@@ -66,7 +66,7 @@ export default function NotifyAtLaunchModal({ open, onOpenChange }) {
               <DialogTitle className="text-white">Get Notified at Launch</DialogTitle>
             </DialogHeader>
             <p className="text-sm text-white/50 -mt-2 mb-2">
-              Be among the first to know when ChessBet officially launches real-money wagering.
+              Be among the first to know when ChessBet officially launches real-money competitive play.
               We'll send you a notification as soon as it's available.
             </p>
             <div className="space-y-3">

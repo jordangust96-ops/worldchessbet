@@ -4,10 +4,10 @@ import moment from "moment";
 import TransactionPagination from "@/components/wallet/TransactionPagination";
 
 const typeConfig = {
-  deposit: { icon: ArrowDownLeft, color: "text-green-400", bg: "bg-green-500/10", label: "Deposit" },
-  withdrawal: { icon: ArrowUpRight, color: "text-red-400", bg: "bg-red-500/10", label: "Withdrawal" },
-  wager_lock: { icon: Minus, color: "text-orange-400", bg: "bg-orange-500/10", label: "Wager Locked" },
-  wager_refund: { icon: Plus, color: "text-blue-400", bg: "bg-blue-500/10", label: "Wager Refund" },
+  deposit: { icon: ArrowDownLeft, color: "text-green-400", bg: "bg-green-500/10", label: "Fund Account" },
+  withdrawal: { icon: ArrowUpRight, color: "text-red-400", bg: "bg-red-500/10", label: "Withdraw Funds" },
+  wager_lock: { icon: Minus, color: "text-orange-400", bg: "bg-orange-500/10", label: "Entry Amount Reserved" },
+  wager_refund: { icon: Plus, color: "text-blue-400", bg: "bg-blue-500/10", label: "Entry Amount Refund" },
   payout: { icon: ArrowDownLeft, color: "text-[#C9A84C]", bg: "bg-[#C9A84C]/10", label: "Payout" },
 };
 

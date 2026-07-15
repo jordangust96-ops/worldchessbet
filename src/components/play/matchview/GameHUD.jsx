@@ -170,7 +170,7 @@ export default function GameHUD({ match, game, userId, movementMode, onMovementM
         </div>
         <div className="grid grid-cols-2 gap-2.5">
           <div className="rounded-2xl bg-[#C9A84C]/5 border border-[#C9A84C]/20 p-3">
-            <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]/60 mb-0.5">Wager</p>
+            <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]/60 mb-0.5">Entry Amount</p>
             <p className="text-base font-bold text-[#C9A84C]">${match.wager_amount.toFixed(2)}</p>
           </div>
           <div className="rounded-2xl bg-white/[0.03] p-3">

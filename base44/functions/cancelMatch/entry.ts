@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
           type: 'wager_refund',
           amount: match.wager_amount,
           match_id: match.id,
-          description: 'Escrow refunded — match cancelled',
+          description: 'Reserved contest funds refunded — match cancelled',
           status: 'completed',
         });
       }

@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
     const wallets = await base44.asServiceRole.entities.Wallet.filter({ user_id: user.id });
     const wallet = wallets[0];
     if (!wallet || wallet.balance < match.wager_amount) {
-      return Response.json({ error: 'Insufficient balance for this wager' }, { status: 400 });
+      return Response.json({ error: 'Insufficient balance for this entry amount' }, { status: 400 });
     }
 
     await base44.asServiceRole.entities.Wallet.update(wallet.id, {
@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
       type: 'wager_lock',
       amount: match.wager_amount,
       match_id: match.id,
-      description: 'Wager locked for match',
+      description: 'Entry amount reserved for match',
     });
 
     const opponentDeposited = isP1 ? match.player2_deposited : match.player1_deposited;

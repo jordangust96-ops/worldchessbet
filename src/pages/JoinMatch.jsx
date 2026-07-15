@@ -126,7 +126,7 @@ export default function JoinMatch() {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-2xl bg-[#C9A84C]/5 border border-[#C9A84C]/20 p-4">
-              <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]/60 mb-1">Wager</p>
+              <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]/60 mb-1">Entry Amount</p>
               <p className="text-xl font-bold text-[#C9A84C]">${match.wager_amount.toFixed(2)}</p>
             </div>
             <div className="rounded-2xl bg-white/[0.03] p-4">
@@ -138,11 +138,11 @@ export default function JoinMatch() {
           <div className="rounded-2xl bg-white/[0.03] p-4 space-y-2">
             <p className="text-[10px] uppercase tracking-widest text-white/30 mb-1">Match Summary</p>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-white/50">Prize Pool</span>
+              <span className="text-white/50">Contest Prize</span>
               <span className="font-semibold text-white/80">${(match.wager_amount * 2).toFixed(2)}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-white/50">Platform Fee (10%)</span>
+              <span className="text-white/50">Platform Service Fee (10%)</span>
               <span className="font-semibold text-white/50">-${(match.wager_amount * 2 * 0.1).toFixed(2)}</span>
             </div>
             <div className="flex items-center justify-between pt-2 border-t border-white/10">
@@ -161,7 +161,7 @@ export default function JoinMatch() {
             className="w-full h-12 rounded-2xl font-bold gold-gradient text-black hover:opacity-90"
           >
             {joining ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
-            Accept & Join Match
+            Join Challenge
           </Button>
         </div>
       </div>

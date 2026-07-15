@@ -26,7 +26,7 @@ const CONSEQUENCES = [
   "Temporary account suspension",
   "Permanent account ban",
   "Match forfeiture",
-  "Wager forfeiture where applicable",
+  "Entry Amount forfeiture where applicable",
   "Additional investigation when necessary",
 ];
 
@@ -90,7 +90,7 @@ export default function FairPlayIntegrity() {
             We are committed to providing an environment that is competitive, transparent, and fair for everyone.
           </p>
           <p className="text-sm text-white/60 leading-relaxed">
-            Protecting fair play protects every player and every wager.
+            Protecting fair play protects every player and every entry.
           </p>
         </Section>
 

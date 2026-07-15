@@ -64,7 +64,7 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
         <div className="rounded-xl bg-[#C9A84C]/10 border border-[#C9A84C]/20 p-3 flex items-center gap-2.5">
           <Wallet size={15} className="text-[#C9A84C] shrink-0" />
           <p className="text-xs text-[#C9A84C]/80 leading-snug">
-            Add funds to host a match.{" "}
+            Add funds to create a challenge.{" "}
             <Link to="/wallet" className="underline font-semibold hover:text-[#C9A84C]">
               Fund Wallet
             </Link>
@@ -74,8 +74,8 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
 
       <div className={`space-y-5 lg:space-y-2 ${disabled || noFunds ? "opacity-40 pointer-events-none" : ""}`}>
         <div>
-          <h3 className="text-base lg:text-sm font-bold text-white">Host a Match</h3>
-          <p className="text-xs text-white/40 mt-0.5 lg:hidden">Choose your wager and time control, then host publicly or privately.</p>
+          <h3 className="text-base lg:text-sm font-bold text-white">Create a Challenge</h3>
+          <p className="text-xs text-white/40 mt-0.5 lg:hidden">Choose your entry amount and time control, then create your challenge publicly or privately.</p>
           {disabled && (
             <p className="text-xs text-[#C9A84C]/70 mt-1">
               You already have an active challenge. Cancel it to create a new one.
@@ -108,7 +108,7 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
 
         <div className="space-y-2 lg:space-y-1">
           <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">
-            Custom Wager
+            Custom Entry Amount
           </label>
           <div className="relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40 font-semibold text-sm">
@@ -162,7 +162,7 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
             className="w-full h-12 lg:h-9 lg:text-sm rounded-2xl font-bold gold-gradient text-black hover:opacity-90 disabled:opacity-30 transition-opacity"
           >
             {hosting ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
-            {isValid ? `Host ${buttonWagerLabel} ${selectedTimeControl.label} Match` : "Host a Public Match"}
+            {isValid ? `Create ${buttonWagerLabel} ${selectedTimeControl.label} Challenge` : "Create a Public Challenge"}
           </Button>
           <Button
             onClick={() => handleHost(true)}
@@ -171,7 +171,7 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
             className="w-full h-12 lg:h-9 lg:text-sm rounded-2xl font-bold border-white/10 text-white/70 hover:bg-white/5 hover:text-white disabled:opacity-30 transition-colors"
           >
             {hosting ? <Loader2 className="animate-spin mr-2" size={16} /> : <Lock size={14} className="mr-2" />}
-            Host a Private Match
+            Create a Private Challenge
           </Button>
         </div>
       </div>

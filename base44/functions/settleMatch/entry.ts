@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
             type: 'wager_refund',
             amount: wagerAmount,
             match_id: match.id,
-            description: 'Wager refunded — match ended in a draw',
+            description: 'Entry amount refunded — match ended in a draw',
             status: 'completed',
           });
         }

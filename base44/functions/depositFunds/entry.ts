@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
     const { amount } = await req.json();
     const requestedAmount = Number(amount);
     if (!Number.isFinite(requestedAmount) || requestedAmount <= 0 || requestedAmount > MAX_DEPOSIT_AMOUNT) {
-      return Response.json({ error: 'Invalid deposit amount' }, { status: 400 });
+      return Response.json({ error: 'Invalid funding amount' }, { status: 400 });
     }
 
     // Re-verify eligibility server-side rather than trusting a prior client-side check.
@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
     if (geoRes.data?.error || !geoRes.data?.eligible) {
       return Response.json({
         eligible: false,
-        reason: geoRes.data?.reason || 'You are not currently eligible to deposit.',
+        reason: geoRes.data?.reason || 'You are not currently eligible to fund your account.',
       });
     }
 
@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
       user_id: user.id,
       type: 'deposit',
       amount: requestedAmount,
-      description: 'Deposit to wallet',
+      description: 'Account funded',
     });
 
     return Response.json({ eligible: true, wallet: updatedWallet });

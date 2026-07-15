@@ -48,7 +48,7 @@ export default function SettlementState({ match, game, userId, onReturn }) {
         </p>
         <p className="text-white/40 text-sm mt-1">
           {draw
-            ? "Wagers have been refunded"
+            ? "Entry amounts have been refunded"
             : won
             ? `You won $${(match.wager_amount * 2).toFixed(2)}`
             : `You lost $${match.wager_amount.toFixed(2)}`}
@@ -56,7 +56,7 @@ export default function SettlementState({ match, game, userId, onReturn }) {
       </div>
       {!draw && won && (
         <div className="rounded-2xl bg-[#C9A84C]/5 border border-[#C9A84C]/20 p-4">
-          <p className="text-[10px] text-[#C9A84C]/60 uppercase tracking-widest mb-1">Prize</p>
+          <p className="text-[10px] text-[#C9A84C]/60 uppercase tracking-widest mb-1">Contest Prize</p>
           <p className="text-2xl font-extrabold text-[#C9A84C]">+${(match.wager_amount * 2).toFixed(2)}</p>
         </div>
       )}

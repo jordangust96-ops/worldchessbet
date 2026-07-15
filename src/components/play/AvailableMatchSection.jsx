@@ -93,7 +93,7 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
         <div className="text-center py-6 lg:py-3 px-2 space-y-2 lg:space-y-1">
           <p className="text-white font-bold text-base lg:text-sm">No Matches Available</p>
           <p className="text-white/40 text-sm lg:text-xs leading-relaxed max-w-xs mx-auto">
-            No one is waiting to play right now. Host your own match below and we'll automatically
+            No one is waiting to play right now. Create your own challenge below and we'll automatically
             present it to other players.
           </p>
           <Button
@@ -173,7 +173,7 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
 
           <div className="grid grid-cols-2 gap-3 lg:gap-2">
             <div className="rounded-2xl bg-[#C9A84C]/5 border border-[#C9A84C]/20 p-4 lg:p-2">
-              <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]/60 mb-1">Wager</p>
+              <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]/60 mb-1">Entry Amount</p>
               <p className="text-xl lg:text-base font-bold text-[#C9A84C]">${current.wager_amount.toFixed(2)}</p>
             </div>
             <div className="rounded-2xl bg-white/[0.03] p-4 lg:p-2">
@@ -189,11 +189,11 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
               className="w-full h-14 lg:h-10 rounded-2xl text-base lg:text-sm font-bold gold-gradient text-black hover:opacity-90 transition-opacity disabled:opacity-30"
             >
               {accepting ? <Loader2 className="animate-spin mr-2" size={18} /> : null}
-              Accept Match
+              Join Challenge
             </Button>
             {insufficientFunds && (
               <p className="text-[11px] text-center text-[#C9A84C]/70">
-                {(balance || 0) <= 0 ? "Fund your wallet to accept matches." : "Insufficient balance for this wager."}{" "}
+                {(balance || 0) <= 0 ? "Fund your wallet to join challenges." : "Insufficient balance for this entry amount."}{" "}
                 <Link to="/wallet" className="underline font-semibold hover:text-[#C9A84C]">
                   Add Funds
                 </Link>

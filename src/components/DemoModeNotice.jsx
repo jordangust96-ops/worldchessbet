@@ -13,13 +13,13 @@ export default function DemoModeNotice() {
       <p className="flex items-center gap-1 text-[10px] text-white/35 mb-4">
         <Info size={10} strokeWidth={2} className="shrink-0 text-[#C9A84C]/50" />
         <span>
-          Early Access: ChessBet is currently in early access. Real-money wagering will be
-          available soon. Deposits, withdrawals, and wager settlements are not yet active.{" "}
+          Early Access: ChessBet is currently in early access. Real-money competitive play will be
+          available soon. Account funding, fund withdrawals, and contest settlements are not yet active.{" "}
           <button
             onClick={() => setModalOpen(true)}
             className="text-[#C9A84C] font-semibold underline underline-offset-2 hover:text-[#E8D48B]"
           >
-            Notify me when real-money wagering launches.
+            Notify me when real-money competitive play launches.
           </button>
         </span>
       </p>

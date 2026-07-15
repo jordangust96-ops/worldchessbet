@@ -32,7 +32,7 @@ export default function Landing() {
           <div className="space-y-4">
             <Logo size="lg" className="justify-center" />
             <p className="text-white/70 text-xl font-semibold leading-snug max-w-sm mx-auto">
-              The home of competitive chess wagering.
+              The home of skill-based chess competition.
             </p>
             <p className="text-white/50 text-lg leading-relaxed max-w-sm mx-auto">
               Set the stakes, find an opponent, and play to win.
@@ -71,7 +71,7 @@ export default function Landing() {
         >
           {[
             { icon: Zap, label: "Instant\nMatching" },
-            { icon: Shield, label: "Secure\nEscrow" },
+            { icon: Shield, label: "Reserved\nFunds" },
             { icon: Crown, label: "Auto\nPayout" },
           ].map(({ icon: Icon, label }) => (
             <div
@@ -87,13 +87,13 @@ export default function Landing() {
         </motion.div>
 
         <p className="text-white/35 text-xs mt-8 max-w-sm">
-          Early Access: ChessBet is currently in early access. Real-money wagering will be
+          Early Access: ChessBet is currently in early access. Real-money competitive play will be
           available soon.{" "}
           <button
             onClick={() => setNotifyModalOpen(true)}
             className="text-[#C9A84C] font-semibold hover:underline underline-offset-2"
           >
-            Get notified when real-money wagering launches.
+            Get notified when real-money competitive play launches.
           </button>
         </p>
       </div>

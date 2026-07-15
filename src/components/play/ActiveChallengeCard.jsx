@@ -123,7 +123,7 @@ export default function ActiveChallengeCard({ match, onCancel }) {
                   <p className="text-sm lg:text-xs text-white/70">Waiting for an opponent...</p>
                 </div>
                 <div className="rounded-full bg-white/[0.06] px-4 py-1.5 lg:px-3 lg:py-1">
-                  <span className="text-sm lg:text-xs text-[#C9A84C]/70">Wager: </span>
+                  <span className="text-sm lg:text-xs text-[#C9A84C]/70">Entry: </span>
                   <span className="text-sm lg:text-xs font-bold text-[#C9A84C]">${match.wager_amount.toFixed(2)}</span>
                 </div>
                 <div className="rounded-full bg-white/[0.06] px-4 py-1.5 lg:px-3 lg:py-1">

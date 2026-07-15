@@ -68,7 +68,7 @@ export default function PrivateWaitingCard({ match, onCancel }) {
 
         <div className="flex items-center flex-wrap gap-2">
           <div className="rounded-full bg-white/[0.06] px-4 py-1.5">
-            <span className="text-xs text-[#C9A84C]/70">Wager: </span>
+            <span className="text-xs text-[#C9A84C]/70">Entry: </span>
             <span className="text-xs font-bold text-[#C9A84C]">${match.wager_amount.toFixed(2)}</span>
           </div>
           <div className="rounded-full bg-white/[0.06] px-4 py-1.5">

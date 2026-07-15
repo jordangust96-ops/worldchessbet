@@ -105,7 +105,7 @@ export default function WalletPage() {
         setShowDeposit(false);
         loadData();
       } else {
-        setDepositError(data?.reason || data?.error || "You're not currently eligible to deposit.");
+        setDepositError(data?.reason || data?.error || "You're not currently eligible to fund your account.");
       }
     } finally {
       setIsProcessingDeposit(false);
@@ -150,7 +150,7 @@ export default function WalletPage() {
             </div>
             <div className="w-px h-6 bg-white/10" />
             <div>
-              <p className="text-[10px] text-white/30 uppercase">Wagered</p>
+              <p className="text-[10px] text-white/30 uppercase">Entered</p>
               <p className="text-sm font-bold text-white/60">${stats.wagered.toFixed(2)}</p>
             </div>
           </div>
@@ -162,13 +162,13 @@ export default function WalletPage() {
             onClick={() => setShowDeposit(!showDeposit)}
             className="h-12 rounded-2xl gold-gradient text-black font-bold hover:opacity-90"
           >
-            <Plus size={16} className="mr-2" /> Deposit
+            <Plus size={16} className="mr-2" /> Fund Account
           </Button>
           <Button
             variant="outline"
             className="h-12 rounded-2xl border-white/10 text-white/70 font-bold hover:bg-white/5"
           >
-            <ArrowUpRight size={16} className="mr-2" /> Withdraw
+            <ArrowUpRight size={16} className="mr-2" /> Withdraw Funds
           </Button>
         </div>
 
@@ -191,7 +191,7 @@ export default function WalletPage() {
               disabled={!depositAmount || parseFloat(depositAmount) <= 0 || isProcessingDeposit}
               className="w-full h-12 rounded-xl gold-gradient text-black font-bold hover:opacity-90 disabled:opacity-30"
             >
-              {isProcessingDeposit ? "Confirming..." : "Confirm Deposit"}
+              {isProcessingDeposit ? "Confirming..." : "Confirm Funding"}
             </Button>
             {depositError && (
               <p className="text-xs text-red-400 text-center">{depositError}</p>
