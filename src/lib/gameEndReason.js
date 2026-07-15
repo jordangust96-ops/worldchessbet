@@ -9,6 +9,7 @@ const END_REASON_LABELS = {
   threefold_repetition: "Threefold Repetition",
   insufficient_material: "Insufficient Material",
   fifty_move_rule: "Fifty-Move Rule",
+  timeout_vs_insufficient_material: "Timeout vs. Insufficient Material",
 };
 
 // Prefers the authoritative end_reason set server-side by whichever function
