@@ -1,10 +1,75 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 
 // Settles wallet balances once a Game has reached a terminal state (checkmate,
 // resignation, draw, or timeout — all already decided by existing gameplay
 // functions). This function does not decide the winner or recompute the payout
 // formula; it only applies the already-established 90% payout / refund rules
-// to wallets and marks the Match as completed, exactly once.
+// via the Internal Ledger and marks the Match as completed, exactly once.
+
+// Posts a balanced set of Internal Ledger entries and updates the derived
+// Wallet/SystemLedgerAccount balances accordingly. Duplicated (not imported)
+// in every function that posts to the ledger — backend functions deploy
+// independently and cannot share local modules.
+async function postLedgerLegs(base44, { groupId, matchId, walletTransactionId, actor, actorId, triggerEvent, externalRefType, externalRefId, legs }) {
+  const totalDebit = legs.reduce((s, l) => s + (l.debit || 0), 0);
+  const totalCredit = legs.reduce((s, l) => s + (l.credit || 0), 0);
+  if (Math.round(totalDebit * 100) !== Math.round(totalCredit * 100)) {
+    throw new Error(`Unbalanced ledger legs: debit=${totalDebit} credit=${totalCredit}`);
+  }
+  const entries = [];
+  for (const leg of legs) {
+    if (leg.ledgerAccount === 'user_account') {
+      const wallets = await base44.asServiceRole.entities.Wallet.filter({ user_id: leg.userId });
+      let wallet = wallets[0];
+      if (!wallet) {
+        wallet = await base44.asServiceRole.entities.Wallet.create({
+          user_id: leg.userId, balance: 0, available_balance: 0, held_balance: 0, total_balance: 0,
+          total_wagered: 0, total_won: 0, total_deposited: 0, total_withdrawn: 0,
+        });
+      }
+      const newAvailable = (wallet.available_balance || 0) - (leg.debit || 0) + (leg.credit || 0);
+      const newHeld = (wallet.held_balance || 0) + (leg.heldDelta || 0);
+      const newTotal = newAvailable + newHeld;
+      await base44.asServiceRole.entities.Wallet.update(wallet.id, {
+        available_balance: newAvailable,
+        held_balance: newHeld,
+        total_balance: newTotal,
+        balance: newAvailable,
+        total_wagered: (wallet.total_wagered || 0) + (leg.totalWageredDelta || 0),
+        total_won: (wallet.total_won || 0) + (leg.totalWonDelta || 0),
+        total_deposited: (wallet.total_deposited || 0) + (leg.totalDepositedDelta || 0),
+        total_withdrawn: (wallet.total_withdrawn || 0) + (leg.totalWithdrawnDelta || 0),
+      });
+      entries.push({
+        user_id: leg.userId, match_id: matchId || '', wallet_transaction_id: walletTransactionId || '',
+        ledger_account: 'user_account', transaction_type: leg.transactionType,
+        debit_amount: leg.debit || 0, credit_amount: leg.credit || 0,
+        resulting_available_balance: newAvailable, resulting_held_balance: newHeld, resulting_total_balance: newTotal,
+        initiating_actor: actor, initiating_actor_id: actorId || '', trigger_event: triggerEvent,
+        external_reference_type: externalRefType || 'none', external_reference_id: externalRefId || '',
+        ledger_group_id: groupId,
+      });
+    } else {
+      const accounts = await base44.asServiceRole.entities.SystemLedgerAccount.filter({ account_name: leg.ledgerAccount });
+      let acct = accounts[0];
+      if (!acct) acct = await base44.asServiceRole.entities.SystemLedgerAccount.create({ account_name: leg.ledgerAccount, balance: 0 });
+      const newBalance = (acct.balance || 0) - (leg.debit || 0) + (leg.credit || 0);
+      await base44.asServiceRole.entities.SystemLedgerAccount.update(acct.id, { balance: newBalance });
+      entries.push({
+        match_id: matchId || '', wallet_transaction_id: walletTransactionId || '',
+        ledger_account: leg.ledgerAccount, transaction_type: leg.transactionType,
+        debit_amount: leg.debit || 0, credit_amount: leg.credit || 0,
+        resulting_total_balance: newBalance,
+        initiating_actor: actor, initiating_actor_id: actorId || '', trigger_event: triggerEvent,
+        external_reference_type: externalRefType || 'none', external_reference_id: externalRefId || '',
+        ledger_group_id: groupId,
+      });
+    }
+  }
+  await base44.asServiceRole.entities.LedgerEntry.bulkCreate(entries);
+  return entries;
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -57,47 +122,72 @@ Deno.serve(async (req) => {
     if (isDraw) {
       // Refund both players' escrowed wager — no winner, no loser.
       for (const playerId of [match.player1_id, match.player2_id].filter(Boolean)) {
-        const wallets = await base44.asServiceRole.entities.Wallet.filter({ user_id: playerId });
-        if (wallets.length > 0) {
-          const wallet = wallets[0];
-          await base44.asServiceRole.entities.Wallet.update(wallet.id, {
-            balance: wallet.balance + wagerAmount,
-          });
-          await base44.asServiceRole.entities.WalletTransaction.create({
-            user_id: playerId,
-            type: 'wager_refund',
-            amount: wagerAmount,
-            match_id: match.id,
-            description: 'Entry amount refunded — match ended in a draw',
-            status: 'completed',
-          });
-        }
+        const walletTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
+          user_id: playerId,
+          type: 'wager_refund',
+          amount: wagerAmount,
+          match_id: match.id,
+          description: 'Entry amount refunded — match ended in a draw',
+          status: 'completed',
+        });
+
+        // Double-entry: Debit Contest Clearing, Credit User Available Balance.
+        await postLedgerLegs(base44, {
+          groupId: crypto.randomUUID(),
+          matchId: match.id,
+          walletTransactionId: walletTransaction.id,
+          actor: 'system',
+          triggerEvent: 'match_settlement_draw',
+          externalRefType: 'match',
+          externalRefId: match.id,
+          legs: [
+            { ledgerAccount: 'contest_clearing', debit: wagerAmount, credit: 0, transactionType: 'refund' },
+            { ledgerAccount: 'user_account', userId: playerId, debit: 0, credit: wagerAmount, heldDelta: -wagerAmount, transactionType: 'refund' },
+          ],
+        });
+
         await updatePlayerStats(playerId, 'draw');
       }
     } else {
       const winnerId = game.winner_id;
-      const payout = wagerAmount * 2 * 0.9;
-
-      const winnerWallets = await base44.asServiceRole.entities.Wallet.filter({ user_id: winnerId });
-      if (winnerWallets.length > 0) {
-        const wallet = winnerWallets[0];
-        await base44.asServiceRole.entities.Wallet.update(wallet.id, {
-          balance: wallet.balance + payout,
-          total_won: (wallet.total_won || 0) + payout,
-        });
-        await base44.asServiceRole.entities.WalletTransaction.create({
-          user_id: winnerId,
-          type: 'payout',
-          amount: payout,
-          match_id: match.id,
-          description: 'Match winnings payout',
-          status: 'completed',
-        });
-      }
-      // The loser's wager was already deducted from their balance when they
-      // deposited into escrow — no further balance change is needed here.
-
       const loserId = [match.player1_id, match.player2_id].filter(Boolean).find((id) => id !== winnerId);
+      const pot = wagerAmount * 2;
+      const payout = pot * 0.9;
+      const fee = pot - payout;
+
+      const walletTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
+        user_id: winnerId,
+        type: 'payout',
+        amount: payout,
+        match_id: match.id,
+        description: 'Match winnings payout',
+        status: 'completed',
+      });
+
+      // Double-entry: Debit Contest Clearing for the full pot; Credit Winner
+      // Available Balance (90%) and Credit Platform Revenue (10% fee). The
+      // loser's held stake is simply released — it was already spent when
+      // it moved into Contest Clearing at lock time.
+      const legs = [
+        { ledgerAccount: 'contest_clearing', debit: pot, credit: 0, transactionType: 'match_settlement' },
+        { ledgerAccount: 'user_account', userId: winnerId, debit: 0, credit: payout, heldDelta: -wagerAmount, transactionType: 'match_settlement', totalWonDelta: payout },
+        { ledgerAccount: 'platform_revenue', debit: 0, credit: fee, transactionType: 'platform_fee' },
+      ];
+      if (loserId) {
+        legs.push({ ledgerAccount: 'user_account', userId: loserId, debit: 0, credit: 0, heldDelta: -wagerAmount, transactionType: 'match_settlement' });
+      }
+
+      await postLedgerLegs(base44, {
+        groupId: crypto.randomUUID(),
+        matchId: match.id,
+        walletTransactionId: walletTransaction.id,
+        actor: 'system',
+        triggerEvent: 'match_settlement',
+        externalRefType: 'match',
+        externalRefId: match.id,
+        legs,
+      });
+
       await updatePlayerStats(winnerId, 'win');
       await updatePlayerStats(loserId, 'loss');
     }

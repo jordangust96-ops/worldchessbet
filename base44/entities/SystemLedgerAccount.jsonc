@@ -1,0 +1,52 @@
+{
+  "name": "SystemLedgerAccount",
+  "type": "object",
+  "properties": {
+    "account_name": {
+      "type": "string",
+      "enum": [
+        "contest_clearing",
+        "platform_revenue",
+        "suspense",
+        "settlement"
+      ],
+      "description": "One record per system-wide internal ledger account"
+    },
+    "balance": {
+      "type": "number",
+      "default": 0,
+      "description": "Current running balance of this system account"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional description"
+    }
+  },
+  "required": [
+    "account_name",
+    "balance"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

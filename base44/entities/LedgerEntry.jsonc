@@ -1,0 +1,146 @@
+{
+  "name": "LedgerEntry",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "User this entry belongs to (only set for user_account rows)"
+    },
+    "match_id": {
+      "type": "string",
+      "description": "Related Match/contest ID, if applicable"
+    },
+    "wallet_transaction_id": {
+      "type": "string",
+      "description": "Related WalletTransaction ID, if applicable"
+    },
+    "ledger_account": {
+      "type": "string",
+      "enum": [
+        "user_account",
+        "contest_clearing",
+        "platform_revenue",
+        "suspense",
+        "settlement"
+      ],
+      "description": "Which internal ledger account this row posts to"
+    },
+    "transaction_type": {
+      "type": "string",
+      "enum": [
+        "deposit",
+        "withdrawal",
+        "match_entry",
+        "match_release",
+        "match_settlement",
+        "platform_fee",
+        "refund",
+        "admin_adjustment",
+        "reversal"
+      ]
+    },
+    "debit_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "credit_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "resulting_available_balance": {
+      "type": "number",
+      "description": "User's available balance after this entry (user_account rows only)"
+    },
+    "resulting_held_balance": {
+      "type": "number",
+      "description": "User's held balance after this entry (user_account rows only)"
+    },
+    "resulting_total_balance": {
+      "type": "number",
+      "description": "Resulting balance of the account this row posts to \u2014 available+held for user_account rows, or the running balance for system accounts"
+    },
+    "initiating_actor": {
+      "type": "string",
+      "enum": [
+        "user",
+        "system",
+        "administrator"
+      ],
+      "description": "Who/what triggered this ledger entry"
+    },
+    "initiating_actor_id": {
+      "type": "string",
+      "description": "ID of the user or admin who triggered this entry, if applicable"
+    },
+    "trigger_event": {
+      "type": "string",
+      "description": "Short label for the event that produced this entry, e.g. 'deposit', 'match_settlement'"
+    },
+    "external_reference_type": {
+      "type": "string",
+      "enum": [
+        "finix_transaction",
+        "match",
+        "withdrawal",
+        "deposit",
+        "none"
+      ],
+      "default": "none"
+    },
+    "external_reference_id": {
+      "type": "string",
+      "description": "ID of the external reference (Finix transaction, withdrawal, deposit, etc.)"
+    },
+    "ledger_group_id": {
+      "type": "string",
+      "description": "Groups together the balanced set of entries created for a single financial event"
+    },
+    "reversal_of_entry_id": {
+      "type": "string",
+      "description": "If this entry reverses a prior entry, the ID of that entry"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional description"
+    }
+  },
+  "required": [
+    "ledger_account",
+    "transaction_type",
+    "debit_amount",
+    "credit_amount",
+    "initiating_actor",
+    "trigger_event",
+    "ledger_group_id"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.user_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

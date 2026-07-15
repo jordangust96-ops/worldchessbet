@@ -9,7 +9,22 @@
     "balance": {
       "type": "number",
       "default": 0,
-      "description": "Current balance in USD"
+      "description": "Displayed balance in USD \u2014 always equal to available_balance. Kept for backward compatibility with existing UI reads; derived from the Internal Ledger."
+    },
+    "available_balance": {
+      "type": "number",
+      "default": 0,
+      "description": "Funds immediately usable for hosting/joining contests and withdrawals. Derived from Internal Ledger activity \u2014 never edited independently."
+    },
+    "held_balance": {
+      "type": "number",
+      "default": 0,
+      "description": "Funds temporarily unavailable due to an active contest, hold, dispute, or compliance review. Derived from Internal Ledger activity."
+    },
+    "total_balance": {
+      "type": "number",
+      "default": 0,
+      "description": "available_balance + held_balance. This is the user's authoritative ledger balance."
     },
     "total_wagered": {
       "type": "number",
