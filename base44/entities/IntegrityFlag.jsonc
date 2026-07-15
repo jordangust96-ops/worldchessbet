@@ -20,6 +20,7 @@
         "multiple_accounts_same_email_domain",
         "same_ip_multiple_accounts",
         "same_device_fingerprint",
+        "duplicate_identity_document",
         "rapid_deposit_contest_withdrawal",
         "repeated_payment_failures",
         "chargeback",

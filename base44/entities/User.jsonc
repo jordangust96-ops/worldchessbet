@@ -24,6 +24,10 @@
       "format": "date-time",
       "description": "Timestamp when identity verification was successfully completed. Once set, the user should not be re-verified unless required by future policy."
     },
+    "verified_id_hash": {
+      "type": "string",
+      "description": "SHA-256 hash of the government-issued ID number provided during identity verification (never the raw ID number). Used by verifyUserIdentity to detect and deny duplicate accounts belonging to the same individual \u2014 each individual may hold only one Account."
+    },
     "last_geolocation_status": {
       "type": "string",
       "description": "Result of the most recent geolocation eligibility check. Checked on first wallet funding and again immediately before every real-money match. Future integration: MaxMind.",

@@ -9,6 +9,7 @@ export const FLAG_TYPE_LABELS = {
   multiple_accounts_same_email_domain: "Multiple Accounts, Same Email Domain",
   same_ip_multiple_accounts: "Same IP, Multiple Accounts",
   same_device_fingerprint: "Same Device Fingerprint",
+  duplicate_identity_document: "Duplicate Identity Document",
   rapid_deposit_contest_withdrawal: "Rapid Deposit → Contest → Withdrawal",
   repeated_payment_failures: "Repeated Payment Failures",
   chargeback: "Chargeback",
