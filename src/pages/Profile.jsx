@@ -8,6 +8,7 @@ import Logo from "@/components/Logo";
 import DemoModeNotice from "@/components/DemoModeNotice";
 import SecuritySection from "@/components/profile/SecuritySection";
 import LegalSection from "@/components/profile/LegalSection";
+import DeleteAccountButton from "@/components/profile/DeleteAccountButton";
 import { clearMfaVerified } from "@/lib/mfaSession";
 
 export default function Profile() {
@@ -158,6 +159,8 @@ export default function Profile() {
           <LogOut size={16} className="mr-2" />
           Sign Out
         </Button>
+
+        <DeleteAccountButton onClosed={handleLogout} />
       </motion.div>
     </div>);
 
