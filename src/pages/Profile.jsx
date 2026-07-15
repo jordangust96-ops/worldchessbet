@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { User, Mail, Trophy, Swords, LogOut, Loader2, Crown, XCircle } from "lucide-react";
+import { User, Mail, Trophy, Swords, LogOut, Loader2, Crown, XCircle, Flag, ShieldAlert, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import Logo from "@/components/Logo";
@@ -143,6 +143,38 @@ export default function Profile() {
             </div>
           </div>
         </div>
+
+        {/* Reports */}
+        <Link
+          to="/my-reports"
+          className="flex items-center justify-between rounded-2xl bg-white/[0.03] border border-white/5 p-4 hover:bg-white/[0.05] transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <Flag size={16} className="text-white/40" />
+            <span className="text-sm font-semibold text-white">My Reports</span>
+          </div>
+          <ChevronRight size={16} className="text-white/20" />
+        </Link>
+
+        {/* Admin Tools */}
+        {user?.role === "admin" && (
+          <div className="rounded-2xl bg-white/[0.03] border border-white/5 divide-y divide-white/5 overflow-hidden">
+            <Link to="/admin/disputes" className="flex items-center justify-between p-4 hover:bg-white/[0.05] transition-colors">
+              <div className="flex items-center gap-3">
+                <ShieldAlert size={16} className="text-[#C9A84C]" />
+                <span className="text-sm font-semibold text-white">Dispute Cases</span>
+              </div>
+              <ChevronRight size={16} className="text-white/20" />
+            </Link>
+            <Link to="/admin/game-settings" className="flex items-center justify-between p-4 hover:bg-white/[0.05] transition-colors">
+              <div className="flex items-center gap-3">
+                <ShieldAlert size={16} className="text-[#C9A84C]" />
+                <span className="text-sm font-semibold text-white">Game Settings</span>
+              </div>
+              <ChevronRight size={16} className="text-white/20" />
+            </Link>
+          </div>
+        )}
 
         {/* Security */}
         <SecuritySection email={user?.email} />

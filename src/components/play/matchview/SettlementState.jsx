@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import { getEndReason } from "@/lib/gameEndReason";
 import ShareOnXButton from "./ShareOnXButton";
+import ReportContestButton from "@/components/disputes/ReportContestButton";
 
 export default function SettlementState({ match, game, userId, onReturn }) {
   const [opponentName, setOpponentName] = useState("Opponent");
@@ -68,6 +69,10 @@ export default function SettlementState({ match, game, userId, onReturn }) {
         {won && (
           <ShareOnXButton match={match} game={game} winnerName={winnerName} opponentName={opponentName} endReason={endReason} />
         )}
+      </div>
+
+      <div className="flex justify-center pt-1">
+        <ReportContestButton matchId={match.id} gameId={game?.id} />
       </div>
     </div>
   );

@@ -1,0 +1,202 @@
+{
+  "name": "DisputeCase",
+  "type": "object",
+  "properties": {
+    "case_number": {
+      "type": "number",
+      "description": "Human-readable sequential case number shown to the reporting user, e.g. 1042 (displayed as 'Case #1042')"
+    },
+    "match_id": {
+      "type": "string",
+      "description": "ID of the Match this report concerns"
+    },
+    "game_id": {
+      "type": "string",
+      "description": "ID of the Game this report concerns"
+    },
+    "contest_record_id": {
+      "type": "string",
+      "description": "ID of the ContestRecord this report concerns, if the contest has already settled"
+    },
+    "reporting_user_id": {
+      "type": "string",
+      "description": "User who submitted the report"
+    },
+    "reported_user_id": {
+      "type": "string",
+      "description": "The opponent in the contest being reported, if applicable"
+    },
+    "report_category": {
+      "type": "string",
+      "enum": [
+        "fair_play",
+        "collusion",
+        "harassment",
+        "technical_issue",
+        "rules_violation",
+        "other"
+      ],
+      "description": "Top-level category selected by the reporting user"
+    },
+    "report_subcategory": {
+      "type": "string",
+      "description": "Optional finer-grained subcategory, e.g. 'Suspected Engine Use'"
+    },
+    "report_description": {
+      "type": "string",
+      "maxLength": 4000,
+      "description": "Free-form description of the concern provided by the reporting user"
+    },
+    "attachments": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "URLs of any screenshots or files the reporting user attached"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "open",
+        "under_review",
+        "awaiting_information",
+        "resolved",
+        "closed"
+      ],
+      "default": "open",
+      "description": "Administrator-controlled case status. Never changed automatically by gameplay or settlement logic."
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "default": "medium"
+    },
+    "assigned_admin_id": {
+      "type": "string",
+      "description": "ID of the admin currently assigned to investigate this case"
+    },
+    "resolution": {
+      "type": "string",
+      "maxLength": 2000,
+      "description": "Administrator-facing resolution summary. Visible to the reporting user once the case is resolved/closed."
+    },
+    "resolution_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "time_control": {
+      "type": "string",
+      "enum": [
+        "blitz",
+        "rapid",
+        "classical"
+      ],
+      "description": "Snapshotted from the contest at report time"
+    },
+    "display_name": {
+      "type": "string",
+      "description": "Snapshotted human-readable time control label"
+    },
+    "entry_amount": {
+      "type": "number",
+      "description": "Snapshotted contest entry amount in USD"
+    },
+    "is_private": {
+      "type": "boolean",
+      "default": false
+    },
+    "pgn": {
+      "type": "string",
+      "description": "Snapshotted complete move history in PGN notation"
+    },
+    "final_fen": {
+      "type": "string",
+      "description": "Snapshotted final (or current, if still active) board position"
+    },
+    "outcome_type": {
+      "type": "string",
+      "description": "Snapshotted end reason / outcome of the contest, if decided"
+    },
+    "winner_id": {
+      "type": "string",
+      "description": "Snapshotted winner of the contest, if decided"
+    },
+    "ledger_entry_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Internal Ledger entries tied to this contest, for admin financial review"
+    },
+    "wallet_transaction_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "WalletTransaction records tied to this contest, for admin financial review"
+    },
+    "fair_play_review_flag": {
+      "type": "boolean",
+      "default": false,
+      "description": "Internal-only. Set by an admin action; never shown to users."
+    },
+    "aml_review_flag": {
+      "type": "boolean",
+      "default": false,
+      "description": "Internal-only. Set by an admin action; never shown to users."
+    },
+    "manual_settlement_review_flag": {
+      "type": "boolean",
+      "default": false,
+      "description": "Internal-only. Set by an admin action; never shown to users. Flagging alone never changes the contest outcome or any balance."
+    },
+    "cheat_detection_results": {
+      "type": "string",
+      "description": "Future-ready slot for automated fair-play/cheat-detection engine output. Internal-only."
+    },
+    "device_fingerprint_data": {
+      "type": "string",
+      "description": "Future-ready slot for device fingerprinting data. Internal-only."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional description"
+    }
+  },
+  "required": [
+    "reporting_user_id",
+    "report_category",
+    "report_description",
+    "status"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.reporting_user_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": false
+  }
+}

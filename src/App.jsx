@@ -32,6 +32,9 @@ import JoinMatch from '@/pages/JoinMatch';
 import IntegrityReviewQueue from '@/pages/IntegrityReviewQueue';
 import AdminUserIntegrity from '@/pages/AdminUserIntegrity';
 import AdminGameSettings from '@/pages/AdminGameSettings';
+import DisputeCaseQueue from '@/pages/DisputeCaseQueue';
+import AdminDisputeCase from '@/pages/AdminDisputeCase';
+import MyReports from '@/pages/MyReports';
 
 // Layout
 import AppLayout from '@/components/layout/AppLayout';
@@ -84,11 +87,14 @@ const AuthenticatedApp = () => {
             <Route path="/admin/integrity" element={<IntegrityReviewQueue />} />
             <Route path="/admin/integrity/:userId" element={<AdminUserIntegrity />} />
             <Route path="/admin/game-settings" element={<AdminGameSettings />} />
+            <Route path="/admin/disputes" element={<DisputeCaseQueue />} />
+            <Route path="/admin/disputes/:caseId" element={<AdminDisputeCase />} />
             <Route element={<AppLayout />}>
               <Route path="/" element={<Home />} />
               <Route path="/wallet" element={<WalletPage />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/fair-play-integrity" element={<FairPlayIntegrity />} />
+              <Route path="/my-reports" element={<MyReports />} />
             </Route>
           </Route>
         </Route>

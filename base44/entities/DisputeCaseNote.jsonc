@@ -1,0 +1,106 @@
+{
+  "name": "DisputeCaseNote",
+  "type": "object",
+  "properties": {
+    "case_id": {
+      "type": "string",
+      "description": "ID of the DisputeCase this note is appended to"
+    },
+    "reporting_user_id": {
+      "type": "string",
+      "description": "Denormalized from the parent DisputeCase, so RLS can let the reporting user read their own visible notes without a join"
+    },
+    "author_id": {
+      "type": "string",
+      "description": "ID of whoever authored this note \u2014 an admin or the reporting user themself"
+    },
+    "author_name": {
+      "type": "string",
+      "description": "Display name of the author at the time of authoring, for readability"
+    },
+    "author_role": {
+      "type": "string",
+      "enum": [
+        "admin",
+        "user",
+        "system"
+      ]
+    },
+    "action_type": {
+      "type": "string",
+      "enum": [
+        "case_created",
+        "note_added",
+        "status_changed",
+        "escalated",
+        "dismissed",
+        "info_requested",
+        "info_submitted",
+        "flagged_fair_play",
+        "flagged_aml",
+        "flagged_manual_settlement",
+        "assigned",
+        "resolved"
+      ]
+    },
+    "content": {
+      "type": "string",
+      "maxLength": 4000
+    },
+    "attachments": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "previous_status": {
+      "type": "string"
+    },
+    "new_status": {
+      "type": "string"
+    },
+    "visible_to_user": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the reporting user is allowed to see this note. Internal investigation notes default to false and are never shown to users."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional description"
+    }
+  },
+  "required": [
+    "case_id",
+    "author_role",
+    "action_type"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "$and": [
+            {
+              "data.reporting_user_id": "{{user.id}}"
+            },
+            {
+              "data.visible_to_user": true
+            }
+          ]
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": false,
+    "delete": false
+  }
+}

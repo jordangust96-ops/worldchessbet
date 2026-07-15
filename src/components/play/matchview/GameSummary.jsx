@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import ShareOnXButton from "./ShareOnXButton";
 import { getEndReason } from "@/lib/gameEndReason";
+import ReportContestButton from "@/components/disputes/ReportContestButton";
 
 export default function GameSummary({ match, game, userId, onPlayAgain }) {
   const [opponentName, setOpponentName] = useState("Opponent");
@@ -127,6 +128,10 @@ export default function GameSummary({ match, game, userId, onPlayAgain }) {
         {won && (
           <ShareOnXButton match={match} game={game} winnerName={winnerName} opponentName={opponentName} endReason={endReason} />
         )}
+      </div>
+
+      <div className="flex justify-center pt-1">
+        <ReportContestButton matchId={match.id} gameId={game?.id} />
       </div>
     </div>
   );

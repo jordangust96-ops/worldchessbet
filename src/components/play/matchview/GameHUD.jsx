@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import MovementModeToggle from "@/components/play/MovementModeToggle";
 import OpponentConnectionBanner from "@/components/play/matchview/OpponentConnectionBanner";
+import ReportContestButton from "@/components/disputes/ReportContestButton";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -240,6 +241,10 @@ export default function GameHUD({ match, game, userId, movementMode, onMovementM
       <div className="flex items-center justify-center gap-1.5 pt-1">
         <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
         <span className="text-[10px] text-white/30">Live</span>
+      </div>
+
+      <div className="flex justify-center">
+        <ReportContestButton matchId={match.id} gameId={game?.id} />
       </div>
 
       {/* Section 4.5 — Movement Mode */}
