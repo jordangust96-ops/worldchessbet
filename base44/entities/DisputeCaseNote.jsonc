@@ -40,7 +40,10 @@
         "flagged_aml",
         "flagged_manual_settlement",
         "assigned",
-        "resolved"
+        "resolved",
+        "hold_placed",
+        "hold_released",
+        "account_restricted"
       ]
     },
     "content": {
@@ -62,7 +65,7 @@
     "visible_to_user": {
       "type": "boolean",
       "default": false,
-      "description": "Whether the reporting user is allowed to see this note. Internal investigation notes default to false and are never shown to users."
+      "description": "Whether the reporting user is allowed to see this note. Internal investigation notes, administrative discussions, flags, and financial hold details default to false and are never shown to users."
     },
     "description": {
       "type": "string",
