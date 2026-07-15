@@ -5,6 +5,7 @@ import { useChessClock } from "@/hooks/useChessClock";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import MovementModeToggle from "@/components/play/MovementModeToggle";
+import OpponentConnectionBanner from "@/components/play/matchview/OpponentConnectionBanner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -100,6 +101,8 @@ export default function GameHUD({ match, game, userId, movementMode, onMovementM
   const isP1 = match.player1_id === userId;
   const myColor = isP1 ? "w" : "b";
   const opponentId = isP1 ? match.player2_id : match.player1_id;
+  const opponentColorFull = isP1 ? "black" : "white";
+  const opponentDisconnectedAt = game?.[`${opponentColorFull}_disconnected_at`] || null;
 
   useEffect(() => {
     const load = async () => {
@@ -186,6 +189,7 @@ export default function GameHUD({ match, game, userId, movementMode, onMovementM
             <p className="text-[10px] font-bold uppercase tracking-widest text-red-400">Integrity Review Active</p>
           </div>
         )}
+        <OpponentConnectionBanner disconnectedAt={opponentDisconnectedAt} />
         <div className="grid grid-cols-2 gap-2.5">
           <div className="rounded-2xl bg-[#C9A84C]/5 border border-[#C9A84C]/20 p-3">
             <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]/60 mb-0.5">Entry Amount</p>

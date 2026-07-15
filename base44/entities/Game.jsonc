@@ -119,6 +119,46 @@
         }
       }
     },
+    "white_last_seen_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Server timestamp of White's most recent gameHeartbeat call. Used exclusively to detect disconnection \u2014 never to grant extra thinking time."
+    },
+    "black_last_seen_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Server timestamp of Black's most recent gameHeartbeat call."
+    },
+    "white_disconnected_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Set server-side (by the opponent's heartbeat detecting staleness) when White is currently considered disconnected. Cleared the moment White's own heartbeat resumes. Purely informational/audit \u2014 the chess clock alone determines any timeout outcome."
+    },
+    "black_disconnected_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Set server-side when Black is currently considered disconnected. Cleared on reconnect."
+    },
+    "white_reconnected_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Server timestamp of White's most recent reconnection after a recorded disconnect, for audit purposes."
+    },
+    "black_reconnected_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Server timestamp of Black's most recent reconnection after a recorded disconnect, for audit purposes."
+    },
+    "white_total_disconnected_ms": {
+      "type": "number",
+      "default": 0,
+      "description": "Cumulative time White has spent disconnected across the game, in milliseconds. Audit-only \u2014 never used to adjust clocks or outcomes."
+    },
+    "black_total_disconnected_ms": {
+      "type": "number",
+      "default": 0,
+      "description": "Cumulative time Black has spent disconnected across the game, in milliseconds. Audit-only \u2014 never used to adjust clocks or outcomes."
+    },
     "description": {
       "type": "string",
       "maxLength": 1000,

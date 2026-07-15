@@ -1,0 +1,37 @@
+{
+  "name": "GameSettings",
+  "type": "object",
+  "properties": {
+    "reconnect_grace_period_seconds": {
+      "type": "number",
+      "default": 45,
+      "description": "How long a disconnected player is expected to have to reconnect. Purely informational/display \u2014 the chess clock remains the sole authority over any timeout outcome; no forfeiture is ever triggered by grace period expiration alone. Configurable by admins without code changes. Exactly one active record should exist."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional description"
+    }
+  },
+  "required": [
+    "reconnect_grace_period_seconds"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": true,
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

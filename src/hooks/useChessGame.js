@@ -62,6 +62,20 @@ export function useChessGame(matchId, userId, active) {
     loadGame();
   }, [active, loadGame]);
 
+  // Server-authoritative presence heartbeat, for disconnect/reconnect
+  // detection only. Never affects clocks, moves, or outcomes â€” see
+  // gameHeartbeat backend function.
+  useEffect(() => {
+    if (!active || !game?.id || game.status === "completed") return;
+    const HEARTBEAT_INTERVAL_MS = 8000;
+    const sendHeartbeat = () => {
+      base44.functions.invoke("gameHeartbeat", { gameId: game.id }).catch(() => {});
+    };
+    sendHeartbeat();
+    const heartbeatInterval = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
+    return () => clearInterval(heartbeatInterval);
+  }, [active, game?.id, game?.status]);
+
   useEffect(() => {
     if (!active || !game?.id) return;
 

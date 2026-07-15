@@ -31,6 +31,7 @@ import FairPlayIntegrity from '@/pages/FairPlayIntegrity';
 import JoinMatch from '@/pages/JoinMatch';
 import IntegrityReviewQueue from '@/pages/IntegrityReviewQueue';
 import AdminUserIntegrity from '@/pages/AdminUserIntegrity';
+import AdminGameSettings from '@/pages/AdminGameSettings';
 
 // Layout
 import AppLayout from '@/components/layout/AppLayout';
@@ -82,6 +83,7 @@ const AuthenticatedApp = () => {
             <Route path="/admin/official-rules" element={<OfficialRulesAdmin />} />
             <Route path="/admin/integrity" element={<IntegrityReviewQueue />} />
             <Route path="/admin/integrity/:userId" element={<AdminUserIntegrity />} />
+            <Route path="/admin/game-settings" element={<AdminGameSettings />} />
             <Route element={<AppLayout />}>
               <Route path="/" element={<Home />} />
               <Route path="/wallet" element={<WalletPage />} />

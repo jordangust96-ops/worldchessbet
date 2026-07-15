@@ -252,6 +252,16 @@ Deno.serve(async (req) => {
       wallet_transaction_ids: relatedWalletTransactions.map((t) => t.id),
       integrity_investigation_flag: false,
       dispute_status: 'none',
+      // Disconnect/reconnect audit trail, snapshotted from the Game at
+      // settlement time \u2014 internal-only, never shown to users, and never
+      // itself a factor in the outcome (outcome_type/winner_id above already
+      // reflect the chess-clock-authoritative result).
+      white_disconnected_at: game.white_disconnected_at || '',
+      white_reconnected_at: game.white_reconnected_at || '',
+      white_total_disconnected_ms: game.white_total_disconnected_ms || 0,
+      black_disconnected_at: game.black_disconnected_at || '',
+      black_reconnected_at: game.black_reconnected_at || '',
+      black_total_disconnected_ms: game.black_total_disconnected_ms || 0,
     });
 
     // Fire the lightweight integrity check after settlement so it never
