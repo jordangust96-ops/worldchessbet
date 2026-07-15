@@ -80,11 +80,6 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // 1. Eligibility — only Verified accounts may host a paid contest.
-    if (user.account_state !== 'verified') {
-      return Response.json({ error: 'Your account must be verified before you can create a contest' }, { status: 403 });
-    }
-
     const { wagerAmount, timeControl, displayName, isPrivate } = await req.json();
     const wager = Number(wagerAmount);
     if (!Number.isFinite(wager) || wager <= 0) {
@@ -94,20 +89,14 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Invalid time control' }, { status: 400 });
     }
 
-    // Geolocation eligibility check, re-verified server-side.
-    const geoRes = await base44.functions.invoke('checkGeolocation', {});
-    if (geoRes.data?.error || !geoRes.data?.eligible) {
-      return Response.json({ error: geoRes.data?.reason || 'You are not currently eligible to create a contest' }, { status: 403 });
+    // 1. Eligibility — the single shared pipeline (identity, geolocation,
+    // participation restrictions, available balance) also used by Join Match.
+    const eligibilityRes = await base44.functions.invoke('runContestEligibility', { entryAmount: wager });
+    if (eligibilityRes.data?.error || !eligibilityRes.data?.eligible) {
+      return Response.json({ error: eligibilityRes.data?.reason || eligibilityRes.data?.error || 'You are not eligible to create this contest' }, { status: 403 });
     }
 
-    // 2. Available Balance check.
-    const wallets = await base44.asServiceRole.entities.Wallet.filter({ user_id: user.id });
-    const wallet = wallets[0];
-    if (!wallet || (wallet.available_balance || 0) < wager) {
-      return Response.json({ error: 'Insufficient balance for this entry amount' }, { status: 400 });
-    }
-
-    // 3. Entry Hold — move the Entry Amount from Available to Held and post
+    // 2. Entry Hold — move the Entry Amount from Available to Held and post
     // the corresponding ledger entries BEFORE the Match exists. match_id is
     // patched onto these records once the Match is successfully created.
     const walletTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
