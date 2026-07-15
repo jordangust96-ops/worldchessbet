@@ -40,20 +40,20 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
   const handleHost = async (isPrivate) => {
     if (!isValid || !userId) return;
     setHosting(true);
-    const match = await base44.entities.Match.create({
-      player1_id: userId,
-      wager_amount: wagerValue,
-      time_control: timeControl,
-      display_name: selectedTimeControl.label,
-      status: "searching",
-      is_private: isPrivate,
-      // A random, hard-to-guess token — this becomes the /join/{invite_code}
-      // link. Unused for public matches.
-      ...(isPrivate ? { invite_code: crypto.randomUUID() } : {}),
+    // Runs server-side (createMatch): validates eligibility and balance, places
+    // the Entry Hold (Available -> Held + ledger entries), and only then
+    // creates the Match — so it's never published unless already fully funded.
+    const { data } = await base44.functions.invoke("createMatch", {
+      wagerAmount: wagerValue,
+      timeControl,
+      displayName: selectedTimeControl.label,
+      isPrivate,
     });
-    setWagerInput("");
     setHosting(false);
-    onHosted?.(match);
+    if (data?.match) {
+      setWagerInput("");
+      onHosted?.(data.match);
+    }
   };
 
   const buttonWagerLabel = isValid ? `$${wagerValue.toFixed(2).replace(/\.00$/, "")}` : null;
