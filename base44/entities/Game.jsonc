@@ -86,6 +86,38 @@
       "type": "string",
       "description": "User ID of the player who currently has an open draw offer pending, empty/null when there is none"
     },
+    "move_log": {
+      "type": "array",
+      "description": "Per-move audit trail \u2014 one entry appended per ply by submitMove. Source of the Contest Record's complete move history with per-move timestamps.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "ply": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string",
+            "enum": [
+              "w",
+              "b"
+            ]
+          },
+          "san": {
+            "type": "string"
+          },
+          "fen_after": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "remaining_ms": {
+            "type": "number"
+          }
+        }
+      }
+    },
     "description": {
       "type": "string",
       "maxLength": 1000,

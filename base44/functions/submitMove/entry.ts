@@ -66,11 +66,23 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Illegal move' }, { status: 400 });
     }
 
+    const moveTimestamp = new Date().toISOString();
     const updates = {
       fen: chess.fen(),
       pgn: chess.pgn(),
       [moverTimeField]: moverRemainingMs,
-      turn_started_at: new Date().toISOString(),
+      turn_started_at: moveTimestamp,
+      move_log: [
+        ...(game.move_log || []),
+        {
+          ply: (game.move_log || []).length + 1,
+          color: move.color,
+          san: move.san,
+          fen_after: chess.fen(),
+          timestamp: moveTimestamp,
+          remaining_ms: moverRemainingMs,
+        },
+      ],
     };
     if (!game.started_at) {
       updates.started_at = new Date().toISOString();

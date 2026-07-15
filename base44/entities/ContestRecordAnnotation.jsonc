@@ -1,0 +1,56 @@
+{
+  "name": "ContestRecordAnnotation",
+  "type": "object",
+  "properties": {
+    "contest_record_id": {
+      "type": "string",
+      "description": "ID of the ContestRecord this annotation is appended to"
+    },
+    "annotation_type": {
+      "type": "string",
+      "enum": [
+        "dispute",
+        "administrative_note",
+        "investigation_outcome"
+      ],
+      "description": "Category of this append-only annotation"
+    },
+    "content": {
+      "type": "string",
+      "maxLength": 4000,
+      "description": "The annotation text"
+    },
+    "admin_id": {
+      "type": "string",
+      "description": "ID of the admin who authored this annotation"
+    },
+    "admin_name": {
+      "type": "string",
+      "description": "Display name of the admin at the time of authoring, for readability"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional description"
+    }
+  },
+  "required": [
+    "contest_record_id",
+    "annotation_type",
+    "content"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": false,
+    "delete": false
+  }
+}

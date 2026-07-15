@@ -100,6 +100,12 @@ Deno.serve(async (req) => {
 
     const wagerAmount = match.wager_amount || 0;
     const isDraw = game.result === 'draw' || !game.winner_id;
+    // Hoisted so the Contest Record created below can reference whichever
+    // outcome branch actually ran.
+    let settlementWinnerId = '';
+    let settlementLoserId = '';
+    let settlementPayout = 0;
+    let settlementFee = 0;
 
     // Updates the player-facing stats cache on the User entity
     // (games_played/games_won/games_lost/win_percentage) so the marketplace
@@ -154,6 +160,10 @@ Deno.serve(async (req) => {
       const pot = wagerAmount * 2;
       const payout = pot * 0.9;
       const fee = pot - payout;
+      settlementWinnerId = winnerId || '';
+      settlementLoserId = loserId || '';
+      settlementPayout = payout;
+      settlementFee = fee;
 
       const walletTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
         user_id: winnerId,
@@ -197,6 +207,51 @@ Deno.serve(async (req) => {
       winner_id: game.winner_id || '',
       result: game.result,
       completed_at: game.completed_at || new Date().toISOString(),
+    });
+
+    // Immutable Contest Record — ChessBet's permanent system of record for this
+    // contest. Created exactly once, only after the outcome is determined,
+    // financial settlement has completed, ledger entries are written, and
+    // player statistics are updated (all above). It is never edited after
+    // this; disputes/investigation notes are appended separately via
+    // ContestRecordAnnotation. The idempotency guard above (match.status ===
+    // 'completed' short-circuit) ensures this create can only ever run once
+    // per match, so no additional duplicate-check is needed here.
+    const [relatedWalletTransactions, relatedLedgerEntries, whiteUser, blackUser] = await Promise.all([
+      base44.asServiceRole.entities.WalletTransaction.filter({ match_id: match.id }),
+      base44.asServiceRole.entities.LedgerEntry.filter({ match_id: match.id }),
+      match.player1_id ? base44.asServiceRole.entities.User.get(match.player1_id) : null,
+      match.player2_id ? base44.asServiceRole.entities.User.get(match.player2_id) : null,
+    ]);
+
+    await base44.asServiceRole.entities.ContestRecord.create({
+      match_id: match.id,
+      game_id: game.id,
+      is_private: !!match.is_private,
+      time_control: match.time_control,
+      display_name: match.display_name || '',
+      entry_amount: wagerAmount,
+      contest_pool: wagerAmount * 2,
+      platform_fee: settlementFee,
+      contest_start_at: game.started_at || match.created_date,
+      contest_end_at: game.completed_at || updatedMatch.completed_at,
+      white_player_id: match.player1_id || '',
+      black_player_id: match.player2_id || '',
+      white_username: whiteUser?.full_name || '',
+      black_username: blackUser?.full_name || '',
+      pgn: game.pgn || '',
+      move_log: game.move_log || [],
+      final_fen: game.fen || '',
+      total_moves: (game.move_log || []).length,
+      winner_id: settlementWinnerId,
+      loser_id: settlementLoserId,
+      outcome_type: game.end_reason || '',
+      winner_payout: settlementPayout,
+      settlement_timestamp: new Date().toISOString(),
+      ledger_entry_ids: relatedLedgerEntries.map((e) => e.id),
+      wallet_transaction_ids: relatedWalletTransactions.map((t) => t.id),
+      integrity_investigation_flag: false,
+      dispute_status: 'none',
     });
 
     // Fire the lightweight integrity check after settlement so it never

@@ -1,0 +1,202 @@
+{
+  "name": "ContestRecord",
+  "type": "object",
+  "properties": {
+    "match_id": {
+      "type": "string",
+      "description": "ID of the settled Match this record documents"
+    },
+    "game_id": {
+      "type": "string",
+      "description": "ID of the Game this record documents"
+    },
+    "is_private": {
+      "type": "boolean",
+      "default": false
+    },
+    "time_control": {
+      "type": "string",
+      "enum": [
+        "blitz",
+        "rapid",
+        "classical"
+      ]
+    },
+    "display_name": {
+      "type": "string",
+      "description": "Human-readable time control label, e.g. 'Rapid (10+0)'"
+    },
+    "entry_amount": {
+      "type": "number",
+      "description": "Each player's entry amount in USD"
+    },
+    "contest_pool": {
+      "type": "number",
+      "description": "entry_amount * 2"
+    },
+    "platform_fee": {
+      "type": "number",
+      "description": "10% platform service fee taken from the pool on a decisive result; 0 on a draw"
+    },
+    "contest_start_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the first legal move was made"
+    },
+    "contest_end_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the game officially ended"
+    },
+    "white_player_id": {
+      "type": "string"
+    },
+    "black_player_id": {
+      "type": "string"
+    },
+    "white_username": {
+      "type": "string"
+    },
+    "black_username": {
+      "type": "string"
+    },
+    "pgn": {
+      "type": "string",
+      "description": "Complete move history in PGN notation"
+    },
+    "move_log": {
+      "type": "array",
+      "description": "Per-move timestamps and positions, snapshotted from the Game at settlement time",
+      "items": {
+        "type": "object",
+        "properties": {
+          "ply": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string",
+            "enum": [
+              "w",
+              "b"
+            ]
+          },
+          "san": {
+            "type": "string"
+          },
+          "fen_after": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "remaining_ms": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "final_fen": {
+      "type": "string"
+    },
+    "total_moves": {
+      "type": "number"
+    },
+    "winner_id": {
+      "type": "string"
+    },
+    "loser_id": {
+      "type": "string"
+    },
+    "outcome_type": {
+      "type": "string",
+      "enum": [
+        "checkmate",
+        "resignation",
+        "timeout",
+        "stalemate",
+        "draw_agreement",
+        "threefold_repetition",
+        "insufficient_material",
+        "fifty_move_rule",
+        "timeout_vs_insufficient_material",
+        "administrative_decision"
+      ]
+    },
+    "winner_payout": {
+      "type": "number",
+      "description": "Amount paid to the winner; 0 on a draw"
+    },
+    "settlement_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ledger_entry_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "All Internal Ledger entries tied to this contest (entry holds + settlement)"
+    },
+    "wallet_transaction_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "All WalletTransaction records tied to this contest (entry holds + settlement)"
+    },
+    "fair_play_flags": {
+      "type": "string",
+      "description": "Internal-only. Not shown to users."
+    },
+    "aml_kyc_flags": {
+      "type": "string",
+      "description": "Internal-only. Not shown to users."
+    },
+    "integrity_investigation_flag": {
+      "type": "boolean",
+      "default": false,
+      "description": "Internal-only. Not shown to users."
+    },
+    "dispute_status": {
+      "type": "string",
+      "enum": [
+        "none",
+        "open",
+        "under_review",
+        "resolved"
+      ],
+      "default": "none",
+      "description": "Internal-only. Not shown to users."
+    },
+    "admin_notes": {
+      "type": "string",
+      "maxLength": 4000,
+      "description": "Internal-only. Not shown to users."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional description"
+    }
+  },
+  "required": [
+    "match_id",
+    "game_id",
+    "settlement_timestamp"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": false,
+    "delete": false
+  }
+}
