@@ -13,35 +13,42 @@ export default function AdminDisputeCase() {
   const [disputeCase, setDisputeCase] = useState(null);
   const [notes, setNotes] = useState([]);
   const [priorReports, setPriorReports] = useState([]);
+  const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(async () => {
-    const me = await base44.auth.me();
-    if (me?.role !== "admin") {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const me = await base44.auth.me();
+      if (me?.role !== "admin") {
+        setLoading(false);
+        return;
+      }
+      setIsAdmin(true);
+
+      const [caseRecord, caseNotes] = await Promise.all([
+        base44.entities.DisputeCase.get(caseId),
+        base44.entities.DisputeCaseNote.filter({ case_id: caseId }, "created_date"),
+      ]);
+      setDisputeCase(caseRecord);
+      setNotes(caseNotes);
+
+      const [byReporter, byReported] = await Promise.all([
+        base44.entities.DisputeCase.filter({ reporting_user_id: caseRecord.reporting_user_id }),
+        caseRecord.reported_user_id
+          ? base44.entities.DisputeCase.filter({ reported_user_id: caseRecord.reported_user_id })
+          : Promise.resolve([]),
+      ]);
+      const priorMap = new Map();
+      [...byReporter, ...byReported].forEach((c) => {
+        if (c.id !== caseId) priorMap.set(c.id, c);
+      });
+      setPriorReports(Array.from(priorMap.values()));
+    } catch (err) {
+      setLoadError(true);
+    } finally {
       setLoading(false);
-      return;
     }
-    setIsAdmin(true);
-
-    const [caseRecord, caseNotes] = await Promise.all([
-      base44.entities.DisputeCase.get(caseId),
-      base44.entities.DisputeCaseNote.filter({ case_id: caseId }, "created_date"),
-    ]);
-    setDisputeCase(caseRecord);
-    setNotes(caseNotes);
-
-    const [byReporter, byReported] = await Promise.all([
-      base44.entities.DisputeCase.filter({ reporting_user_id: caseRecord.reporting_user_id }),
-      caseRecord.reported_user_id
-        ? base44.entities.DisputeCase.filter({ reported_user_id: caseRecord.reported_user_id })
-        : Promise.resolve([]),
-    ]);
-    const priorMap = new Map();
-    [...byReporter, ...byReported].forEach((c) => {
-      if (c.id !== caseId) priorMap.set(c.id, c);
-    });
-    setPriorReports(Array.from(priorMap.values()));
-
-    setLoading(false);
   }, [caseId]);
 
   useEffect(() => {
@@ -56,10 +63,17 @@ export default function AdminDisputeCase() {
     );
   }
 
-  if (!isAdmin || !disputeCase) {
+  if (!isAdmin || !disputeCase || loadError) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#0A0A0A] px-5 text-center">
-        <p className="text-white font-semibold mb-2">{!isAdmin ? "Access Restricted" : "Case Not Found"}</p>
+        <p className="text-white font-semibold mb-2">
+          {!isAdmin ? "Access Restricted" : loadError ? "Something went wrong loading this case" : "Case Not Found"}
+        </p>
+        {loadError && (
+          <button onClick={load} className="text-xs text-[#C9A84C] hover:underline mb-3">
+            Try Again
+          </button>
+        )}
         <Link to="/admin/disputes" className="text-xs text-[#C9A84C] hover:underline">
           Back to Dispute Cases
         </Link>
