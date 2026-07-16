@@ -15,7 +15,8 @@ export default function FairPlayAttestation({ checked, onCheckedChange }) {
           I certify that I will play this match fairly and without assistance from chess engines, AI,
           other people, or any external tools. I understand that violations of ChessBet's Fair Play
           Policy may result in match forfeiture, account suspension, or permanent removal from the
-          platform.
+          platform. I have reviewed the Official Rules and I accept the Platform Service Fee shown
+          above, charged separately from my Contest Entry Amount.
         </span>
       </label>
       <Link

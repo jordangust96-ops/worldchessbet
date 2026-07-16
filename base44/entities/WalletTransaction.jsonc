@@ -12,7 +12,9 @@
         "withdrawal",
         "wager_lock",
         "wager_refund",
-        "payout"
+        "payout",
+        "service_fee_charge",
+        "service_fee_refund"
       ]
     },
     "amount": {

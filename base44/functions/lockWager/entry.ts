@@ -7,6 +7,16 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 // balance. Once both players have certified AND reserved funds, this
 // function is also the trigger that creates/loads the Game and takes the
 // match live.
+//
+// Financial model: the Contest Entry Amount and the Platform Service Fee
+// (10% of the Entry Amount) are two independent, separately-disclosed
+// charges. The Entry Amount moves into the Contest Reserve
+// ('contest_clearing') where it stays untouched until settlement. The
+// Service Fee moves into 'suspense' — pending, not yet recognized revenue —
+// and is only ever promoted to 'platform_revenue' once the match settles
+// with a decisive result. Each charge gets its own WalletTransaction and its
+// own balanced ledger group so the two remain independently auditable.
+const SERVICE_FEE_RATE = 0.1;
 
 // Posts a balanced set of Internal Ledger entries and updates the derived
 // Wallet/SystemLedgerAccount balances accordingly. Duplicated (not imported)
@@ -109,26 +119,29 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Certify Fair Play before reserving your entry amount' }, { status: 400 });
     }
 
+    const serviceFee = Math.round(match.wager_amount * SERVICE_FEE_RATE * 100) / 100;
+    const totalCharge = match.wager_amount + serviceFee;
+
     const wallets = await base44.asServiceRole.entities.Wallet.filter({ user_id: user.id });
     const wallet = wallets[0];
-    if (!wallet || wallet.available_balance < match.wager_amount) {
-      return Response.json({ error: 'Insufficient balance for this entry amount' }, { status: 400 });
+    if (!wallet || wallet.available_balance < totalCharge) {
+      return Response.json({ error: 'Insufficient balance for this entry amount and platform service fee' }, { status: 400 });
     }
 
-    const walletTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
+    const entryTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
       user_id: user.id,
       type: 'wager_lock',
       amount: match.wager_amount,
       match_id: match.id,
-      description: 'Entry amount reserved for match',
+      description: 'Contest entry amount reserved for match',
     });
 
-    // Double-entry: Debit User Available Balance, Credit Contest Clearing.
+    // Double-entry: Debit User Available Balance, Credit Contest Reserve.
     // The debited amount is simultaneously moved into the user's held balance.
     await postLedgerLegs(base44, {
       groupId: crypto.randomUUID(),
       matchId: match.id,
-      walletTransactionId: walletTransaction.id,
+      walletTransactionId: entryTransaction.id,
       actor: 'user',
       actorId: user.id,
       triggerEvent: 'match_entry',
@@ -137,6 +150,32 @@ Deno.serve(async (req) => {
       legs: [
         { ledgerAccount: 'user_account', userId: user.id, debit: match.wager_amount, credit: 0, heldDelta: match.wager_amount, transactionType: 'match_entry', totalWageredDelta: match.wager_amount },
         { ledgerAccount: 'contest_clearing', debit: 0, credit: match.wager_amount, transactionType: 'match_entry' },
+      ],
+    });
+
+    const feeTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
+      user_id: user.id,
+      type: 'service_fee_charge',
+      amount: serviceFee,
+      match_id: match.id,
+      description: 'Platform service fee charged for match',
+    });
+
+    // Separate double-entry, in its own balanced group: Debit User Available
+    // Balance, Credit Suspense (pending — not yet recognized as revenue until
+    // the match settles with a decisive result).
+    await postLedgerLegs(base44, {
+      groupId: crypto.randomUUID(),
+      matchId: match.id,
+      walletTransactionId: feeTransaction.id,
+      actor: 'user',
+      actorId: user.id,
+      triggerEvent: 'service_fee_charge',
+      externalRefType: 'match',
+      externalRefId: match.id,
+      legs: [
+        { ledgerAccount: 'user_account', userId: user.id, debit: serviceFee, credit: 0, heldDelta: serviceFee, transactionType: 'platform_fee' },
+        { ledgerAccount: 'suspense', debit: 0, credit: serviceFee, transactionType: 'platform_fee' },
       ],
     });
 

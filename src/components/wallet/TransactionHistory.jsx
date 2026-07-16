@@ -6,9 +6,11 @@ import TransactionPagination from "@/components/wallet/TransactionPagination";
 const typeConfig = {
   deposit: { icon: ArrowDownLeft, color: "text-green-400", bg: "bg-green-500/10", label: "Fund Account" },
   withdrawal: { icon: ArrowUpRight, color: "text-red-400", bg: "bg-red-500/10", label: "Withdraw Funds" },
-  wager_lock: { icon: Minus, color: "text-orange-400", bg: "bg-orange-500/10", label: "Entry Amount Reserved" },
-  wager_refund: { icon: Plus, color: "text-blue-400", bg: "bg-blue-500/10", label: "Entry Amount Refund" },
-  payout: { icon: ArrowDownLeft, color: "text-[#C9A84C]", bg: "bg-[#C9A84C]/10", label: "Payout" },
+  wager_lock: { icon: Minus, color: "text-orange-400", bg: "bg-orange-500/10", label: "Contest Entry Reserved" },
+  wager_refund: { icon: Plus, color: "text-blue-400", bg: "bg-blue-500/10", label: "Contest Entry Refund" },
+  payout: { icon: ArrowDownLeft, color: "text-[#C9A84C]", bg: "bg-[#C9A84C]/10", label: "Contest Winnings" },
+  service_fee_charge: { icon: Minus, color: "text-orange-400", bg: "bg-orange-500/10", label: "Platform Service Fee" },
+  service_fee_refund: { icon: Plus, color: "text-blue-400", bg: "bg-blue-500/10", label: "Platform Service Fee Refund" },
 };
 
 // Renders one page of transactions plus pagination controls. Data fetching /
@@ -37,7 +39,7 @@ export default function TransactionHistory({ transactions, page, pageSize, total
         {transactions.map((tx) => {
           const config = typeConfig[tx.type] || typeConfig.deposit;
           const Icon = config.icon;
-          const isIncoming = ["deposit", "payout", "wager_refund"].includes(tx.type);
+          const isIncoming = ["deposit", "payout", "wager_refund", "service_fee_refund"].includes(tx.type);
           return (
             <div
               key={tx.id}

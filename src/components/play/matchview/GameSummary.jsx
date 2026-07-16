@@ -83,17 +83,13 @@ export default function GameSummary({ match, game, userId, onPlayAgain }) {
         ) : won ? (
           <>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-white/50">Contest Prize</span>
+              <span className="text-white/50">Combined Contest Entry Amounts</span>
               <span className="font-semibold text-white/80">${(match.wager_amount * 2).toFixed(2)}</span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-white/50">Platform Service Fee (10%)</span>
-              <span className="font-semibold text-white/50">-${(match.wager_amount * 2 * 0.1).toFixed(2)}</span>
             </div>
             <div className="flex items-center justify-between pt-2 border-t border-white/10">
               <span className="text-xs uppercase tracking-widest text-[#C9A84C]/60">You Receive</span>
               <span className="text-3xl font-extrabold text-[#C9A84C]">
-                +${(match.wager_amount * 2 * 0.9).toFixed(2)}
+                +${(match.wager_amount * 2).toFixed(2)}
               </span>
             </div>
           </>
@@ -103,19 +99,15 @@ export default function GameSummary({ match, game, userId, onPlayAgain }) {
               <span className="text-white/50">Your Entry Amount</span>
               <span className="font-semibold text-red-400">-${match.wager_amount.toFixed(2)}</span>
             </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-white/50">Platform Service Fee</span>
-              <span className="font-semibold text-white/50">Included in winner payout</span>
-            </div>
           </>
         )}
       </div>
 
       <p className="text-xs text-white/30">
         {draw
-          ? "Both players receive the appropriate contest settlement according to ChessBet's draw rules."
+          ? "Both players' contest entry amounts and platform service fees have been refunded according to ChessBet's draw rules."
           : won
-          ? "You won your match and received 90% of the total contest prize after the ChessBet platform service fee."
+          ? "You won your match and received the full combined contest entry amounts. Your platform service fee was charged separately and is non-refundable."
           : "Your entry amount was forfeited as part of the completed match."}
       </p>
 

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Loader2, Wallet, Lock } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { computeContestFinancials } from "@/lib/contestFinancials";
 
 const WAGER_OPTIONS = [1, 5, 10, 25, 50, 100];
 
@@ -57,6 +58,7 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
   };
 
   const buttonWagerLabel = isValid ? `$${wagerValue.toFixed(2).replace(/\.00$/, "")}` : null;
+  const financials = isValid ? computeContestFinancials(wagerValue) : null;
 
   return (
     <div className="space-y-3 lg:space-y-2">
@@ -125,6 +127,27 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
             />
           </div>
         </div>
+
+        {financials && (
+          <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-3.5 space-y-1.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-white/40">Contest Entry Amount</span>
+              <span className="font-semibold text-white/80">${financials.entryAmount.toFixed(2)}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-white/40">Platform Service Fee (10%)</span>
+              <span className="font-semibold text-white/80">${financials.serviceFee.toFixed(2)}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs pt-1.5 border-t border-white/10">
+              <span className="text-white/40">Total Amount Due</span>
+              <span className="font-semibold text-white">${financials.totalCharge.toFixed(2)}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-[#C9A84C]/70">Potential Winner Award</span>
+              <span className="font-bold text-[#C9A84C]">${financials.potentialWinnerAward.toFixed(2)}</span>
+            </div>
+          </div>
+        )}
 
         <div className="space-y-2 lg:space-y-1">
           <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">

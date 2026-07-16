@@ -7,6 +7,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 // call at any time — it only ever acts on matches that are genuinely stale.
 
 const PREPARATION_TIMEOUT_MS = 2 * 60 * 1000;
+const SERVICE_FEE_RATE = 0.1;
 
 // Posts a balanced set of Internal Ledger entries and updates the derived
 // Wallet/SystemLedgerAccount balances accordingly. Duplicated (not imported)
@@ -92,20 +93,22 @@ Deno.serve(async (req) => {
       if (match.player1_deposited) refundTargets.push(match.player1_id);
       if (match.player2_deposited) refundTargets.push(match.player2_id);
 
+      const serviceFee = Math.round(match.wager_amount * SERVICE_FEE_RATE * 100) / 100;
+
       for (const depositorId of refundTargets) {
-        const walletTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
+        const entryTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
           user_id: depositorId,
           type: 'wager_refund',
           amount: match.wager_amount,
           match_id: match.id,
-          description: 'Reserved contest funds refunded — match preparation timed out',
+          description: 'Reserved contest entry amount refunded — match preparation timed out',
           status: 'completed',
         });
 
         await postLedgerLegs(base44, {
           groupId: crypto.randomUUID(),
           matchId: match.id,
-          walletTransactionId: walletTransaction.id,
+          walletTransactionId: entryTransaction.id,
           actor: 'system',
           triggerEvent: 'preparation_timeout',
           externalRefType: 'match',
@@ -113,6 +116,29 @@ Deno.serve(async (req) => {
           legs: [
             { ledgerAccount: 'contest_clearing', debit: match.wager_amount, credit: 0, transactionType: 'refund' },
             { ledgerAccount: 'user_account', userId: depositorId, debit: 0, credit: match.wager_amount, heldDelta: -match.wager_amount, transactionType: 'refund', totalWageredDelta: -match.wager_amount },
+          ],
+        });
+
+        const feeTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
+          user_id: depositorId,
+          type: 'service_fee_refund',
+          amount: serviceFee,
+          match_id: match.id,
+          description: 'Platform service fee refunded — match preparation timed out',
+          status: 'completed',
+        });
+
+        await postLedgerLegs(base44, {
+          groupId: crypto.randomUUID(),
+          matchId: match.id,
+          walletTransactionId: feeTransaction.id,
+          actor: 'system',
+          triggerEvent: 'service_fee_refund',
+          externalRefType: 'match',
+          externalRefId: match.id,
+          legs: [
+            { ledgerAccount: 'suspense', debit: serviceFee, credit: 0, transactionType: 'refund' },
+            { ledgerAccount: 'user_account', userId: depositorId, debit: 0, credit: serviceFee, heldDelta: -serviceFee, transactionType: 'refund' },
           ],
         });
       }

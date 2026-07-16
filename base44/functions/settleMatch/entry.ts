@@ -2,9 +2,19 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 
 // Settles wallet balances once a Game has reached a terminal state (checkmate,
 // resignation, draw, or timeout — all already decided by existing gameplay
-// functions). This function does not decide the winner or recompute the payout
-// formula; it only applies the already-established 90% payout / refund rules
-// via the Internal Ledger and marks the Match as completed, exactly once.
+// functions). This function does not decide the winner; it only applies the
+// financial outcome via the Internal Ledger and marks the Match as
+// completed, exactly once.
+//
+// Financial model: the Contest Entry Amount and the Platform Service Fee
+// (charged separately at lock time, see lockWager) are settled independently.
+// On a decisive result, the winner receives 100% of the combined Contest
+// Entry Amounts (the full Contest Reserve) — no percentage is ever deducted
+// from the pot — and both players' pending Service Fees are simultaneously
+// recognized as Platform Revenue. On a draw, both the Entry Amount and the
+// Service Fee are fully refunded to each player; no Platform Revenue is
+// recognized.
+const SERVICE_FEE_RATE = 0.1;
 
 // Posts a balanced set of Internal Ledger entries and updates the derived
 // Wallet/SystemLedgerAccount balances accordingly. Duplicated (not imported)
@@ -133,23 +143,26 @@ Deno.serve(async (req) => {
       });
     };
 
+    const serviceFee = Math.round(wagerAmount * SERVICE_FEE_RATE * 100) / 100;
+
     if (isDraw) {
-      // Refund both players' escrowed wager — no winner, no loser.
+      // Refund both players' escrowed Entry Amount AND their Platform Service
+      // Fee — no winner, no loser, no Platform Revenue recognized.
       for (const playerId of [match.player1_id, match.player2_id].filter(Boolean)) {
-        const walletTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
+        const entryTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
           user_id: playerId,
           type: 'wager_refund',
           amount: wagerAmount,
           match_id: match.id,
-          description: 'Entry amount refunded — match ended in a draw',
+          description: 'Contest entry amount refunded — match ended in a draw',
           status: 'completed',
         });
 
-        // Double-entry: Debit Contest Clearing, Credit User Available Balance.
+        // Double-entry: Debit Contest Reserve, Credit User Available Balance.
         await postLedgerLegs(base44, {
           groupId: crypto.randomUUID(),
           matchId: match.id,
-          walletTransactionId: walletTransaction.id,
+          walletTransactionId: entryTransaction.id,
           actor: 'system',
           triggerEvent: 'match_settlement_draw',
           externalRefType: 'match',
@@ -160,39 +173,66 @@ Deno.serve(async (req) => {
           ],
         });
 
+        const feeTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
+          user_id: playerId,
+          type: 'service_fee_refund',
+          amount: serviceFee,
+          match_id: match.id,
+          description: 'Platform service fee refunded — match ended in a draw',
+          status: 'completed',
+        });
+
+        // Separate double-entry: Debit Suspense (never recognized), Credit
+        // User Available Balance.
+        await postLedgerLegs(base44, {
+          groupId: crypto.randomUUID(),
+          matchId: match.id,
+          walletTransactionId: feeTransaction.id,
+          actor: 'system',
+          triggerEvent: 'service_fee_refund',
+          externalRefType: 'match',
+          externalRefId: match.id,
+          legs: [
+            { ledgerAccount: 'suspense', debit: serviceFee, credit: 0, transactionType: 'refund' },
+            { ledgerAccount: 'user_account', userId: playerId, debit: 0, credit: serviceFee, heldDelta: -serviceFee, transactionType: 'refund' },
+          ],
+        });
+
         await updatePlayerStats(playerId, 'draw');
       }
     } else {
       const winnerId = game.winner_id;
       const loserId = [match.player1_id, match.player2_id].filter(Boolean).find((id) => id !== winnerId);
-      const pot = wagerAmount * 2;
-      const payout = pot * 0.9;
-      const fee = pot - payout;
+      const pot = wagerAmount * 2; // Contest Reserve — Entry Amounts only, never the fee.
+      const totalFee = serviceFee * 2;
       settlementWinnerId = winnerId || '';
       settlementLoserId = loserId || '';
-      settlementPayout = payout;
-      settlementFee = fee;
+      settlementPayout = pot;
+      settlementFee = totalFee;
 
       const walletTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
         user_id: winnerId,
         type: 'payout',
-        amount: payout,
+        amount: pot,
         match_id: match.id,
-        description: 'Match winnings payout',
+        description: 'Contest winnings payout — full combined entry amounts',
         status: 'completed',
       });
 
-      // Double-entry: Debit Contest Clearing for the full pot; Credit Winner
-      // Available Balance (90%) and Credit Platform Revenue (10% fee). The
-      // loser's held stake is simply released — it was already spent when
-      // it moved into Contest Clearing at lock time.
+      // Double-entry: Debit Contest Reserve for the full pot; Credit Winner
+      // Available Balance the ENTIRE pot (100% — no percentage deducted).
+      // Separately, both players' pending Platform Service Fees move from
+      // Suspense to Platform Revenue, now that the contest has a valid,
+      // decisive settlement. The loser's held stake is simply released — it
+      // was already spent when it moved into the Contest Reserve at lock time.
       const legs = [
         { ledgerAccount: 'contest_clearing', debit: pot, credit: 0, transactionType: 'match_settlement' },
-        { ledgerAccount: 'user_account', userId: winnerId, debit: 0, credit: payout, heldDelta: -wagerAmount, transactionType: 'match_settlement', totalWonDelta: payout },
-        { ledgerAccount: 'platform_revenue', debit: 0, credit: fee, transactionType: 'platform_fee' },
+        { ledgerAccount: 'user_account', userId: winnerId, debit: 0, credit: pot, heldDelta: -(wagerAmount + serviceFee), transactionType: 'match_settlement', totalWonDelta: pot },
+        { ledgerAccount: 'suspense', debit: totalFee, credit: 0, transactionType: 'platform_fee' },
+        { ledgerAccount: 'platform_revenue', debit: 0, credit: totalFee, transactionType: 'platform_fee' },
       ];
       if (loserId) {
-        legs.push({ ledgerAccount: 'user_account', userId: loserId, debit: 0, credit: 0, heldDelta: -wagerAmount, transactionType: 'match_settlement' });
+        legs.push({ ledgerAccount: 'user_account', userId: loserId, debit: 0, credit: 0, heldDelta: -(wagerAmount + serviceFee), transactionType: 'match_settlement' });
       }
 
       await postLedgerLegs(base44, {

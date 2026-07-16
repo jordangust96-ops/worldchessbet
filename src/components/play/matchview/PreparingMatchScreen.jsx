@@ -3,6 +3,7 @@ import { Check, Loader2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import FairPlayAttestation from "@/components/play/matchview/FairPlayAttestation";
+import { computeContestFinancials } from "@/lib/contestFinancials";
 
 function ReadinessRow({ label, done }) {
   return (
@@ -40,6 +41,7 @@ export default function PreparingMatchScreen({ match, userId, opponentId, onCanc
     });
   }, [opponentId]);
 
+  const financials = computeContestFinancials(match.wager_amount);
   const isP1 = match.player1_id === userId;
   const myCertified = isP1 ? match.player1_certified : match.player2_certified;
   const myDeposited = isP1 ? match.player1_deposited : match.player2_deposited;
@@ -95,6 +97,28 @@ export default function PreparingMatchScreen({ match, userId, opponentId, onCanc
         </div>
       </div>
 
+      {!myDeposited && (
+        <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4 space-y-1.5">
+          <p className="text-[10px] uppercase tracking-widest text-white/30 mb-1.5">Cost Breakdown</p>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-white/50">Contest Entry Amount</span>
+            <span className="font-semibold text-white/80">${financials.entryAmount.toFixed(2)}</span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-white/50">Platform Service Fee (10%)</span>
+            <span className="font-semibold text-white/80">${financials.serviceFee.toFixed(2)}</span>
+          </div>
+          <div className="flex items-center justify-between text-sm pt-1.5 border-t border-white/10">
+            <span className="text-white/70">Total Charged Today</span>
+            <span className="font-bold text-white">${financials.totalCharge.toFixed(2)}</span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-[#C9A84C]/70">Potential Winner Award</span>
+            <span className="font-bold text-[#C9A84C]">${financials.potentialWinnerAward.toFixed(2)}</span>
+          </div>
+        </div>
+      )}
+
       <div className="rounded-2xl bg-white/[0.03] p-4 space-y-2.5">
         <p className="text-[10px] uppercase tracking-widest text-white/30">Your Readiness</p>
         <ReadinessRow label="Fair Play Certification" done={myCertified} />
@@ -128,7 +152,7 @@ export default function PreparingMatchScreen({ match, userId, opponentId, onCanc
           className="w-full h-12 rounded-2xl font-bold gold-gradient text-black hover:opacity-90"
         >
           {reserving ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
-          Reserve ${match.wager_amount.toFixed(2)}
+          Pay ${financials.totalCharge.toFixed(2)} & Reserve Entry
         </Button>
       )}
 

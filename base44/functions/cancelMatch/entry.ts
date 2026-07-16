@@ -1,8 +1,10 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 
 // Cancels a pending (not yet in-progress) match and refunds any escrowed
-// wager back to whichever player(s) already deposited. Runs server-side with
-// the service role so wallet balances can never be set directly by a client.
+// Contest Entry Amount AND Platform Service Fee back to whichever player(s)
+// already deposited. Runs server-side with the service role so wallet
+// balances can never be set directly by a client.
+const SERVICE_FEE_RATE = 0.1;
 
 // Posts a balanced set of Internal Ledger entries and updates the derived
 // Wallet/SystemLedgerAccount balances accordingly. Duplicated (not imported)
@@ -94,22 +96,24 @@ Deno.serve(async (req) => {
     if (match.player1_deposited) refundTargets.push(match.player1_id);
     if (match.player2_deposited) refundTargets.push(match.player2_id);
 
+    const serviceFee = Math.round(match.wager_amount * SERVICE_FEE_RATE * 100) / 100;
+
     for (const depositorId of refundTargets) {
-      const walletTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
+      const entryTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
         user_id: depositorId,
         type: 'wager_refund',
         amount: match.wager_amount,
         match_id: match.id,
-        description: 'Reserved contest funds refunded — match cancelled',
+        description: 'Reserved contest entry amount refunded — match cancelled',
         status: 'completed',
       });
 
-      // Double-entry: Debit Contest Clearing, Credit User Available Balance;
+      // Double-entry: Debit Contest Reserve, Credit User Available Balance;
       // releases the corresponding held amount back to available.
       await postLedgerLegs(base44, {
         groupId: crypto.randomUUID(),
         matchId: match.id,
-        walletTransactionId: walletTransaction.id,
+        walletTransactionId: entryTransaction.id,
         actor: 'user',
         actorId: user.id,
         triggerEvent: 'match_cancelled',
@@ -118,6 +122,32 @@ Deno.serve(async (req) => {
         legs: [
           { ledgerAccount: 'contest_clearing', debit: match.wager_amount, credit: 0, transactionType: 'refund' },
           { ledgerAccount: 'user_account', userId: depositorId, debit: 0, credit: match.wager_amount, heldDelta: -match.wager_amount, transactionType: 'refund', totalWageredDelta: -match.wager_amount },
+        ],
+      });
+
+      const feeTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
+        user_id: depositorId,
+        type: 'service_fee_refund',
+        amount: serviceFee,
+        match_id: match.id,
+        description: 'Platform service fee refunded — match cancelled',
+        status: 'completed',
+      });
+
+      // Separate double-entry: Debit Suspense (never recognized), Credit
+      // User Available Balance.
+      await postLedgerLegs(base44, {
+        groupId: crypto.randomUUID(),
+        matchId: match.id,
+        walletTransactionId: feeTransaction.id,
+        actor: 'user',
+        actorId: user.id,
+        triggerEvent: 'service_fee_refund',
+        externalRefType: 'match',
+        externalRefId: match.id,
+        legs: [
+          { ledgerAccount: 'suspense', debit: serviceFee, credit: 0, transactionType: 'refund' },
+          { ledgerAccount: 'user_account', userId: depositorId, debit: 0, credit: serviceFee, heldDelta: -serviceFee, transactionType: 'refund' },
         ],
       });
     }
