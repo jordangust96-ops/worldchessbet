@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { User, Loader2, SearchX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
+import FairPlayAttestation from "@/components/play/matchview/FairPlayAttestation";
 
 // How often the marketplace silently checks for newly available public
 // matches while the player has no active match. Purely additive to
@@ -16,6 +17,7 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [accepting, setAccepting] = useState(false);
+  const [fairPlayAccepted, setFairPlayAccepted] = useState(false);
 
   const fetchMatches = useCallback(async () => {
     if (!userId) return;
@@ -44,6 +46,11 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
     if (activeMatch) setDeclinedIds([]);
   }, [activeMatch]);
 
+  // A new opponent card requires its own fresh Fair Play attestation.
+  useEffect(() => {
+    setFairPlayAccepted(false);
+  }, [current?.id]);
+
   const handleFindMatch = async () => {
     setSearching(true);
     await fetchMatches();
@@ -64,10 +71,11 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
   const handleDecline = () => {
     if (!current) return;
     setDeclinedIds((ids) => [...ids, current.id]);
+    setFairPlayAccepted(false);
   };
 
   const handleAccept = async () => {
-    if (!current) return;
+    if (!current || !fairPlayAccepted) return;
     setAccepting(true);
     if (activeMatch) {
       await base44.functions.invoke("cancelMatch", { matchId: activeMatch.id });
@@ -182,10 +190,12 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
             </div>
           </div>
 
+          <FairPlayAttestation checked={fairPlayAccepted} onCheckedChange={setFairPlayAccepted} />
+
           <div className="space-y-2.5 lg:space-y-1.5">
             <Button
               onClick={handleAccept}
-              disabled={accepting || insufficientFunds}
+              disabled={accepting || insufficientFunds || !fairPlayAccepted}
               className="w-full h-14 lg:h-10 rounded-2xl text-base lg:text-sm font-bold gold-gradient text-black hover:opacity-90 transition-opacity disabled:opacity-30"
             >
               {accepting ? <Loader2 className="animate-spin mr-2" size={18} /> : null}
