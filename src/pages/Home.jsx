@@ -5,7 +5,6 @@ import Logo from "@/components/Logo";
 import ChessboardPreview from "@/components/play/ChessboardPreview";
 import MatchCenter from "@/components/play/MatchCenter";
 import MatchView from "@/components/play/MatchView";
-import PlayerClocks from "@/components/play/PlayerClocks";
 import DemoModeNotice from "@/components/DemoModeNotice";
 import { useChessGame } from "@/hooks/useChessGame";
 
@@ -161,7 +160,6 @@ export default function Home() {
           animate={{ opacity: 1 }}
           className="lg:w-[62%] w-full lg:h-full lg:flex lg:flex-col lg:items-center lg:justify-center gap-3"
         >
-          {isLive && <PlayerClocks game={game} orientation={orientation} />}
           <ChessboardPreview
             state={boardState}
             fen={gameActive ? fen : undefined}
