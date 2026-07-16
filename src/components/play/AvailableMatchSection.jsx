@@ -46,6 +46,10 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
     if (activeMatch) setDeclinedIds([]);
   }, [activeMatch]);
 
+  const visibleOpponents = opponents.filter((o) => !declinedIds.includes(o.id));
+  const current = visibleOpponents[0];
+  const insufficientFunds = current ? (balance || 0) < current.wager_amount : false;
+
   // A new opponent card requires its own fresh Fair Play attestation.
   useEffect(() => {
     setFairPlayAccepted(false);
@@ -63,10 +67,6 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
     await fetchMatches();
     setSearching(false);
   };
-
-  const visibleOpponents = opponents.filter((o) => !declinedIds.includes(o.id));
-  const current = visibleOpponents[0];
-  const insufficientFunds = current ? (balance || 0) < current.wager_amount : false;
 
   const handleDecline = () => {
     if (!current) return;
