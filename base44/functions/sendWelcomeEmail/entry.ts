@@ -9,9 +9,22 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 // ---------------------------------------------------------------------------
 function buildChessBetEmailHtml({ appUrl, headerTitle, headerSubtitle, bodyHtml, ctaText, ctaUrl, earlyAccessText, supportEmail }) {
   const gold = '#C9A84C';
+  const fontFamily = "'Inter',Arial,Helvetica,sans-serif";
   const logoBlock = `
     <div style="text-align:center;padding:32px 24px 8px;">
-      <span style="font-size:22px;font-weight:800;color:${gold};letter-spacing:0.5px;">&#9822; ChessBet</span>
+      <table role="presentation" align="center" style="margin:0 auto;border-collapse:collapse;">
+        <tr>
+          <td style="padding-right:8px;vertical-align:middle;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="${gold}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/>
+              <path d="M5 21h14"/>
+            </svg>
+          </td>
+          <td style="vertical-align:middle;">
+            <span style="font-family:${fontFamily};font-size:24px;font-weight:800;color:${gold};letter-spacing:-0.3px;">ChessBet</span>
+          </td>
+        </tr>
+      </table>
     </div>`;
 
   const footerLinks = `
@@ -22,12 +35,12 @@ function buildChessBetEmailHtml({ appUrl, headerTitle, headerSubtitle, bodyHtml,
     </div>`;
 
   return `
-  <div style="background:#f2f2f2;padding:32px 12px;font-family:Arial,Helvetica,sans-serif;">
+  <div style="background:#f2f2f2;padding:32px 12px;font-family:${fontFamily};">
     <div style="max-width:520px;margin:0 auto;background:#0A0A0A;border-radius:16px;overflow:hidden;border:1px solid #1a1a1a;">
       ${logoBlock}
       <div style="text-align:center;padding:0 24px 24px;">
-        <h1 style="color:#ffffff;font-size:22px;margin:0 0 6px;">${headerTitle}</h1>
-        ${headerSubtitle ? `<p style="color:${gold};font-size:14px;font-weight:600;margin:0;">${headerSubtitle}</p>` : ''}
+        <h1 style="color:#ffffff;font-size:22px;font-weight:800;margin:0 0 6px;letter-spacing:-0.2px;">${headerTitle}</h1>
+        ${headerSubtitle ? `<p style="color:${gold};font-size:14px;font-weight:700;margin:0;">${headerSubtitle}</p>` : ''}
       </div>
       <div style="padding:0 28px 8px;color:#d5d5d5;font-size:14px;line-height:1.7;">
         ${bodyHtml}
@@ -74,18 +87,14 @@ Deno.serve(async (req) => {
 
     const bodyHtml = `
       <p>Hi ${firstName},</p>
-      <p>Welcome to ChessBet!</p>
-      <p>We're excited to have you join our growing community of competitive chess players.</p>
-      <p>ChessBet is built for players who want every game to matter. Whether you're looking to sharpen your skills, challenge new opponents, or prepare for real-money competition, you've joined at the perfect time.</p>
+      <p>Welcome to ChessBet&mdash;we're glad you're here.</p>
+      <p>ChessBet is built for players who believe every game should mean something. Challenge opponents, compete head-to-head, and put your skills to the test.</p>
       <p>As an Early Access member, you can:</p>
-      <p style="margin:4px 0;">&#9823; Play competitive head-to-head matches in Demo Mode</p>
-      <p style="margin:4px 0;">&#129309; Challenge players publicly or privately</p>
-      <p style="margin:4px 0;">&#128200; Build your profile and match history</p>
-      <p style="margin:4px 0;">&#128640; Be among the first to access real-money contests when they launch</p>
-      <p>Our mission is simple: build the most trusted platform for competitive chess.</p>
-      <p>Every feature — from our server-authoritative game engine to our internal financial ledger and fair play systems — is being built with integrity, transparency, and player trust in mind.</p>
-      <p>Thank you for being one of our early members. Your feedback will help shape the future of ChessBet.</p>
-      <p>Good luck, and we'll see you across the board.</p>
+      <p style="margin:4px 0;">&#9823; Play competitive matches in Demo Mode</p>
+      <p style="margin:4px 0;">&#129309; Create public or private challenges</p>
+      <p style="margin:4px 0;">&#128640; Be among the first notified when real-money contests launch</p>
+      <p>We're just getting started, and we're excited to have you with us from the beginning.</p>
+      <p>See you across the board.</p>
       <p>&mdash; The ChessBet Team</p>
     `;
 
