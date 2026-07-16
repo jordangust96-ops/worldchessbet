@@ -11,9 +11,9 @@ export default function MatchCenter({ userId, balance, onMatchAccepted }) {
   const refreshActiveMatch = useCallback(async () => {
     if (!userId) return;
     const mine = await base44.entities.Match.filter({ player1_id: userId }, "-created_date", 5);
-    const active = mine.find((m) => m.status === "searching" || m.status === "matched");
+    const active = mine.find((m) => m.status === "searching" || m.status === "preparing");
     setActiveMatch(active || null);
-    if (active?.status === "matched") {
+    if (active?.status === "preparing") {
       onMatchAccepted?.(active.id);
     }
   }, [userId, onMatchAccepted]);
@@ -28,9 +28,9 @@ export default function MatchCenter({ userId, balance, onMatchAccepted }) {
     const unsubscribe = base44.entities.Match.subscribe((event) => {
       if (event.data?.player1_id !== userId) return;
       if (event.type === "update" || event.type === "create") {
-        if (event.data.status === "searching" || event.data.status === "matched") {
+        if (event.data.status === "searching" || event.data.status === "preparing") {
           setActiveMatch(event.data);
-          if (event.data.status === "matched") {
+          if (event.data.status === "preparing") {
             onMatchAccepted?.(event.data.id);
           }
         } else if (activeMatch?.id === event.data.id) {

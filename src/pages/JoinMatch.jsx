@@ -3,7 +3,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Crown, Loader2, Shield, User } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import FairPlayAttestation from "@/components/play/matchview/FairPlayAttestation";
 import { isMfaVerified } from "@/lib/mfaSession";
 import { setPostAuthRedirect, clearPostAuthRedirect } from "@/lib/postAuthRedirect";
 
@@ -17,7 +16,6 @@ export default function JoinMatch() {
   const [status, setStatus] = useState("loading"); // loading | invalid | confirm
   const [match, setMatch] = useState(null);
   const [hostName, setHostName] = useState("Host");
-  const [fairPlayAccepted, setFairPlayAccepted] = useState(false);
   const [joining, setJoining] = useState(false);
 
   useEffect(() => {
@@ -67,6 +65,9 @@ export default function JoinMatch() {
   const handleAccept = async () => {
     setJoining(true);
     try {
+      // Reserves the opponent slot and moves both players into the shared
+      // Preparing Match screen — Fair Play certification and the Entry
+      // Amount reservation both happen there, identically to a public match.
       await base44.functions.invoke("acceptMatch", { matchId: match.id });
       navigate("/", { replace: true });
     } catch (err) {
@@ -153,11 +154,13 @@ export default function JoinMatch() {
             </div>
           </div>
 
-          <FairPlayAttestation checked={fairPlayAccepted} onCheckedChange={setFairPlayAccepted} />
+          <p className="text-[11px] text-center text-white/30">
+            After joining, you and the host will both certify Fair Play and reserve your entry amount before the game begins.
+          </p>
 
           <Button
             onClick={handleAccept}
-            disabled={joining || !fairPlayAccepted}
+            disabled={joining}
             className="w-full h-12 rounded-2xl font-bold gold-gradient text-black hover:opacity-90"
           >
             {joining ? <Loader2 className="animate-spin mr-2" size={16} /> : null}

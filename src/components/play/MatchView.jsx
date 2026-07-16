@@ -1,10 +1,10 @@
-import React, { useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
-import MatchAcceptedState from "@/components/play/matchview/MatchAcceptedState";
-import DepositWaitingState from "@/components/play/matchview/DepositWaitingState";
+import PreparingMatchScreen from "@/components/play/matchview/PreparingMatchScreen";
+import MatchStartCountdown from "@/components/play/matchview/MatchStartCountdown";
 import GameHUD from "@/components/play/matchview/GameHUD";
 import GameSummary from "@/components/play/matchview/GameSummary";
 import SettlementState from "@/components/play/matchview/SettlementState";
@@ -30,6 +30,9 @@ export default function MatchView({
   // Ensures the cancellation toast + exit fire exactly once per match, even if
   // this effect re-runs due to parent re-renders passing a new onExit/toast reference.
   const cancelHandledRef = useRef(false);
+  // The 3-second "Match Starting" ceremony is shown exactly once per match,
+  // the first time it reaches in_progress.
+  const [countdownDone, setCountdownDone] = useState(false);
 
   useEffect(() => {
     if (match?.status === "cancelled" && !cancelHandledRef.current) {
@@ -37,7 +40,7 @@ export default function MatchView({
       if (!selfCancelledRef.current) {
         toast({
           title: "Match Cancelled",
-          description: "Your opponent cancelled the match. Any escrowed funds have been returned to your wallet.",
+          description: "This match was cancelled. Any reserved funds have been returned to your wallet.",
         });
       }
       onExit();
@@ -46,7 +49,7 @@ export default function MatchView({
   }, [match?.status]);
 
   // Cancelling a pending match must release escrow back to whichever player(s)
-  // already deposited — the canceling user, the opponent, or neither. The
+  // already reserved funds — the canceling user, the opponent, or neither. The
   // wallet refund + status update happen server-side (cancelMatch) since the
   // Wallet entity can no longer be written to directly from the client.
   const handleCancel = async (matchToCancel) => {
@@ -56,8 +59,6 @@ export default function MatchView({
 
   const isActive = match && match.status !== "cancelled";
   const isP1 = isActive && match.player1_id === userId;
-  const myDeposited = isActive && (isP1 ? match.player1_deposited : match.player2_deposited);
-  const opponentDeposited = isActive && (isP1 ? match.player2_deposited : match.player1_deposited);
   const opponentId = isActive ? (isP1 ? match.player2_id : match.player1_id) : null;
 
   let stateKey = "marketplace";
@@ -71,32 +72,31 @@ export default function MatchView({
       stateKey = "game_summary";
       content = <GameSummary match={match} game={game} userId={userId} onPlayAgain={onExit} />;
     } else if (match.status === "in_progress") {
-      // Board becomes interactive immediately once both players have deposited —
-      // no manual "Launch" step required, which previously could strand a
-      // player on the Both Ready screen and make it look like they couldn't move.
-      stateKey = "in_progress";
+      if (!countdownDone) {
+        stateKey = "countdown";
+        content = <MatchStartCountdown onDone={() => setCountdownDone(true)} />;
+      } else {
+        stateKey = "in_progress";
+        content = (
+          <GameHUD
+            match={match}
+            userId={userId}
+            game={game}
+            movementMode={movementMode}
+            onMovementModeChange={onMovementModeChange}
+          />
+        );
+      }
+    } else if (match.status === "preparing" || match.status === "both_ready") {
+      // Both players independently certify Fair Play and reserve their Entry
+      // Amount here — identical screen and identical actions for host and
+      // joiner alike, for both public and private matches.
+      stateKey = "preparing";
       content = (
-        <GameHUD
-          match={match}
-          userId={userId}
-          game={game}
-          movementMode={movementMode}
-          onMovementModeChange={onMovementModeChange}
-        />
-      );
-    } else if (myDeposited && !opponentDeposited) {
-      stateKey = "deposit_waiting";
-      content = <DepositWaitingState match={match} onCancel={() => handleCancel(match)} />;
-    } else {
-      stateKey = "accepted";
-      content = (
-        <MatchAcceptedState
+        <PreparingMatchScreen
           match={match}
           userId={userId}
           opponentId={opponentId}
-          myDeposited={myDeposited}
-          opponentDeposited={opponentDeposited}
-          onDeposited={onRefresh}
           onCancel={() => handleCancel(match)}
         />
       );

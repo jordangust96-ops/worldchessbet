@@ -1,8 +1,12 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 
-// Locks a player's wager into escrow for a match. Runs server-side with the
-// service role so the wallet balance deduction is always computed from the
-// Internal Ledger — a client can never set its own balance.
+// Reserves a player's Entry Amount into escrow during the shared Preparing
+// Match phase. Requires that player to have already certified Fair Play.
+// Runs server-side with the service role so the wallet balance deduction is
+// always computed from the Internal Ledger — a client can never set its own
+// balance. Once both players have certified AND reserved funds, this
+// function is also the trigger that creates/loads the Game and takes the
+// match live.
 
 // Posts a balanced set of Internal Ledger entries and updates the derived
 // Wallet/SystemLedgerAccount balances accordingly. Duplicated (not imported)
@@ -91,12 +95,18 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'You are not a player in this match' }, { status: 403 });
     }
 
+    if (match.status !== 'preparing' && match.status !== 'both_ready') {
+      return Response.json({ error: 'This match is not currently accepting entry reservations' }, { status: 400 });
+    }
+
     const alreadyDeposited = isP1 ? match.player1_deposited : match.player2_deposited;
     if (alreadyDeposited) {
-      return Response.json({ error: 'You have already deposited for this match' }, { status: 400 });
+      return Response.json({ error: 'You have already reserved your entry amount' }, { status: 400 });
     }
-    if (match.status === 'cancelled' || match.status === 'completed' || match.status === 'in_progress') {
-      return Response.json({ error: 'This match is no longer accepting deposits' }, { status: 400 });
+
+    const certified = isP1 ? match.player1_certified : match.player2_certified;
+    if (!certified) {
+      return Response.json({ error: 'Certify Fair Play before reserving your entry amount' }, { status: 400 });
     }
 
     const wallets = await base44.asServiceRole.entities.Wallet.filter({ user_id: user.id });
@@ -130,11 +140,21 @@ Deno.serve(async (req) => {
       ],
     });
 
-    const opponentDeposited = isP1 ? match.player2_deposited : match.player1_deposited;
-    const updates = isP1 ? { player1_deposited: true } : { player2_deposited: true };
-    updates.status = opponentDeposited ? 'in_progress' : 'deposited';
+    const depositUpdates = isP1 ? { player1_deposited: true } : { player2_deposited: true };
+    let updatedMatch = await base44.asServiceRole.entities.Match.update(match.id, depositUpdates);
 
-    const updatedMatch = await base44.asServiceRole.entities.Match.update(match.id, updates);
+    // Only when BOTH players have certified Fair Play AND successfully
+    // reserved funds does the match go live — never earlier. getOrCreateGame
+    // is idempotent, so even if certifyFairPlay's own readiness check fires
+    // this same transition concurrently, only one Game is ever created.
+    const bothCertified = updatedMatch.player1_certified && updatedMatch.player2_certified;
+    const bothDeposited = updatedMatch.player1_deposited && updatedMatch.player2_deposited;
+    if (bothCertified && bothDeposited) {
+      await base44.asServiceRole.entities.Match.update(match.id, { status: 'both_ready' });
+      await base44.functions.invoke('getOrCreateGame', { matchId: match.id });
+      updatedMatch = await base44.asServiceRole.entities.Match.update(match.id, { status: 'in_progress' });
+    }
+
     return Response.json({ match: updatedMatch });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });

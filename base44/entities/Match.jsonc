@@ -37,13 +37,16 @@
       "enum": [
         "searching",
         "matched",
+        "preparing",
         "deposited",
+        "both_ready",
         "in_progress",
         "completed",
         "cancelled",
         "disputed"
       ],
-      "default": "searching"
+      "default": "searching",
+      "description": "'searching': host waiting for an opponent. 'preparing': an opponent has joined and the opponent slot is reserved \u2014 both players must independently certify Fair Play and reserve their Entry Amount in the shared Preparing Match screen. 'both_ready': transient status set the instant both players have certified and funded, while the Game is created/loaded. 'in_progress': gameplay is live. 'matched'/'deposited' are legacy values kept only for historical records and are no longer written by current flows."
     },
     "winner_id": {
       "type": "string",
@@ -55,11 +58,38 @@
     },
     "player1_deposited": {
       "type": "boolean",
-      "default": false
+      "default": false,
+      "description": "Whether player1 has reserved their Entry Amount (moved from Available to Held Balance) during the Preparing Match phase."
     },
     "player2_deposited": {
       "type": "boolean",
-      "default": false
+      "default": false,
+      "description": "Whether player2 has reserved their Entry Amount during the Preparing Match phase."
+    },
+    "player1_certified": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether player1 has certified Fair Play for this match. Required before player1's Entry Amount can be reserved."
+    },
+    "player2_certified": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether player2 has certified Fair Play for this match. Required before player2's Entry Amount can be reserved."
+    },
+    "player1_certified_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp player1 certified Fair Play, for audit purposes."
+    },
+    "player2_certified_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp player2 certified Fair Play, for audit purposes."
+    },
+    "preparation_started_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp the shared Preparing Match phase began (set when the opponent joins). Used to enforce the preparation timeout \u2014 if both players are not fully ready within the timeout window, the match is automatically cancelled and any reserved funds released."
     },
     "result": {
       "type": "string",

@@ -1,0 +1,45 @@
+{
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "*/5 * * * *",
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "preparation_timeout_sweep",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "check_timeouts": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "checkPreparationTimeout",
+            "args": {}
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Check Preparation Timeouts",
+            "description": "Cancel stale prep matches"
+          }
+        }
+      }
+    ]
+  },
+  "name": "Preparation Timeout Sweep",
+  "description": "Every 5 minutes, cancels any match still stuck in the shared Preparing Match phase past the 2-minute readiness timeout and refunds any held entry amounts."
+}

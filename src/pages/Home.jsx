@@ -57,7 +57,7 @@ export default function Home() {
       const asP1 = await base44.entities.Match.filter({ player1_id: user.id }, "-created_date", 5);
       const asP2 = await base44.entities.Match.filter({ player2_id: user.id }, "-created_date", 5);
       const candidates = [...asP1, ...asP2].filter(
-        (m) => ["matched", "deposited", "in_progress"].includes(m.status) && m.id !== dismissedMatchIdRef.current
+        (m) => ["preparing", "both_ready", "in_progress"].includes(m.status) && m.id !== dismissedMatchIdRef.current
       );
       for (const m of candidates) {
         if (await isMatchGenuinelyActive(m)) {
@@ -84,7 +84,7 @@ export default function Home() {
 
       // Never restore a match the player already dismissed via Find New Match.
       if (event.data.id === dismissedMatchIdRef.current) return;
-      if (!["matched", "deposited", "in_progress"].includes(event.data.status)) return;
+      if (!["preparing", "both_ready", "in_progress"].includes(event.data.status)) return;
       isMatchGenuinelyActive(event.data).then((genuinelyActive) => {
         if (genuinelyActive && event.data.id !== dismissedMatchIdRef.current) {
           setMyMatchId(event.data.id);

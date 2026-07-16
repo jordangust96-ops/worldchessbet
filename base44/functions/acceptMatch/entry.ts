@@ -1,12 +1,11 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 
-// Joining a match (public or private) only reserves the opponent slot here —
-// it never moves any funds. The host's Entry Hold was already placed at
-// creation (player1_deposited is always true by this point), but the joiner
-// must still explicitly re-attest Fair Play and click "Fund" on the Match
-// Accepted screen (handled by the lockWager function) before their own funds
-// are held and the match can go live. This guarantees both players have
-// accepted terms AND deposited before the game ever becomes playable.
+// Joining a match (public or private) only reserves the opponent slot and
+// starts the shared Preparing Match phase — it never moves any funds and
+// never initializes gameplay. The match immediately becomes unavailable to
+// everyone else. Both players must then independently certify Fair Play and
+// reserve their Entry Amount (certifyFairPlay / lockWager) before the match
+// can ever go live — identical actions for host and joiner alike.
 
 Deno.serve(async (req) => {
   try {
@@ -28,20 +27,20 @@ Deno.serve(async (req) => {
     }
 
     // Eligibility — the single shared pipeline (identity, geolocation,
-    // participation restrictions, available balance) also used by Host Match.
-    // No Match state change happens unless this passes. Funds are NOT held
-    // here — that only happens once the joiner explicitly clicks "Fund" on
-    // the Match Accepted screen (lockWager).
+    // participation restrictions, available balance) also used by Host
+    // Match. No funds are held here.
     const eligibilityRes = await base44.functions.invoke('runContestEligibility', { entryAmount: match.wager_amount });
     if (eligibilityRes.data?.error || !eligibilityRes.data?.eligible) {
       return Response.json({ error: eligibilityRes.data?.reason || eligibilityRes.data?.error || 'You are not eligible to join this contest' }, { status: 403 });
     }
 
-    // Reserve the opponent slot — the match now waits for the joiner to
-    // deposit (via lockWager) before it can go to in_progress.
+    // Reserve the opponent slot atomically — only succeeds while the match is
+    // still 'searching', so two simultaneous joiners can never both win the
+    // slot. Moves both players into the shared Preparing Match phase.
     const updatedMatch = await base44.asServiceRole.entities.Match.update(match.id, {
       player2_id: user.id,
-      status: 'matched',
+      status: 'preparing',
+      preparation_started_at: new Date().toISOString(),
     });
 
     return Response.json({ match: updatedMatch });

@@ -34,7 +34,7 @@ export default function ActiveChallengeCard({ match, onCancel }) {
   }, [match?.created_date]);
 
   useEffect(() => {
-    if (!match || match.status !== "matched" || !match.player2_id) {
+    if (!match || match.status !== "preparing" || !match.player2_id) {
       setOpponentName("");
       return;
     }
@@ -71,7 +71,7 @@ export default function ActiveChallengeCard({ match, onCancel }) {
             </motion.div>
           }
 
-          {match && match.status === "matched" &&
+          {match && match.status === "preparing" &&
           <motion.div
             key="matched"
             initial={{ opacity: 0 }}
