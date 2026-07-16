@@ -1,0 +1,63 @@
+{
+  "name": "EmailLog",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "ID of the user this email concerns"
+    },
+    "recipient_email": {
+      "type": "string",
+      "description": "Address the email was sent (or attempted) to"
+    },
+    "email_type": {
+      "type": "string",
+      "enum": [
+        "welcome"
+      ],
+      "description": "Which automated email this log entry is for. New values are added here as more automated emails are built."
+    },
+    "subject": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "success",
+        "failed"
+      ]
+    },
+    "error_message": {
+      "type": "string",
+      "description": "Error details if delivery failed, for administrative review"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional description"
+    }
+  },
+  "required": [
+    "recipient_email",
+    "email_type",
+    "status"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": false,
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

@@ -92,6 +92,11 @@
         "closed"
       ],
       "default": "provisional"
+    },
+    "welcome_email_sent": {
+      "type": "boolean",
+      "default": false,
+      "description": "Set once the automated Welcome Email has been successfully sent to this user, to guarantee it is only ever sent once per account. Written only by the sendWelcomeEmail backend function \u2014 never by any client."
     }
   },
   "required": [

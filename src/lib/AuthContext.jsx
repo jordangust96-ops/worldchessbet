@@ -99,6 +99,13 @@ export const AuthProvider = ({ children }) => {
       setIsAuthenticated(true);
       setIsLoadingAuth(false);
       setAuthChecked(true);
+
+      // Fire-and-forget: send the one-time Welcome Email for brand-new accounts.
+      // The function itself is idempotent (checks welcome_email_sent), so this
+      // is safe to call on every auth check without ever resending.
+      if (currentUser && !currentUser.welcome_email_sent) {
+        base44.functions.invoke('sendWelcomeEmail', { userId: currentUser.id }).catch(() => {});
+      }
     } catch (error) {
       console.error('User auth check failed:', error);
       setIsLoadingAuth(false);
