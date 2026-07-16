@@ -27,7 +27,7 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
   const [hostError, setHostError] = useState("");
 
   const wagerValue = parseFloat(wagerInput);
-  const isValid = !isNaN(wagerValue) && wagerValue > 0;
+  const isValid = !isNaN(wagerValue) && wagerValue >= 1;
   const selectedPreset = WAGER_OPTIONS.find((amount) => amount === wagerValue);
   const selectedTimeControl = TIME_CONTROLS.find((tc) => tc.value === timeControl);
   const noFunds = balance <= 0;
@@ -137,7 +137,7 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
               inputMode="decimal"
               value={wagerInput}
               onChange={handleInputChange}
-              placeholder="Enter any amount"
+              placeholder="Enter amount (min $1)"
               disabled={disabled}
               className="w-full h-12 lg:h-8 pl-8 pr-4 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder:text-white/20 text-sm lg:text-xs font-semibold focus:border-[#C9A84C]/50 focus:outline-none transition-colors"
             />

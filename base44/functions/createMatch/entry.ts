@@ -17,8 +17,8 @@ Deno.serve(async (req) => {
 
     const { wagerAmount, timeControl, displayName, isPrivate } = await req.json();
     const wager = Number(wagerAmount);
-    if (!Number.isFinite(wager) || wager <= 0) {
-      return Response.json({ error: 'Invalid entry amount' }, { status: 400 });
+    if (!Number.isFinite(wager) || wager < 1) {
+      return Response.json({ error: 'The minimum contest entry amount is $1.00' }, { status: 400 });
     }
     if (!VALID_TIME_CONTROLS.has(timeControl)) {
       return Response.json({ error: 'Invalid time control' }, { status: 400 });
