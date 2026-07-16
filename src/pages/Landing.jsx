@@ -35,7 +35,7 @@ export default function Landing() {
               Wager. Compete. Win.
             </p>
             <p className="text-white/50 text-lg leading-relaxed max-w-sm mx-auto">
-              Set the stakes, find an opponent, and play to win.
+              Head-to-head chess with real stakes.
             </p>
           </div>
 
