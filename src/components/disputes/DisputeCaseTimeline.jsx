@@ -22,7 +22,7 @@ export default function DisputeCaseTimeline({ notes }) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-semibold text-white">{note.author_name || note.author_role}</span>
-              <span className="text-[10px] uppercase tracking-wider text-white/30">{note.note_type.replace(/_/g, " ")}</span>
+              <span className="text-[10px] uppercase tracking-wider text-white/30">{note.action_type?.replace(/_/g, " ")}</span>
               <span className="text-[10px] text-white/20">{new Date(note.created_date).toLocaleString()}</span>
             </div>
             <p className="text-xs text-white/60 mt-0.5 whitespace-pre-wrap">{note.content}</p>
