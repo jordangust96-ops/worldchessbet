@@ -65,7 +65,16 @@ export default function MatchView({
   let content = null;
 
   if (isActive) {
-    if (game?.status === "completed" && match.status === "completed") {
+    // The Match's own status is the authoritative signal that settlement has
+    // finished — never gate this on the Game object also having arrived with
+    // status "completed". Those two entities update via separate realtime
+    // subscriptions, and waiting on both left a window where match.status
+    // was already "completed" but the Game update hadn't (yet) been received
+    // client-side: none of the branches below matched, the screen went
+    // blank, and — because that blank state reports "marketplace" via
+    // onStateChange — the Game subscription itself was torn down, orphaning
+    // the match permanently instead of just briefly.
+    if (match.status === "completed") {
       stateKey = "settlement";
       content = <SettlementState match={match} game={game} userId={userId} onReturn={onExit} />;
     } else if (game?.status === "completed") {
