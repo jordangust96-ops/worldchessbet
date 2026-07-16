@@ -32,7 +32,7 @@ export default function Landing() {
           <div className="space-y-4">
             <Logo size="lg" className="justify-center" />
             <p className="text-white/70 text-xl font-semibold leading-snug max-w-sm mx-auto">
-              The home of skill-based chess competition.
+              Wager. Compete. Win.
             </p>
             <p className="text-white/50 text-lg leading-relaxed max-w-sm mx-auto">
               Set the stakes, find an opponent, and play to win.
