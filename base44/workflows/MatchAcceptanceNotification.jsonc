@@ -9,7 +9,7 @@
         "update"
       ]
     },
-    "condition": "${ .trigger.data.status == \"matched\" and .trigger.old_data.status == \"searching\" }"
+    "condition": "${ .trigger.data.status == \"preparing\" and .trigger.old_data.status == \"searching\" }"
   },
   "definition": {
     "document": {
