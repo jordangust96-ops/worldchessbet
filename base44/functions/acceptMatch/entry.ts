@@ -26,12 +26,23 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'You cannot accept your own match' }, { status: 400 });
     }
 
-    // Eligibility — the single shared pipeline (identity, geolocation,
+    // Eligibility — the single shared pipeline (identity, jurisdiction,
     // participation restrictions, available balance) also used by Host
     // Match. No funds are held here.
     const eligibilityRes = await base44.functions.invoke('runContestEligibility', { entryAmount: match.wager_amount });
     if (eligibilityRes.data?.error || !eligibilityRes.data?.eligible) {
       return Response.json({ error: eligibilityRes.data?.reason || eligibilityRes.data?.error || 'You are not eligible to join this contest' }, { status: 403 });
+    }
+
+    // The host's own jurisdiction can't be re-verified live from this
+    // request (only the joining player's connection is available here), so
+    // this checks the host's most recently recorded status instead — kept
+    // fresh by getCurrentJurisdiction at the host's own login and every
+    // paid action they take. Rejects the challenge if either player is
+    // outside an approved jurisdiction.
+    const host = await base44.asServiceRole.entities.User.get(match.player1_id);
+    if (host?.jurisdiction_status !== 'approved') {
+      return Response.json({ error: 'This challenge is currently unavailable because the host is outside an approved jurisdiction.' }, { status: 403 });
     }
 
     // Reserve the opponent slot atomically — only succeeds while the match is

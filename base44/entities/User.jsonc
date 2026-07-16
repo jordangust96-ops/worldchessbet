@@ -30,7 +30,7 @@
     },
     "last_geolocation_status": {
       "type": "string",
-      "description": "Result of the most recent geolocation eligibility check. Checked on first wallet funding and again immediately before every real-money match. Future integration: MaxMind.",
+      "description": "Deprecated legacy geolocation field, retained only for historical records. Superseded by jurisdiction_status, which is maintained by the getCurrentJurisdiction backend function.",
       "enum": [
         "not_checked",
         "eligible",
@@ -41,7 +41,40 @@
     "last_geolocation_checked_at": {
       "type": "string",
       "format": "date-time",
-      "description": "Timestamp of the most recent geolocation check."
+      "description": "Deprecated legacy timestamp, retained only for historical records. Superseded by jurisdiction_last_verified_at."
+    },
+    "jurisdiction_status": {
+      "type": "string",
+      "description": "Current jurisdiction verification status, maintained exclusively by the getCurrentJurisdiction backend function. Only 'approved' may access paid platform functionality (deposits, withdrawals, contest creation/joining). All other values place the account in Restricted Mode.",
+      "enum": [
+        "approved",
+        "blocked",
+        "unknown",
+        "verification_failed"
+      ],
+      "default": "unknown"
+    },
+    "current_jurisdiction_state": {
+      "type": "string",
+      "description": "USPS state code most recently detected for this user (e.g. 'TX'), maintained by getCurrentJurisdiction."
+    },
+    "current_jurisdiction_country": {
+      "type": "string",
+      "description": "ISO country code most recently detected for this user, maintained by getCurrentJurisdiction."
+    },
+    "jurisdiction_last_verified_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of the most recent jurisdiction verification event."
+    },
+    "jurisdiction_verification_provider": {
+      "type": "string",
+      "description": "Geolocation provider used for the most recent jurisdiction verification (e.g. 'MaxMind')."
+    },
+    "jurisdiction_vpn_detected": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the most recent jurisdiction verification flagged a VPN, proxy, hosting provider, or other anonymizing network."
     },
     "last_active_at": {
       "type": "string",

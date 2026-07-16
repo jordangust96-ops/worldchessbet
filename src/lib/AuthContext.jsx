@@ -14,6 +14,13 @@ export const AuthProvider = ({ children }) => {
   const [authError, setAuthError] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [appPublicSettings, setAppPublicSettings] = useState(null); // Contains only { id, public_settings }
+  // Jurisdiction status is re-verified server-side on every login via the
+  // centralized getCurrentJurisdiction function. Only 'approved' unlocks
+  // paid functionality; every other value places the account in Restricted
+  // Mode across the app. This context value is informational only — the
+  // real enforcement always happens server-side, on every paid action.
+  const [jurisdictionStatus, setJurisdictionStatus] = useState(null);
+  const [jurisdictionReason, setJurisdictionReason] = useState('');
 
   useEffect(() => {
     checkAppState();
@@ -106,6 +113,18 @@ export const AuthProvider = ({ children }) => {
       if (currentUser && !currentUser.welcome_email_sent) {
         base44.functions.invoke('sendWelcomeEmail', { userId: currentUser.id }).catch(() => {});
       }
+
+      // Verify the user's current jurisdiction on every login — never rely
+      // solely on registration-time verification.
+      base44.functions.invoke('getCurrentJurisdiction', { triggerEvent: 'login' })
+        .then(({ data }) => {
+          setJurisdictionStatus(data?.status || 'unknown');
+          setJurisdictionReason(data?.reason || '');
+        })
+        .catch(() => {
+          setJurisdictionStatus('verification_failed');
+          setJurisdictionReason('Unable to verify your location right now. Please try again shortly.');
+        });
     } catch (error) {
       console.error('User auth check failed:', error);
       setIsLoadingAuth(false);
@@ -150,6 +169,8 @@ export const AuthProvider = ({ children }) => {
       authError,
       appPublicSettings,
       authChecked,
+      jurisdictionStatus,
+      jurisdictionReason,
       logout,
       navigateToLogin,
       checkUserAuth,

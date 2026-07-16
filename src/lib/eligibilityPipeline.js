@@ -7,9 +7,10 @@ import { base44 } from "@/api/base44Client";
 // steps, each returning { eligible, reason }, and stops at the first failure.
 //
 // Current order:
-//   1. Geolocation Check (MaxMind) — every deposit
+//   1. Jurisdiction Check (MaxMind, via the centralized getCurrentJurisdiction
+//      backend function) — every deposit
 //   2. (future) Identity Verification (Plaid) — one-time
-const steps = [runGeolocationCheck];
+const steps = [runJurisdictionCheck];
 
 export async function runEligibilityPipeline(/* user, amount */) {
   for (const step of steps) {
@@ -19,12 +20,13 @@ export async function runEligibilityPipeline(/* user, amount */) {
   return { eligible: true };
 }
 
-// Verifies the user is currently in an eligible jurisdiction via MaxMind.
-// Fully self-contained: the pipeline only ever sees its eligible/reason result.
-async function runGeolocationCheck() {
-  const { data } = await base44.functions.invoke("checkGeolocation", {});
+// Verifies the user is currently in an approved jurisdiction. Fully
+// self-contained: the pipeline only ever sees its eligible/reason result —
+// it never hard-codes any state/jurisdiction logic itself.
+async function runJurisdictionCheck() {
+  const { data } = await base44.functions.invoke("getCurrentJurisdiction", { triggerEvent: "deposit" });
   if (data?.error) {
     return { eligible: false, reason: "Unable to verify your location right now. Please try again shortly." };
   }
-  return { eligible: data.eligible, reason: data.reason };
+  return { eligible: data.status === "approved", reason: data.reason };
 }

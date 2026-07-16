@@ -4,6 +4,8 @@ import { Link } from "react-router-dom";
 import { User, Loader2, SearchX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
+import { getJurisdictionMessage } from "@/lib/jurisdictionConfig";
 
 // How often the marketplace silently checks for newly available public
 // matches while the player has no active match. Purely additive to
@@ -11,11 +13,14 @@ import { base44 } from "@/api/base44Client";
 const AUTO_REFRESH_INTERVAL_MS = 7000;
 
 export default function AvailableMatchSection({ userId, balance, activeMatch, onChallengeCancelled, onAccepted }) {
+  const { jurisdictionStatus, jurisdictionReason } = useAuth();
+  const jurisdictionBlocked = !!jurisdictionStatus && jurisdictionStatus !== "approved";
   const [opponents, setOpponents] = useState([]);
   const [declinedIds, setDeclinedIds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [accepting, setAccepting] = useState(false);
+  const [acceptError, setAcceptError] = useState("");
 
   const fetchMatches = useCallback(async () => {
     if (!userId) return;
@@ -69,6 +74,7 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
   const handleAccept = async () => {
     if (!current) return;
     setAccepting(true);
+    setAcceptError("");
     if (activeMatch) {
       await base44.functions.invoke("cancelMatch", { matchId: activeMatch.id });
       onChallengeCancelled?.();
@@ -76,7 +82,12 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
     // Immediately reserves the opponent slot and moves both players into the
     // shared Preparing Match screen — Fair Play certification and the Entry
     // Amount reservation both happen there, not here.
-    await base44.functions.invoke("acceptMatch", { matchId: current.id });
+    const { data } = await base44.functions.invoke("acceptMatch", { matchId: current.id });
+    setAccepting(false);
+    if (data?.error) {
+      setAcceptError(data.error);
+      return;
+    }
     setDeclinedIds([]);
     onAccepted?.(current.id);
   };
@@ -185,10 +196,17 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
             </div>
           </div>
 
+          {jurisdictionBlocked && (
+            <div className="rounded-xl bg-red-500/5 border border-red-500/20 p-3">
+              <p className="text-xs text-red-400/80 leading-snug whitespace-pre-line">
+                {jurisdictionReason || getJurisdictionMessage(jurisdictionStatus)}
+              </p>
+            </div>
+          )}
           <div className="space-y-2.5 lg:space-y-1.5">
             <Button
               onClick={handleAccept}
-              disabled={accepting || insufficientFunds}
+              disabled={accepting || insufficientFunds || jurisdictionBlocked}
               className="w-full h-14 lg:h-10 rounded-2xl text-base lg:text-sm font-bold gold-gradient text-black hover:opacity-90 transition-opacity disabled:opacity-30"
             >
               {accepting ? <Loader2 className="animate-spin mr-2" size={18} /> : null}
@@ -202,6 +220,7 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
                 </Link>
               </p>
             )}
+            {acceptError && <p className="text-[11px] text-center text-red-400">{acceptError}</p>}
             <Button
               onClick={handleDecline}
               variant="outline"

@@ -93,6 +93,13 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Your account must be verified before you can enter a paid contest' }, { status: 403 });
     }
 
+    // Re-verify jurisdiction immediately before payment authorization — never
+    // rely on a stale client-side or earlier-in-flow check.
+    const jurisdictionRes = await base44.functions.invoke('getCurrentJurisdiction', { triggerEvent: 'lock_wager' });
+    if (jurisdictionRes.data?.error || jurisdictionRes.data?.status !== 'approved') {
+      return Response.json({ error: jurisdictionRes.data?.reason || 'You are not currently eligible to fund a contest entry from your location.' }, { status: 403 });
+    }
+
     const { matchId } = await req.json();
     if (!matchId) return Response.json({ error: 'matchId is required' }, { status: 400 });
 

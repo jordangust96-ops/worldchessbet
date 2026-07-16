@@ -6,6 +6,7 @@ import ChessboardPreview from "@/components/play/ChessboardPreview";
 import MatchCenter from "@/components/play/MatchCenter";
 import MatchView from "@/components/play/MatchView";
 import DemoModeNotice from "@/components/DemoModeNotice";
+import RestrictedModeBanner from "@/components/RestrictedModeBanner";
 import { useChessGame } from "@/hooks/useChessGame";
 
 export default function Home() {
@@ -150,6 +151,9 @@ export default function Home() {
           </div>
         </div>
         <DemoModeNotice />
+        <div className="mt-3">
+          <RestrictedModeBanner />
+        </div>
       </motion.div>
 
       {/* Main Layout */}

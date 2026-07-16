@@ -1,0 +1,86 @@
+{
+  "name": "JurisdictionVerificationLog",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "ID of the user this verification event concerns"
+    },
+    "ip_address": {
+      "type": "string",
+      "description": "IP address used for the lookup (from the trusted edge header, never client-supplied)"
+    },
+    "detected_state": {
+      "type": "string",
+      "description": "USPS state code detected by the provider, if any (e.g. 'TX')"
+    },
+    "detected_country": {
+      "type": "string",
+      "description": "ISO country code detected by the provider, if any"
+    },
+    "verification_result": {
+      "type": "string",
+      "enum": [
+        "approved",
+        "blocked",
+        "unknown",
+        "verification_failed"
+      ],
+      "description": "Outcome of this verification event"
+    },
+    "provider": {
+      "type": "string",
+      "default": "MaxMind",
+      "description": "Geolocation provider used for this lookup"
+    },
+    "vpn_or_proxy_detected": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the provider flagged the IP as a VPN, proxy, hosting provider, or other anonymizing network"
+    },
+    "device_identifier": {
+      "type": "string",
+      "description": "Best-effort device/browser identifier available at verification time (e.g. user agent string)"
+    },
+    "trigger_event": {
+      "type": "string",
+      "description": "What triggered this verification, e.g. 'login', 'deposit', 'create_match', 'accept_match', 'lock_wager'"
+    },
+    "verified_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of the verification event"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional description"
+    }
+  },
+  "required": [
+    "user_id",
+    "verification_result",
+    "verified_at"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.user_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": false,
+    "delete": false
+  }
+}

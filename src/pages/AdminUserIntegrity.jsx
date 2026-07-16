@@ -8,6 +8,7 @@ import IntegrityFlagCard from "@/components/integrity/IntegrityFlagCard";
 import NewIntegrityFlagForm from "@/components/integrity/NewIntegrityFlagForm";
 import AccountStateManager from "@/components/integrity/AccountStateManager";
 import AccountStateControl from "@/components/integrity/AccountStateControl";
+import JurisdictionPanel from "@/components/integrity/JurisdictionPanel";
 
 export default function AdminUserIntegrity() {
   const { userId } = useParams();
@@ -17,6 +18,7 @@ export default function AdminUserIntegrity() {
   const [flags, setFlags] = useState([]);
   const [matches, setMatches] = useState([]);
   const [transactions, setTransactions] = useState([]);
+  const [jurisdictionLogs, setJurisdictionLogs] = useState([]);
   const [showNewFlag, setShowNewFlag] = useState(false);
 
   useEffect(() => {
@@ -33,12 +35,13 @@ export default function AdminUserIntegrity() {
     }
     setIsAdmin(true);
 
-    const [u, userFlags, asP1, asP2, txs] = await Promise.all([
+    const [u, userFlags, asP1, asP2, txs, jurisdictionHistory] = await Promise.all([
       base44.entities.User.get(userId).catch(() => null),
       base44.entities.IntegrityFlag.filter({ user_id: userId }, "-created_date"),
       base44.entities.Match.filter({ player1_id: userId }, "-created_date", 25),
       base44.entities.Match.filter({ player2_id: userId }, "-created_date", 25),
       base44.entities.WalletTransaction.filter({ user_id: userId }, "-created_date", 25),
+      base44.entities.JurisdictionVerificationLog.filter({ user_id: userId }, "-created_date", 25),
     ]);
 
     setTargetUser(u);
@@ -47,6 +50,7 @@ export default function AdminUserIntegrity() {
       [...asP1, ...asP2].sort((a, b) => new Date(b.created_date) - new Date(a.created_date)).slice(0, 20)
     );
     setTransactions(txs);
+    setJurisdictionLogs(jurisdictionHistory);
     setLoading(false);
   };
 
@@ -108,6 +112,10 @@ export default function AdminUserIntegrity() {
 
       <div className="mt-6">
         <AccountStateManager targetUser={targetUser} onChanged={load} />
+      </div>
+
+      <div className="mt-6">
+        <JurisdictionPanel targetUser={targetUser} logs={jurisdictionLogs} />
       </div>
 
       <div className="mt-6 flex items-center justify-between">

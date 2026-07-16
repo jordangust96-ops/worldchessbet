@@ -6,11 +6,14 @@ import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import Logo from "@/components/Logo";
 import DemoModeNotice from "@/components/DemoModeNotice";
+import RestrictedModeBanner from "@/components/RestrictedModeBanner";
 import TransactionHistory from "@/components/wallet/TransactionHistory";
+import { useAuth } from "@/lib/AuthContext";
 
 const TX_PAGE_SIZE = 20;
 
 export default function WalletPage() {
+  const { jurisdictionStatus } = useAuth();
   const [wallet, setWallet] = useState(null);
   const [userId, setUserId] = useState(null);
   const [transactions, setTransactions] = useState([]);
@@ -135,6 +138,7 @@ export default function WalletPage() {
           <Logo size="sm" />
         </Link>
         <DemoModeNotice />
+        <RestrictedModeBanner />
 
         {/* Balance Card */}
         <div className="rounded-3xl bg-gradient-to-br from-[#1A1A1A] to-[#111] border border-white/5 p-6 text-center">
@@ -164,7 +168,8 @@ export default function WalletPage() {
         <div className="grid grid-cols-2 gap-3">
           <Button
             onClick={() => setShowDeposit(!showDeposit)}
-            className="h-12 rounded-2xl gold-gradient text-black font-bold hover:opacity-90"
+            disabled={jurisdictionStatus && jurisdictionStatus !== "approved"}
+            className="h-12 rounded-2xl gold-gradient text-black font-bold hover:opacity-90 disabled:opacity-30"
           >
             <Plus size={16} className="mr-2" /> Fund Account
           </Button>

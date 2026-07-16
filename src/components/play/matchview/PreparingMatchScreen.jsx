@@ -33,6 +33,7 @@ export default function PreparingMatchScreen({ match, userId, opponentId, onCanc
   const [certifying, setCertifying] = useState(false);
   const [reserving, setReserving] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [actionError, setActionError] = useState("");
 
   useEffect(() => {
     if (!opponentId) return;
@@ -50,8 +51,10 @@ export default function PreparingMatchScreen({ match, userId, opponentId, onCanc
 
   const handleCertify = async () => {
     setCertifying(true);
+    setActionError("");
     try {
-      await base44.functions.invoke("certifyFairPlay", { matchId: match.id });
+      const { data } = await base44.functions.invoke("certifyFairPlay", { matchId: match.id });
+      if (data?.error) setActionError(data.error);
     } finally {
       setCertifying(false);
     }
@@ -59,8 +62,10 @@ export default function PreparingMatchScreen({ match, userId, opponentId, onCanc
 
   const handleReserve = async () => {
     setReserving(true);
+    setActionError("");
     try {
-      await base44.functions.invoke("lockWager", { matchId: match.id });
+      const { data } = await base44.functions.invoke("lockWager", { matchId: match.id });
+      if (data?.error) setActionError(data.error);
     } finally {
       setReserving(false);
     }
@@ -155,6 +160,8 @@ export default function PreparingMatchScreen({ match, userId, opponentId, onCanc
           Pay ${financials.totalCharge.toFixed(2)} & Reserve Entry
         </Button>
       )}
+
+      {actionError && <p className="text-xs text-red-400 text-center">{actionError}</p>}
 
       {myCertified && myDeposited && (
         <div className="flex items-center justify-center gap-2 text-[#C9A84C] py-1">

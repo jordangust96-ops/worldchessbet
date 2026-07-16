@@ -93,12 +93,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Re-verify eligibility server-side rather than trusting a prior client-side check.
-    const geoRes = await base44.functions.invoke('checkGeolocation', {});
-    if (geoRes.data?.error || !geoRes.data?.eligible) {
+    // Re-verify jurisdiction server-side rather than trusting a prior
+    // client-side check — deposits are always gated on a fresh lookup.
+    const jurisdictionRes = await base44.functions.invoke('getCurrentJurisdiction', { triggerEvent: 'deposit' });
+    if (jurisdictionRes.data?.error || jurisdictionRes.data?.status !== 'approved') {
       return Response.json({
         eligible: false,
-        reason: geoRes.data?.reason || 'You are not currently eligible to fund your account.',
+        reason: jurisdictionRes.data?.reason || 'You are not currently eligible to fund your account.',
       });
     }
 

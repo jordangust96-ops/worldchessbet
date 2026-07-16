@@ -38,12 +38,13 @@ Deno.serve(async (req) => {
       return Response.json({ eligible: false, reason });
     }
 
-    // 2. Geolocation Check — always re-verified, never trusted from a stale value.
-    const geoRes = await base44.functions.invoke('checkGeolocation', {});
-    if (geoRes.data?.error || !geoRes.data?.eligible) {
+    // 2. Jurisdiction Check — always re-verified server-side, never trusted
+    // from a stale value. Only 'approved' jurisdictions may proceed.
+    const jurisdictionRes = await base44.functions.invoke('getCurrentJurisdiction', { triggerEvent: 'contest_eligibility' });
+    if (jurisdictionRes.data?.error || jurisdictionRes.data?.status !== 'approved') {
       return Response.json({
         eligible: false,
-        reason: geoRes.data?.reason || 'You are not currently eligible to enter a contest from your location.',
+        reason: jurisdictionRes.data?.reason || 'You are not currently eligible to enter a contest from your location.',
       });
     }
 
