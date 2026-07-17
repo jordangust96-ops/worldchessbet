@@ -53,6 +53,30 @@
       "type": "string",
       "maxLength": 4000
     },
+    "reason_code": {
+      "type": "string",
+      "enum": [
+        "settlement_correction",
+        "administrative_refund",
+        "contest_voided",
+        "draw_correction",
+        "chargeback_adjustment",
+        "payment_reversal",
+        "fraud_investigation",
+        "integrity_review_outcome",
+        "cheating_determination",
+        "appeal_decision",
+        "technical_error",
+        "duplicate_transaction",
+        "compliance_review",
+        "other"
+      ],
+      "description": "Standardized reason code, present when this note documents a financial adjustment (holds, resolutions)."
+    },
+    "ip_address": {
+      "type": "string",
+      "description": "Best-effort administrator IP address at the time of this action, captured from request headers, for audit purposes."
+    },
     "attachments": {
       "type": "array",
       "items": {

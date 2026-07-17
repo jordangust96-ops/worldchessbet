@@ -23,6 +23,26 @@
       ],
       "description": "The formal outcome of the investigation"
     },
+    "reason_code": {
+      "type": "string",
+      "enum": [
+        "settlement_correction",
+        "administrative_refund",
+        "contest_voided",
+        "draw_correction",
+        "chargeback_adjustment",
+        "payment_reversal",
+        "fraud_investigation",
+        "integrity_review_outcome",
+        "cheating_determination",
+        "appeal_decision",
+        "technical_error",
+        "duplicate_transaction",
+        "compliance_review",
+        "other"
+      ],
+      "description": "Standardized reason code required for every financial adjustment resolution, per governance policy."
+    },
     "violation_found": {
       "type": "boolean",
       "default": false
@@ -36,6 +56,10 @@
     "resolution_timestamp": {
       "type": "string",
       "format": "date-time"
+    },
+    "ip_address": {
+      "type": "string",
+      "description": "Best-effort IP address of the administrator at the time of resolution, captured from the request headers, for audit purposes."
     },
     "internal_rationale": {
       "type": "string",
