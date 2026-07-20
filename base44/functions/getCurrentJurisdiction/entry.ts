@@ -24,6 +24,14 @@ const APPROVED_STATES = ['AR', 'CO', 'GA', 'IA', 'KS', 'ND', 'TX', 'VA', 'WI', '
 const DEV_TEMP_APPROVED_STATES = ['MI'];
 const EFFECTIVE_APPROVED_STATES = [...APPROVED_STATES, ...DEV_TEMP_APPROVED_STATES];
 
+// TEMPORARY DEV/TESTING OVERRIDE — REMOVE BEFORE PRODUCTION LAUNCH.
+// Admin accounts are exempt from jurisdiction enforcement so the team can
+// test paid flows (deposits, contest creation/joining, fund reservation)
+// from any location, including via the builder's "acting as" preview, which
+// does not originate from the admin's real device IP. Mirrors the same
+// temporary, isolated override pattern as DEV_TEMP_APPROVED_STATES above.
+const ADMIN_TEST_OVERRIDE = true;
+
 // Modular provider abstraction: today this calls MaxMind. A future provider
 // (e.g. GeoComply) can replace or supplement this function's internals
 // without any caller of getCurrentJurisdiction ever needing to change.
@@ -186,6 +194,11 @@ Deno.serve(async (req) => {
           reason = BLOCKED_MESSAGE;
         }
       }
+    }
+
+    if (ADMIN_TEST_OVERRIDE && user.role === 'admin' && status !== 'approved') {
+      status = 'approved';
+      reason = '';
     }
 
     const now = new Date().toISOString();
