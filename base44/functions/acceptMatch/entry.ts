@@ -34,16 +34,14 @@ Deno.serve(async (req) => {
       return Response.json({ error: eligibilityRes.data?.reason || eligibilityRes.data?.error || 'You are not eligible to join this contest' }, { status: 403 });
     }
 
-    // The host's own jurisdiction can't be re-verified live from this
-    // request (only the joining player's connection is available here), so
-    // this checks the host's most recently recorded status instead — kept
-    // fresh by getCurrentJurisdiction at the host's own login and every
-    // paid action they take. Rejects the challenge if either player is
-    // outside an approved jurisdiction.
-    const host = await base44.asServiceRole.entities.User.get(match.player1_id);
-    if (host?.jurisdiction_status !== 'approved') {
-      return Response.json({ error: 'This challenge is currently unavailable because the host is outside an approved jurisdiction.' }, { status: 403 });
-    }
+    // The host's own jurisdiction is never trusted from a cached field here —
+    // that previously relied on host.jurisdiction_status, which could go
+    // stale (e.g. it would keep rejecting a Michigan host who was verified
+    // before Michigan was added to the approved list, even though they are
+    // actually approved under the current rules). Jurisdiction is instead
+    // authoritatively re-verified fresh for the host at the moment they
+    // reserve their entry amount in lockWager, so no funds ever move for an
+    // unapproved host — this join step itself moves no money.
 
     // Reserve the opponent slot atomically — only succeeds while the match is
     // still 'searching', so two simultaneous joiners can never both win the
