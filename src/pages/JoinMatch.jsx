@@ -5,6 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { isMfaVerified } from "@/lib/mfaSession";
 import { setPostAuthRedirect, clearPostAuthRedirect } from "@/lib/postAuthRedirect";
+import { computeContestFinancials } from "@/lib/contestFinancials";
 
 // Entry point for a Private Match invitation link (/join/:inviteCode). Handles
 // its own auth/MFA gating (rather than the shared ProtectedRoute tree) so an
@@ -139,17 +140,21 @@ export default function JoinMatch() {
           <div className="rounded-2xl bg-white/[0.03] p-4 space-y-2">
             <p className="text-[10px] uppercase tracking-widest text-white/30 mb-1">Match Summary</p>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-white/50">Contest Prize</span>
-              <span className="font-semibold text-white/80">${(match.wager_amount * 2).toFixed(2)}</span>
+              <span className="text-white/50">Contest Entry Amount</span>
+              <span className="font-semibold text-white/80">${computeContestFinancials(match.wager_amount).entryAmount.toFixed(2)}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-white/50">Platform Service Fee (10%)</span>
-              <span className="font-semibold text-white/50">-${(match.wager_amount * 2 * 0.1).toFixed(2)}</span>
+              <span className="font-semibold text-white/80">${computeContestFinancials(match.wager_amount).serviceFee.toFixed(2)}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-white/50">Total Charged</span>
+              <span className="font-semibold text-white/80">${computeContestFinancials(match.wager_amount).totalCharge.toFixed(2)}</span>
             </div>
             <div className="flex items-center justify-between pt-2 border-t border-white/10">
-              <span className="text-sm font-semibold text-white/70">Winner Receives</span>
+              <span className="text-sm font-semibold text-white/70">Winner Award</span>
               <span className="text-lg font-extrabold text-[#C9A84C]">
-                ${(match.wager_amount * 2 * 0.9).toFixed(2)}
+                ${computeContestFinancials(match.wager_amount).potentialWinnerAward.toFixed(2)}
               </span>
             </div>
           </div>

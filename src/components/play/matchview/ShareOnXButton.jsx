@@ -14,7 +14,10 @@ export default function ShareOnXButton({ match, game, winnerName, opponentName, 
   const [downloading, setDownloading] = useState(false);
   const { toast } = useToast();
 
-  const amountWon = match.wager_amount * 2 * 0.9;
+  // Winner receives 100% of the combined Contest Entry Amounts — the
+  // Platform Service Fee is charged separately per player and never
+  // deducted from the pot.
+  const amountWon = match.wager_amount * 2;
   const postText = `♟️ I just won $${amountWon.toFixed(2)} on @worldchessbet!\n\n💰 Winnings: $${amountWon.toFixed(2)}\n♟️ Time Control: ${match.display_name}\n🏆 Result: ${endReason}\n\nThink you can beat me?\n\n#ChessBet #Chess`;
 
   const downloadCard = async () => {
