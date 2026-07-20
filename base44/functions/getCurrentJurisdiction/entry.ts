@@ -15,6 +15,15 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 // ============================================================================
 const APPROVED_STATES = ['AR', 'CO', 'GA', 'IA', 'KS', 'ND', 'TX', 'VA', 'WI', 'WY'];
 
+// ============================================================================
+// TEMPORARY DEV/TESTING OVERRIDE — REMOVE BEFORE PRODUCTION LAUNCH.
+// Adds Michigan to the approved list solely so the team can develop and
+// live-test from Michigan. Isolated here as its own array, merged below, so
+// reverting is a single-line delete of this block plus the merge below.
+// ============================================================================
+const DEV_TEMP_APPROVED_STATES = ['MI'];
+const EFFECTIVE_APPROVED_STATES = [...APPROVED_STATES, ...DEV_TEMP_APPROVED_STATES];
+
 // Modular provider abstraction: today this calls MaxMind. A future provider
 // (e.g. GeoComply) can replace or supplement this function's internals
 // without any caller of getCurrentJurisdiction ever needing to change.
@@ -103,7 +112,7 @@ Deno.serve(async (req) => {
         } else if (!country || !state) {
           status = 'unknown';
           reason = UNKNOWN_MESSAGE;
-        } else if (country === 'US' && APPROVED_STATES.includes(state)) {
+        } else if (country === 'US' && EFFECTIVE_APPROVED_STATES.includes(state)) {
           status = 'approved';
         } else {
           status = 'blocked';
