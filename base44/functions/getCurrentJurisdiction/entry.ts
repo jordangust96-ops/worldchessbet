@@ -34,6 +34,27 @@ const UNKNOWN_MESSAGE =
 const BLOCKED_MESSAGE =
   "Paid contests are not currently available in your jurisdiction.\n\nChessBet currently offers paid gameplay only in approved jurisdictions.\n\nYour account remains active for informational purposes, but paid contests are unavailable from your current location.";
 
+// A mismatch beyond this distance between the MaxMind IP-derived location and
+// the browser-reported location is flagged for administrative/forensic
+// review only. It never blocks or restricts the user — browser geolocation
+// is always a secondary, non-authoritative signal.
+const GEO_MISMATCH_THRESHOLD_KM = 100;
+
+function haversineDistanceKm(lat1, lon1, lat2, lon2) {
+  const toRad = (d) => (d * Math.PI) / 180;
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+// Captures every field the current MaxMind Insights response provides that
+// is useful for compliance/forensic purposes. Fields not present in the
+// response (e.g. static_ip_score, residential proxy detection — plan/data
+// dependent) are simply left undefined rather than guessed at.
 async function lookupWithMaxMind(ip) {
   const accountId = Deno.env.get('MAXMIND_ACCOUNT_ID');
   const licenseKey = Deno.env.get('MAXMIND_LICENSE_KEY');
@@ -51,18 +72,46 @@ async function lookupWithMaxMind(ip) {
   }
 
   const data = await res.json();
-  const country = data?.country?.iso_code || '';
-  const state = data?.subdivisions?.[0]?.iso_code || '';
+  const traits = data?.traits || {};
   const vpnDetected = !!(
-    data?.traits?.is_anonymous_vpn ||
-    data?.traits?.is_anonymous_proxy ||
-    data?.traits?.is_hosting_provider ||
-    data?.traits?.is_anonymous ||
-    data?.traits?.is_public_proxy ||
-    data?.traits?.is_tor_exit_node
+    traits.is_anonymous_vpn ||
+    traits.is_anonymous_proxy ||
+    traits.is_hosting_provider ||
+    traits.is_anonymous ||
+    traits.is_public_proxy ||
+    traits.is_tor_exit_node
   );
 
-  return { ok: true, country, state, vpnDetected };
+  return {
+    ok: true,
+    country: data?.country?.iso_code || '',
+    countryConfidence: data?.country?.confidence,
+    state: data?.subdivisions?.[0]?.iso_code || '',
+    subdivisionConfidence: data?.subdivisions?.[0]?.confidence,
+    city: data?.city?.names?.en || '',
+    cityConfidence: data?.city?.confidence,
+    postalCode: data?.postal?.code || '',
+    postalConfidence: data?.postal?.confidence,
+    latitude: data?.location?.latitude,
+    longitude: data?.location?.longitude,
+    accuracyRadiusKm: data?.location?.accuracy_radius,
+    timeZone: data?.location?.time_zone || '',
+    isp: traits.isp || '',
+    organization: traits.organization || '',
+    userType: traits.user_type || '',
+    connectionType: traits.connection_type || '',
+    isAnonymousVpn: !!traits.is_anonymous_vpn,
+    isAnonymousProxy: !!traits.is_anonymous_proxy,
+    isPublicProxy: !!traits.is_public_proxy,
+    isHostingProvider: !!traits.is_hosting_provider,
+    isAnonymous: !!traits.is_anonymous,
+    isTorExitNode: !!traits.is_tor_exit_node,
+    isSatelliteProvider: !!traits.is_satellite_provider,
+    isAnycast: !!traits.is_anycast,
+    isResidentialProxy: !!traits.is_residential_proxy,
+    staticIpScore: traits.static_ip_score,
+    vpnDetected,
+  };
 }
 
 Deno.serve(async (req) => {
@@ -72,11 +121,27 @@ Deno.serve(async (req) => {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     let triggerEvent = 'manual';
+    let relatedEntityType = 'none';
+    let relatedEntityId = '';
+    let contextAmount;
+    let browserLatitude;
+    let browserLongitude;
+    let browserAccuracyMeters;
+    let browserGeoPermission = 'not_requested';
+    let deviceFingerprintHash = '';
     try {
       const body = await req.json();
       if (body?.triggerEvent) triggerEvent = body.triggerEvent;
+      if (body?.relatedEntityType) relatedEntityType = body.relatedEntityType;
+      if (body?.relatedEntityId) relatedEntityId = body.relatedEntityId;
+      if (body?.contextAmount !== undefined) contextAmount = Number(body.contextAmount);
+      if (body?.browserGeoPermission) browserGeoPermission = body.browserGeoPermission;
+      if (typeof body?.browserLatitude === 'number') browserLatitude = body.browserLatitude;
+      if (typeof body?.browserLongitude === 'number') browserLongitude = body.browserLongitude;
+      if (typeof body?.browserAccuracyMeters === 'number') browserAccuracyMeters = body.browserAccuracyMeters;
+      if (body?.deviceFingerprintHash) deviceFingerprintHash = body.deviceFingerprintHash;
     } catch {
-      // No body provided — default trigger label is fine.
+      // No body provided — defaults above are fine.
     }
 
     // cf-connecting-ip is set by Cloudflare's edge and cannot be spoofed by
@@ -90,6 +155,7 @@ Deno.serve(async (req) => {
     let country = '';
     let vpnDetected = false;
     let reason = '';
+    let lookupDetails = {};
 
     if (!ip) {
       status = 'unknown';
@@ -100,6 +166,7 @@ Deno.serve(async (req) => {
         status = 'verification_failed';
         reason = 'Unable to verify your location right now. Please try again shortly.';
       } else {
+        lookupDetails = lookup;
         country = lookup.country;
         state = lookup.state;
         vpnDetected = lookup.vpnDetected;
@@ -132,18 +199,76 @@ Deno.serve(async (req) => {
       jurisdiction_vpn_detected: vpnDetected,
     });
 
+    // Secondary, non-authoritative signal: compare the browser-reported
+    // coordinates (if the client requested and was granted permission) with
+    // MaxMind's IP-derived coordinates. Purely informational/forensic — it
+    // never affects `status` above and never blocks or restricts the user.
+    let geoMismatchKm;
+    let geoMismatchFlag = false;
+    if (
+      typeof browserLatitude === 'number' &&
+      typeof browserLongitude === 'number' &&
+      typeof lookupDetails.latitude === 'number' &&
+      typeof lookupDetails.longitude === 'number'
+    ) {
+      geoMismatchKm = haversineDistanceKm(
+        lookupDetails.latitude,
+        lookupDetails.longitude,
+        browserLatitude,
+        browserLongitude
+      );
+      geoMismatchFlag = geoMismatchKm > GEO_MISMATCH_THRESHOLD_KM;
+    }
+
     // Immutable audit log entry — every verification event is recorded, one
-    // row per event, never updated or deleted.
+    // row per event, never updated or deleted. Captures every available
+    // MaxMind Insights field (including anonymizer signals when false),
+    // forensic context about what triggered the check, and the secondary
+    // browser geolocation / device fingerprint signals when supplied.
     await base44.asServiceRole.entities.JurisdictionVerificationLog.create({
       user_id: user.id,
       ip_address: ip,
       detected_state: state,
       detected_country: country,
+      detected_city: lookupDetails.city || '',
+      detected_postal_code: lookupDetails.postalCode || '',
+      country_confidence: lookupDetails.countryConfidence,
+      subdivision_confidence: lookupDetails.subdivisionConfidence,
+      city_confidence: lookupDetails.cityConfidence,
+      postal_confidence: lookupDetails.postalConfidence,
+      latitude: lookupDetails.latitude,
+      longitude: lookupDetails.longitude,
+      accuracy_radius_km: lookupDetails.accuracyRadiusKm,
+      time_zone: lookupDetails.timeZone || '',
+      isp: lookupDetails.isp || '',
+      organization: lookupDetails.organization || '',
+      user_type: lookupDetails.userType || '',
+      connection_type: lookupDetails.connectionType || '',
+      is_anonymous_vpn: !!lookupDetails.isAnonymousVpn,
+      is_anonymous_proxy: !!lookupDetails.isAnonymousProxy,
+      is_public_proxy: !!lookupDetails.isPublicProxy,
+      is_hosting_provider: !!lookupDetails.isHostingProvider,
+      is_anonymous: !!lookupDetails.isAnonymous,
+      is_tor_exit_node: !!lookupDetails.isTorExitNode,
+      is_satellite_provider: !!lookupDetails.isSatelliteProvider,
+      is_anycast: !!lookupDetails.isAnycast,
+      is_residential_proxy: !!lookupDetails.isResidentialProxy,
+      static_ip_score: lookupDetails.staticIpScore,
       verification_result: status,
       provider: PROVIDER,
       vpn_or_proxy_detected: vpnDetected,
       device_identifier: deviceIdentifier,
       trigger_event: triggerEvent,
+      related_entity_type: relatedEntityType,
+      related_entity_id: relatedEntityId,
+      context_amount: contextAmount,
+      browser_geo_permission: browserGeoPermission,
+      browser_latitude: browserLatitude,
+      browser_longitude: browserLongitude,
+      browser_accuracy_meters: browserAccuracyMeters,
+      geo_mismatch_km: geoMismatchKm,
+      geo_mismatch_flag: geoMismatchFlag,
+      device_fingerprint_hash: deviceFingerprintHash,
       verified_at: now,
     });
 

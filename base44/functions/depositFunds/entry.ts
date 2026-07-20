@@ -75,7 +75,14 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { amount } = await req.json();
+    const {
+      amount,
+      browserGeoPermission,
+      browserLatitude,
+      browserLongitude,
+      browserAccuracyMeters,
+      deviceFingerprintHash,
+    } = await req.json();
     const requestedAmount = Number(amount);
     if (!Number.isFinite(requestedAmount) || requestedAmount <= 0 || requestedAmount > MAX_DEPOSIT_AMOUNT) {
       return Response.json({ error: 'Invalid funding amount' }, { status: 400 });
@@ -95,7 +102,16 @@ Deno.serve(async (req) => {
 
     // Re-verify jurisdiction server-side rather than trusting a prior
     // client-side check — deposits are always gated on a fresh lookup.
-    const jurisdictionRes = await base44.functions.invoke('getCurrentJurisdiction', { triggerEvent: 'deposit' });
+    const jurisdictionRes = await base44.functions.invoke('getCurrentJurisdiction', {
+      triggerEvent: 'deposit',
+      relatedEntityType: 'deposit',
+      contextAmount: requestedAmount,
+      browserGeoPermission,
+      browserLatitude,
+      browserLongitude,
+      browserAccuracyMeters,
+      deviceFingerprintHash,
+    });
     if (jurisdictionRes.data?.error || jurisdictionRes.data?.status !== 'approved') {
       return Response.json({
         eligible: false,

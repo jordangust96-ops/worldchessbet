@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import FairPlayAttestation from "@/components/play/matchview/FairPlayAttestation";
 import { computeContestFinancials } from "@/lib/contestFinancials";
+import { getBrowserGeolocation, getDeviceFingerprintHash } from "@/lib/deviceContext";
 
 function ReadinessRow({ label, done }) {
   return (
@@ -64,7 +65,18 @@ export default function PreparingMatchScreen({ match, userId, opponentId, onCanc
     setReserving(true);
     setActionError("");
     try {
-      const { data } = await base44.functions.invoke("lockWager", { matchId: match.id });
+      // Secondary, non-authoritative signals for fraud/forensic logging only —
+      // requested right before this paid action, never gating it either way.
+      const geo = await getBrowserGeolocation();
+      const deviceFingerprintHash = await getDeviceFingerprintHash();
+      const { data } = await base44.functions.invoke("lockWager", {
+        matchId: match.id,
+        browserGeoPermission: geo.permission,
+        browserLatitude: geo.latitude,
+        browserLongitude: geo.longitude,
+        browserAccuracyMeters: geo.accuracyMeters,
+        deviceFingerprintHash,
+      });
       if (data?.error) setActionError(data.error);
     } finally {
       setReserving(false);

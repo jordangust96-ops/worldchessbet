@@ -18,6 +18,111 @@
       "type": "string",
       "description": "ISO country code detected by the provider, if any"
     },
+    "detected_city": {
+      "type": "string",
+      "description": "City name detected by MaxMind Insights, if any"
+    },
+    "detected_postal_code": {
+      "type": "string",
+      "description": "Postal/ZIP code detected by MaxMind Insights, if any"
+    },
+    "country_confidence": {
+      "type": "number",
+      "description": "MaxMind's confidence (0-100) in the detected country, if provided by the current plan"
+    },
+    "subdivision_confidence": {
+      "type": "number",
+      "description": "MaxMind's confidence (0-100) in the detected state/subdivision, if provided by the current plan"
+    },
+    "city_confidence": {
+      "type": "number",
+      "description": "MaxMind's confidence (0-100) in the detected city, if provided by the current plan"
+    },
+    "postal_confidence": {
+      "type": "number",
+      "description": "MaxMind's confidence (0-100) in the detected postal code, if provided by the current plan"
+    },
+    "latitude": {
+      "type": "number",
+      "description": "IP-derived latitude from MaxMind Insights"
+    },
+    "longitude": {
+      "type": "number",
+      "description": "IP-derived longitude from MaxMind Insights"
+    },
+    "accuracy_radius_km": {
+      "type": "number",
+      "description": "MaxMind's estimated accuracy radius (km) around the IP-derived coordinates"
+    },
+    "time_zone": {
+      "type": "string",
+      "description": "IANA time zone reported by MaxMind for the detected location"
+    },
+    "isp": {
+      "type": "string",
+      "description": "Internet service provider reported by MaxMind Insights"
+    },
+    "organization": {
+      "type": "string",
+      "description": "Organization reported by MaxMind Insights"
+    },
+    "user_type": {
+      "type": "string",
+      "description": "MaxMind's classification of the connection user type (e.g. 'residential', 'business', 'hosting')"
+    },
+    "connection_type": {
+      "type": "string",
+      "description": "MaxMind's classification of the connection type (e.g. 'Cable/DSL', 'Corporate')"
+    },
+    "is_anonymous_vpn": {
+      "type": "boolean",
+      "default": false,
+      "description": "MaxMind anonymizer signal, persisted every time (including when false)"
+    },
+    "is_anonymous_proxy": {
+      "type": "boolean",
+      "default": false,
+      "description": "MaxMind anonymizer signal, persisted every time (including when false)"
+    },
+    "is_public_proxy": {
+      "type": "boolean",
+      "default": false,
+      "description": "MaxMind anonymizer signal, persisted every time (including when false)"
+    },
+    "is_hosting_provider": {
+      "type": "boolean",
+      "default": false,
+      "description": "MaxMind anonymizer signal, persisted every time (including when false)"
+    },
+    "is_anonymous": {
+      "type": "boolean",
+      "default": false,
+      "description": "MaxMind's general anonymizer network signal, persisted every time (including when false)"
+    },
+    "is_tor_exit_node": {
+      "type": "boolean",
+      "default": false,
+      "description": "MaxMind anonymizer signal, persisted every time (including when false)"
+    },
+    "is_satellite_provider": {
+      "type": "boolean",
+      "default": false,
+      "description": "MaxMind connection signal, persisted every time (including when false)"
+    },
+    "is_anycast": {
+      "type": "boolean",
+      "default": false,
+      "description": "MaxMind connection signal, persisted every time (including when false)"
+    },
+    "is_residential_proxy": {
+      "type": "boolean",
+      "default": false,
+      "description": "MaxMind residential-proxy signal, persisted every time (including when false), when available on the current plan"
+    },
+    "static_ip_score": {
+      "type": "number",
+      "description": "MaxMind static IP score, when available on the current plan"
+    },
     "verification_result": {
       "type": "string",
       "enum": [
@@ -36,7 +141,7 @@
     "vpn_or_proxy_detected": {
       "type": "boolean",
       "default": false,
-      "description": "Whether the provider flagged the IP as a VPN, proxy, hosting provider, or other anonymizing network"
+      "description": "Whether the provider flagged the IP as a VPN, proxy, hosting provider, or other anonymizing network. Kept for backward compatibility \u2014 see the individual is_* signal fields for the full detail."
     },
     "device_identifier": {
       "type": "string",
@@ -45,6 +150,61 @@
     "trigger_event": {
       "type": "string",
       "description": "What triggered this verification, e.g. 'login', 'deposit', 'create_match', 'accept_match', 'lock_wager'"
+    },
+    "related_entity_type": {
+      "type": "string",
+      "enum": [
+        "match",
+        "deposit",
+        "withdrawal",
+        "none"
+      ],
+      "default": "none",
+      "description": "Type of the related record this verification event was performed for, if any"
+    },
+    "related_entity_id": {
+      "type": "string",
+      "description": "ID of the related Match/deposit/withdrawal record, when known at verification time"
+    },
+    "context_amount": {
+      "type": "number",
+      "description": "Dollar amount associated with the triggering action (contest entry amount or deposit amount), if applicable"
+    },
+    "browser_geo_permission": {
+      "type": "string",
+      "enum": [
+        "granted",
+        "denied",
+        "unavailable",
+        "not_requested"
+      ],
+      "default": "not_requested",
+      "description": "Result of requesting the HTML5 Geolocation API permission from the browser, for this verification event. Never authoritative \u2014 informational/forensic only."
+    },
+    "browser_latitude": {
+      "type": "number",
+      "description": "Latitude reported by the browser's HTML5 Geolocation API, if permission was granted"
+    },
+    "browser_longitude": {
+      "type": "number",
+      "description": "Longitude reported by the browser's HTML5 Geolocation API, if permission was granted"
+    },
+    "browser_accuracy_meters": {
+      "type": "number",
+      "description": "Accuracy radius (meters) reported by the browser's HTML5 Geolocation API, if permission was granted"
+    },
+    "geo_mismatch_km": {
+      "type": "number",
+      "description": "Distance (km) between the MaxMind IP-derived coordinates and the browser-reported coordinates, when both are available. Informational/forensic only \u2014 never used to block a user."
+    },
+    "geo_mismatch_flag": {
+      "type": "boolean",
+      "default": false,
+      "description": "Set when geo_mismatch_km exceeds a reasonable threshold, purely for administrative/forensic review. Never used to block or restrict a user."
+    },
+    "device_fingerprint_hash": {
+      "type": "string",
+      "description": "Hashed, non-invasive device fingerprint (derived from user agent, platform, language, timezone, screen resolution) captured at verification time, for fraud investigation only. Never used to block a user."
     },
     "verified_at": {
       "type": "string",

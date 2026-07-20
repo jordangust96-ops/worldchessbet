@@ -9,6 +9,7 @@ import DemoModeNotice from "@/components/DemoModeNotice";
 import RestrictedModeBanner from "@/components/RestrictedModeBanner";
 import TransactionHistory from "@/components/wallet/TransactionHistory";
 import { useAuth } from "@/lib/AuthContext";
+import { getBrowserGeolocation, getDeviceFingerprintHash } from "@/lib/deviceContext";
 
 const TX_PAGE_SIZE = 20;
 
@@ -106,7 +107,18 @@ export default function WalletPage() {
     setIsProcessingDeposit(true);
     setDepositError("");
     try {
-      const { data } = await base44.functions.invoke("depositFunds", { amount: requestedAmount });
+      // Secondary, non-authoritative signals for fraud/forensic logging only —
+      // requested right before this paid action, never gating it either way.
+      const geo = await getBrowserGeolocation();
+      const deviceFingerprintHash = await getDeviceFingerprintHash();
+      const { data } = await base44.functions.invoke("depositFunds", {
+        amount: requestedAmount,
+        browserGeoPermission: geo.permission,
+        browserLatitude: geo.latitude,
+        browserLongitude: geo.longitude,
+        browserAccuracyMeters: geo.accuracyMeters,
+        deviceFingerprintHash,
+      });
       if (data?.eligible) {
         setDepositAmount("");
         setShowDeposit(false);

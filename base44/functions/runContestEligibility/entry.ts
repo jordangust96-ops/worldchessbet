@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { entryAmount } = await req.json();
+    const { entryAmount, relatedEntityType, relatedEntityId } = await req.json();
     const amount = Number(entryAmount);
     if (!Number.isFinite(amount) || amount <= 0) {
       return Response.json({ error: 'Invalid entry amount' }, { status: 400 });
@@ -40,7 +40,12 @@ Deno.serve(async (req) => {
 
     // 2. Jurisdiction Check — always re-verified server-side, never trusted
     // from a stale value. Only 'approved' jurisdictions may proceed.
-    const jurisdictionRes = await base44.functions.invoke('getCurrentJurisdiction', { triggerEvent: 'contest_eligibility' });
+    const jurisdictionRes = await base44.functions.invoke('getCurrentJurisdiction', {
+      triggerEvent: 'contest_eligibility',
+      relatedEntityType: relatedEntityType || 'match',
+      relatedEntityId: relatedEntityId || '',
+      contextAmount: amount,
+    });
     if (jurisdictionRes.data?.error || jurisdictionRes.data?.status !== 'approved') {
       return Response.json({
         eligible: false,

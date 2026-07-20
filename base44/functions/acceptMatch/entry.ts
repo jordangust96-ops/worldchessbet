@@ -29,7 +29,11 @@ Deno.serve(async (req) => {
     // Eligibility — the single shared pipeline (identity, jurisdiction,
     // participation restrictions, available balance) also used by Host
     // Match. No funds are held here.
-    const eligibilityRes = await base44.functions.invoke('runContestEligibility', { entryAmount: match.wager_amount });
+    const eligibilityRes = await base44.functions.invoke('runContestEligibility', {
+      entryAmount: match.wager_amount,
+      relatedEntityType: 'match',
+      relatedEntityId: match.id,
+    });
     if (eligibilityRes.data?.error || !eligibilityRes.data?.eligible) {
       return Response.json({ error: eligibilityRes.data?.reason || eligibilityRes.data?.error || 'You are not eligible to join this contest' }, { status: 403 });
     }
