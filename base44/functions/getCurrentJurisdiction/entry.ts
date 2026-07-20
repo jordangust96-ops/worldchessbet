@@ -16,21 +16,30 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 const APPROVED_STATES = ['AR', 'CO', 'GA', 'IA', 'KS', 'ND', 'TX', 'VA', 'WI', 'WY'];
 
 // ============================================================================
-// TEMPORARY DEV/TESTING OVERRIDE — REMOVE BEFORE PRODUCTION LAUNCH.
-// Adds Michigan to the approved list solely so the team can develop and
-// live-test from Michigan. Isolated here as its own array, merged below, so
-// reverting is a single-line delete of this block plus the merge below.
+// REQUIRED BEFORE PUBLIC LAUNCH: set ENABLE_GEOLOCATION_ENFORCEMENT=true.
+//
+// This flag is the SOLE gate for jurisdiction/geolocation enforcement across
+// the entire platform. Every paid flow (login, deposits, match creation,
+// match acceptance, lockWager/entry reservation, withdrawals, gameplay,
+// etc.) funnels through this function — directly or via
+// runContestEligibility, which calls this function — and none of them may
+// ever implement their own separate bypass.
+//
+// While false (pre-launch/dev/staging default): the full check below still
+// runs — the MaxMind Insights lookup, every anonymizer/VPN signal, and the
+// complete JurisdictionVerificationLog audit record are still captured and
+// written exactly as in production — but the decision returned to the
+// caller (and persisted onto the User record) is always forced to
+// 'approved' so no flow is blocked or restricted based on location. The
+// original, pre-bypass result is preserved in the audit log for
+// auditability (see pre_bypass_verification_result / pre_bypass_reason /
+// enforcement_bypassed / geolocation_enforcement_enabled below).
+//
+// While true: production behavior is exactly as implemented below —
+// whitelist enforcement (APPROVED_STATES) plus all VPN/anonymizer blocking
+// — with no other code changes required to flip this on.
 // ============================================================================
-const DEV_TEMP_APPROVED_STATES = ['MI'];
-const EFFECTIVE_APPROVED_STATES = [...APPROVED_STATES, ...DEV_TEMP_APPROVED_STATES];
-
-// TEMPORARY DEV/TESTING OVERRIDE — REMOVE BEFORE PRODUCTION LAUNCH.
-// Admin accounts are exempt from jurisdiction enforcement so the team can
-// test paid flows (deposits, contest creation/joining, fund reservation)
-// from any location, including via the builder's "acting as" preview, which
-// does not originate from the admin's real device IP. Mirrors the same
-// temporary, isolated override pattern as DEV_TEMP_APPROVED_STATES above.
-const ADMIN_TEST_OVERRIDE = true;
+const ENABLE_GEOLOCATION_ENFORCEMENT = false;
 
 // Modular provider abstraction: today this calls MaxMind. A future provider
 // (e.g. GeoComply) can replace or supplement this function's internals
@@ -187,7 +196,7 @@ Deno.serve(async (req) => {
         } else if (!country || !state) {
           status = 'unknown';
           reason = UNKNOWN_MESSAGE;
-        } else if (country === 'US' && EFFECTIVE_APPROVED_STATES.includes(state)) {
+        } else if (country === 'US' && APPROVED_STATES.includes(state)) {
           status = 'approved';
         } else {
           status = 'blocked';
@@ -196,7 +205,19 @@ Deno.serve(async (req) => {
       }
     }
 
-    if (ADMIN_TEST_OVERRIDE && user.role === 'admin' && status !== 'approved') {
+    // Preserve the fully-computed, pre-bypass result for audit purposes
+    // before the centralized bypass (if any) below overrides it.
+    const wouldBeStatus = status;
+    const wouldBeReason = reason;
+    let enforcementBypassed = false;
+
+    // REQUIRED BEFORE PUBLIC LAUNCH: set ENABLE_GEOLOCATION_ENFORCEMENT=true.
+    // The one and only bypass branch in the app — overrides a non-approved
+    // result so it never blocks/restricts a flow while enforcement is
+    // disabled. The original result computed above is untouched in
+    // wouldBeStatus/wouldBeReason and is written to the audit log below.
+    if (!ENABLE_GEOLOCATION_ENFORCEMENT && status !== 'approved') {
+      enforcementBypassed = true;
       status = 'approved';
       reason = '';
     }
@@ -269,6 +290,10 @@ Deno.serve(async (req) => {
       static_ip_score: lookupDetails.staticIpScore,
       verification_result: status,
       provider: PROVIDER,
+      geolocation_enforcement_enabled: ENABLE_GEOLOCATION_ENFORCEMENT,
+      enforcement_bypassed: enforcementBypassed,
+      pre_bypass_verification_result: wouldBeStatus,
+      pre_bypass_reason: wouldBeReason,
       vpn_or_proxy_detected: vpnDetected,
       device_identifier: deviceIdentifier,
       trigger_event: triggerEvent,

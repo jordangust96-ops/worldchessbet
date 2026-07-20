@@ -131,12 +131,36 @@
         "unknown",
         "verification_failed"
       ],
-      "description": "Outcome of this verification event"
+      "description": "The final, operative outcome of this verification event \u2014 i.e. what was actually returned to the caller and enforced. When geolocation enforcement is disabled (see geolocation_enforcement_enabled) and the true computed result was not 'approved', this will read 'approved' due to the centralized bypass; see pre_bypass_verification_result for the original computed result."
     },
     "provider": {
       "type": "string",
       "default": "MaxMind",
       "description": "Geolocation provider used for this lookup"
+    },
+    "geolocation_enforcement_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "State of the centralized ENABLE_GEOLOCATION_ENFORCEMENT feature flag at the time of this verification event."
+    },
+    "enforcement_bypassed": {
+      "type": "boolean",
+      "default": false,
+      "description": "True when this event's non-approved result was overridden to 'approved' because geolocation_enforcement_enabled was false at the time. Always false while enforcement is enabled."
+    },
+    "pre_bypass_verification_result": {
+      "type": "string",
+      "enum": [
+        "approved",
+        "blocked",
+        "unknown",
+        "verification_failed"
+      ],
+      "description": "The original result computed from the MaxMind lookup and anonymizer signals, before any enforcement bypass was applied. Equal to verification_result whenever enforcement_bypassed is false."
+    },
+    "pre_bypass_reason": {
+      "type": "string",
+      "description": "The original user-facing reason text associated with pre_bypass_verification_result, before any enforcement bypass cleared it."
     },
     "vpn_or_proxy_detected": {
       "type": "boolean",

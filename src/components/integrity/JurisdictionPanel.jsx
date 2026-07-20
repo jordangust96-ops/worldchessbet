@@ -25,12 +25,26 @@ function StatusBadge({ status }) {
 export default function JurisdictionPanel({ targetUser, logs }) {
   if (!targetUser) return null;
 
+  const latestLog = logs && logs.length > 0 ? logs[0] : null;
+
   return (
     <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4">
       <div className="flex items-center gap-2 mb-4">
         <Globe2 size={15} className="text-[#C9A84C]" />
         <h2 className="text-sm font-bold text-white/80">Jurisdiction Verification</h2>
       </div>
+
+      {latestLog && !latestLog.geolocation_enforcement_enabled && (
+        <div className="mb-4 rounded-xl bg-yellow-500/5 border border-yellow-500/20 p-3">
+          <p className="text-xs text-yellow-400/80">
+            Geolocation enforcement is currently disabled platform-wide (pre-launch). This user's status reads
+            "approved" regardless of location.
+            {latestLog.enforcement_bypassed && (
+              <> Most recent actual computed result: <strong className="uppercase">{latestLog.pre_bypass_verification_result}</strong>.</>
+            )}
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div>
