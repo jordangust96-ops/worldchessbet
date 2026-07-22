@@ -185,7 +185,11 @@ export default function ChessboardPreview({
         />
       )}
 
-      <div ref={containerRef} className="w-full h-full relative">
+      <div
+        ref={containerRef}
+        className="w-full h-full relative"
+        style={state === "marketplace" ? { filter: "blur(3px)" } : undefined}
+      >
         {size?.width ? (
           <Chessboard
             position={fen || START_FEN}
@@ -202,6 +206,20 @@ export default function ChessboardPreview({
           />
         ) : null}
       </div>
+
+      {state === "marketplace" && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+          className="absolute inset-x-0 top-6 flex justify-center pointer-events-none"
+        >
+          <p className="text-center text-xs text-white/50 px-4">
+            Host or accept a challenge to begin playing.
+          </p>
+        </motion.div>
+      )}
     </motion.div>
   );
 }
