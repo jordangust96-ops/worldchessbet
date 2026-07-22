@@ -47,6 +47,7 @@ export default function SettlementState({ match, game, userId, onReturn }) {
         <p className={`text-2xl font-extrabold ${draw ? "text-white/50" : won ? "text-[#C9A84C]" : "text-red-400"}`}>
           {draw ? "Draw" : won ? "Victory!" : "Defeat"}
         </p>
+        <p className="text-white/50 text-xs font-semibold uppercase tracking-widest mt-1">{endReason}</p>
         <p className="text-white/40 text-sm mt-1">
           {draw
             ? "Entry amounts and service fees have been refunded"
