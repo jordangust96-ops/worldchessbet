@@ -41,13 +41,14 @@ Deno.serve(async (req) => {
     let updatedMatch = await base44.asServiceRole.entities.Match.update(match.id, certUpdates);
 
     // Only when BOTH players have certified Fair Play AND successfully
-    // reserved funds does the match go live — never earlier.
+    // reserved funds does the match go live — never earlier. finalizeMatchStart
+    // is idempotent and is the single shared transition path (also re-invoked
+    // by the client as a repair mechanism if it ever fails partway).
     const bothCertified = updatedMatch.player1_certified && updatedMatch.player2_certified;
     const bothDeposited = updatedMatch.player1_deposited && updatedMatch.player2_deposited;
     if (bothCertified && bothDeposited) {
-      await base44.asServiceRole.entities.Match.update(match.id, { status: 'both_ready' });
-      await base44.functions.invoke('getOrCreateGame', { matchId: match.id });
-      updatedMatch = await base44.asServiceRole.entities.Match.update(match.id, { status: 'in_progress' });
+      const finalizeRes = await base44.functions.invoke('finalizeMatchStart', { matchId: match.id });
+      if (finalizeRes.data?.match) updatedMatch = finalizeRes.data.match;
     }
 
     return Response.json({ match: updatedMatch });

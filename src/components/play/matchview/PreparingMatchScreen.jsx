@@ -50,6 +50,21 @@ export default function PreparingMatchScreen({ match, userId, opponentId, onCanc
   const opponentCertified = isP1 ? match.player2_certified : match.player1_certified;
   const opponentDeposited = isP1 ? match.player2_deposited : match.player1_deposited;
 
+  // Self-healing safety net: if both players are fully ready (certified +
+  // deposited) but the match hasn't advanced past "preparing"/"both_ready"
+  // after a few seconds, the server-side transition to create the Game and
+  // go live must have failed partway. Re-invoke the same idempotent
+  // transition so the match recovers instead of leaving both players stuck
+  // on this screen indefinitely.
+  useEffect(() => {
+    if (!(myCertified && myDeposited && opponentCertified && opponentDeposited)) return;
+    if (match.status === "in_progress" || match.status === "completed") return;
+    const timer = setTimeout(() => {
+      base44.functions.invoke("finalizeMatchStart", { matchId: match.id });
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [myCertified, myDeposited, opponentCertified, opponentDeposited, match.status, match.id]);
+
   const handleCertify = async () => {
     setCertifying(true);
     setActionError("");
