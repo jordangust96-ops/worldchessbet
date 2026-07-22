@@ -227,7 +227,7 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
               disabled={accepting}
               className="w-full h-12 lg:h-8 rounded-2xl border-white/10 text-white/60 font-semibold hover:bg-white/5"
             >
-              Decline Match
+              Decline Challenge
             </Button>
           </div>
         </motion.div>
