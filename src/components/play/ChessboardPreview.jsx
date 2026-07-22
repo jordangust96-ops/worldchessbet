@@ -213,9 +213,12 @@ export default function ChessboardPreview({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
-          className="absolute inset-x-0 top-6 flex justify-center pointer-events-none"
+          className="absolute inset-0 flex items-center justify-center pointer-events-none"
         >
-          <p className="text-center text-xs text-white/50 px-4">
+          <p
+            className="text-center text-xs text-white/50 px-4"
+            style={{ WebkitTextStroke: "0.5px rgba(0,0,0,0.6)" }}
+          >
             Host or accept a challenge to begin playing.
           </p>
         </motion.div>
