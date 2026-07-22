@@ -53,8 +53,14 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'You are not a player in this match' }, { status: 403 });
     }
 
+    // Rebuild the chess.js instance by replaying the full recorded move
+    // history (rather than just loading the current FEN) so chess.pgn()
+    // below always returns the complete game record instead of resetting to
+    // a bare "[SetUp]/[FEN]" snippet containing only the newest move.
     const chess = new Chess();
-    chess.load(game.fen);
+    for (const entry of game.move_log || []) {
+      chess.move(entry.san);
+    }
 
     const myColor = isP1 ? 'w' : 'b';
     if (chess.turn() !== myColor) {
