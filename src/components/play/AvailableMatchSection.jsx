@@ -210,7 +210,7 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
               className="w-full h-14 lg:h-10 rounded-2xl text-base lg:text-sm font-bold gold-gradient text-black hover:opacity-90 transition-opacity disabled:opacity-30"
             >
               {accepting ? <Loader2 className="animate-spin mr-2" size={18} /> : null}
-              Join Challenge
+              Accept Challenge
             </Button>
             {insufficientFunds && (
               <p className="text-[11px] text-center text-[#C9A84C]/70">
