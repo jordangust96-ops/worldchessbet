@@ -28,7 +28,7 @@ export default function Home() {
   // null on remount and let the same dismissed match resurface.
   const dismissedMatchIdRef = useRef(sessionStorage.getItem("chessbet_dismissed_match_id"));
   const gameActive =
-    boardState === "in_progress" || boardState === "game_summary" || boardState === "settlement";
+    boardState === "in_progress" || boardState === "finalizing" || boardState === "settlement";
   const isLive = boardState === "in_progress";
   const [movementMode, setMovementMode] = useState("drag");
   const { fen, handleDrop, handleSquareClick, selectedSquare, legalTargets, orientation, game } =
@@ -68,7 +68,8 @@ export default function Home() {
       }
     };
     // One-time fetch to recover the authoritative state on mount or reconnect.
-    checkActiveMatch();
+    // A transient network error here must never surface as an uncaught error.
+    checkActiveMatch().catch(() => {});
 
     const unsubscribe = base44.entities.Match.subscribe((event) => {
       if (event.data?.player1_id !== user.id && event.data?.player2_id !== user.id) return;
@@ -85,12 +86,14 @@ export default function Home() {
       // Never restore a match the player already dismissed via Find New Match.
       if (event.data.id === dismissedMatchIdRef.current) return;
       if (!["preparing", "both_ready", "in_progress"].includes(event.data.status)) return;
-      isMatchGenuinelyActive(event.data).then((genuinelyActive) => {
-        if (genuinelyActive && event.data.id !== dismissedMatchIdRef.current) {
-          setMyMatchId(event.data.id);
-          setActiveMatch(event.data);
-        }
-      });
+      isMatchGenuinelyActive(event.data)
+        .then((genuinelyActive) => {
+          if (genuinelyActive && event.data.id !== dismissedMatchIdRef.current) {
+            setMyMatchId(event.data.id);
+            setActiveMatch(event.data);
+          }
+        })
+        .catch(() => {});
     });
     return () => unsubscribe();
   }, [user?.id]);
