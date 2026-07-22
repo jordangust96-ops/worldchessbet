@@ -164,6 +164,14 @@ export default function Home() {
           animate={{ opacity: 1 }}
           className="lg:w-[62%] w-full lg:h-full lg:flex lg:flex-col lg:items-center lg:justify-center gap-3"
         >
+          <motion.p
+            initial={false}
+            animate={{ opacity: boardState === "marketplace" ? 1 : 0, height: boardState === "marketplace" ? "auto" : 0 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+            className="text-center text-xs text-white/40 mb-2 lg:mb-0 overflow-hidden"
+          >
+            Host or accept a challenge to begin playing.
+          </motion.p>
           <ChessboardPreview
             state={boardState}
             fen={gameActive ? fen : undefined}
