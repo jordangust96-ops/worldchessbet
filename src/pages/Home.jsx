@@ -8,7 +8,6 @@ import MatchView from "@/components/play/MatchView";
 import DemoModeNotice from "@/components/DemoModeNotice";
 import RestrictedModeBanner from "@/components/RestrictedModeBanner";
 import { useChessGame } from "@/hooks/useChessGame";
-import { DEMO_MODE, EARLY_ACCESS_STARTING_BALANCE } from "@/lib/appConfig";
 
 export default function Home() {
   const [user, setUser] = useState(null);
@@ -116,27 +115,12 @@ export default function Home() {
       const me = await base44.auth.me();
       setUser(me);
       setMovementMode(me.movement_mode === "click" ? "click" : "drag");
-      const wallets = await base44.entities.Wallet.filter({ user_id: me.id });
-      if (wallets.length > 0) {
-        setWallet(wallets[0]);
-      } else {
-        // Early Access Mode: grant a testing balance instead of requiring a
-        // real deposit, so the full platform flow can be exercised. Remove
-        // this bypass (and DEMO_MODE) before public production launch.
-        const startingBalance = DEMO_MODE ? EARLY_ACCESS_STARTING_BALANCE : 0;
-        const newWallet = await base44.entities.Wallet.create({
-          user_id: me.id,
-          balance: startingBalance,
-          available_balance: startingBalance,
-          held_balance: 0,
-          total_balance: startingBalance,
-          total_wagered: 0,
-          total_won: 0,
-          total_deposited: 0,
-          total_withdrawn: 0,
-        });
-        setWallet(newWallet);
-      }
+      // Ensures a Wallet exists and, while Early Access Mode is on, grants the
+      // one-time $500 bonus balance (recorded as a real WalletTransaction so
+      // it shows in the user's transaction history) — see
+      // base44/functions/grantEarlyAccessFunds and base44/shared/earlyAccess.ts.
+      const { data } = await base44.functions.invoke("grantEarlyAccessFunds", {});
+      setWallet(data.wallet);
     };
     load();
   }, []);
