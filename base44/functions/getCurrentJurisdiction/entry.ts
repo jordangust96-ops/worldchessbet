@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { EARLY_ACCESS_MODE } from '../../shared/earlyAccess.ts';
 
 // ============================================================================
 // Centralized jurisdiction abstraction for ChessBet's paid platform.
@@ -38,8 +39,12 @@ const APPROVED_STATES = ['AR', 'CO', 'GA', 'IA', 'KS', 'ND', 'TX', 'VA', 'WI', '
 // While true: production behavior is exactly as implemented below —
 // whitelist enforcement (APPROVED_STATES) plus all VPN/anonymizer blocking
 // — with no other code changes required to flip this on.
+//
+// This is now sourced from the single, app-wide EARLY_ACCESS_MODE flag in
+// base44/shared/earlyAccess.ts, so geolocation enforcement, identity
+// verification, and every other compliance gate all flip together.
 // ============================================================================
-const ENABLE_GEOLOCATION_ENFORCEMENT = false;
+const ENABLE_GEOLOCATION_ENFORCEMENT = !EARLY_ACCESS_MODE;
 
 // Modular provider abstraction: today this calls MaxMind. A future provider
 // (e.g. GeoComply) can replace or supplement this function's internals

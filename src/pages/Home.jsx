@@ -8,6 +8,7 @@ import MatchView from "@/components/play/MatchView";
 import DemoModeNotice from "@/components/DemoModeNotice";
 import RestrictedModeBanner from "@/components/RestrictedModeBanner";
 import { useChessGame } from "@/hooks/useChessGame";
+import { DEMO_MODE, EARLY_ACCESS_STARTING_BALANCE } from "@/lib/appConfig";
 
 export default function Home() {
   const [user, setUser] = useState(null);
@@ -119,9 +120,16 @@ export default function Home() {
       if (wallets.length > 0) {
         setWallet(wallets[0]);
       } else {
+        // Early Access Mode: grant a testing balance instead of requiring a
+        // real deposit, so the full platform flow can be exercised. Remove
+        // this bypass (and DEMO_MODE) before public production launch.
+        const startingBalance = DEMO_MODE ? EARLY_ACCESS_STARTING_BALANCE : 0;
         const newWallet = await base44.entities.Wallet.create({
           user_id: me.id,
-          balance: 0,
+          balance: startingBalance,
+          available_balance: startingBalance,
+          held_balance: 0,
+          total_balance: startingBalance,
           total_wagered: 0,
           total_won: 0,
           total_deposited: 0,

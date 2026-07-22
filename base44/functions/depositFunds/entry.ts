@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { EARLY_ACCESS_MODE } from '../../shared/earlyAccess.ts';
 
 // Server-authoritative deposit handler. The client only ever sends the
 // requested amount — the resulting balance is always computed here from the
@@ -88,8 +89,10 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Invalid funding amount' }, { status: 400 });
     }
 
-    // Only Verified accounts may deposit funds (Provisional/Suspended/Closed cannot).
-    if (user.account_state !== 'verified') {
+    // Only Verified accounts may deposit funds (Provisional/Suspended/Closed
+    // cannot) — bypassed while EARLY_ACCESS_MODE is true (pre-launch testing
+    // only; see base44/shared/earlyAccess.ts).
+    if (!EARLY_ACCESS_MODE && user.account_state !== 'verified') {
       return Response.json({
         eligible: false,
         reason: user.account_state === 'suspended'

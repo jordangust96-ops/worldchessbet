@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { EARLY_ACCESS_MODE } from '../../shared/earlyAccess.ts';
 
 // Reserves a player's Entry Amount into escrow during the shared Preparing
 // Match phase. Requires that player to have already certified Fair Play.
@@ -88,8 +89,10 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // Only Verified accounts may enter paid contests (Provisional/Suspended/Closed cannot).
-    if (user.account_state !== 'verified') {
+    // Only Verified accounts may enter paid contests (Provisional/Suspended/
+    // Closed cannot) — bypassed while EARLY_ACCESS_MODE is true (pre-launch
+    // testing only; see base44/shared/earlyAccess.ts).
+    if (!EARLY_ACCESS_MODE && user.account_state !== 'verified') {
       return Response.json({ error: 'Your account must be verified before you can enter a paid contest' }, { status: 403 });
     }
 
