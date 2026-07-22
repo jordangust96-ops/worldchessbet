@@ -6,7 +6,7 @@ import { useToast } from "@/components/ui/use-toast";
 import PreparingMatchScreen from "@/components/play/matchview/PreparingMatchScreen";
 import MatchStartCountdown from "@/components/play/matchview/MatchStartCountdown";
 import GameHUD from "@/components/play/matchview/GameHUD";
-import GameSummary from "@/components/play/matchview/GameSummary";
+import FinalizingMatch from "@/components/play/matchview/FinalizingMatch";
 import SettlementState from "@/components/play/matchview/SettlementState";
 
 // Match data is sourced entirely from the parent (Home), which owns the single
@@ -78,8 +78,8 @@ export default function MatchView({
       stateKey = "settlement";
       content = <SettlementState match={match} game={game} userId={userId} onReturn={onExit} />;
     } else if (game?.status === "completed") {
-      stateKey = "game_summary";
-      content = <GameSummary match={match} game={game} userId={userId} onPlayAgain={onExit} />;
+      stateKey = "finalizing";
+      content = <FinalizingMatch />;
     } else if (match.status === "in_progress") {
       if (!countdownDone) {
         stateKey = "countdown";
