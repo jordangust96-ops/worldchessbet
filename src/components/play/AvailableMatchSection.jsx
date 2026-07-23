@@ -68,6 +68,7 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
 
   const handleDecline = () => {
     if (!current) return;
+    base44.entities.MatchDeclineLog.create({ match_id: current.id, host_id: current.player1_id }).catch(() => {});
     setDeclinedIds((ids) => [...ids, current.id]);
   };
 

@@ -1,0 +1,34 @@
+{
+  "name": "MatchDeclineLog",
+  "type": "object",
+  "properties": {
+    "match_id": {
+      "type": "string",
+      "description": "ID of the Match challenge that was declined"
+    },
+    "host_id": {
+      "type": "string",
+      "description": "player1_id (host) of the declined match, denormalized for reporting"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional description"
+    }
+  },
+  "required": [
+    "match_id"
+  ],
+  "rls": {
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": false,
+    "delete": false
+  }
+}

@@ -170,7 +170,7 @@ export default function Profile() {
         </Link>
 
         {/* Admin Tools */}
-        {user?.role === "admin" && <AdminToolsSection />}
+        {user?.role === "admin" && <AdminToolsSection userEmail={user?.email} />}
 
         {/* Security */}
         <SecuritySection email={user?.email} />

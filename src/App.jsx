@@ -35,6 +35,7 @@ import AdminGameSettings from '@/pages/AdminGameSettings';
 import DisputeCaseQueue from '@/pages/DisputeCaseQueue';
 import AdminDisputeCase from '@/pages/AdminDisputeCase';
 import MyReports from '@/pages/MyReports';
+import AdminSiteActivity from '@/pages/AdminSiteActivity';
 
 // Layout
 import AppLayout from '@/components/layout/AppLayout';
@@ -89,6 +90,7 @@ const AuthenticatedApp = () => {
             <Route path="/admin/game-settings" element={<AdminGameSettings />} />
             <Route path="/admin/disputes" element={<DisputeCaseQueue />} />
             <Route path="/admin/disputes/:caseId" element={<AdminDisputeCase />} />
+            <Route path="/admin/site-activity" element={<AdminSiteActivity />} />
             <Route element={<AppLayout />}>
               <Route path="/" element={<Home />} />
               <Route path="/wallet" element={<WalletPage />} />

@@ -1,0 +1,34 @@
+{
+  "name": "SiteVisit",
+  "type": "object",
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "description": "Random ID generated once per browser session, used to avoid logging duplicate visits within the same session"
+    },
+    "path": {
+      "type": "string",
+      "description": "URL path of the page that triggered this visit log"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional description"
+    }
+  },
+  "required": [
+    "session_id"
+  ],
+  "rls": {
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": false,
+    "delete": false
+  }
+}
