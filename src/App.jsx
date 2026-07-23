@@ -28,6 +28,7 @@ import PrivacyPolicyAdmin from '@/pages/PrivacyPolicyAdmin';
 import TermsOfService from '@/pages/TermsOfService';
 import TermsOfServiceAdmin from '@/pages/TermsOfServiceAdmin';
 import OfficialRules from '@/pages/OfficialRules';
+import FAQ from '@/pages/FAQ';
 import OfficialRulesAdmin from '@/pages/OfficialRulesAdmin';
 import FairPlayIntegrity from '@/pages/FairPlayIntegrity';
 import JoinMatch from '@/pages/JoinMatch';
@@ -75,6 +76,7 @@ const AuthenticatedApp = () => {
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       <Route path="/terms-of-service" element={<TermsOfService />} />
       <Route path="/official-rules" element={<OfficialRules />} />
+      <Route path="/faq" element={<FAQ />} />
       {/* Handles its own auth/MFA gating so it can return the visitor to this
           exact invitation after they sign in. */}
       <Route path="/join/:inviteCode" element={<JoinMatch />} />

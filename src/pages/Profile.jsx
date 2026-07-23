@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { User, Mail, Trophy, Swords, LogOut, Loader2, Crown, XCircle, Flag, ShieldAlert, ChevronRight } from "lucide-react";
+import { User, Mail, Trophy, Swords, LogOut, Loader2, Crown, XCircle, Flag, ShieldAlert, ChevronRight, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import Logo from "@/components/Logo";
@@ -165,6 +165,18 @@ export default function Profile() {
           <div className="flex items-center gap-3">
             <Flag size={16} className="text-white/40" />
             <span className="text-sm font-semibold text-white">My Reports</span>
+          </div>
+          <ChevronRight size={16} className="text-white/20" />
+        </Link>
+
+        {/* FAQ */}
+        <Link
+          to="/faq"
+          className="flex items-center justify-between rounded-2xl bg-white/[0.03] border border-white/5 p-4 hover:bg-white/[0.05] transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <HelpCircle size={16} className="text-white/40" />
+            <span className="text-sm font-semibold text-white">FAQ</span>
           </div>
           <ChevronRight size={16} className="text-white/20" />
         </Link>
