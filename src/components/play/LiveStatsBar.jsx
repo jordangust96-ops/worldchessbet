@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Users, Swords, DollarSign, ListChecks } from "lucide-react";
+import { Users, Swords, ListChecks } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
 const REFRESH_INTERVAL_MS = 15000;
@@ -26,7 +26,6 @@ export default function LiveStatsBar() {
     { icon: Users, value: stats.playersOnline, label: "Online" },
     { icon: Swords, value: stats.matchesLive, label: "Live" },
     { icon: ListChecks, value: stats.availableMatches, label: "Available" },
-    { icon: DollarSign, value: `$${stats.totalWageredToday.toFixed(0)}`, label: "Wagered Today" },
   ];
 
   return (
