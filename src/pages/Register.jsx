@@ -13,6 +13,24 @@ import { setMfaVerified } from "@/lib/mfaSession";
 import { getPostAuthRedirect } from "@/lib/postAuthRedirect";
 import { POLICY_TYPE_ORDER } from "@/lib/legalDocumentTypes";
 import { trackPixelEvent } from "@/lib/metaPixel";
+import SEO from "@/components/seo/SEO";
+import { SITE_URL } from "@/lib/seoConfig";
+
+function RegisterSEO() {
+  return (
+    <SEO
+      title="Create an Account | ChessBet"
+      description="Create your free ChessBet account to start competing in skill-based, real-money chess matches. Sign up in seconds and challenge real opponents right now."
+      canonicalUrl={`${SITE_URL}/register`}
+      structuredData={{
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        name: "Create an Account",
+        url: `${SITE_URL}/register`,
+      }}
+    />
+  );
+}
 
 export default function Register() {
   const [email, setEmail] = useState("");
@@ -107,182 +125,188 @@ export default function Register() {
 
   if (showOtp) {
     return (
+      <>
+        <RegisterSEO />
+        <AuthLayout
+          icon={Mail}
+          title="Verify your email"
+          subtitle={`We sent a code to ${email}`}
+        >
+          {error && (
+            <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+              {error}
+            </div>
+          )}
+          <div className="flex justify-center mb-6">
+            <InputOTP
+              maxLength={6}
+              value={otpCode}
+              onChange={setOtpCode}
+              autoFocus
+              autoComplete="one-time-code"
+            >
+              <InputOTPGroup>
+                <InputOTPSlot index={0} />
+                <InputOTPSlot index={1} />
+                <InputOTPSlot index={2} />
+                <InputOTPSlot index={3} />
+                <InputOTPSlot index={4} />
+                <InputOTPSlot index={5} />
+              </InputOTPGroup>
+            </InputOTP>
+          </div>
+          <Button
+            className="w-full h-12 font-medium"
+            onClick={handleVerify}
+            disabled={loading || otpCode.length < 6}
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Verifying...
+              </>
+            ) : (
+              "Verify"
+            )}
+          </Button>
+          <p className="text-center text-sm text-muted-foreground mt-4">
+            Didn't receive the code?{" "}
+            <button onClick={handleResend} className="text-primary font-medium hover:underline">
+              Resend
+            </button>
+          </p>
+        </AuthLayout>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <RegisterSEO />
       <AuthLayout
-        icon={Mail}
-        title="Verify your email"
-        subtitle={`We sent a code to ${email}`}
+        icon={UserPlus}
+        title="Create your account"
+        subtitle="Sign up to get started"
+        footer={
+          <>
+            Already have an account?{" "}
+            <Link to="/login" className="text-primary font-medium hover:underline">
+              Log in
+            </Link>
+          </>
+        }
       >
+        <Button
+          variant="outline"
+          className="w-full h-12 text-sm font-medium mb-6"
+          onClick={handleGoogle}
+        >
+          <GoogleIcon className="w-5 h-5 mr-2" />
+          Continue with Google
+        </Button>
+
+        <div className="relative mb-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-border" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-card px-3 text-muted-foreground">or</span>
+          </div>
+        </div>
+
         {error && (
           <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
             {error}
           </div>
         )}
-        <div className="flex justify-center mb-6">
-          <InputOTP
-            maxLength={6}
-            value={otpCode}
-            onChange={setOtpCode}
-            autoFocus
-            autoComplete="one-time-code"
-          >
-            <InputOTPGroup>
-              <InputOTPSlot index={0} />
-              <InputOTPSlot index={1} />
-              <InputOTPSlot index={2} />
-              <InputOTPSlot index={3} />
-              <InputOTPSlot index={4} />
-              <InputOTPSlot index={5} />
-            </InputOTPGroup>
-          </InputOTP>
-        </div>
-        <Button
-          className="w-full h-12 font-medium"
-          onClick={handleVerify}
-          disabled={loading || otpCode.length < 6}
-        >
-          {loading ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Verifying...
-            </>
-          ) : (
-            "Verify"
-          )}
-        </Button>
-        <p className="text-center text-sm text-muted-foreground mt-4">
-          Didn't receive the code?{" "}
-          <button onClick={handleResend} className="text-primary font-medium hover:underline">
-            Resend
-          </button>
-        </p>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                autoFocus
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="pl-10 h-12"
+                required
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+              <Input
+                id="password"
+                type="password"
+                autoComplete="new-password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="pl-10 h-12"
+                required
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="confirm">Confirm Password</Label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+              <Input
+                id="confirm"
+                type="password"
+                autoComplete="new-password"
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="pl-10 h-12"
+                required
+              />
+            </div>
+          </div>
+          <label className="flex items-start gap-2.5 cursor-pointer pt-1">
+            <input
+              type="checkbox"
+              checked={agreedToPolicy}
+              onChange={(e) => setAgreedToPolicy(e.target.checked)}
+              className="mt-0.5 w-4 h-4 rounded accent-primary"
+              required
+            />
+            <span className="text-sm text-muted-foreground">
+              I have read and agree to the{" "}
+              <Link to="/terms-of-service" target="_blank" rel="noreferrer" className="text-primary font-medium hover:underline">
+                Terms of Service
+              </Link>
+              ,{" "}
+              <Link to="/privacy-policy" target="_blank" rel="noreferrer" className="text-primary font-medium hover:underline">
+                Privacy Policy
+              </Link>
+              , and{" "}
+              <Link to="/official-rules" target="_blank" rel="noreferrer" className="text-primary font-medium hover:underline">
+                Official Rules
+              </Link>
+              .
+            </span>
+          </label>
+
+          <Button type="submit" className="w-full h-12 font-medium" disabled={loading || !agreedToPolicy}>
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Creating account...
+              </>
+            ) : (
+              "Create account"
+            )}
+          </Button>
+        </form>
       </AuthLayout>
-    );
-  }
-
-  return (
-    <AuthLayout
-      icon={UserPlus}
-      title="Create your account"
-      subtitle="Sign up to get started"
-      footer={
-        <>
-          Already have an account?{" "}
-          <Link to="/login" className="text-primary font-medium hover:underline">
-            Log in
-          </Link>
-        </>
-      }
-    >
-      <Button
-        variant="outline"
-        className="w-full h-12 text-sm font-medium mb-6"
-        onClick={handleGoogle}
-      >
-        <GoogleIcon className="w-5 h-5 mr-2" />
-        Continue with Google
-      </Button>
-
-      <div className="relative mb-6">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-border" />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-card px-3 text-muted-foreground">or</span>
-        </div>
-      </div>
-
-      {error && (
-        <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
-          {error}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <div className="relative">
-            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
-            <Input
-              id="email"
-              type="email"
-              autoComplete="email"
-              autoFocus
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="pl-10 h-12"
-              required
-            />
-          </div>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
-            <Input
-              id="password"
-              type="password"
-              autoComplete="new-password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="pl-10 h-12"
-              required
-            />
-          </div>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="confirm">Confirm Password</Label>
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
-            <Input
-              id="confirm"
-              type="password"
-              autoComplete="new-password"
-              placeholder="••••••••"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="pl-10 h-12"
-              required
-            />
-          </div>
-        </div>
-        <label className="flex items-start gap-2.5 cursor-pointer pt-1">
-          <input
-            type="checkbox"
-            checked={agreedToPolicy}
-            onChange={(e) => setAgreedToPolicy(e.target.checked)}
-            className="mt-0.5 w-4 h-4 rounded accent-primary"
-            required
-          />
-          <span className="text-sm text-muted-foreground">
-            I have read and agree to the{" "}
-            <Link to="/terms-of-service" target="_blank" rel="noreferrer" className="text-primary font-medium hover:underline">
-              Terms of Service
-            </Link>
-            ,{" "}
-            <Link to="/privacy-policy" target="_blank" rel="noreferrer" className="text-primary font-medium hover:underline">
-              Privacy Policy
-            </Link>
-            , and{" "}
-            <Link to="/official-rules" target="_blank" rel="noreferrer" className="text-primary font-medium hover:underline">
-              Official Rules
-            </Link>
-            .
-          </span>
-        </label>
-
-        <Button type="submit" className="w-full h-12 font-medium" disabled={loading || !agreedToPolicy}>
-          {loading ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Creating account...
-            </>
-          ) : (
-            "Create account"
-          )}
-        </Button>
-      </form>
-    </AuthLayout>
+    </>
   );
 }

@@ -1,70 +1,46 @@
-import { useEffect } from "react";
+import { Helmet } from "react-helmet-async";
+import { SITE_NAME, DEFAULT_OG_IMAGE, TWITTER_HANDLE } from "@/lib/seoConfig";
 
-function setMeta(attr, key, content) {
-  if (!content) return;
-  let el = document.querySelector(`meta[${attr}="${key}"]`);
-  if (!el) {
-    el = document.createElement("meta");
-    el.setAttribute(attr, key);
-    document.head.appendChild(el);
-  }
-  el.setAttribute("content", content);
-}
-
-function setLink(rel, href) {
-  if (!href) return;
-  let el = document.querySelector(`link[rel="${rel}"]`);
-  if (!el) {
-    el = document.createElement("link");
-    el.setAttribute("rel", rel);
-    document.head.appendChild(el);
-  }
-  el.setAttribute("href", href);
-}
-
-// Lightweight, dependency-free SEO tag manager for this single-page app.
-// Mount once per public page to set a unique <title>, meta description,
-// Open Graph / Twitter tags, canonical URL, and (optionally) JSON-LD
-// structured data. Renders nothing.
+// Centralized SEO metadata manager for the app's public pages. Mount once per
+// page with a unique title/description/canonicalUrl — renders the <title>,
+// meta description, canonical link, Open Graph tags, Twitter Card tags, and
+// any JSON-LD structured data via react-helmet-async.
 export default function SEO({
   title,
   description,
   canonicalUrl,
-  ogTitle,
-  ogDescription,
+  ogImage = DEFAULT_OG_IMAGE,
   ogType = "website",
-  ogImage,
   structuredData,
+  noindex = false,
 }) {
-  useEffect(() => {
-    const previousTitle = document.title;
-    if (title) document.title = title;
+  const schemas = Array.isArray(structuredData) ? structuredData : structuredData ? [structuredData] : [];
 
-    setMeta("name", "description", description);
-    setMeta("property", "og:title", ogTitle || title);
-    setMeta("property", "og:description", ogDescription || description);
-    setMeta("property", "og:type", ogType);
-    setMeta("property", "og:url", canonicalUrl);
-    setMeta("property", "og:image", ogImage);
-    setMeta("name", "twitter:card", ogImage ? "summary_large_image" : "summary");
-    setMeta("name", "twitter:title", ogTitle || title);
-    setMeta("name", "twitter:description", ogDescription || description);
-    setMeta("name", "twitter:image", ogImage);
-    setLink("canonical", canonicalUrl);
+  return (
+    <Helmet>
+      {title && <title>{title}</title>}
+      {description && <meta name="description" content={description} />}
+      {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+      {noindex && <meta name="robots" content="noindex, nofollow" />}
 
-    let script;
-    if (structuredData) {
-      script = document.createElement("script");
-      script.type = "application/ld+json";
-      script.textContent = JSON.stringify(structuredData);
-      document.head.appendChild(script);
-    }
+      <meta property="og:site_name" content={SITE_NAME} />
+      <meta property="og:type" content={ogType} />
+      {title && <meta property="og:title" content={title} />}
+      {description && <meta property="og:description" content={description} />}
+      {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
+      {ogImage && <meta property="og:image" content={ogImage} />}
 
-    return () => {
-      document.title = previousTitle;
-      if (script) document.head.removeChild(script);
-    };
-  }, [title, description, canonicalUrl, ogTitle, ogDescription, ogType, ogImage, structuredData]);
+      <meta name="twitter:card" content={ogImage ? "summary_large_image" : "summary"} />
+      <meta name="twitter:site" content={TWITTER_HANDLE} />
+      {title && <meta name="twitter:title" content={title} />}
+      {description && <meta name="twitter:description" content={description} />}
+      {ogImage && <meta name="twitter:image" content={ogImage} />}
 
-  return null;
+      {schemas.map((schema, i) => (
+        <script key={i} type="application/ld+json">
+          {JSON.stringify(schema)}
+        </script>
+      ))}
+    </Helmet>
+  );
 }

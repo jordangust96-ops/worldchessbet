@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { isMfaVerified } from "@/lib/mfaSession";
 import { setPostAuthRedirect, clearPostAuthRedirect } from "@/lib/postAuthRedirect";
 import { computeContestFinancials } from "@/lib/contestFinancials";
+import SEO from "@/components/seo/SEO";
 
 // Entry point for a Private Match invitation link (/join/:inviteCode). Handles
 // its own auth/MFA gating (rather than the shared ProtectedRoute tree) so an
@@ -88,23 +89,27 @@ export default function JoinMatch() {
 
   if (status === "invalid") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0A0A0A] px-5">
-        <div className="text-center space-y-4 max-w-sm">
-          <Shield size={32} className="text-white/20 mx-auto" />
-          <p className="text-lg font-bold text-white">This invitation is no longer available.</p>
-          <Button
-            onClick={() => navigate("/")}
-            className="gold-gradient text-black font-bold rounded-2xl h-11 px-6"
-          >
-            Return to Play
-          </Button>
+      <>
+        <SEO title="Private Match Invitation | ChessBet" description="A private ChessBet match invitation." noindex />
+        <div className="min-h-screen flex items-center justify-center bg-[#0A0A0A] px-5">
+          <div className="text-center space-y-4 max-w-sm">
+            <Shield size={32} className="text-white/20 mx-auto" />
+            <p className="text-lg font-bold text-white">This invitation is no longer available.</p>
+            <Button
+              onClick={() => navigate("/")}
+              className="gold-gradient text-black font-bold rounded-2xl h-11 px-6"
+            >
+              Return to Play
+            </Button>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] px-5 py-10 flex items-center justify-center">
+      <SEO title="Private Match Invitation | ChessBet" description="A private ChessBet match invitation." noindex />
       <div className="w-full max-w-sm space-y-5">
         <div className="flex items-center justify-center gap-2">
           <Crown size={18} strokeWidth={1.5} className="text-[#C9A84C]" />

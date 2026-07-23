@@ -6,22 +6,22 @@ import { Button } from "@/components/ui/button";
 import NotifyAtLaunchModal from "@/components/NotifyAtLaunchModal";
 import Logo from "@/components/Logo";
 import SEO from "@/components/seo/SEO";
-
-const LOGO_URL = "https://media.base44.com/images/public/6a4ed72536c51cb3280d2bc6/7eb5eb625_logo-removebg-preview.png";
+import { SITE_URL, LOGO_URL, SOCIAL_PROFILES } from "@/lib/seoConfig";
 
 const STRUCTURED_DATA = {
   "@context": "https://schema.org",
   "@graph": [
     {
       "@type": "Organization",
-      name: "WorldChessBet",
-      url: "https://worldchessbet.com",
+      name: "ChessBet",
+      url: SITE_URL,
       logo: LOGO_URL,
+      sameAs: SOCIAL_PROFILES,
     },
     {
       "@type": "WebSite",
-      name: "WorldChessBet",
-      url: "https://worldchessbet.com",
+      name: "ChessBet",
+      url: SITE_URL,
     },
   ],
 };
@@ -32,11 +32,9 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-[#0A0A0A] flex flex-col">
       <SEO
-        title="WorldChessBet | Real-Money Skill-Based Chess Matches"
-        description="Compete in real-money skill-based chess matches against players of similar ability. Host challenges, accept matches, and enjoy a secure online chess experience. Early Access available now."
-        canonicalUrl="https://worldchessbet.com"
-        ogDescription="Compete in real-money skill-based chess matches against players of similar ability."
-        ogImage={LOGO_URL}
+        title="ChessBet | Real-Money Skill-Based Chess Matches"
+        description="ChessBet is a skill-based real-money chess platform where you challenge real opponents, wager on head-to-head matches, and get paid instantly when you win."
+        canonicalUrl={SITE_URL}
         structuredData={STRUCTURED_DATA}
       />
       {/* Header */}

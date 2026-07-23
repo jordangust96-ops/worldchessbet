@@ -12,6 +12,8 @@ export const LEGAL_DOCUMENT_TYPES = {
     route: "/privacy-policy",
     adminRoute: "/admin/privacy-policy",
     icon: Shield,
+    seoDescription:
+      "Learn how ChessBet collects, uses, and protects your personal data, including identity verification, payment details, and account activity information.",
   },
   terms_of_service: {
     key: "terms_of_service",
@@ -19,6 +21,8 @@ export const LEGAL_DOCUMENT_TYPES = {
     route: "/terms-of-service",
     adminRoute: "/admin/terms-of-service",
     icon: FileText,
+    seoDescription:
+      "Review ChessBet's Terms of Service outlining account eligibility, wager rules, platform fees, dispute resolution, and your rights as a registered player.",
   },
   official_rules: {
     key: "official_rules",
@@ -26,5 +30,7 @@ export const LEGAL_DOCUMENT_TYPES = {
     route: "/official-rules",
     adminRoute: "/admin/official-rules",
     icon: Scroll,
+    seoDescription:
+      "Read ChessBet's Official Rules governing skill-based chess contests, entry amounts, match settlement, fair play standards, and eligibility requirements.",
   },
 };
