@@ -59,7 +59,7 @@ export default function Landing() {
             <Logo size="lg" className="justify-center" />
             <h1 className="sr-only">Real-Money Skill-Based Chess Matches</h1>
             <p className="text-white/70 text-xl font-semibold leading-snug max-w-sm mx-auto">
-              Wager. Compete. Win.
+              Challenge. Compete. Win.
             </p>
             <p className="text-white/50 text-lg leading-relaxed max-w-sm mx-auto">
               Real Chess. Real Stakes.
@@ -98,8 +98,8 @@ export default function Landing() {
         >
           {[
             { icon: Zap, label: "Instant\nMatching" },
-            { icon: Shield, label: "Reserved\nFunds" },
-            { icon: Crown, label: "Auto\nPayout" },
+            { icon: Shield, label: "Secure\nFunds" },
+            { icon: Crown, label: "Fast\nPayout" },
           ].map(({ icon: Icon, label }) => (
             <div
               key={label}
