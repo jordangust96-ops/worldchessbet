@@ -62,7 +62,7 @@ export default function Landing() {
               Wager. Compete. Win.
             </p>
             <p className="text-white/50 text-lg leading-relaxed max-w-sm mx-auto">
-              Head-to-head chess with real stakes.
+              Real Chess. Real Stakes.
             </p>
           </div>
 
