@@ -5,12 +5,36 @@ import { Crown, Zap, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import NotifyAtLaunchModal from "@/components/NotifyAtLaunchModal";
 import Logo from "@/components/Logo";
+import SEO from "@/components/seo/SEO";
+
+const STRUCTURED_DATA = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      name: "WorldChessBet",
+      url: "https://worldchessbet.com",
+    },
+    {
+      "@type": "WebSite",
+      name: "WorldChessBet",
+      url: "https://worldchessbet.com",
+    },
+  ],
+};
 
 export default function Landing() {
   const [notifyModalOpen, setNotifyModalOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] flex flex-col">
+      <SEO
+        title="WorldChessBet | Real-Money Skill-Based Chess Matches"
+        description="Compete in real-money skill-based chess matches against players of similar ability. Host challenges, accept matches, and enjoy a secure online chess experience. Early Access available now."
+        canonicalUrl="https://worldchessbet.com"
+        ogDescription="Compete in real-money skill-based chess matches against players of similar ability."
+        structuredData={STRUCTURED_DATA}
+      />
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-5">
         <Logo size="md" />
@@ -31,6 +55,7 @@ export default function Landing() {
         >
           <div className="space-y-4">
             <Logo size="lg" className="justify-center" />
+            <h1 className="sr-only">Real-Money Skill-Based Chess Matches</h1>
             <p className="text-white/70 text-xl font-semibold leading-snug max-w-sm mx-auto">
               Wager. Compete. Win.
             </p>

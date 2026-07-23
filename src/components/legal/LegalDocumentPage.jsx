@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/accordion";
 import ReactMarkdown from "react-markdown";
 import { LEGAL_DOCUMENT_TYPES } from "@/lib/legalDocumentTypes";
+import SEO from "@/components/seo/SEO";
 
 function slugify(title) {
   return title
@@ -69,6 +70,11 @@ export default function LegalDocumentPage({ policyType }) {
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] pb-16">
+      <SEO
+        title={`${docMeta.label} | WorldChessBet`}
+        description={`Read the WorldChessBet ${docMeta.label}, covering how our real-money skill-based chess platform operates.`}
+        canonicalUrl={`https://worldchessbet.com${docMeta.route}`}
+      />
       <div className="sticky top-0 z-10 bg-[#0A0A0A]/95 backdrop-blur border-b border-white/5 px-5 py-4">
         <Link to="/profile" className="inline-flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 mb-3">
           <ArrowLeft size={14} /> Back to Profile
