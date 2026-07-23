@@ -33,6 +33,7 @@ export default function SEO({
   ogTitle,
   ogDescription,
   ogType = "website",
+  ogImage,
   structuredData,
 }) {
   useEffect(() => {
@@ -44,9 +45,11 @@ export default function SEO({
     setMeta("property", "og:description", ogDescription || description);
     setMeta("property", "og:type", ogType);
     setMeta("property", "og:url", canonicalUrl);
-    setMeta("name", "twitter:card", "summary");
+    setMeta("property", "og:image", ogImage);
+    setMeta("name", "twitter:card", ogImage ? "summary_large_image" : "summary");
     setMeta("name", "twitter:title", ogTitle || title);
     setMeta("name", "twitter:description", ogDescription || description);
+    setMeta("name", "twitter:image", ogImage);
     setLink("canonical", canonicalUrl);
 
     let script;
@@ -61,7 +64,7 @@ export default function SEO({
       document.title = previousTitle;
       if (script) document.head.removeChild(script);
     };
-  }, [title, description, canonicalUrl, ogTitle, ogDescription, ogType, structuredData]);
+  }, [title, description, canonicalUrl, ogTitle, ogDescription, ogType, ogImage, structuredData]);
 
   return null;
 }

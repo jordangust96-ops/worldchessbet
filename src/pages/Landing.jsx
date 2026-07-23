@@ -7,6 +7,8 @@ import NotifyAtLaunchModal from "@/components/NotifyAtLaunchModal";
 import Logo from "@/components/Logo";
 import SEO from "@/components/seo/SEO";
 
+const LOGO_URL = "https://media.base44.com/images/public/6a4ed72536c51cb3280d2bc6/7eb5eb625_logo-removebg-preview.png";
+
 const STRUCTURED_DATA = {
   "@context": "https://schema.org",
   "@graph": [
@@ -14,6 +16,7 @@ const STRUCTURED_DATA = {
       "@type": "Organization",
       name: "WorldChessBet",
       url: "https://worldchessbet.com",
+      logo: LOGO_URL,
     },
     {
       "@type": "WebSite",
@@ -33,6 +36,7 @@ export default function Landing() {
         description="Compete in real-money skill-based chess matches against players of similar ability. Host challenges, accept matches, and enjoy a secure online chess experience. Early Access available now."
         canonicalUrl="https://worldchessbet.com"
         ogDescription="Compete in real-money skill-based chess matches against players of similar ability."
+        ogImage={LOGO_URL}
         structuredData={STRUCTURED_DATA}
       />
       {/* Header */}
