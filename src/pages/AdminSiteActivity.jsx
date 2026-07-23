@@ -47,6 +47,7 @@ function buildInternalMetrics(internal) {
     { label: "Average Wager", value: `$${internal.avgWager.toFixed(2)}` },
     { label: "Total Wager Volume", value: `$${internal.totalWagerVolume.toFixed(2)}` },
     { label: "Platform Revenue", value: `$${internal.platformRevenue.toFixed(2)}` },
+    { label: "Today's Platform Fee Earned", value: `$${internal.todaysPlatformFeeEarned.toFixed(2)}` },
     { label: "Avg Match Wait Time", value: `${Math.round(internal.avgMatchWaitSeconds / 60)}m` },
   ];
 }

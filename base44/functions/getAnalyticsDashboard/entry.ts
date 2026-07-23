@@ -268,6 +268,15 @@ Deno.serve(async (req) => {
       .map((m) => (new Date(m.preparation_started_at).getTime() - new Date(m.created_date).getTime()) / 1000);
     const avgMatchWaitSeconds = waitTimes.length > 0 ? Math.round(waitTimes.reduce((s, v) => s + v, 0) / waitTimes.length) : 0;
 
+    // Today's platform service fee earned — always the current UTC day,
+    // independent of the selected time range filter.
+    const now = new Date();
+    const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
+    const todaysPlatformFeeEarned = ledgerEntries
+      .filter((l) => l.ledger_account === 'platform_revenue' && l.transaction_type === 'platform_fee' && inRange(l.created_date, todayStart, todayEnd))
+      .reduce((s, l) => s + (l.credit_amount || 0), 0);
+
     const internal = {
       registrations: registrations.length,
       verifiedUsers: verifiedUsers.length,
@@ -282,6 +291,7 @@ Deno.serve(async (req) => {
       avgWager: Math.round(avgWager * 100) / 100,
       totalWagerVolume: Math.round(totalWagerVolume * 100) / 100,
       platformRevenue: Math.round(platformRevenue * 100) / 100,
+      todaysPlatformFeeEarned: Math.round(todaysPlatformFeeEarned * 100) / 100,
       avgMatchWaitSeconds,
     };
 
