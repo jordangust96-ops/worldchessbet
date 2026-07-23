@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import ScrollToTop from './components/ScrollToTop';
 import GoogleAnalyticsTracker from '@/components/GoogleAnalyticsTracker';
+import MetaPixelTracker from '@/components/MetaPixelTracker';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 // Auth pages
@@ -114,6 +115,7 @@ function App() {
         <Router>
           <ScrollToTop />
           <GoogleAnalyticsTracker />
+          <MetaPixelTracker />
           <AuthenticatedApp />
         </Router>
         <Toaster />

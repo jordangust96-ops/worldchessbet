@@ -10,6 +10,7 @@ import RestrictedModeBanner from "@/components/RestrictedModeBanner";
 import TransactionHistory from "@/components/wallet/TransactionHistory";
 import { useAuth } from "@/lib/AuthContext";
 import { getBrowserGeolocation, getDeviceFingerprintHash } from "@/lib/deviceContext";
+import { trackPixelEvent } from "@/lib/metaPixel";
 
 const TX_PAGE_SIZE = 20;
 
@@ -107,6 +108,7 @@ export default function WalletPage() {
     setIsProcessingDeposit(true);
     setDepositError("");
     try {
+      trackPixelEvent("Deposit Initiated", { value: requestedAmount, currency: "USD" });
       // Secondary, non-authoritative signals for fraud/forensic logging only —
       // requested right before this paid action, never gating it either way.
       const geo = await getBrowserGeolocation();
@@ -120,6 +122,7 @@ export default function WalletPage() {
         deviceFingerprintHash,
       });
       if (data?.eligible) {
+        trackPixelEvent("Deposit Completed", { value: requestedAmount, currency: "USD" });
         setDepositAmount("");
         setShowDeposit(false);
         loadData();

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
+import { trackPixelEvent } from "@/lib/metaPixel";
 
 const STATE_STYLES = {
   provisional: "bg-white/10 text-white/60 border-white/10",
@@ -32,6 +33,7 @@ export default function AccountStateManager({ targetUser, onChanged }) {
     if (!idNumber.trim()) return;
     setVerifying(true);
     setVerifyResult(null);
+    trackPixelEvent("Identity Verification Started", { user_id: targetUser.id });
     try {
       const res = await base44.functions.invoke("verifyUserIdentity", {
         userId: targetUser.id,
@@ -39,6 +41,7 @@ export default function AccountStateManager({ targetUser, onChanged }) {
       });
       setVerifyResult(res.data);
       if (res.data?.success) {
+        trackPixelEvent("Identity Verification Completed", { user_id: targetUser.id });
         setIdNumber("");
         onChanged?.();
       }

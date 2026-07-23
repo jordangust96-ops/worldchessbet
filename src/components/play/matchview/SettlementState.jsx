@@ -1,19 +1,34 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Trophy, Minus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import { getEndReason } from "@/lib/gameEndReason";
 import ShareOnXButton from "./ShareOnXButton";
 import ReportContestButton from "@/components/disputes/ReportContestButton";
+import { trackPixelEvent } from "@/lib/metaPixel";
 
 export default function SettlementState({ match, game, userId, onReturn }) {
   const [opponentName, setOpponentName] = useState("Opponent");
   const [winnerName, setWinnerName] = useState("You");
+  // Guards against firing "Match Completed" more than once for the same
+  // match if this component re-renders/remounts while still showing it.
+  const trackedMatchIdRef = useRef(null);
 
   const won = match.winner_id === userId;
   const draw = match.result === "draw";
   const isP1 = match.player1_id === userId;
   const opponentId = isP1 ? match.player2_id : match.player1_id;
+
+  useEffect(() => {
+    if (trackedMatchIdRef.current === match.id) return;
+    trackedMatchIdRef.current = match.id;
+    trackPixelEvent("Match Completed", {
+      value: match.wager_amount,
+      currency: "USD",
+      result: draw ? "draw" : won ? "win" : "loss",
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [match.id]);
 
   useEffect(() => {
     const load = async () => {

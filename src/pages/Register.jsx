@@ -12,6 +12,7 @@ import { toast } from "@/components/ui/use-toast";
 import { setMfaVerified } from "@/lib/mfaSession";
 import { getPostAuthRedirect } from "@/lib/postAuthRedirect";
 import { POLICY_TYPE_ORDER } from "@/lib/legalDocumentTypes";
+import { trackPixelEvent } from "@/lib/metaPixel";
 
 export default function Register() {
   const [email, setEmail] = useState("");
@@ -36,6 +37,7 @@ export default function Register() {
     }
     setLoading(true);
     try {
+      trackPixelEvent("Registration Started");
       await base44.auth.register({ email, password });
       setShowOtp(true);
     } catch (err) {
@@ -77,6 +79,7 @@ export default function Register() {
       // The registration OTP already confirmed control of this email address —
       // don't immediately trigger a second, separate MFA verification email.
       setMfaVerified();
+      trackPixelEvent("Registration Completed");
       window.location.href = getPostAuthRedirect() || "/";
     } catch (err) {
       setError(err.message || "Invalid verification code");

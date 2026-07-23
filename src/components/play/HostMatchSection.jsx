@@ -6,6 +6,7 @@ import { base44 } from "@/api/base44Client";
 import { computeContestFinancials } from "@/lib/contestFinancials";
 import { useAuth } from "@/lib/AuthContext";
 import { getJurisdictionMessage } from "@/lib/jurisdictionConfig";
+import { trackPixelEvent } from "@/lib/metaPixel";
 
 const WAGER_OPTIONS = [1, 5, 10, 25, 50, 100];
 
@@ -58,6 +59,7 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
     });
     setHosting(false);
     if (data?.match) {
+      trackPixelEvent("Match Hosted", { value: wagerValue, currency: "USD", time_control: timeControl });
       setWagerInput("");
       onHosted?.(data.match);
     } else {

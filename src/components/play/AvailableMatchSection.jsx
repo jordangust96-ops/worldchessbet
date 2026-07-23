@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { getJurisdictionMessage } from "@/lib/jurisdictionConfig";
+import { trackPixelEvent } from "@/lib/metaPixel";
 
 // How often the marketplace silently checks for newly available public
 // matches while the player has no active match. Purely additive to
@@ -89,6 +90,7 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
       setAcceptError(data.error);
       return;
     }
+    trackPixelEvent("Match Accepted", { value: current.wager_amount, currency: "USD" });
     setDeclinedIds([]);
     onAccepted?.(current.id);
   };
