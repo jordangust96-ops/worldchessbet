@@ -9,6 +9,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import AuthLayout from "@/components/AuthLayout";
 import GoogleIcon from "@/components/GoogleIcon";
 import AppleIcon from "@/components/AppleIcon";
+import FacebookIcon from "@/components/FacebookIcon";
 import { toast } from "@/components/ui/use-toast";
 import { setMfaVerified } from "@/lib/mfaSession";
 import { getPostAuthRedirect } from "@/lib/postAuthRedirect";
@@ -129,6 +130,10 @@ export default function Register() {
     base44.auth.loginWithProvider("apple", "/");
   };
 
+  const handleFacebook = () => {
+    base44.auth.loginWithProvider("facebook", "/");
+  };
+
   if (showOtp) {
     return (
       <>
@@ -213,11 +218,20 @@ export default function Register() {
 
         <Button
           variant="outline"
-          className="w-full h-12 text-sm font-medium mb-6"
+          className="w-full h-12 text-sm font-medium mb-3"
           onClick={handleApple}
         >
           <AppleIcon className="w-5 h-5 mr-2" />
           Continue with Apple
+        </Button>
+
+        <Button
+          variant="outline"
+          className="w-full h-12 text-sm font-medium mb-6"
+          onClick={handleFacebook}
+        >
+          <FacebookIcon className="w-5 h-5 mr-2" />
+          Continue with Facebook
         </Button>
 
         <div className="relative mb-6">
