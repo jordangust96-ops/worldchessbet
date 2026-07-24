@@ -98,6 +98,7 @@ export default function Register() {
       // don't immediately trigger a second, separate MFA verification email.
       setMfaVerified();
       trackPixelEvent("Registration Completed");
+      base44.analytics.track({ eventName: "user_registered", properties: { method: "email" } });
       window.location.href = getPostAuthRedirect() || "/";
     } catch (err) {
       setError(err.message || "Invalid verification code");
