@@ -23,7 +23,7 @@ export default function Login() {
     setLoading(true);
     try {
       await base44.auth.loginViaEmailPassword(email, password);
-      base44.analytics.track({ eventName: "user_login", properties: { method: "email" } });
+      base44.analytics.track({ eventName: "user_login", properties: { method: "email", user_type: "returning" } });
       window.location.href = getPostAuthRedirect() || "/";
     } catch (err) {
       setError(err.message || "Invalid email or password");
