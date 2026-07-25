@@ -1,0 +1,54 @@
+{
+  "name": "CampaignEmailLog",
+  "type": "object",
+  "properties": {
+    "campaign_key": {
+      "type": "string",
+      "description": "Stable campaign identifier used to guarantee each recipient is emailed at most once."
+    },
+    "user_id": {
+      "type": "string",
+      "description": "Recipient user ID."
+    },
+    "recipient_email": {
+      "type": "string",
+      "format": "email",
+      "description": "Address used for delivery."
+    },
+    "subject": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "success",
+        "failed"
+      ]
+    },
+    "error_message": {
+      "type": "string",
+      "description": "Delivery failure details, if any."
+    }
+  },
+  "required": [
+    "campaign_key",
+    "user_id",
+    "recipient_email",
+    "subject",
+    "status"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": false,
+    "delete": false
+  }
+}

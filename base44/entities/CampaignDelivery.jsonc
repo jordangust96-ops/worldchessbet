@@ -1,0 +1,59 @@
+{
+  "name": "CampaignDelivery",
+  "type": "object",
+  "properties": {
+    "campaign_key": {
+      "type": "string"
+    },
+    "user_id": {
+      "type": "string"
+    },
+    "recipient_email": {
+      "type": "string",
+      "format": "email"
+    },
+    "subject": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "sending",
+        "success",
+        "failed"
+      ]
+    },
+    "error_message": {
+      "type": "string"
+    },
+    "sent_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "campaign_key",
+    "user_id",
+    "recipient_email",
+    "subject",
+    "status"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": false
+  }
+}
