@@ -20,6 +20,9 @@ export default function AdminUserIntegrity() {
   const [transactions, setTransactions] = useState([]);
   const [jurisdictionLogs, setJurisdictionLogs] = useState([]);
   const [showNewFlag, setShowNewFlag] = useState(false);
+  const [wallet, setWallet] = useState(null);
+  const [wonRecords, setWonRecords] = useState([]);
+  const [lostRecords, setLostRecords] = useState([]);
 
   useEffect(() => {
     load();
@@ -35,13 +38,16 @@ export default function AdminUserIntegrity() {
     }
     setIsAdmin(true);
 
-    const [u, userFlags, asP1, asP2, txs, jurisdictionHistory] = await Promise.all([
+    const [u, userFlags, asP1, asP2, txs, jurisdictionHistory, wallets, won, lost] = await Promise.all([
       base44.entities.User.get(userId).catch(() => null),
       base44.entities.IntegrityFlag.filter({ user_id: userId }, "-created_date"),
       base44.entities.Match.filter({ player1_id: userId }, "-created_date", 25),
       base44.entities.Match.filter({ player2_id: userId }, "-created_date", 25),
       base44.entities.WalletTransaction.filter({ user_id: userId }, "-created_date", 25),
       base44.entities.JurisdictionVerificationLog.filter({ user_id: userId }, "-created_date", 25),
+      base44.entities.Wallet.filter({ user_id: userId }),
+      base44.entities.ContestRecord.filter({ winner_id: userId }, "-created_date", 500),
+      base44.entities.ContestRecord.filter({ loser_id: userId }, "-created_date", 500),
     ]);
 
     setTargetUser(u);
@@ -51,6 +57,9 @@ export default function AdminUserIntegrity() {
     );
     setTransactions(txs);
     setJurisdictionLogs(jurisdictionHistory);
+    setWallet(wallets?.[0] || null);
+    setWonRecords(won);
+    setLostRecords(lost);
     setLoading(false);
   };
 
@@ -79,6 +88,22 @@ export default function AdminUserIntegrity() {
   const chargebackFlags = flags.filter((f) => f.flag_type === "chargeback");
   const deposits = transactions.filter((t) => t.type === "deposit");
   const withdrawals = transactions.filter((t) => t.type === "withdrawal");
+
+  const walletBalance = wallet?.balance ?? 0;
+  const amountWagered = wallet?.total_wagered ?? 0;
+  const amountWon = wonRecords.reduce((sum, r) => sum + (r.winner_payout || 0), 0);
+  const amountLost = lostRecords.reduce((sum, r) => sum + (r.entry_amount || 0), 0);
+  const totalFees =
+    wonRecords.reduce((sum, r) => sum + (r.platform_fee || 0), 0) +
+    lostRecords.reduce((sum, r) => sum + (r.platform_fee || 0), 0);
+
+  const financialStats = [
+    { label: "Wallet Balance", value: walletBalance },
+    { label: "Amount Wagered", value: amountWagered },
+    { label: "Amount Won", value: amountWon },
+    { label: "Amount Lost", value: amountLost },
+    { label: "Total Platform Service Fees", value: totalFees },
+  ];
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] px-5 pt-8 pb-16 max-w-2xl mx-auto">
@@ -112,6 +137,16 @@ export default function AdminUserIntegrity() {
 
       <div className="mt-6">
         <AccountStateManager targetUser={targetUser} onChanged={load} />
+      </div>
+
+      <h2 className="text-sm font-bold text-white/80 mt-7 mb-3">Financial Overview</h2>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+        {financialStats.map((stat) => (
+          <div key={stat.label} className="rounded-2xl bg-white/[0.03] border border-white/5 p-3.5">
+            <p className="text-[10px] uppercase tracking-wider text-white/30 mb-1">{stat.label}</p>
+            <p className="text-base font-extrabold text-white">${stat.value.toFixed(2)}</p>
+          </div>
+        ))}
       </div>
 
       <div className="mt-6">
