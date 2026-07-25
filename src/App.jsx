@@ -39,6 +39,7 @@ import DisputeCaseQueue from '@/pages/DisputeCaseQueue';
 import AdminDisputeCase from '@/pages/AdminDisputeCase';
 import MyReports from '@/pages/MyReports';
 import AdminSiteActivity from '@/pages/AdminSiteActivity';
+import AdminUserFinancials from '@/pages/AdminUserFinancials';
 
 // Layout
 import AppLayout from '@/components/layout/AppLayout';
@@ -95,6 +96,7 @@ const AuthenticatedApp = () => {
             <Route path="/admin/disputes" element={<DisputeCaseQueue />} />
             <Route path="/admin/disputes/:caseId" element={<AdminDisputeCase />} />
             <Route path="/admin/site-activity" element={<AdminSiteActivity />} />
+            <Route path="/admin/user-financials" element={<AdminUserFinancials />} />
             <Route element={<AppLayout />}>
               <Route path="/" element={<Home />} />
               <Route path="/wallet" element={<WalletPage />} />
