@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
     }
 
     if (!EARLY_ACCESS_MODE || wallet.early_access_credited) {
-      return Response.json({ wallet });
+      return Response.json({ wallet, newly_credited: false });
     }
 
     const walletTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
 
     await base44.asServiceRole.entities.Wallet.update(wallet.id, { early_access_credited: true });
     const finalWallets = await base44.asServiceRole.entities.Wallet.filter({ user_id: user.id });
-    return Response.json({ wallet: finalWallets[0] });
+    return Response.json({ wallet: finalWallets[0], newly_credited: true });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }

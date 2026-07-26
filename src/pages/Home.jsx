@@ -8,6 +8,7 @@ import MatchView from "@/components/play/MatchView";
 import DemoModeNotice from "@/components/DemoModeNotice";
 import RestrictedModeBanner from "@/components/RestrictedModeBanner";
 import { useChessGame } from "@/hooks/useChessGame";
+import { trackPixelEvent } from "@/lib/metaPixel";
 
 export default function Home() {
   const [user, setUser] = useState(null);
@@ -124,6 +125,11 @@ export default function Home() {
       // base44/functions/grantEarlyAccessFunds and base44/shared/earlyAccess.ts.
       const { data } = await base44.functions.invoke("grantEarlyAccessFunds", {});
       setWallet(data.wallet);
+      // Event tracking for monitoring $500 Early Access credit promotion usage.
+      if (data.newly_credited) {
+        base44.analytics.track({ eventName: "early_access_credit_granted", properties: { amount: 500 } });
+        trackPixelEvent("Early Access Credit Granted", { value: 500, currency: "USD" });
+      }
     };
     load();
   }, []);
