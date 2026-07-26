@@ -60,6 +60,11 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
     setHosting(false);
     if (data?.match) {
       trackPixelEvent("Match Hosted", { value: wagerValue, currency: "USD", time_control: timeControl });
+      // Event tracking for monitoring private game link creation.
+      if (isPrivate) {
+        base44.analytics.track({ eventName: "private_game_link_created", properties: { wager_amount: wagerValue, time_control: timeControl } });
+        trackPixelEvent("Private Game Link Created", { value: wagerValue, currency: "USD", time_control: timeControl });
+      }
       setWagerInput("");
       onHosted?.(data.match);
     } else {
