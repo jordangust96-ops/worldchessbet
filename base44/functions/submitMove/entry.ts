@@ -1,6 +1,19 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 import { Chess } from 'npm:chess.js@1.0.0';
 
+// Server timestamps are always UTC but can come back without a timezone
+// designator (e.g. "2026-07-13T23:48:07.212273"). Parsing a designator-less
+// date-time string with the JS Date constructor treats it as LOCAL time, not
+// UTC — this silently injects a clock skew if the runtime's local timezone
+// isn't UTC. Always force UTC interpretation by appending 'Z' when no offset
+// is present. Mirrors the same fix in src/hooks/useChessClock.js and is
+// duplicated (not imported) in checkTimeout for the same reason as below.
+function parseServerDate(dateStr) {
+  if (!dateStr) return null;
+  const hasTz = /Z$|[+-]\d{2}:?\d{2}$/.test(dateStr);
+  return new Date(hasTz ? dateStr : `${dateStr}Z`);
+}
+
 // Authoritative determination of whether a color has sufficient material to
 // ever deliver checkmate, used exclusively for timeout resolution (FIDE
 // Article 6.9). Mirrors the standard thresholds used by chess engines (bare
@@ -69,7 +82,7 @@ Deno.serve(async (req) => {
 
     // Server-authoritative clock: deduct time elapsed since this player's clock started.
     const now = Date.now();
-    const turnStartedAt = game.turn_started_at ? new Date(game.turn_started_at).getTime() : now;
+    const turnStartedAt = game.turn_started_at ? parseServerDate(game.turn_started_at).getTime() : now;
     const elapsedMs = Math.max(0, now - turnStartedAt);
     const moverTimeField = myColor === 'w' ? 'white_time_ms' : 'black_time_ms';
     const moverRemainingMs = (game[moverTimeField] ?? 0) - elapsedMs;
