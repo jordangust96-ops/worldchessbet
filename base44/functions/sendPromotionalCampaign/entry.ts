@@ -58,6 +58,7 @@ Deno.serve(async (req) => {
     const audience = users.filter((u) => u.account_state !== 'closed' && u.email);
 
     const stats = { total: audience.length, toppedUp: 0, sent: 0, skipped: 0, failed: 0 };
+    const loginUrl = Deno.env.get('APP_URL') || `https://${Deno.env.get('BASE44_APP_ID')}.base44.app/login`;
 
     for (const user of audience) {
       const deliveries = await base44.asServiceRole.entities.CampaignDelivery.filter({ campaign_key: campaignKey, user_id: user.id });
@@ -83,7 +84,9 @@ Deno.serve(async (req) => {
         await base44.asServiceRole.integrations.Core.SendEmail({
           to: user.email,
           subject,
-          body: htmlBody.replace(/\{\{FIRST_NAME\}\}/g, (user.full_name || '').trim().split(/\s+/)[0] || 'there'),
+          body: htmlBody
+            .replace(/\{\{FIRST_NAME\}\}/g, (user.full_name || '').trim().split(/\s+/)[0] || 'there')
+            .replace(/\{\{LOGIN_URL\}\}/g, loginUrl),
           from_name: 'ChessBet',
         });
         await base44.asServiceRole.entities.CampaignDelivery.update(delivery.id, { status: 'success', sent_at: new Date().toISOString(), error_message: '' });
