@@ -16,7 +16,15 @@
     },
     "wager_amount": {
       "type": "number",
-      "description": "Wager amount in USD"
+      "description": "Contest Entry Amount per player in USD; separate from the Platform Service Fee."
+    },
+    "platform_service_fee": {
+      "type": "number",
+      "description": "Fixed-dollar Platform Service Fee per player, disclosed and snapshotted when the contest is created. It is separate from the Contest Entry Amount and is never deducted from the winner award."
+    },
+    "platform_fee_schedule_version": {
+      "type": "string",
+      "description": "Published Platform Service Fee schedule version used to determine platform_service_fee."
     },
     "time_control": {
       "type": "string",
