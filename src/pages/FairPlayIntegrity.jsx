@@ -84,8 +84,20 @@ export default function FairPlayIntegrity() {
           />
         </Section>
 
-        {/* 3. Prohibited Conduct */}
-        <Section title="3. Prohibited Conduct">
+        <Section title="3. Contest Fee Integrity">
+          <p className="text-sm text-white/60 leading-relaxed">
+            Each contest separately states the Contest Entry Amount and the fixed-dollar Platform Service Fee for each player before commitment.
+          </p>
+          <p className="text-sm text-white/60 leading-relaxed">
+            The Platform Service Fee is not a percentage of stakes, is not part of the contest pool, and is not deducted from the Potential Winner Award. The winner of a decisive contest receives 100% of the combined Contest Entry Amounts.
+          </p>
+          <p className="text-sm text-white/60 leading-relaxed">
+            ChessBet records the Contest Entry Amount and Platform Service Fee in separate ledger and settlement entries. The Platform Service Fee is refunded or not collected if there is no decisive result, including a draw, cancellation, or platform void.
+          </p>
+        </Section>
+
+        {/* 4. Prohibited Conduct */}
+        <Section title="4. Prohibited Conduct">
           <p className="text-sm text-white/60">
             The following categories of conduct are prohibited on ChessBet. This list is illustrative and
             not exhaustive — ChessBet may take action against other conduct that undermines fair
@@ -104,8 +116,8 @@ export default function FairPlayIntegrity() {
           <p className="text-sm font-semibold text-[#C9A84C] pt-1">Every move you make must be your own.</p>
         </Section>
 
-        {/* 4. Integrity Monitoring */}
-        <Section title="4. Integrity Monitoring">
+        {/* 5. Integrity Monitoring */}
+        <Section title="5. Integrity Monitoring">
           <p className="text-sm text-white/60 leading-relaxed">
             ChessBet uses a combination of automated checks and manual review as part of its integrity
             program.
@@ -120,8 +132,8 @@ export default function FairPlayIntegrity() {
           </p>
         </Section>
 
-        {/* 5. Risk Flagging */}
-        <Section title="5. Risk Flagging">
+        {/* 6. Risk Flagging */}
+        <Section title="6. Risk Flagging">
           <p className="text-sm text-white/60 leading-relaxed">
             ChessBet may use internal risk indicators to help identify activity that warrants a closer
             look. Examples include:
@@ -133,8 +145,8 @@ export default function FairPlayIntegrity() {
           </p>
         </Section>
 
-        {/* 6. Investigations */}
-        <Section title="6. Investigations">
+        {/* 7. Investigations */}
+        <Section title="7. Investigations">
           <p className="text-sm text-white/60 leading-relaxed">
             When ChessBet opens an investigation into suspected violations of this policy, it may:
           </p>
@@ -145,8 +157,8 @@ export default function FairPlayIntegrity() {
           </p>
         </Section>
 
-        {/* 7. Possible Enforcement */}
-        <Section title="7. Possible Enforcement">
+        {/* 8. Possible Enforcement */}
+        <Section title="8. Possible Enforcement">
           <p className="text-sm text-white/60 leading-relaxed">
             Violations of this policy may result in one or more of the following, at ChessBet's
             discretion and proportionate to the conduct involved:
@@ -154,8 +166,8 @@ export default function FairPlayIntegrity() {
           <BulletList items={ENFORCEMENT_ACTIONS} />
         </Section>
 
-        {/* 8. Appeals */}
-        <Section title="8. Appeals">
+        {/* 9. Appeals */}
+        <Section title="9. Appeals">
           <p className="text-sm text-white/60 leading-relaxed">
             A user subject to an enforcement decision may:
           </p>
@@ -171,8 +183,8 @@ export default function FairPlayIntegrity() {
           </p>
         </Section>
 
-        {/* 9. Private Challenges */}
-        <Section title="9. Private Challenges">
+        {/* 10. Private Challenges */}
+        <Section title="10. Private Challenges">
           <p className="text-sm text-white/60 leading-relaxed">
             Private contests receive the same integrity protections as public contests. To help prevent
             collusion and financial abuse, ChessBet may review:
@@ -180,8 +192,8 @@ export default function FairPlayIntegrity() {
           <BulletList items={PRIVATE_CHALLENGE_REVIEW_ITEMS} />
         </Section>
 
-        {/* 10. Reporting Fair Play Concerns */}
-        <Section title="10. Reporting Fair Play Concerns">
+        {/* 11. Reporting Fair Play Concerns */}
+        <Section title="11. Reporting Fair Play Concerns">
           <p className="text-sm text-white/60 leading-relaxed">
             Players are encouraged to report the following to ChessBet Support rather than raising them
             publicly:
@@ -193,8 +205,8 @@ export default function FairPlayIntegrity() {
           </p>
         </Section>
 
-        {/* 11. Future Improvements */}
-        <Section title="11. Future Improvements">
+        {/* 12. Future Improvements */}
+        <Section title="12. Future Improvements">
           <p className="text-sm text-white/60 leading-relaxed">
             ChessBet continually improves its integrity program as the platform evolves. Future
             improvements may include additional fraud detection, anti-cheating technology, and enhanced
@@ -205,8 +217,8 @@ export default function FairPlayIntegrity() {
           </p>
         </Section>
 
-        {/* 12. Cross References */}
-        <Section title="12. Cross References">
+        {/* 13. Cross References */}
+        <Section title="13. Cross References">
           <p className="text-sm text-white/60 leading-relaxed">
             This policy should be read together with ChessBet's Official Rules, Terms of Service,
             AML/KYC Policy, and{" "}
