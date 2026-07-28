@@ -16,7 +16,7 @@ export default function FairPlayAttestation({ checked, onCheckedChange }) {
           other people, or any external tools. I understand that violations of ChessBet's Fair Play
           Policy may result in match forfeiture, account suspension, or permanent removal from the
           platform. I have reviewed the Official Rules and I accept the Platform Service Fee shown
-          above, charged separately from my Contest Entry Amount.
+          above, charged separately from my Contest Entry Amount. I understand that this fee is refunded if no decisive contest result occurs.
         </span>
       </label>
       <Link
