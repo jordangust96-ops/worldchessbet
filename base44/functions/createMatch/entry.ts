@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { getPlatformServiceFee, PLATFORM_FEE_SCHEDULE_VERSION, requiresManualFeeApproval } from '../../shared/platformFee.ts';
 
 // Creates a new challenge (public or private). No funds move at creation time
 // — the host's Entry Amount is reserved later, together with the joiner's,
@@ -17,8 +18,15 @@ Deno.serve(async (req) => {
 
     const { wagerAmount, timeControl, displayName, isPrivate } = await req.json();
     const wager = Number(wagerAmount);
-    if (!Number.isFinite(wager) || wager < 1) {
-      return Response.json({ error: 'The minimum contest entry amount is $1.00' }, { status: 400 });
+    if (!Number.isFinite(wager) || wager < 5) {
+      return Response.json({ error: 'The minimum Contest Entry Amount is $5.00.' }, { status: 400 });
+    }
+    if (requiresManualFeeApproval(wager)) {
+      return Response.json({ error: 'Contest Entry Amounts above $5,000 require manual approval and a separately disclosed Platform Service Fee before acceptance.' }, { status: 400 });
+    }
+    const platformServiceFee = getPlatformServiceFee(wager);
+    if (platformServiceFee === null) {
+      return Response.json({ error: 'No published Platform Service Fee applies to this Contest Entry Amount.' }, { status: 400 });
     }
     if (!VALID_TIME_CONTROLS.has(timeControl)) {
       return Response.json({ error: 'Invalid time control' }, { status: 400 });
@@ -35,6 +43,8 @@ Deno.serve(async (req) => {
     const match = await base44.asServiceRole.entities.Match.create({
       player1_id: user.id,
       wager_amount: wager,
+      platform_service_fee: platformServiceFee,
+      platform_fee_schedule_version: PLATFORM_FEE_SCHEDULE_VERSION,
       time_control: timeControl,
       display_name: displayName,
       status: 'searching',
