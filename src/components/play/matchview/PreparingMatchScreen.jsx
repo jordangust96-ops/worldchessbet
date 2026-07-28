@@ -43,7 +43,7 @@ export default function PreparingMatchScreen({ match, userId, opponentId, onCanc
     });
   }, [opponentId]);
 
-  const financials = computeContestFinancials(match.wager_amount);
+  const financials = computeContestFinancials(match.wager_amount, match.platform_service_fee);
   const isP1 = match.player1_id === userId;
   const myCertified = isP1 ? match.player1_certified : match.player2_certified;
   const myDeposited = isP1 ? match.player1_deposited : match.player2_deposited;
@@ -137,7 +137,7 @@ export default function PreparingMatchScreen({ match, userId, opponentId, onCanc
             <span className="font-semibold text-white/80">${financials.entryAmount.toFixed(2)}</span>
           </div>
           <div className="flex items-center justify-between text-sm">
-            <span className="text-white/50">Platform Service Fee (10%)</span>
+            <span className="text-white/50">Platform Service Fee</span>
             <span className="font-semibold text-white/80">${financials.serviceFee.toFixed(2)}</span>
           </div>
           <div className="flex items-center justify-between text-sm pt-1.5 border-t border-white/10">
@@ -145,9 +145,10 @@ export default function PreparingMatchScreen({ match, userId, opponentId, onCanc
             <span className="font-bold text-white">${financials.totalCharge.toFixed(2)}</span>
           </div>
           <div className="flex items-center justify-between text-sm">
-            <span className="text-[#C9A84C]/70">Potential Winner Award</span>
+            <span className="text-[#C9A84C]/70">Potential Winner Award (100% of Combined Contest Entry Amounts)</span>
             <span className="font-bold text-[#C9A84C]">${financials.potentialWinnerAward.toFixed(2)}</span>
           </div>
+          <p className="pt-1 text-[11px] leading-relaxed text-white/40">The Platform Service Fee is separate from the Contest Entry Amount and is not deducted from the winner award. It is refunded if no decisive contest result occurs.</p>
         </div>
       )}
 
