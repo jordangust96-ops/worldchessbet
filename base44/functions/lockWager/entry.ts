@@ -10,14 +10,13 @@ import { EARLY_ACCESS_MODE } from '../../shared/earlyAccess.ts';
 // match live.
 //
 // Financial model: the Contest Entry Amount and the Platform Service Fee
-// (10% of the Entry Amount) are two independent, separately-disclosed
+// (a published fixed-dollar amount) are two independent, separately-disclosed
 // charges. The Entry Amount moves into the Contest Reserve
 // ('contest_clearing') where it stays untouched until settlement. The
 // Service Fee moves into 'suspense' — pending, not yet recognized revenue —
 // and is only ever promoted to 'platform_revenue' once the match settles
 // with a decisive result. Each charge gets its own WalletTransaction and its
 // own balanced ledger group so the two remain independently auditable.
-const SERVICE_FEE_RATE = 0.1;
 
 // Posts a balanced set of Internal Ledger entries and updates the derived
 // Wallet/SystemLedgerAccount balances accordingly. Duplicated (not imported)
@@ -146,7 +145,10 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Certify Fair Play before reserving your entry amount' }, { status: 400 });
     }
 
-    const serviceFee = Math.round(match.wager_amount * SERVICE_FEE_RATE * 100) / 100;
+    const serviceFee = Number(match.platform_service_fee);
+    if (!Number.isFinite(serviceFee) || serviceFee < 0) {
+      return Response.json({ error: 'This contest is missing its disclosed Platform Service Fee.' }, { status: 409 });
+    }
     const totalCharge = match.wager_amount + serviceFee;
 
     const wallets = await base44.asServiceRole.entities.Wallet.filter({ user_id: user.id });
