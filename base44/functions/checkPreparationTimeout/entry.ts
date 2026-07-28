@@ -7,7 +7,6 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 // call at any time — it only ever acts on matches that are genuinely stale.
 
 const PREPARATION_TIMEOUT_MS = 2 * 60 * 1000;
-const SERVICE_FEE_RATE = 0.1;
 
 // Posts a balanced set of Internal Ledger entries and updates the derived
 // Wallet/SystemLedgerAccount balances accordingly. Duplicated (not imported)
@@ -93,7 +92,10 @@ Deno.serve(async (req) => {
       if (match.player1_deposited) refundTargets.push(match.player1_id);
       if (match.player2_deposited) refundTargets.push(match.player2_id);
 
-      const serviceFee = Math.round(match.wager_amount * SERVICE_FEE_RATE * 100) / 100;
+      const serviceFee = Number(match.platform_service_fee);
+      if (!Number.isFinite(serviceFee) || serviceFee < 0) {
+        continue;
+      }
 
       for (const depositorId of refundTargets) {
         const entryTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
