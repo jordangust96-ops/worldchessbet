@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { getJurisdictionMessage } from "@/lib/jurisdictionConfig";
 import { trackPixelEvent } from "@/lib/metaPixel";
 
-const WAGER_OPTIONS = [1, 5, 10, 25, 50, 100];
+const WAGER_OPTIONS = [5, 10, 25, 50, 100];
 
 export const TIME_CONTROLS = [
   { value: "blitz", emoji: "⚡", label: "Blitz", minutes: 3 },
@@ -28,7 +28,8 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
   const [hostError, setHostError] = useState("");
 
   const wagerValue = parseFloat(wagerInput);
-  const isValid = !isNaN(wagerValue) && wagerValue >= 1;
+  const requiresManualApproval = !isNaN(wagerValue) && wagerValue > 5000;
+  const isValid = !isNaN(wagerValue) && wagerValue >= 5 && wagerValue <= 5000;
   const selectedPreset = WAGER_OPTIONS.find((amount) => amount === wagerValue);
   const selectedTimeControl = TIME_CONTROLS.find((tc) => tc.value === timeControl);
   const noFunds = balance <= 0;
@@ -144,7 +145,7 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
               inputMode="decimal"
               value={wagerInput}
               onChange={handleInputChange}
-              placeholder="Enter amount (min $1)"
+              placeholder="Enter amount ($5–$5,000)"
               disabled={disabled}
               className="w-full h-12 lg:h-8 pl-8 pr-4 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder:text-white/20 text-sm lg:text-xs font-semibold focus:border-[#C9A84C]/50 focus:outline-none transition-colors"
             />
@@ -158,7 +159,7 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
               <span className="font-semibold text-white/80">${financials.entryAmount.toFixed(2)}</span>
             </div>
             <div className="flex items-center justify-between text-xs">
-              <span className="text-white/40">Platform Service Fee (10%)</span>
+              <span className="text-white/40">Platform Service Fee</span>
               <span className="font-semibold text-white/80">${financials.serviceFee.toFixed(2)}</span>
             </div>
             <div className="flex items-center justify-between text-xs pt-1.5 border-t border-white/10">
@@ -166,7 +167,7 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
               <span className="font-semibold text-white">${financials.totalCharge.toFixed(2)}</span>
             </div>
             <div className="flex items-center justify-between text-xs">
-              <span className="text-[#C9A84C]/70">Potential Winner Award</span>
+              <span className="text-[#C9A84C]/70">Potential Winner Award (100% of Combined Contest Entry Amounts)</span>
               <span className="font-bold text-[#C9A84C]">${financials.potentialWinnerAward.toFixed(2)}</span>
             </div>
           </div>
@@ -200,6 +201,10 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
             })}
           </div>
         </div>
+
+        {requiresManualApproval && (
+          <p className="text-xs text-[#C9A84C]/80 text-center">Amounts above $5,000 require manual approval and a separately disclosed Platform Service Fee before acceptance.</p>
+        )}
 
         <div className="space-y-2 lg:space-y-1.5">
           <Button
