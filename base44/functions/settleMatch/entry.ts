@@ -14,7 +14,6 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 // recognized as Platform Revenue. On a draw, both the Entry Amount and the
 // Service Fee are fully refunded to each player; no Platform Revenue is
 // recognized.
-const SERVICE_FEE_RATE = 0.1;
 
 // Posts a balanced set of Internal Ledger entries and updates the derived
 // Wallet/SystemLedgerAccount balances accordingly. Duplicated (not imported)
@@ -143,7 +142,10 @@ Deno.serve(async (req) => {
       });
     };
 
-    const serviceFee = Math.round(wagerAmount * SERVICE_FEE_RATE * 100) / 100;
+    const serviceFee = Number(match.platform_service_fee);
+    if (!Number.isFinite(serviceFee) || serviceFee < 0) {
+      return Response.json({ error: 'This contest is missing its disclosed Platform Service Fee.' }, { status: 409 });
+    }
 
     if (isDraw) {
       // Refund both players' escrowed Entry Amount AND their Platform Service
