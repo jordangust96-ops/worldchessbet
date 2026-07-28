@@ -36,7 +36,15 @@
     },
     "platform_fee": {
       "type": "number",
-      "description": "10% platform service fee taken from the pool on a decisive result; 0 on a draw"
+      "description": "Total fixed-dollar Platform Service Fees for both players; recognized as Platform Revenue only for a decisive result."
+    },
+    "platform_fee_per_player": {
+      "type": "number",
+      "description": "Fixed-dollar Platform Service Fee disclosed to and charged to each player; refunded if there is no decisive result."
+    },
+    "platform_fee_schedule_version": {
+      "type": "string",
+      "description": "Published fee schedule version used for the contest."
     },
     "contest_start_at": {
       "type": "string",
