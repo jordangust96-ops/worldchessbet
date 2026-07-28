@@ -3,12 +3,18 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Loader2, Wallet, Lock } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { computeContestFinancials } from "@/lib/contestFinancials";
+import { computeContestFinancials, getPlatformServiceFee } from "@/lib/contestFinancials";
 import { useAuth } from "@/lib/AuthContext";
 import { getJurisdictionMessage } from "@/lib/jurisdictionConfig";
 import { trackPixelEvent } from "@/lib/metaPixel";
 
-const WAGER_OPTIONS = [5, 10, 25, 50, 100];
+const PRESET_GROUPS = [
+  { label: "Quick Play", amounts: [5, 10, 25] },
+  { label: "Popular", amounts: [50, 100, 250] },
+  { label: "High Stakes", amounts: [500, 1000] },
+];
+
+const DEFAULT_WAGER = 10;
 
 export const TIME_CONTROLS = [
   { value: "blitz", emoji: "⚡", label: "Blitz", minutes: 3 },
@@ -22,31 +28,18 @@ export const TIME_CONTROLS = [
 export default function HostMatchSection({ userId, balance, onHosted, disabled }) {
   const { jurisdictionStatus, jurisdictionReason } = useAuth();
   const jurisdictionBlocked = !!jurisdictionStatus && jurisdictionStatus !== "approved";
-  const [wagerInput, setWagerInput] = useState("");
+  const [wagerValue, setWagerValue] = useState(DEFAULT_WAGER);
   const [timeControl, setTimeControl] = useState("rapid");
   const [hosting, setHosting] = useState(false);
   const [hostError, setHostError] = useState("");
 
-  const wagerValue = parseFloat(wagerInput);
-  const requiresManualApproval = !isNaN(wagerValue) && wagerValue > 5000;
-  const isValid = !isNaN(wagerValue) && wagerValue >= 5 && wagerValue <= 5000;
-  const selectedPreset = WAGER_OPTIONS.find((amount) => amount === wagerValue);
   const selectedTimeControl = TIME_CONTROLS.find((tc) => tc.value === timeControl);
   const noFunds = balance <= 0;
-
-  const handlePresetClick = (amount) => {
-    setWagerInput(String(amount));
-  };
-
-  const handleInputChange = (e) => {
-    const value = e.target.value;
-    if (value === "" || /^\d*\.?\d{0,2}$/.test(value)) {
-      setWagerInput(value);
-    }
-  };
+  const financials = computeContestFinancials(wagerValue);
+  const canAffordTotal = financials.totalCharge !== null && balance >= financials.totalCharge;
 
   const handleHost = async (isPrivate) => {
-    if (!isValid || !userId) return;
+    if (!wagerValue || !userId || !canAffordTotal) return;
     setHosting(true);
     setHostError("");
     // Runs server-side (createMatch): validates eligibility and balance, places
@@ -66,15 +59,13 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
         base44.analytics.track({ eventName: "private_game_link_created", properties: { wager_amount: wagerValue, time_control: timeControl } });
         trackPixelEvent("Private Game Link Created", { value: wagerValue, currency: "USD", time_control: timeControl });
       }
-      setWagerInput("");
       onHosted?.(data.match);
     } else {
       setHostError(data?.error || "Unable to create this challenge right now.");
     }
   };
 
-  const buttonWagerLabel = isValid ? `$${wagerValue.toFixed(2).replace(/\.00$/, "")}` : null;
-  const financials = isValid ? computeContestFinancials(wagerValue) : null;
+  const buttonWagerLabel = `$${wagerValue.toLocaleString()}`;
 
   return (
     <div className="space-y-3 lg:space-y-2">
@@ -101,7 +92,7 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
       <div className={`space-y-5 lg:space-y-2 ${disabled || noFunds || jurisdictionBlocked ? "opacity-40 pointer-events-none" : ""}`}>
         <div>
           <h3 className="text-base lg:text-sm font-bold text-white">Create a Challenge</h3>
-          <p className="text-xs text-white/40 mt-0.5 lg:hidden">Choose your entry amount and time control, then create your challenge publicly or privately.</p>
+          <p className="text-xs text-white/40 mt-0.5 lg:hidden">Choose your contest entry amount and time control, then create your challenge publicly or privately.</p>
           {disabled && (
             <p className="text-xs text-[#C9A84C]/70 mt-1">
               You already have an active challenge. Cancel it to create a new one.
@@ -109,50 +100,40 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
           )}
         </div>
 
-        <div className="grid grid-cols-3 gap-2.5 lg:gap-1.5">
-          {WAGER_OPTIONS.map((amount) => {
-            const isActive = selectedPreset === amount;
-            const canAfford = balance >= amount;
-            return (
-              <button
-                key={amount}
-                onClick={() => canAfford && handlePresetClick(amount)}
-                disabled={!canAfford || disabled}
-                className={`h-12 lg:h-8 rounded-xl font-bold text-sm lg:text-xs transition-all ${
-                  isActive
-                    ? "gold-gradient text-black"
-                    : canAfford
-                    ? "bg-white/[0.06] text-white border border-white/10 hover:border-[#C9A84C]/30"
-                    : "bg-white/[0.03] text-white/20 border border-white/5 cursor-not-allowed"
-                }`}
-              >
-                ${amount}
-              </button>
-            );
-          })}
+        <div className="space-y-3 lg:space-y-1.5">
+          {PRESET_GROUPS.map((group) => (
+            <div key={group.label} className="space-y-1.5 lg:space-y-1">
+              <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">
+                {group.label}
+              </label>
+              <div className="grid grid-cols-3 gap-2.5 lg:gap-1.5">
+                {group.amounts.map((amount) => {
+                  const isActive = wagerValue === amount;
+                  const fee = getPlatformServiceFee(amount) || 0;
+                  const canAfford = balance >= amount + fee;
+                  return (
+                    <button
+                      key={amount}
+                      onClick={() => canAfford && setWagerValue(amount)}
+                      disabled={!canAfford || disabled}
+                      className={`h-12 lg:h-8 rounded-xl font-bold text-sm lg:text-xs transition-all ${
+                        isActive
+                          ? "gold-gradient text-black"
+                          : canAfford
+                          ? "bg-white/[0.06] text-white border border-white/10 hover:border-[#C9A84C]/30"
+                          : "bg-white/[0.03] text-white/20 border border-white/5 cursor-not-allowed"
+                      }`}
+                    >
+                      ${amount.toLocaleString()}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
 
-        <div className="space-y-2 lg:space-y-1">
-          <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">
-            Custom Entry Amount
-          </label>
-          <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40 font-semibold text-sm">
-              $
-            </span>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={wagerInput}
-              onChange={handleInputChange}
-              placeholder="Enter amount ($5–$5,000)"
-              disabled={disabled}
-              className="w-full h-12 lg:h-8 pl-8 pr-4 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder:text-white/20 text-sm lg:text-xs font-semibold focus:border-[#C9A84C]/50 focus:outline-none transition-colors"
-            />
-          </div>
-        </div>
-
-        {financials && (
+        {financials.serviceFee !== null && (
           <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-3.5 space-y-1.5">
             <div className="flex items-center justify-between text-xs">
               <span className="text-white/40">Contest Entry Amount</span>
@@ -163,13 +144,16 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
               <span className="font-semibold text-white/80">${financials.serviceFee.toFixed(2)}</span>
             </div>
             <div className="flex items-center justify-between text-xs pt-1.5 border-t border-white/10">
-              <span className="text-white/40">Total Amount Due</span>
+              <span className="text-white/40">Total Authorization</span>
               <span className="font-semibold text-white">${financials.totalCharge.toFixed(2)}</span>
             </div>
             <div className="flex items-center justify-between text-xs">
-              <span className="text-[#C9A84C]/70">Potential Winner Award (100% of Combined Contest Entry Amounts)</span>
+              <span className="text-[#C9A84C]/70">Potential Winner Award</span>
               <span className="font-bold text-[#C9A84C]">${financials.potentialWinnerAward.toFixed(2)}</span>
             </div>
+            <p className="pt-1 text-[11px] leading-relaxed text-white/40">
+              The Platform Service Fee is separate from the Contest Entry Amount and is not deducted from the winner's award. The winner receives 100% of the combined Contest Entry Amounts. The Platform Service Fee is refunded if the match is cancelled, voided, or ends without a decisive result.
+            </p>
           </div>
         )}
 
@@ -202,22 +186,18 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
           </div>
         </div>
 
-        {requiresManualApproval && (
-          <p className="text-xs text-[#C9A84C]/80 text-center">Amounts above $5,000 require manual approval and a separately disclosed Platform Service Fee before acceptance.</p>
-        )}
-
         <div className="space-y-2 lg:space-y-1.5">
           <Button
             onClick={() => handleHost(false)}
-            disabled={!isValid || hosting || disabled || noFunds || jurisdictionBlocked}
+            disabled={!wagerValue || hosting || disabled || noFunds || jurisdictionBlocked || !canAffordTotal}
             className="w-full h-12 lg:h-9 lg:text-sm rounded-2xl font-bold gold-gradient text-black hover:opacity-90 disabled:opacity-30 transition-opacity"
           >
             {hosting ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
-            {isValid ? `Create ${buttonWagerLabel} ${selectedTimeControl.label} Challenge` : "Create a Public Challenge"}
+            Create {buttonWagerLabel} {selectedTimeControl.label} Challenge
           </Button>
           <Button
             onClick={() => handleHost(true)}
-            disabled={!isValid || hosting || disabled || noFunds || jurisdictionBlocked}
+            disabled={!wagerValue || hosting || disabled || noFunds || jurisdictionBlocked || !canAffordTotal}
             variant="outline"
             className="w-full h-12 lg:h-9 lg:text-sm rounded-2xl font-bold border-white/10 text-white/70 hover:bg-white/5 hover:text-white disabled:opacity-30 transition-colors"
           >
