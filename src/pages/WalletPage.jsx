@@ -88,7 +88,10 @@ export default function WalletPage() {
       wagered += m.wager_amount || 0;
       if (m.result === "draw" || !m.winner_id) return;
       if (m.winner_id === me.id) {
-        won += (m.wager_amount || 0) * 2 * 0.9;
+        // Winner receives 100% of the combined Contest Entry Amounts — the
+        // Platform Service Fee is a separate fixed-dollar charge, never a
+        // percentage deducted from the pot.
+        won += (m.wager_amount || 0) * 2;
       } else {
         lost += m.wager_amount || 0;
       }
