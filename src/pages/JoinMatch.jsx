@@ -146,26 +146,26 @@ export default function JoinMatch() {
             <p className="text-[10px] uppercase tracking-widest text-white/30 mb-1">Match Summary</p>
             <div className="flex items-center justify-between text-sm">
               <span className="text-white/50">Contest Entry Amount</span>
-              <span className="font-semibold text-white/80">${computeContestFinancials(match.wager_amount).entryAmount.toFixed(2)}</span>
+              <span className="font-semibold text-white/80">${computeContestFinancials(match.wager_amount, match.platform_service_fee).entryAmount.toFixed(2)}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-white/50">Platform Service Fee (10%)</span>
-              <span className="font-semibold text-white/80">${computeContestFinancials(match.wager_amount).serviceFee.toFixed(2)}</span>
+              <span className="text-white/50">Platform Service Fee</span>
+              <span className="font-semibold text-white/80">${computeContestFinancials(match.wager_amount, match.platform_service_fee).serviceFee.toFixed(2)}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-white/50">Total Charged</span>
-              <span className="font-semibold text-white/80">${computeContestFinancials(match.wager_amount).totalCharge.toFixed(2)}</span>
+              <span className="font-semibold text-white/80">${computeContestFinancials(match.wager_amount, match.platform_service_fee).totalCharge.toFixed(2)}</span>
             </div>
             <div className="flex items-center justify-between pt-2 border-t border-white/10">
-              <span className="text-sm font-semibold text-white/70">Winner Award</span>
+              <span className="text-sm font-semibold text-white/70">Potential Winner Award (100% of Combined Contest Entry Amounts)</span>
               <span className="text-lg font-extrabold text-[#C9A84C]">
-                ${computeContestFinancials(match.wager_amount).potentialWinnerAward.toFixed(2)}
+                ${computeContestFinancials(match.wager_amount, match.platform_service_fee).potentialWinnerAward.toFixed(2)}
               </span>
             </div>
           </div>
 
           <p className="text-[11px] text-center text-white/30">
-            After joining, you and the host will both certify Fair Play and reserve your entry amount before the game begins.
+            The Platform Service Fee is separate from the Contest Entry Amount and is not deducted from the winner award. It is refunded if no decisive contest result occurs.
           </p>
 
           <Button
