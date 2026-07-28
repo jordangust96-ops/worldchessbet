@@ -283,6 +283,8 @@ Deno.serve(async (req) => {
       entry_amount: wagerAmount,
       contest_pool: wagerAmount * 2,
       platform_fee: settlementFee,
+      platform_fee_per_player: serviceFee,
+      platform_fee_schedule_version: match.platform_fee_schedule_version || '',
       contest_start_at: game.started_at || match.created_date,
       contest_end_at: game.completed_at || updatedMatch.completed_at,
       white_player_id: match.player1_id || '',
