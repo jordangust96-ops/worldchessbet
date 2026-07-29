@@ -4,7 +4,6 @@ import { motion } from "framer-motion";
 import { Crown, Zap, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import NotifyAtLaunchModal from "@/components/NotifyAtLaunchModal";
-import HowItWorksSection from "@/components/landing/HowItWorksSection";
 import Logo from "@/components/Logo";
 import SEO from "@/components/seo/SEO";
 import { SITE_URL, LOGO_URL, SOCIAL_PROFILES } from "@/lib/seoConfig";
@@ -125,8 +124,6 @@ export default function Landing() {
           </button>
         </p>
       </div>
-
-      <HowItWorksSection />
 
       {/* Footer */}
       <footer className="px-6 py-6 text-center">
