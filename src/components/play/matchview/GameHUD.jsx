@@ -85,6 +85,12 @@ export default function GameHUD({ match, game, userId, movementMode, onMovementM
     setOfferingDraw(true);
     try {
       await base44.functions.invoke("respondDraw", { gameId: game.id, action: "offer" });
+    } catch (error) {
+      toast({
+        title: "Draw offer failed",
+        description: error?.response?.data?.error || "Could not send the draw offer. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setOfferingDraw(false);
     }
@@ -94,6 +100,12 @@ export default function GameHUD({ match, game, userId, movementMode, onMovementM
     setRespondingDraw(true);
     try {
       await base44.functions.invoke("respondDraw", { gameId: game.id, action });
+    } catch (error) {
+      toast({
+        title: "Action failed",
+        description: error?.response?.data?.error || "Could not respond to the draw offer. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setRespondingDraw(false);
     }

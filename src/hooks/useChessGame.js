@@ -166,15 +166,40 @@ export function useChessGame(matchId, userId, active) {
             promotion: "q",
           });
         } catch (error) {
-          // Server rejected the move — restore the previous position.
-          chessRef.current.load(previousFen);
-          setFen(previousFen);
-          renderedPlyRef.current = plyFromFen(previousFen);
-          toast({
-            title: "Move rejected",
-            description: error?.response?.data?.error || "That move could not be made.",
-            variant: "destructive",
-          });
+          // The request failed — but on a flaky connection (common on mobile)
+          // the move may have actually been recorded server-side even though
+          // the response never arrived, or the rejection may be stale (e.g.
+          // "Not your turn" because the opponent's move already landed).
+          // Re-sync with the authoritative Game record instead of blindly
+          // trusting the local rollback, so a lost response never leaves a
+          // player stuck retrying a move that already succeeded.
+          let moveAlreadyLanded = false;
+          try {
+            const latest = await base44.entities.Game.get(game.id);
+            const latestPly = plyFromFen(latest.fen);
+            if (latestPly >= renderedPlyRef.current) {
+              chessRef.current.load(latest.fen);
+              setFen(chessRef.current.fen());
+              renderedPlyRef.current = latestPly;
+              setGame(latest);
+              moveAlreadyLanded = latest.fen === preview.fen();
+            } else {
+              chessRef.current.load(previousFen);
+              setFen(previousFen);
+              renderedPlyRef.current = plyFromFen(previousFen);
+            }
+          } catch (refetchError) {
+            chessRef.current.load(previousFen);
+            setFen(previousFen);
+            renderedPlyRef.current = plyFromFen(previousFen);
+          }
+          if (!moveAlreadyLanded) {
+            toast({
+              title: "Move rejected",
+              description: error?.response?.data?.error || "That move could not be made.",
+              variant: "destructive",
+            });
+          }
         }
       })();
 
