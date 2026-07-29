@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import { getEndReason } from "@/lib/gameEndReason";
 import ShareOnXButton from "./ShareOnXButton";
+import ShareOnFacebookButton from "./ShareOnFacebookButton";
 import ReportContestButton from "@/components/disputes/ReportContestButton";
 import { trackPixelEvent } from "@/lib/metaPixel";
 
@@ -83,7 +84,10 @@ export default function SettlementState({ match, game, userId, onReturn }) {
           Return to Marketplace
         </Button>
         {won && (
-          <ShareOnXButton match={match} game={game} winnerName={winnerName} opponentName={opponentName} endReason={endReason} />
+          <>
+            <ShareOnXButton match={match} game={game} winnerName={winnerName} opponentName={opponentName} endReason={endReason} />
+            <ShareOnFacebookButton match={match} game={game} winnerName={winnerName} opponentName={opponentName} endReason={endReason} />
+          </>
         )}
       </div>
 
