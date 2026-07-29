@@ -1,6 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { Swords, Lock, Trophy } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Swords, Lock, Trophy, ShieldCheck } from "lucide-react";
 import { Image } from "@/components/ui/image";
 
 const STEPS = [
@@ -78,6 +79,24 @@ export default function HowItWorksSection() {
             </motion.div>
           ))}
         </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+          className="flex items-start gap-3 mt-8 p-5 rounded-2xl bg-white/[0.02] border border-white/5"
+        >
+          <ShieldCheck size={18} className="text-[#C9A84C] shrink-0 mt-0.5" />
+          <p className="text-white/45 text-sm leading-relaxed">
+            <span className="text-white/70 font-medium">Fair Play, guaranteed.</span> Every contest is
+            monitored by our integrity systems to detect and act on cheating, and any player can report
+            suspicious activity for review.{" "}
+            <Link to="/fair-play-integrity" className="text-[#C9A84C] hover:underline underline-offset-2">
+              Learn more
+            </Link>
+          </p>
+        </motion.div>
       </div>
     </section>
   );
