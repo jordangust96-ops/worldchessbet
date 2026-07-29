@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react";
 import html2canvas from "html2canvas";
-import { Share2, Download, Loader2 } from "lucide-react";
+import { Share2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import ShareVictoryCard from "./ShareVictoryCard";
@@ -11,7 +11,6 @@ import ShareVictoryCard from "./ShareVictoryCard";
 export default function ShareOnXButton({ match, game, winnerName, opponentName, endReason }) {
   const cardRef = useRef(null);
   const [sharing, setSharing] = useState(false);
-  const [downloading, setDownloading] = useState(false);
   const { toast } = useToast();
 
   // Winner receives 100% of the combined Contest Entry Amounts — the
@@ -45,15 +44,6 @@ export default function ShareOnXButton({ match, game, winnerName, opponentName, 
     }
   };
 
-  const handleDownload = async () => {
-    setDownloading(true);
-    try {
-      await downloadCard();
-    } finally {
-      setDownloading(false);
-    }
-  };
-
   return (
     <>
       <div style={{ position: "fixed", top: 0, left: "-9999px", pointerEvents: "none" }} aria-hidden>
@@ -70,21 +60,12 @@ export default function ShareOnXButton({ match, game, winnerName, opponentName, 
       </div>
       <Button
         onClick={handleShare}
-        disabled={sharing || downloading}
+        disabled={sharing}
         variant="outline"
         className="w-full h-12 rounded-2xl border-[#C9A84C]/30 text-[#C9A84C] font-bold hover:bg-[#C9A84C]/10"
       >
         {sharing ? <Loader2 className="animate-spin mr-2" size={16} /> : <Share2 size={16} className="mr-2" />}
         Share on X
-      </Button>
-      <Button
-        onClick={handleDownload}
-        disabled={sharing || downloading}
-        variant="ghost"
-        className="w-full h-10 rounded-2xl text-white/40 font-semibold hover:bg-white/5 hover:text-white/60"
-      >
-        {downloading ? <Loader2 className="animate-spin mr-2" size={14} /> : <Download size={14} className="mr-2" />}
-        Download Victory Card
       </Button>
     </>
   );

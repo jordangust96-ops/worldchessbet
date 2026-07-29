@@ -5,6 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { getEndReason } from "@/lib/gameEndReason";
 import ShareOnXButton from "./ShareOnXButton";
 import ShareOnFacebookButton from "./ShareOnFacebookButton";
+import DownloadVictoryCardButton from "./DownloadVictoryCardButton";
 import ReportContestButton from "@/components/disputes/ReportContestButton";
 import { trackPixelEvent } from "@/lib/metaPixel";
 
@@ -87,6 +88,7 @@ export default function SettlementState({ match, game, userId, onReturn }) {
           <>
             <ShareOnXButton match={match} game={game} winnerName={winnerName} opponentName={opponentName} endReason={endReason} />
             <ShareOnFacebookButton match={match} game={game} winnerName={winnerName} opponentName={opponentName} endReason={endReason} />
+            <DownloadVictoryCardButton match={match} game={game} winnerName={winnerName} opponentName={opponentName} endReason={endReason} />
           </>
         )}
       </div>
