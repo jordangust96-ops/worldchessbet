@@ -28,7 +28,13 @@ const STEPS = [
 
 export default function HowItWorksSection() {
   return (
-    <section className="px-6 py-20">
+    <motion.section
+      initial={{ opacity: 0 }}
+      whileInView={{ opacity: 1 }}
+      viewport={{ once: true, margin: "-100px" }}
+      transition={{ duration: 0.4 }}
+      className="px-6 py-20"
+    >
       <div className="max-w-4xl mx-auto space-y-16">
         {/* Header */}
         <motion.div
@@ -89,6 +95,6 @@ export default function HowItWorksSection() {
           </Link>
         </motion.div>
       </div>
-    </section>
+    </motion.section>
   );
 }
