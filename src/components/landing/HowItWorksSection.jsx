@@ -41,13 +41,6 @@ export default function HowItWorksSection() {
           <p className="text-xs font-semibold tracking-widest text-[#C9A84C] uppercase">
             How It Works
           </p>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-white">
-            Skill-Based Chess, Settled Fairly
-          </h2>
-          <p className="text-white/50 text-base max-w-lg mx-auto leading-relaxed">
-            ChessBet lets you challenge real opponents in head-to-head chess matches with real
-            stakes — decided entirely by skill, not chance.
-          </p>
         </motion.div>
 
         {/* Steps */}
