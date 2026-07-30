@@ -25,6 +25,10 @@
       "type": "string",
       "description": "Support email shown in the Contact Information section"
     },
+    "full_document_url": {
+      "type": "string",
+      "description": "Optional URL to the full, formal published document (e.g. PDF) that this summary is based on"
+    },
     "content_markdown": {
       "type": "string",
       "description": "Full policy body in markdown. Sections are delimited by '## ' headings. Use {{SUPPORT_EMAIL}} as a placeholder for the support email."
