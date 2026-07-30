@@ -60,7 +60,7 @@ export default function HowItWorksSection() {
           transition={{ duration: 0.6 }}
           className="text-center space-y-3"
         >
-          <p className="text-xs font-semibold tracking-widest text-[#C9A84C] uppercase">
+          <p className="text-2xl sm:text-3xl font-extrabold tracking-widest text-[#C9A84C] uppercase">
             How It Works
           </p>
         </motion.div>
