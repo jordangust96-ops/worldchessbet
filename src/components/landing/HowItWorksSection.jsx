@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { UserPlus, Swords, Trophy, ShieldCheck } from "lucide-react";
@@ -27,11 +27,27 @@ const STEPS = [
 ];
 
 export default function HowItWorksSection() {
+  // whileInView alone isn't enough here — if the section already intersects
+  // the viewport at initial mount (e.g. shorter hero, taller screen), it
+  // fires immediately with no scroll. Gate visibility on an actual scroll
+  // event so the section stays fully hidden pre-scroll no matter the layout.
+  const [hasScrolled, setHasScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => {
+      if (window.scrollY > 0) {
+        setHasScrolled(true);
+        window.removeEventListener("scroll", onScroll);
+      }
+    };
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   return (
     <motion.section
       initial={{ opacity: 0 }}
-      whileInView={{ opacity: 1 }}
-      viewport={{ once: true, margin: "-100px" }}
+      animate={{ opacity: hasScrolled ? 1 : 0 }}
       transition={{ duration: 0.4 }}
       className="px-6 py-20"
     >
