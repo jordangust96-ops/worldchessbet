@@ -102,6 +102,16 @@ export default function LegalDocumentPage({ policyType }) {
       </div>
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="px-5 pt-6 max-w-2xl mx-auto">
+        {config?.full_document_url && (
+          <a
+            href={config.full_document_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block mb-6 text-center text-xs font-semibold text-[#C9A84C] underline hover:text-[#E8D48B]"
+          >
+            View the full published document (PDF)
+          </a>
+        )}
         {sections.length === 0 ? (
           <p className="text-white/40 text-sm text-center py-10">{docMeta.label} content is not yet available.</p>
         ) : (
