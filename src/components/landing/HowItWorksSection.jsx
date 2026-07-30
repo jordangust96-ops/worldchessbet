@@ -28,7 +28,7 @@ const STEPS = [
 
 export default function HowItWorksSection() {
   return (
-    <section className="px-6 py-20 border-t border-white/5">
+    <section className="px-6 py-20">
       <div className="max-w-4xl mx-auto space-y-16">
         {/* Header */}
         <motion.div
