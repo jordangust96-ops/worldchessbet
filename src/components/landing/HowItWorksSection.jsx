@@ -42,11 +42,10 @@ export default function HowItWorksSection() {
             How It Works
           </p>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-white">
-            Skill-Based Chess, Settled Fairly
+            From Sign-Up to Settlement
           </h2>
           <p className="text-white/50 text-base max-w-lg mx-auto leading-relaxed">
-            ChessBet lets you challenge real opponents in head-to-head chess matches with real
-            stakes — decided entirely by skill, not chance.
+            Four simple steps to your first head-to-head chess match — here's exactly how it works.
           </p>
         </motion.div>
 
