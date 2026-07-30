@@ -79,6 +79,7 @@ const AuthenticatedApp = () => {
       <Route path="/terms-of-service" element={<TermsOfService />} />
       <Route path="/official-rules" element={<OfficialRules />} />
       <Route path="/faq" element={<FAQ />} />
+      <Route path="/fair-play-integrity" element={<FairPlayIntegrity />} />
       {/* Handles its own auth/MFA gating so it can return the visitor to this
           exact invitation after they sign in. */}
       <Route path="/join/:inviteCode" element={<JoinMatch />} />
@@ -103,7 +104,6 @@ const AuthenticatedApp = () => {
               <Route path="/" element={<Home />} />
               <Route path="/wallet" element={<WalletPage />} />
               <Route path="/profile" element={<Profile />} />
-              <Route path="/fair-play-integrity" element={<FairPlayIntegrity />} />
               <Route path="/my-reports" element={<MyReports />} />
             </Route>
           </Route>
