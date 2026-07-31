@@ -130,6 +130,26 @@
       "type": "boolean",
       "default": false,
       "description": "Set once the automated Welcome Email has been successfully sent to this user, to guarantee it is only ever sent once per account. Written only by the sendWelcomeEmail backend function \u2014 never by any client."
+    },
+    "founding_player": {
+      "type": "boolean",
+      "default": false,
+      "description": "Set when this user is one of ChessBet's first 250 platform users. Awarded automatically \u2014 backfilled for existing users and then granted to new signups until the 250-user cap is reached. Displayed as a subtle, hover-revealed badge on the user's profile. Written only by backend functions, never by any client."
+    },
+    "founding_player_awarded_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp this user was awarded the Founding Player badge."
+    },
+    "founding_player_email_sent": {
+      "type": "boolean",
+      "default": false,
+      "description": "Set once the Founding Player notification email has been successfully sent to this user, to guarantee it is only ever sent once per account."
+    },
+    "marketing_email_opt_out": {
+      "type": "boolean",
+      "default": false,
+      "description": "Set when the user clicks 'unsubscribe' in a non-essential marketing/announcement email (e.g. the Founding Player notification). Checked before sending any future non-essential email; never blocks essential account/security emails."
     }
   },
   "required": [

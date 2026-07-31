@@ -31,6 +31,7 @@ import OfficialRules from '@/pages/OfficialRules';
 import FAQ from '@/pages/FAQ';
 import OfficialRulesAdmin from '@/pages/OfficialRulesAdmin';
 import FairPlayIntegrity from '@/pages/FairPlayIntegrity';
+import Unsubscribe from '@/pages/Unsubscribe';
 import JoinMatch from '@/pages/JoinMatch';
 import IntegrityReviewQueue from '@/pages/IntegrityReviewQueue';
 import AdminUserIntegrity from '@/pages/AdminUserIntegrity';
@@ -80,6 +81,7 @@ const AuthenticatedApp = () => {
       <Route path="/official-rules" element={<OfficialRules />} />
       <Route path="/faq" element={<FAQ />} />
       <Route path="/fair-play-integrity" element={<FairPlayIntegrity />} />
+      <Route path="/unsubscribe" element={<Unsubscribe />} />
       {/* Handles its own auth/MFA gating so it can return the visitor to this
           exact invitation after they sign in. */}
       <Route path="/join/:inviteCode" element={<JoinMatch />} />

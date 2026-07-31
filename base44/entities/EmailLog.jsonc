@@ -13,7 +13,8 @@
     "email_type": {
       "type": "string",
       "enum": [
-        "welcome"
+        "welcome",
+        "founding_player"
       ],
       "description": "Which automated email this log entry is for. New values are added here as more automated emails are built."
     },

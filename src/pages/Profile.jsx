@@ -10,6 +10,7 @@ import SecuritySection from "@/components/profile/SecuritySection";
 import LegalSection from "@/components/profile/LegalSection";
 import DeleteAccountButton from "@/components/profile/DeleteAccountButton";
 import AdminToolsSection from "@/components/profile/AdminToolsSection";
+import FoundingPlayerBadge from "@/components/profile/FoundingPlayerBadge";
 import { clearMfaVerified } from "@/lib/mfaSession";
 
 export default function Profile() {
@@ -84,6 +85,7 @@ export default function Profile() {
           <div>
             <div className="flex items-center justify-center gap-2">
               <h1 className="text-xl font-bold text-white">{chessUsername || user?.full_name || "Player"}</h1>
+              {user?.founding_player && <FoundingPlayerBadge />}
               {user?.role === "admin" && (
                 <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#C9A84C]/15 border border-[#C9A84C]/30 text-[10px] font-bold text-[#C9A84C] uppercase tracking-wider">
                   Admin

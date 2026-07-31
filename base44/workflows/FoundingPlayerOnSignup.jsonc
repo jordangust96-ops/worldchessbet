@@ -1,0 +1,39 @@
+{
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "founding_player_on_signup",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "award_founding_player": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "awardFoundingPlayerOnSignup",
+            "args": {
+              "userId": "${ .trigger.user_id }"
+            }
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Award Founding Player badge",
+            "description": "If under the 250-user cap"
+          }
+        }
+      }
+    ]
+  },
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "app_user_auth",
+      "events": [
+        "signup"
+      ]
+    }
+  },
+  "name": "Founding Player On Signup",
+  "description": "Awards the Founding Player badge (and sends the notification email) to new users, until the 250-user cap is reached."
+}
