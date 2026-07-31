@@ -23,6 +23,7 @@ Deno.serve(async (req) => {
         let name = 'Opponent';
         let gamesPlayed = 0;
         let winPercentage = 0;
+        let isFoundingPlayer = false;
         try {
           const opponent = await base44.asServiceRole.entities.User.get(m.player1_id);
           if (opponent?.chess_com_username?.trim()) {
@@ -32,10 +33,11 @@ Deno.serve(async (req) => {
           }
           gamesPlayed = opponent?.games_played || 0;
           winPercentage = opponent?.win_percentage || 0;
+          isFoundingPlayer = !!opponent?.founding_player;
         } catch (e) {
           // fallback to default name/stats
         }
-        return { ...m, opponentName: name, gamesPlayed, winPercentage };
+        return { ...m, opponentName: name, gamesPlayed, winPercentage, isFoundingPlayer };
       })
     );
 
