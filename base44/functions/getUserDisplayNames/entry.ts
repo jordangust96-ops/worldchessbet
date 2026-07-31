@@ -17,6 +17,7 @@ Deno.serve(async (req) => {
     }
 
     const names = {};
+    const foundingPlayers = {};
     await Promise.all(
       userIds.filter(Boolean).map(async (id) => {
         try {
@@ -28,13 +29,15 @@ Deno.serve(async (req) => {
           } else {
             names[id] = null;
           }
+          foundingPlayers[id] = !!target?.founding_player;
         } catch (e) {
           names[id] = null;
+          foundingPlayers[id] = false;
         }
       })
     );
 
-    return Response.json({ names });
+    return Response.json({ names, foundingPlayers });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }

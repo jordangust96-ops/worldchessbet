@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import { User, Loader2, SearchX } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import FoundingPlayerBadge from "@/components/profile/FoundingPlayerBadge";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { getJurisdictionMessage } from "@/lib/jurisdictionConfig";
@@ -179,7 +180,10 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
             </div>
             <div>
               <p className="text-[10px] uppercase tracking-widest text-white/30">Opponent</p>
-              <p className="text-lg lg:text-sm font-bold text-white">{current.opponentName}</p>
+              <p className="text-lg lg:text-sm font-bold text-white flex items-center gap-1.5">
+                {current.opponentName}
+                {current.isFoundingPlayer && <FoundingPlayerBadge />}
+              </p>
               <p className="text-xs text-white/30">
                 {current.gamesPlayed > 0
                   ? `${current.gamesPlayed} Games • ${current.winPercentage}% Win Rate`

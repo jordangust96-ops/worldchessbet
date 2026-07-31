@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import MovementModeToggle from "@/components/play/MovementModeToggle";
 import OpponentConnectionBanner from "@/components/play/matchview/OpponentConnectionBanner";
 import ReportContestButton from "@/components/disputes/ReportContestButton";
+import FoundingPlayerBadge from "@/components/profile/FoundingPlayerBadge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +36,7 @@ function formatClock(ms) {
 
 export default function GameHUD({ match, game, userId, movementMode, onMovementModeChange }) {
   const [names, setNames] = useState({ me: "You", opponent: "Opponent" });
+  const [founding, setFounding] = useState({ me: false, opponent: false });
   const [showResignConfirm, setShowResignConfirm] = useState(false);
   const [resigning, setResigning] = useState(false);
   const [offeringDraw, setOfferingDraw] = useState(false);
@@ -126,6 +128,10 @@ export default function GameHUD({ match, game, userId, movementMode, onMovementM
         me: data?.names?.[userId] || "You",
         opponent: data?.names?.[opponentId] || "Opponent",
       });
+      setFounding({
+        me: !!data?.foundingPlayers?.[userId],
+        opponent: !!data?.foundingPlayers?.[opponentId],
+      });
     };
     load();
   }, [userId, opponentId]);
@@ -166,7 +172,7 @@ export default function GameHUD({ match, game, userId, movementMode, onMovementM
     };
   }, [game?.fen, game?.pgn, myColor]);
 
-  const PlayerCard = ({ name, colorLabel, colorKey, clockMs }) => {
+  const PlayerCard = ({ name, isFounder, colorLabel, colorKey, clockMs }) => {
     const isActive = activeColor === colorKey;
     return (
       <div
@@ -178,7 +184,10 @@ export default function GameHUD({ match, game, userId, movementMode, onMovementM
       >
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-bold text-white">{name}</p>
+            <p className="text-sm font-bold text-white flex items-center gap-1.5">
+              {name}
+              {isFounder && <FoundingPlayerBadge />}
+            </p>
             <p className="text-[10px] uppercase tracking-widest text-white/30">{colorLabel}</p>
           </div>
           <p className={`font-mono text-lg font-bold tabular-nums ${isActive ? "text-[#C9A84C]" : "text-white/60"}`}>
@@ -225,11 +234,13 @@ export default function GameHUD({ match, game, userId, movementMode, onMovementM
       <div className="space-y-2">
         <PlayerCard
           name={myColor === "w" ? names.me : names.opponent}
+          isFounder={myColor === "w" ? founding.me : founding.opponent}
           colorLabel="White"
           colorKey="w"
         />
         <PlayerCard
           name={myColor === "b" ? names.me : names.opponent}
+          isFounder={myColor === "b" ? founding.me : founding.opponent}
           colorLabel="Black"
           colorKey="b"
         />
