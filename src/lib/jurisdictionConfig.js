@@ -6,13 +6,13 @@
 // only reflects whatever status the server returns. To launch in an
 // additional state, update the whitelist in getCurrentJurisdiction's
 // APPROVED_STATES — never hard-code state names anywhere else.
+// First-to-launch approved jurisdictions (Tier 1 launch footprint).
+// This list is for display purposes only and mirrors the authoritative
+// server-side whitelist in getCurrentJurisdiction. Enforcement is disabled
+// until true launch, so users from any location can still visit and play —
+// this list simply records which states are prepared to launch first.
 export const APPROVED_STATES = ["AR", "CO", "GA", "IA", "KS", "ND", "TX", "VA", "WI", "WY"];
-
-// TEMPORARY DEV/TESTING OVERRIDE — REMOVE BEFORE PRODUCTION LAUNCH.
-// Mirrors the same temporary Michigan override made in getCurrentJurisdiction
-// for display purposes only. Delete this line (and its usage below) to revert.
-export const DEV_TEMP_APPROVED_STATES = ["MI"];
-export const EFFECTIVE_APPROVED_STATES = [...APPROVED_STATES, ...DEV_TEMP_APPROVED_STATES];
+export const EFFECTIVE_APPROVED_STATES = APPROVED_STATES;
 
 export const JURISDICTION_STATUS = {
   APPROVED: "approved",
