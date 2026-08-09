@@ -1,0 +1,172 @@
+{
+  "name": "FairPlayAnalysis",
+  "type": "object",
+  "properties": {
+    "match_id": {
+      "type": "string",
+      "description": "ChessBet Match ID analyzed"
+    },
+    "game_id": {
+      "type": "string",
+      "description": "Authoritative Game ID analyzed"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "awaiting_analyzer",
+        "processing",
+        "completed",
+        "manual_review",
+        "failed"
+      ],
+      "default": "queued"
+    },
+    "analyzer_version": {
+      "type": "string"
+    },
+    "stockfish_version": {
+      "type": "string"
+    },
+    "analysis_depth": {
+      "type": "number"
+    },
+    "white_eligible_moves": {
+      "type": "number",
+      "default": 0
+    },
+    "black_eligible_moves": {
+      "type": "number",
+      "default": 0
+    },
+    "white_average_centipawn_loss": {
+      "type": "number"
+    },
+    "black_average_centipawn_loss": {
+      "type": "number"
+    },
+    "white_median_centipawn_loss": {
+      "type": "number"
+    },
+    "black_median_centipawn_loss": {
+      "type": "number"
+    },
+    "white_top_1_match_rate": {
+      "type": "number"
+    },
+    "black_top_1_match_rate": {
+      "type": "number"
+    },
+    "white_top_3_match_rate": {
+      "type": "number"
+    },
+    "black_top_3_match_rate": {
+      "type": "number"
+    },
+    "white_critical_move_match_rate": {
+      "type": "number"
+    },
+    "black_critical_move_match_rate": {
+      "type": "number"
+    },
+    "white_move_time_consistency": {
+      "type": "number"
+    },
+    "black_move_time_consistency": {
+      "type": "number"
+    },
+    "white_focus_loss_count": {
+      "type": "number",
+      "default": 0
+    },
+    "black_focus_loss_count": {
+      "type": "number",
+      "default": 0
+    },
+    "white_total_focus_lost_ms": {
+      "type": "number",
+      "default": 0
+    },
+    "black_total_focus_lost_ms": {
+      "type": "number",
+      "default": 0
+    },
+    "white_risk_score": {
+      "type": "number"
+    },
+    "black_risk_score": {
+      "type": "number"
+    },
+    "white_risk_band": {
+      "type": "string",
+      "enum": [
+        "insufficient_data",
+        "cleared",
+        "monitor",
+        "review"
+      ],
+      "default": "insufficient_data"
+    },
+    "black_risk_band": {
+      "type": "string",
+      "enum": [
+        "insufficient_data",
+        "cleared",
+        "monitor",
+        "review"
+      ],
+      "default": "insufficient_data"
+    },
+    "white_screening_reasons": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "black_screening_reasons": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "raw_analysis_summary": {
+      "type": "string",
+      "maxLength": 10000
+    },
+    "analyzed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "error_message": {
+      "type": "string",
+      "maxLength": 2000
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000
+    }
+  },
+  "required": [
+    "match_id",
+    "game_id",
+    "status"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": false
+  }
+}
