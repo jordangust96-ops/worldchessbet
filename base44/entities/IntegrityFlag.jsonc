@@ -26,6 +26,7 @@
         "chargeback",
         "vpn_detected",
         "geolocation_mismatch",
+        "engine_assistance_suspected",
         "manual"
       ],
       "description": "The category of suspicious activity that triggered this flag"
