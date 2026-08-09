@@ -76,6 +76,28 @@ export function useChessGame(matchId, userId, active) {
     return () => clearInterval(heartbeatInterval);
   }, [active, game?.id, game?.status]);
 
+  // Browser visibility telemetry supplements the server move/clock record. It
+  // is intentionally not enforcement logic: the backend only stores it for
+  // later human review, and duplicate browser events are de-duplicated there.
+  useEffect(() => {
+    if (!active || !game?.id || game.status === "completed") return;
+
+    const report = (eventType) => {
+      base44.functions.invoke("recordGameFocusEvent", { gameId: game.id, eventType }).catch(() => {});
+    };
+    const onVisibilityChange = () => report(document.hidden ? "hidden" : "visible");
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("blur", () => report("blur"));
+    window.addEventListener("focus", () => report("focus"));
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("blur", () => report("blur"));
+      window.removeEventListener("focus", () => report("focus"));
+    };
+  }, [active, game?.id, game?.status]);
+
   useEffect(() => {
     if (!active || !game?.id) return;
 
