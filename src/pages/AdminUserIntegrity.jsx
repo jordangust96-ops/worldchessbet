@@ -36,14 +36,13 @@ export default function AdminUserIntegrity() {
     }
     setIsAdmin(true);
 
-    const [u, userFlags, asP1, asP2, txs, jurisdictionHistory, whiteAnalyses, blackAnalyses] = await Promise.all([
+    const [u, userFlags, asP1, asP2, txs, jurisdictionHistory, fairPlayRecords] = await Promise.all([
       base44.entities.User.get(userId).catch(() => null),
       base44.entities.IntegrityFlag.filter({ user_id: userId }, "-created_date"),
       base44.entities.Match.filter({ player1_id: userId }, "-created_date", 25),
       base44.entities.Match.filter({ player2_id: userId }, "-created_date", 25),
       base44.entities.WalletTransaction.filter({ user_id: userId }, "-created_date", 25),
       base44.entities.JurisdictionVerificationLog.filter({ user_id: userId }, "-created_date", 25),
-      base44.entities.FairPlayAnalysis.list("-created_date", 250),
       base44.entities.FairPlayAnalysis.list("-created_date", 250),
     ]);
 
@@ -56,8 +55,7 @@ export default function AdminUserIntegrity() {
     setJurisdictionLogs(jurisdictionHistory);
     const playerMatchIds = new Set([...asP1, ...asP2].map((match) => match.id));
     setFairPlayAnalyses(
-      [...whiteAnalyses, ...blackAnalyses]
-        .filter((analysis, index, all) => all.findIndex((item) => item.id === analysis.id) === index)
+      fairPlayRecords
         .filter((analysis) => playerMatchIds.has(analysis.match_id))
         .sort((a, b) => new Date(b.created_date) - new Date(a.created_date))
         .slice(0, 20)
