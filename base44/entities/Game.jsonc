@@ -119,6 +119,65 @@
         }
       }
     },
+    "focus_log": {
+      "type": "array",
+      "description": "Browser focus/visibility events captured during an active game. Supporting forensic telemetry only \u2014 never used to change clocks, moves, or outcomes.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "color": {
+            "type": "string",
+            "enum": [
+              "w",
+              "b"
+            ]
+          },
+          "event_type": {
+            "type": "string",
+            "enum": [
+              "hidden",
+              "visible",
+              "blur",
+              "focus"
+            ]
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "white_focus_lost_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Server timestamp of White's active browser focus loss. Cleared when focus returns; audit-only."
+    },
+    "black_focus_lost_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Server timestamp of Black's active browser focus loss. Cleared when focus returns; audit-only."
+    },
+    "white_focus_loss_count": {
+      "type": "number",
+      "default": 0,
+      "description": "Number of distinct focus-loss periods recorded for White. Supporting telemetry only."
+    },
+    "black_focus_loss_count": {
+      "type": "number",
+      "default": 0,
+      "description": "Number of distinct focus-loss periods recorded for Black. Supporting telemetry only."
+    },
+    "white_total_focus_lost_ms": {
+      "type": "number",
+      "default": 0,
+      "description": "Cumulative milliseconds White's game tab was not focused. Supporting telemetry only."
+    },
+    "black_total_focus_lost_ms": {
+      "type": "number",
+      "default": 0,
+      "description": "Cumulative milliseconds Black's game tab was not focused. Supporting telemetry only."
+    },
     "white_last_seen_at": {
       "type": "string",
       "format": "date-time",
