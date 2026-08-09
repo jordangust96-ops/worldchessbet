@@ -15,6 +15,7 @@ export const FLAG_TYPE_LABELS = {
   chargeback: "Chargeback",
   vpn_detected: "VPN Detected",
   geolocation_mismatch: "Geolocation Mismatch",
+  engine_assistance_suspected: "Engine Assistance — Human Review Needed",
   manual: "Manually Flagged",
 };
 
