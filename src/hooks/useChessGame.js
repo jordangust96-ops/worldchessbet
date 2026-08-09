@@ -86,15 +86,17 @@ export function useChessGame(matchId, userId, active) {
       base44.functions.invoke("recordGameFocusEvent", { gameId: game.id, eventType }).catch(() => {});
     };
     const onVisibilityChange = () => report(document.hidden ? "hidden" : "visible");
+    const onBlur = () => report("blur");
+    const onFocus = () => report("focus");
 
     document.addEventListener("visibilitychange", onVisibilityChange);
-    window.addEventListener("blur", () => report("blur"));
-    window.addEventListener("focus", () => report("focus"));
+    window.addEventListener("blur", onBlur);
+    window.addEventListener("focus", onFocus);
 
     return () => {
       document.removeEventListener("visibilitychange", onVisibilityChange);
-      window.removeEventListener("blur", () => report("blur"));
-      window.removeEventListener("focus", () => report("focus"));
+      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("focus", onFocus);
     };
   }, [active, game?.id, game?.status]);
 
