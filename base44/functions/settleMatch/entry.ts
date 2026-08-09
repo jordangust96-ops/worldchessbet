@@ -322,6 +322,13 @@ Deno.serve(async (req) => {
       .invoke('runIntegrityCheck', { matchId: match.id, gameId: game.id })
       .catch(() => {});
 
+    // Queue post-game engine screening separately from financial settlement.
+    // A missing/unavailable analyzer can never change the already-settled
+    // contest outcome; it only leaves an admin-only analysis record queued.
+    await base44.asServiceRole.functions
+      .invoke('requestFairPlayAnalysis', { matchId: match.id, gameId: game.id })
+      .catch(() => {});
+
     return Response.json({ match: updatedMatch });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
