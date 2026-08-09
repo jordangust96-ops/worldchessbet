@@ -19,6 +19,7 @@ export default function AdminUserIntegrity() {
   const [matches, setMatches] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [jurisdictionLogs, setJurisdictionLogs] = useState([]);
+  const [fairPlayAnalyses, setFairPlayAnalyses] = useState([]);
   const [showNewFlag, setShowNewFlag] = useState(false);
 
   useEffect(() => {
@@ -35,13 +36,15 @@ export default function AdminUserIntegrity() {
     }
     setIsAdmin(true);
 
-    const [u, userFlags, asP1, asP2, txs, jurisdictionHistory] = await Promise.all([
+    const [u, userFlags, asP1, asP2, txs, jurisdictionHistory, whiteAnalyses, blackAnalyses] = await Promise.all([
       base44.entities.User.get(userId).catch(() => null),
       base44.entities.IntegrityFlag.filter({ user_id: userId }, "-created_date"),
       base44.entities.Match.filter({ player1_id: userId }, "-created_date", 25),
       base44.entities.Match.filter({ player2_id: userId }, "-created_date", 25),
       base44.entities.WalletTransaction.filter({ user_id: userId }, "-created_date", 25),
       base44.entities.JurisdictionVerificationLog.filter({ user_id: userId }, "-created_date", 25),
+      base44.entities.FairPlayAnalysis.list("-created_date", 250),
+      base44.entities.FairPlayAnalysis.list("-created_date", 250),
     ]);
 
     setTargetUser(u);
@@ -51,6 +54,14 @@ export default function AdminUserIntegrity() {
     );
     setTransactions(txs);
     setJurisdictionLogs(jurisdictionHistory);
+    const playerMatchIds = new Set([...asP1, ...asP2].map((match) => match.id));
+    setFairPlayAnalyses(
+      [...whiteAnalyses, ...blackAnalyses]
+        .filter((analysis, index, all) => all.findIndex((item) => item.id === analysis.id) === index)
+        .filter((analysis) => playerMatchIds.has(analysis.match_id))
+        .sort((a, b) => new Date(b.created_date) - new Date(a.created_date))
+        .slice(0, 20)
+    );
     setLoading(false);
   };
 
@@ -116,6 +127,36 @@ export default function AdminUserIntegrity() {
 
       <div className="mt-6">
         <JurisdictionPanel targetUser={targetUser} logs={jurisdictionLogs} />
+      </div>
+
+      <div className="mt-6">
+        <h2 className="text-sm font-bold text-white/80 mb-3">Automated Fair Play Screening</h2>
+        <div className="rounded-2xl bg-white/[0.03] border border-white/5 divide-y divide-white/5">
+          {fairPlayAnalyses.length === 0 ? (
+            <p className="text-xs text-white/30 p-4">No completed-game screening records yet.</p>
+          ) : (
+            fairPlayAnalyses.map((analysis) => {
+              const isWhite = matches.find((match) => match.id === analysis.match_id)?.player1_id === userId;
+              const band = isWhite ? analysis.white_risk_band : analysis.black_risk_band;
+              const score = isWhite ? analysis.white_risk_score : analysis.black_risk_score;
+              const status = analysis.status?.replace(/_/g, " ") || "queued";
+              return (
+                <div key={analysis.id} className="p-3 text-xs flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-white/60 capitalize">{status}</p>
+                    <p className="text-white/30 mt-0.5">{moment(analysis.created_date).format("MMM D, YYYY h:mm A")}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className={band === "review" ? "text-red-400 font-semibold capitalize" : band === "monitor" ? "text-amber-400 font-semibold capitalize" : "text-white/50 capitalize"}>
+                      {band || "pending"}
+                    </p>
+                    {typeof score === "number" && <p className="text-white/30 mt-0.5">Score {score}</p>}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
       </div>
 
       <div className="mt-6 flex items-center justify-between">
