@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { postLedgerLegs } from '../../shared/ledger.ts';
+import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 
 // Settles wallet balances once a Game has reached a terminal state (checkmate,
 // resignation, draw, or timeout — all already decided by existing gameplay
@@ -101,6 +102,7 @@ Deno.serve(async (req) => {
         await postLedgerLegs(base44, {
           groupId: crypto.randomUUID(),
           matchId: match.id,
+          gameId: game.id,
           walletTransactionId: entryTransaction.id,
           actor: 'system',
           triggerEvent: 'match_settlement_draw',
@@ -126,6 +128,7 @@ Deno.serve(async (req) => {
         await postLedgerLegs(base44, {
           groupId: crypto.randomUUID(),
           matchId: match.id,
+          gameId: game.id,
           walletTransactionId: feeTransaction.id,
           actor: 'system',
           triggerEvent: 'service_fee_refund',
@@ -177,6 +180,7 @@ Deno.serve(async (req) => {
       await postLedgerLegs(base44, {
         groupId: crypto.randomUUID(),
         matchId: match.id,
+        gameId: game.id,
         walletTransactionId: walletTransaction.id,
         actor: 'system',
         triggerEvent: 'match_settlement',
@@ -211,7 +215,7 @@ Deno.serve(async (req) => {
       match.player2_id ? base44.asServiceRole.entities.User.get(match.player2_id) : null,
     ]);
 
-    await base44.asServiceRole.entities.ContestRecord.create({
+    const contestRecord = await base44.asServiceRole.entities.ContestRecord.create({
       match_id: match.id,
       game_id: game.id,
       is_private: !!match.is_private,
@@ -251,6 +255,36 @@ Deno.serve(async (req) => {
       black_disconnected_at: game.black_disconnected_at || '',
       black_reconnected_at: game.black_reconnected_at || '',
       black_total_disconnected_ms: game.black_total_disconnected_ms || 0,
+    });
+
+    await recordIntegrationEvent(base44, {
+      eventType: 'contest.settled',
+      aggregateType: 'contest_record',
+      aggregateId: contestRecord.id,
+      correlationId: match.id,
+      idempotencyKey: `contest.settled:${match.id}`,
+      actorType: 'system',
+      userId: match.player1_id,
+      counterpartyUserId: match.player2_id,
+      matchId: match.id,
+      gameId: game.id,
+      status: updatedMatch.status,
+      amount: settlementPayout,
+      result: game.result,
+      eventData: {
+        contest_record_id: contestRecord.id,
+        player1_id: match.player1_id,
+        player2_id: match.player2_id,
+        winner_id: settlementWinnerId,
+        loser_id: settlementLoserId,
+        outcome_type: game.end_reason || '',
+        entry_amount: wagerAmount,
+        contest_pool: wagerAmount * 2,
+        platform_fee_total: settlementFee,
+        wallet_transaction_ids: relatedWalletTransactions.map((transaction) => transaction.id),
+        ledger_entry_ids: relatedLedgerEntries.map((entry) => entry.id),
+        completed_at: updatedMatch.completed_at,
+      },
     });
 
     // Fire the lightweight integrity check after settlement so it never
