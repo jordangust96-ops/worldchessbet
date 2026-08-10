@@ -13,6 +13,23 @@ import { getBrowserGeolocation, getDeviceFingerprintHash } from "@/lib/deviceCon
 import { trackPixelEvent } from "@/lib/metaPixel";
 
 const TX_PAGE_SIZE = 20;
+const MATCH_HISTORY_PAGE_SIZE = 500;
+
+async function listCompletedMatchesForPlayer(field, userId) {
+  const matches = [];
+  let skip = 0;
+  while (true) {
+    const page = await base44.entities.Match.filter(
+      { status: "completed", [field]: userId },
+      "-created_date",
+      MATCH_HISTORY_PAGE_SIZE,
+      skip
+    );
+    matches.push(...page);
+    if (page.length < MATCH_HISTORY_PAGE_SIZE) return matches;
+    skip += page.length;
+  }
+}
 
 export default function WalletPage() {
   const { jurisdictionStatus } = useAuth();
@@ -127,13 +144,14 @@ export default function WalletPage() {
     }
     await loadTransactions(me.id, 1);
 
-    // Won/Lost/Wagered are derived from completed matches only — the wallet's
-    // total_won/total_wagered fields aren't reliably updated by settlement, so
-    // these are computed straight from Match history for accuracy.
-    const completedMatches = await base44.entities.Match.filter({ status: "completed" });
-    const myMatches = completedMatches.filter(
-      (m) => m.player1_id === me.id || m.player2_id === me.id
-    );
+    // Keep monetary history derived from authoritative completed Matches, but
+    // query only this player's records instead of loading every completed match
+    // on the platform. Pagination preserves complete history as usage grows.
+    const [asPlayer1, asPlayer2] = await Promise.all([
+      listCompletedMatchesForPlayer("player1_id", me.id),
+      listCompletedMatchesForPlayer("player2_id", me.id),
+    ]);
+    const myMatches = [...new Map([...asPlayer1, ...asPlayer2].map((match) => [match.id, match])).values()];
     let won = 0;
     let lost = 0;
     let wagered = 0;
