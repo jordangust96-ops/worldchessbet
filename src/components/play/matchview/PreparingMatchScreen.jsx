@@ -51,7 +51,7 @@ function formatCountdown(seconds) {
 // per-match Fair Play agreement and reserves the disclosed contest funds.
 // The server coordinates those existing operations idempotently, while the
 // Match subscription remains the authority for both players' live status.
-export default function PreparingMatchScreen({ match, userId, opponentId, onCancel }) {
+export default function PreparingMatchScreen({ match, userId, opponentId, onCancel, onRefresh }) {
   const [opponentName, setOpponentName] = useState("Opponent");
   const [agree, setAgree] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -115,7 +115,13 @@ export default function PreparingMatchScreen({ match, userId, opponentId, onCanc
         browserAccuracyMeters: geo.accuracyMeters,
         deviceFingerprintHash,
       });
-      if (data?.error) setActionError(data.error);
+      if (data?.error) {
+        setActionError(data.error);
+      } else {
+        // Realtime normally updates both players immediately. This direct
+        // refresh also recovers the initiating client if its event was lost.
+        await onRefresh?.();
+      }
     } catch (error) {
       setActionError(
         error?.response?.data?.error ||
@@ -235,6 +241,14 @@ export default function PreparingMatchScreen({ match, userId, opponentId, onCanc
               ? "Confirming readiness..."
               : `Agree & Reserve $${financials.totalCharge.toFixed(2)}`}
           </Button>
+        </div>
+      )}
+
+      {remainingSeconds === 0 && !myReady && (
+        <div className="rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2.5">
+          <p className="text-center text-xs text-red-300">
+            The preparation window has expired. This match will close automatically.
+          </p>
         </div>
       )}
 
