@@ -11,7 +11,9 @@ import LegalSection from "@/components/profile/LegalSection";
 import DeleteAccountButton from "@/components/profile/DeleteAccountButton";
 import AdminToolsSection from "@/components/profile/AdminToolsSection";
 import FoundingPlayerBadge from "@/components/profile/FoundingPlayerBadge";
+import SoundToggle from "@/components/play/SoundToggle";
 import { clearMfaVerified } from "@/lib/mfaSession";
+import { getStoredSoundPreference, playGameSound, storeSoundPreference } from "@/lib/gameSounds";
 
 export default function Profile() {
   const [user, setUser] = useState(null);
@@ -19,12 +21,17 @@ export default function Profile() {
   const [chessUsername, setChessUsername] = useState("");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(getStoredSoundPreference);
+  const [savingSound, setSavingSound] = useState(false);
 
   useEffect(() => {
     const load = async () => {
       const me = await base44.auth.me();
       setUser(me);
       setChessUsername(me.chess_com_username || "");
+      const soundsOn = me.sound_enabled == null ? getStoredSoundPreference() : me.sound_enabled !== false;
+      setSoundEnabled(soundsOn);
+      storeSoundPreference(soundsOn);
 
       // Calculate stats
       const matches = await base44.entities.Match.filter({ status: "completed" });
@@ -48,6 +55,23 @@ export default function Profile() {
     setSaving(true);
     await base44.auth.updateMe({ chess_com_username: chessUsername });
     setSaving(false);
+  };
+
+  const handleSoundChange = async (enabled) => {
+    const previous = soundEnabled;
+    setSoundEnabled(enabled);
+    storeSoundPreference(enabled);
+    if (enabled) playGameSound("enabled", true);
+    setSavingSound(true);
+    try {
+      await base44.auth.updateMe({ sound_enabled: enabled });
+      setUser((current) => current ? { ...current, sound_enabled: enabled } : current);
+    } catch {
+      setSoundEnabled(previous);
+      storeSoundPreference(previous);
+    } finally {
+      setSavingSound(false);
+    }
   };
 
   const handleLogout = () => {
@@ -157,6 +181,12 @@ export default function Profile() {
               <p className="text-sm text-white">{user?.email || "—"}</p>
             </div>
           </div>
+        </div>
+
+        {/* Sound Preferences */}
+        <div className="space-y-2">
+          <p className="px-1 text-[10px] font-semibold uppercase tracking-wider text-white/35">Preferences</p>
+          <SoundToggle enabled={soundEnabled} onChange={handleSoundChange} disabled={savingSound} />
         </div>
 
         {/* Reports */}
