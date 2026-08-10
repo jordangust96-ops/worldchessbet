@@ -119,16 +119,22 @@ export default function FairPlayIntegrity() {
         {/* 5. Integrity Monitoring */}
         <Section title="5. Integrity Monitoring">
           <p className="text-sm text-white/60 leading-relaxed">
-            ChessBet uses a combination of automated checks and manual review as part of its integrity
-            program.
+            ChessBet combines server-authoritative gameplay controls, automated post-game screening,
+            rule-based behavioral checks, player reporting, and manual administrative review.
+          </p>
+          <p className="text-sm text-white/60 leading-relaxed">
+            Legal moves, game state, results, and chess clocks are validated and recorded by ChessBet's
+            servers. After settlement, completed contests are queued for Stockfish-powered screening.
+            Depending on the available game data, that screening may evaluate engine move agreement,
+            centipawn loss, critical-position performance, move timing, and focus-loss events.
           </p>
           <p className="text-sm text-white/60">
             When investigating suspected violations, ChessBet may review sources that include:
           </p>
           <BulletList items={MONITORING_SOURCES} />
-          <p className="text-xs text-white/40 pt-1">
-            These sources are reviewed as part of an investigation into suspected violations — not as a
-            claim that every source is continuously monitored for every account.
+          <p className="text-sm text-white/60 leading-relaxed pt-1">
+            Automated results and rule-based flags are indicators for confidential human review. They do
+            not, standing alone, establish wrongdoing or impose an automatic penalty.
           </p>
         </Section>
 
@@ -205,15 +211,16 @@ export default function FairPlayIntegrity() {
           </p>
         </Section>
 
-        {/* 12. Future Improvements */}
-        <Section title="12. Future Improvements">
+        {/* 12. Ongoing Integrity Program */}
+        <Section title="12. Ongoing Integrity Program">
           <p className="text-sm text-white/60 leading-relaxed">
-            ChessBet continually improves its integrity program as the platform evolves. Future
-            improvements may include additional fraud detection, anti-cheating technology, and enhanced
-            monitoring capabilities.
+            ChessBet maintains and continuously evaluates its fair-play safeguards, screening thresholds,
+            review procedures, and audit records. Integrity controls may be refined as new evidence,
+            detection methods, and security practices become available.
           </p>
-          <p className="text-xs text-white/40">
-            This section describes planned direction, not capabilities that are currently in place.
+          <p className="text-sm text-white/60 leading-relaxed">
+            Changes to detection methods do not alter the requirement for a fair, evidence-based review
+            before an enforcement decision is made.
           </p>
         </Section>
 
