@@ -4,12 +4,12 @@ import BottomNav from "./BottomNav";
 import DemoModeNotice from "@/components/DemoModeNotice";
 import PresenceHeartbeat from "@/components/PresenceHeartbeat";
 import AdminActionAlert from "@/components/admin/AdminActionAlert";
-import useSiteVisitLogger from "@/hooks/useSiteVisitLogger";
+import { useAuth } from "@/lib/AuthContext";
 
 const HIDE_NAV_PATHS = ["/landing", "/login", "/register", "/forgot-password", "/reset-password"];
 
 export default function AppLayout() {
-  useSiteVisitLogger();
+  const { user } = useAuth();
   const location = useLocation();
   const hideNav = HIDE_NAV_PATHS.some(p => location.pathname.startsWith(p));
   // Home, Wallet, and Profile each render their own notice beneath their
@@ -21,7 +21,7 @@ export default function AppLayout() {
     <div className="min-h-screen bg-background">
       <PresenceHeartbeat />
       <main className={hideNav ? "" : "pb-24"}>
-        {!hideNav && <AdminActionAlert />}
+        {!hideNav && user?.role === "admin" && <AdminActionAlert />}
         {showHere && (
           <div className="px-5 pt-6">
             <DemoModeNotice />
