@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 
 // Single, idempotent source of truth for finishing the "both_ready" -> game
 // creation -> "in_progress" transition. Extracted out of certifyFairPlay and
@@ -40,8 +41,32 @@ Deno.serve(async (req) => {
     if (match.status !== 'both_ready') {
       await base44.asServiceRole.entities.Match.update(match.id, { status: 'both_ready' });
     }
-    await base44.functions.invoke('getOrCreateGame', { matchId: match.id });
+    const gameResponse = await base44.functions.invoke('getOrCreateGame', { matchId: match.id });
+    const game = gameResponse.data?.game || null;
     const updatedMatch = await base44.asServiceRole.entities.Match.update(match.id, { status: 'in_progress' });
+
+    await recordIntegrationEvent(base44, {
+      eventType: 'contest.started',
+      aggregateType: 'match',
+      aggregateId: match.id,
+      correlationId: match.id,
+      idempotencyKey: `contest.started:${match.id}`,
+      actorType: 'system',
+      userId: match.player1_id,
+      counterpartyUserId: match.player2_id,
+      matchId: match.id,
+      gameId: game?.id || updatedMatch.game_id || '',
+      status: updatedMatch.status,
+      result: 'in_progress',
+      eventData: {
+        player1_id: match.player1_id,
+        player2_id: match.player2_id,
+        game_id: game?.id || updatedMatch.game_id || '',
+        time_control: match.time_control,
+        entry_amount: match.wager_amount,
+        platform_service_fee: match.platform_service_fee,
+      },
+    });
 
     return Response.json({ match: updatedMatch });
   } catch (error) {
