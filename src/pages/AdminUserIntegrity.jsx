@@ -10,6 +10,14 @@ import AccountStateManager from "@/components/integrity/AccountStateManager";
 import AccountStateControl from "@/components/integrity/AccountStateControl";
 import JurisdictionPanel from "@/components/integrity/JurisdictionPanel";
 
+function formatMetric(value, digits = 0) {
+  return typeof value === "number" && Number.isFinite(value) ? value.toFixed(digits) : "—";
+}
+
+function formatRate(value) {
+  return typeof value === "number" && Number.isFinite(value) ? `${(value * 100).toFixed(1)}%` : "—";
+}
+
 export default function AdminUserIntegrity() {
   const { userId } = useParams();
   const [isAdmin, setIsAdmin] = useState(false);
@@ -164,6 +172,16 @@ export default function AdminUserIntegrity() {
               const score = isWhite ? analysis.white_risk_score : analysis.black_risk_score;
               const status = analysis.status?.replace(/_/g, " ") || "queued";
               const analyzedMoves = isWhite ? analysis.white_eligible_moves : analysis.black_eligible_moves;
+              const side = isWhite ? "white" : "black";
+              const averageCpl = analysis[`${side}_average_centipawn_loss`];
+              const medianCpl = analysis[`${side}_median_centipawn_loss`];
+              const averageMoveTime = analysis[`${side}_average_move_time_ms`];
+              const top1MatchRate = analysis[`${side}_top_1_match_rate`];
+              const top3MatchRate = analysis[`${side}_top_3_match_rate`];
+              const timingSampleCount = analysis[`${side}_timing_sample_count`];
+              const cplSampleCount = analysis[`${side}_centipawn_loss_sample_count`];
+              const rankedEngineMoveSampleCount = analysis[`${side}_ranked_engine_move_sample_count`];
+              const criticalPositionCount = analysis[`${side}_critical_position_count`];
               const canRetry = ["failed", "awaiting_analyzer", "completed", "manual_review"].includes(analysis.status);
               const retryLabel = analysis.status === "completed" || analysis.status === "manual_review" ? "Reanalyze" : "Retry";
               return (
@@ -171,7 +189,20 @@ export default function AdminUserIntegrity() {
                   <div className="min-w-0">
                     <p className="text-white/60 capitalize">{status}</p>
                     <p className="text-white/30 mt-0.5">{moment(analysis.created_date).format("MMM D, YYYY h:mm A")}</p>
+                    {typeof analysis.analyzer_version === "string" && analysis.analyzer_version && (
+                      <p className="text-white/30 mt-0.5">Analyzer v{analysis.analyzer_version} · {analysis.stockfish_version || "engine unavailable"} · depth {formatMetric(analysis.analysis_depth)}</p>
+                    )}
+                    {typeof analysis.eligible_move_count === "number" && (
+                      <p className="text-white/30 mt-0.5">{analysis.eligible_move_count} eligible engine positions</p>
+                    )}
                     {typeof analyzedMoves === "number" && <p className="text-white/30 mt-0.5">{analyzedMoves} analyzed moves</p>}
+                    {analysis.status === "completed" || analysis.status === "manual_review" ? (
+                      <>
+                        <p className="text-white/30 mt-0.5">CPL avg/median {formatMetric(averageCpl, 1)} / {formatMetric(medianCpl, 1)} · move time {formatMetric(averageMoveTime)} ms</p>
+                        <p className="text-white/30 mt-0.5">Top-1/Top-3 {formatRate(top1MatchRate)} / {formatRate(top3MatchRate)}</p>
+                        <p className="text-white/30 mt-0.5">Coverage: timing {formatMetric(timingSampleCount)}, CPL {formatMetric(cplSampleCount)}, ranked {formatMetric(rankedEngineMoveSampleCount)}, critical {formatMetric(criticalPositionCount)}</p>
+                      </>
+                    ) : null}
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="text-right">
