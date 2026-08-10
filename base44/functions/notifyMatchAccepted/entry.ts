@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
     }
 
     const opponentName = await resolveOpponentName(base44, match.player2_id);
-    const appUrl = `https://${Deno.env.get('BASE44_APP_ID')}.base44.app`;
+    const appUrl = (Deno.env.get('APP_URL') || `https://${Deno.env.get('BASE44_APP_ID')}.base44.app`).replace(/\/$/, '');
 
     try {
       await base44.asServiceRole.integrations.Core.SendEmail({

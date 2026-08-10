@@ -24,6 +24,19 @@ export default function MatchCenter({ userId, balance, onMatchAccepted }) {
     refreshActiveMatch();
   }, [refreshActiveMatch]);
 
+  // Safety net for the "searching → preparing" transition. The realtime
+  // subscription handles the common path, but if that event is ever dropped
+  // (network blip, connection lag), the host would otherwise be left staring
+  // at their "searching" challenge with no signal it was accepted — and they
+  // get no email either, since notifyMatchAccepted skips hosts who are
+  // active in-app. A lightweight poll guarantees the host is reliably
+  // brought to the Preparing Match screen.
+  useEffect(() => {
+    if (!userId || activeMatch?.status !== "searching") return;
+    const interval = setInterval(refreshActiveMatch, 5000);
+    return () => clearInterval(interval);
+  }, [userId, activeMatch?.status, refreshActiveMatch]);
+
   useEffect(() => {
     if (!userId) return;
     const unsubscribe = base44.entities.Match.subscribe((event) => {
