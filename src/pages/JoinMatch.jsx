@@ -19,61 +19,89 @@ export default function JoinMatch() {
   const [match, setMatch] = useState(null);
   const [hostName, setHostName] = useState("Host");
   const [joining, setJoining] = useState(false);
+  const [joinError, setJoinError] = useState("");
 
   useEffect(() => {
+    let active = true;
+
     const run = async () => {
-      const authed = await base44.auth.isAuthenticated();
-      if (!authed) {
-        setPostAuthRedirect(`/join/${inviteCode}`);
-        navigate("/login", { replace: true });
-        return;
-      }
-      if (!isMfaVerified()) {
-        setPostAuthRedirect(`/join/${inviteCode}`);
-        navigate("/verify-mfa", { replace: true });
-        return;
-      }
+      try {
+        if (!inviteCode) {
+          if (active) setStatus("invalid");
+          return;
+        }
 
-      clearPostAuthRedirect();
+        const authed = await base44.auth.isAuthenticated();
+        if (!authed) {
+          setPostAuthRedirect(`/join/${inviteCode}`);
+          navigate("/login", { replace: true });
+          return;
+        }
+        if (!isMfaVerified()) {
+          setPostAuthRedirect(`/join/${inviteCode}`);
+          navigate("/verify-mfa", { replace: true });
+          return;
+        }
 
-      const me = await base44.auth.me();
-      const matches = await base44.entities.Match.filter({ invite_code: inviteCode });
-      const found = matches?.[0];
+        clearPostAuthRedirect();
 
-      if (!found || !found.is_private || found.status === "completed" || found.status === "cancelled") {
-        setStatus("invalid");
-        return;
-      }
-      // Host revisiting their own link, or the invited player who already
-      // joined — both belong on Home, which will surface the live match.
-      if (found.player1_id === me.id || found.player2_id === me.id) {
-        navigate("/", { replace: true });
-        return;
-      }
-      if (found.status !== "searching") {
-        // Someone else already took the open slot.
-        setStatus("invalid");
-        return;
-      }
+        // Resolve the capability link server-side. Private searching matches
+        // are intentionally not readable through the client Match entity.
+        const { data } = await base44.functions.invoke("getPrivateMatchInvite", { inviteCode });
+        if (!active) return;
 
-      const { data } = await base44.functions.invoke("getUserDisplayNames", { userIds: [found.player1_id] });
-      setHostName(data?.names?.[found.player1_id] || "Host");
-      setMatch(found);
-      setStatus("confirm");
+        // A host revisiting their own link, or an invited player who already
+        // joined, belongs on Home where the active match is surfaced.
+        if (data?.participant) {
+          navigate("/", { replace: true });
+          return;
+        }
+
+        if (!data?.match) {
+          setStatus("invalid");
+          return;
+        }
+
+        setHostName(data.hostName || "Host");
+        setMatch(data.match);
+        setStatus("confirm");
+      } catch (error) {
+        if (!active) return;
+        const statusCode = error?.response?.status;
+        if (statusCode === 404 || statusCode === 410) {
+          setStatus("invalid");
+        } else {
+          setJoinError("Unable to load this invitation right now. Please try again.");
+          setStatus("invalid");
+        }
+      }
     };
+
     run();
+    return () => {
+      active = false;
+    };
   }, [inviteCode, navigate]);
 
   const handleAccept = async () => {
+    if (!match?.id || joining) return;
     setJoining(true);
+    setJoinError("");
     try {
-      // Reserves the opponent slot and moves both players into the shared
-      // Preparing Match screen — Fair Play certification and the Entry
-      // Amount reservation both happen there, identically to a public match.
-      await base44.functions.invoke("acceptMatch", { matchId: match.id });
+      // The invitation token is checked again at acceptance so knowing a
+      // private Match ID alone never grants access to its opponent slot.
+      await base44.functions.invoke("acceptMatch", { matchId: match.id, inviteCode });
       navigate("/", { replace: true });
-    } catch (err) {
-      setStatus("invalid");
+    } catch (error) {
+      const statusCode = error?.response?.status;
+      if (statusCode === 400 || statusCode === 404 || statusCode === 409 || statusCode === 410) {
+        setStatus("invalid");
+      } else {
+        setJoinError(
+          error?.response?.data?.error ||
+          "Unable to join this challenge right now. Please try again."
+        );
+      }
     } finally {
       setJoining(false);
     }
@@ -94,7 +122,9 @@ export default function JoinMatch() {
         <div className="min-h-screen flex items-center justify-center bg-[#0A0A0A] px-5">
           <div className="text-center space-y-4 max-w-sm">
             <Shield size={32} className="text-white/20 mx-auto" />
-            <p className="text-lg font-bold text-white">This invitation is no longer available.</p>
+            <p className="text-lg font-bold text-white">
+              {joinError || "This invitation is no longer available."}
+            </p>
             <Button
               onClick={() => navigate("/")}
               className="gold-gradient text-black font-bold rounded-2xl h-11 px-6"
@@ -167,6 +197,12 @@ export default function JoinMatch() {
           <p className="text-[11px] text-center text-white/30">
             The Platform Service Fee is separate from the Contest Entry Amount and is not deducted from the winner award. It is refunded if no decisive contest result occurs.
           </p>
+
+          {joinError && (
+            <p role="alert" className="text-xs text-red-400 text-center">
+              {joinError}
+            </p>
+          )}
 
           <Button
             onClick={handleAccept}
