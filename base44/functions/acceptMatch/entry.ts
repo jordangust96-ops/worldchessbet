@@ -14,7 +14,7 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { matchId } = await req.json();
+    const { matchId, inviteCode } = await req.json();
     if (!matchId) return Response.json({ error: 'matchId is required' }, { status: 400 });
 
     const match = await base44.asServiceRole.entities.Match.get(matchId);
@@ -25,6 +25,9 @@ Deno.serve(async (req) => {
     }
     if (match.player1_id === user.id) {
       return Response.json({ error: 'You cannot accept your own match' }, { status: 400 });
+    }
+    if (match.is_private && (typeof inviteCode !== 'string' || inviteCode !== match.invite_code)) {
+      return Response.json({ error: 'A valid private invitation is required' }, { status: 403 });
     }
 
     // Eligibility — the single shared pipeline (identity, jurisdiction,
@@ -75,6 +78,7 @@ Deno.serve(async (req) => {
         player1_id: match.player1_id,
         player2_id: user.id,
         preparation_started_at: updatedMatch.preparation_started_at,
+        is_private: !!match.is_private,
       },
     });
 
