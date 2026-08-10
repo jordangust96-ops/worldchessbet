@@ -13,6 +13,7 @@ export default function SEO({
   ogType = "website",
   structuredData,
   noindex = false,
+  imageAlt = "ChessBet",
 }) {
   const schemas = Array.isArray(structuredData) ? structuredData : structuredData ? [structuredData] : [];
 
@@ -21,20 +22,33 @@ export default function SEO({
       {title && <title>{title}</title>}
       {description && <meta name="description" content={description} />}
       {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
-      {noindex && <meta name="robots" content="noindex, nofollow" />}
+      <meta
+        name="robots"
+        content={
+          noindex
+            ? "noindex, nofollow"
+            : "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+        }
+      />
 
       <meta property="og:site_name" content={SITE_NAME} />
       <meta property="og:type" content={ogType} />
+      <meta property="og:locale" content="en_US" />
       {title && <meta property="og:title" content={title} />}
       {description && <meta property="og:description" content={description} />}
       {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
       {ogImage && <meta property="og:image" content={ogImage} />}
+      {ogImage && <meta property="og:image:alt" content={imageAlt} />}
 
-      <meta name="twitter:card" content={ogImage ? "summary_large_image" : "summary"} />
+      <meta
+        name="twitter:card"
+        content={ogImage && ogImage !== DEFAULT_OG_IMAGE ? "summary_large_image" : "summary"}
+      />
       <meta name="twitter:site" content={TWITTER_HANDLE} />
       {title && <meta name="twitter:title" content={title} />}
       {description && <meta name="twitter:description" content={description} />}
       {ogImage && <meta name="twitter:image" content={ogImage} />}
+      {ogImage && <meta name="twitter:image:alt" content={imageAlt} />}
 
       {schemas.map((schema, i) => (
         <script key={i} type="application/ld+json">
