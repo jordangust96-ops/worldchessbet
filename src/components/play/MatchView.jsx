@@ -111,6 +111,7 @@ export default function MatchView({
           userId={userId}
           opponentId={opponentId}
           onCancel={() => handleCancel(match)}
+          onRefresh={onRefresh}
         />
       );
     }
