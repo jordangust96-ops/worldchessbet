@@ -126,7 +126,9 @@ export function useChessGame(matchId, userId, active) {
       if (latestPly < renderedPlyRef.current) return;
       if (latestPly === renderedPlyRef.current && latestUpdatedAt < renderedUpdatedAtRef.current) return;
       if (renderedStatusRef.current === "completed" && latest.status !== "completed") return;
-      if (latest.fen !== chessRef.current.fen()) {
+      const positionChanged = latest.fen !== chessRef.current.fen();
+      const gameEnded = latest.status === "completed";
+      if (positionChanged) {
         chessRef.current.load(latest.fen);
         setFen(chessRef.current.fen());
       }
@@ -134,10 +136,17 @@ export function useChessGame(matchId, userId, active) {
       renderedUpdatedAtRef.current = Math.max(renderedUpdatedAtRef.current, latestUpdatedAt);
       renderedStatusRef.current = latest.status;
       setGame(latest);
-      // Any externally-sourced position change (opponent's move, reconnect,
-      // poll) invalidates whatever square was selected for click-to-move.
-      setSelectedSquare(null);
-      setLegalTargets([]);
+
+      // Keep a valid click-to-move selection across same-position refreshes.
+      // Realtime may emit metadata-only Game updates and the recovery poll
+      // fetches the same record every five seconds; neither changes legal
+      // moves, so clearing here made the highlights appear to vanish at
+      // random. A genuine position change (opponent move, reconnect to a newer
+      // position, or server correction) or game completion still clears it.
+      if (positionChanged || gameEnded) {
+        setSelectedSquare(null);
+        setLegalTargets([]);
+      }
     };
 
     // Recover the authoritative state immediately on (re)subscribe, e.g. after a
