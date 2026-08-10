@@ -77,6 +77,7 @@ export default function AdminUserIntegrity() {
       await base44.functions.invoke("requestFairPlayAnalysis", {
         matchId: analysis.match_id,
         gameId: analysis.game_id,
+        force: analysis.status === "completed" || analysis.status === "manual_review",
       });
       await load();
     } catch (error) {
@@ -163,11 +164,15 @@ export default function AdminUserIntegrity() {
               const band = isWhite ? analysis.white_risk_band : analysis.black_risk_band;
               const score = isWhite ? analysis.white_risk_score : analysis.black_risk_score;
               const status = analysis.status?.replace(/_/g, " ") || "queued";
+              const analyzedMoves = isWhite ? analysis.white_eligible_moves : analysis.black_eligible_moves;
+              const canRetry = ["failed", "awaiting_analyzer", "completed", "manual_review"].includes(analysis.status);
+              const retryLabel = analysis.status === "completed" || analysis.status === "manual_review" ? "Reanalyze" : "Retry";
               return (
                 <div key={analysis.id} className="p-3 text-xs flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-white/60 capitalize">{status}</p>
                     <p className="text-white/30 mt-0.5">{moment(analysis.created_date).format("MMM D, YYYY h:mm A")}</p>
+                    {typeof analyzedMoves === "number" && <p className="text-white/30 mt-0.5">{analyzedMoves} analyzed moves</p>}
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="text-right">
@@ -176,7 +181,7 @@ export default function AdminUserIntegrity() {
                       </p>
                       {typeof score === "number" && <p className="text-white/30 mt-0.5">Score {score}</p>}
                     </div>
-                    {(analysis.status === "failed" || analysis.status === "awaiting_analyzer") && (
+                    {canRetry && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -189,7 +194,7 @@ export default function AdminUserIntegrity() {
                         ) : (
                           <RotateCcw size={11} className="mr-1" />
                         )}
-                        Retry
+                        {retryLabel}
                       </Button>
                     )}
                   </div>
