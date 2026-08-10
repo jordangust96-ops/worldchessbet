@@ -9,6 +9,7 @@ import NewIntegrityFlagForm from "@/components/integrity/NewIntegrityFlagForm";
 import AccountStateManager from "@/components/integrity/AccountStateManager";
 import AccountStateControl from "@/components/integrity/AccountStateControl";
 import JurisdictionPanel from "@/components/integrity/JurisdictionPanel";
+import FairPlayScreeningGuidance from "@/components/integrity/FairPlayScreeningGuidance";
 
 function formatMetric(value, digits = 0) {
   return typeof value === "number" && Number.isFinite(value) ? value.toFixed(digits) : "—";
@@ -96,6 +97,15 @@ export default function AdminUserIntegrity() {
     }
   };
 
+  const scrollToSection = (id) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const openNewFlagFromGuidance = () => {
+    setShowNewFlag(true);
+    window.requestAnimationFrame(() => scrollToSection("current-risk-flags"));
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0A0A0A]">
@@ -161,7 +171,23 @@ export default function AdminUserIntegrity() {
       </div>
 
       <div className="mt-6">
-        <h2 className="text-sm font-bold text-white/80 mb-3">Automated Fair Play Screening</h2>
+        <h2 className="text-sm font-bold text-white/80">Automated Fair Play Screening</h2>
+        <p className="mt-1 mb-3 text-xs leading-5 text-white/35">
+          Start with the latest disposition and recommended action. Technical metrics remain available below as supporting evidence.
+        </p>
+        <FairPlayScreeningGuidance
+          analysis={fairPlayAnalyses[0]}
+          reviewedPlayerColor={fairPlayAnalyses[0]?.reviewed_player_color}
+          hasOpenFlag={currentFlags.length > 0}
+          onCreateFlag={openNewFlagFromGuidance}
+          onReviewFlags={() => scrollToSection("current-risk-flags")}
+          onReviewContests={() => scrollToSection("related-contests")}
+        />
+        {fairPlayAnalyses.length > 0 && (
+          <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-wider text-white/30">
+            Screening history & technical evidence
+          </p>
+        )}
         <div className="rounded-2xl bg-white/[0.03] border border-white/5 divide-y divide-white/5">
           {fairPlayAnalyses.length === 0 ? (
             <p className="text-xs text-white/30 p-4">No completed-game screening records yet.</p>
@@ -236,7 +262,7 @@ export default function AdminUserIntegrity() {
         {retryError && <p className="text-xs text-red-400/80 mt-2">{retryError}</p>}
       </div>
 
-      <div className="mt-6 flex items-center justify-between">
+      <div id="current-risk-flags" className="mt-6 flex items-center justify-between scroll-mt-6">
         <h2 className="text-sm font-bold text-white/80">Current Risk Flags</h2>
         <Button
           size="sm"
@@ -281,7 +307,7 @@ export default function AdminUserIntegrity() {
         )}
       </div>
 
-      <h2 className="text-sm font-bold text-white/80 mt-7 mb-3">Related Contests</h2>
+      <h2 id="related-contests" className="text-sm font-bold text-white/80 mt-7 mb-3 scroll-mt-6">Related Contests</h2>
       <div className="rounded-2xl bg-white/[0.03] border border-white/5 divide-y divide-white/5">
         {matches.length === 0 ? (
           <p className="text-xs text-white/30 p-4">No contests found.</p>
