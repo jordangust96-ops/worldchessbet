@@ -91,24 +91,57 @@ export default function HowItWorksSection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.6 }}
-          className="rounded-3xl bg-gradient-to-br from-[#151310] to-[#0F0F0F] border border-[#C9A84C]/20 p-8 text-center space-y-4"
+          className="rounded-3xl bg-gradient-to-br from-[#151310] to-[#0F0F0F] border border-[#C9A84C]/20 p-8 space-y-6"
         >
-          <div className="w-12 h-12 rounded-2xl bg-[#C9A84C]/10 flex items-center justify-center mx-auto">
-            <ShieldCheck size={22} className="text-[#C9A84C]" />
+          <div className="text-center space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-[#C9A84C]/10 flex items-center justify-center mx-auto">
+              <ShieldCheck size={22} className="text-[#C9A84C]" />
+            </div>
+            <h3 className="text-xl font-bold text-white">Fair Play Is Non-Negotiable</h3>
+            <p className="text-white/50 text-sm max-w-2xl mx-auto leading-relaxed">
+              ChessBet combines server-authoritative gameplay, automated post-game screening,
+              behavioral integrity signals, player reporting, and confidential human review to
+              protect every contest.
+            </p>
           </div>
-          <h3 className="text-xl font-bold text-white">Fair Play Is Non-Negotiable</h3>
-          <p className="text-white/50 text-sm max-w-xl mx-auto leading-relaxed">
-            Every match runs on a server-verified engine, with integrity monitoring and review
-            processes built in from the ground up. ChessBet exists because players trust that
-            every game is decided by skill alone — so we protect that trust at every step, from
-            move validation to dispute resolution.
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+            {[
+              {
+                title: "Server-Authoritative Play",
+                description: "Legal moves, game state, results, and chess clocks are validated and recorded by ChessBet's servers.",
+              },
+              {
+                title: "Stockfish Post-Game Screening",
+                description: "Completed contests are queued for engine analysis using move agreement, centipawn-loss, critical-position, and timing signals.",
+              },
+              {
+                title: "Behavioral Integrity Signals",
+                description: "Focus-loss events and unusual opponent, resignation, or timeout patterns can trigger closer review.",
+              },
+              {
+                title: "Confidential Human Review",
+                description: "Automated indicators, player reports, and dispute evidence are organized for admin review before any enforcement decision.",
+              },
+            ].map((item) => (
+              <div key={item.title} className="rounded-2xl border border-white/[0.06] bg-white/[0.025] p-4">
+                <p className="text-sm font-semibold text-white">{item.title}</p>
+                <p className="mt-1.5 text-xs leading-5 text-white/45">{item.description}</p>
+              </div>
+            ))}
+          </div>
+
+          <p className="text-center text-xs text-white/35">
+            Automated screening identifies signals for review; it does not make an automatic finding of misconduct.
           </p>
-          <Link
-            to="/fair-play-integrity"
-            className="inline-block text-sm font-semibold text-[#C9A84C] hover:underline underline-offset-2"
-          >
-            Read our Fair Play & Integrity Policy
-          </Link>
+          <div className="text-center">
+            <Link
+              to="/fair-play-integrity"
+              className="inline-block text-sm font-semibold text-[#C9A84C] hover:underline underline-offset-2"
+            >
+              Read our Fair Play & Integrity Policy
+            </Link>
+          </div>
         </motion.div>
       </div>
     </motion.section>
