@@ -52,6 +52,7 @@ export default function Login() {
         title="Log In | ChessBet"
         description="Log in to your ChessBet account to host or join real-money skill-based chess matches, manage your wallet, and track your competitive match history today."
         canonicalUrl={`${SITE_URL}/login`}
+        noindex
         structuredData={{
           "@context": "https://schema.org",
           "@type": "WebPage",
