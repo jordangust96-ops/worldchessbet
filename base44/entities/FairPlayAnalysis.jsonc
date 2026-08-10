@@ -69,6 +69,12 @@
     "black_critical_move_match_rate": {
       "type": "number"
     },
+    "white_average_move_time_ms": {
+      "type": "number"
+    },
+    "black_average_move_time_ms": {
+      "type": "number"
+    },
     "white_move_time_consistency": {
       "type": "number"
     },
