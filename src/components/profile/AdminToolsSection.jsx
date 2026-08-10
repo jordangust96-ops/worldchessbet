@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import {
   BarChart3,
+  BellRing,
   ChevronRight,
   FilePenLine,
   Gavel,
@@ -15,6 +16,12 @@ import {
 const SITE_ACTIVITY_ADMIN_EMAIL = "jordangust96@gmail.com";
 
 const reviewTools = [
+  {
+    to: "/admin/actions",
+    icon: BellRing,
+    label: "Admin Action Center",
+    description: "See prioritized reports and flags with evidence-based next-step guidance.",
+  },
   {
     to: "/admin/user-financials",
     icon: UserRoundSearch,
