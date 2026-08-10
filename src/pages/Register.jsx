@@ -24,6 +24,7 @@ function RegisterSEO() {
       title="Create an Account | ChessBet"
       description="Create your free ChessBet account to start competing in skill-based, real-money chess matches. Sign up in seconds and challenge real opponents right now."
       canonicalUrl={`${SITE_URL}/register`}
+      noindex
       structuredData={{
         "@context": "https://schema.org",
         "@type": "WebPage",
