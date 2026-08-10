@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 
 const VALID_STATUSES = ['open', 'under_review', 'awaiting_information'];
 const VALID_ACTIONS = [
@@ -70,6 +71,9 @@ async function applyBalanceHold(base44, { userId, amount, direction, matchId, ad
     external_reference_type: matchId ? 'match' : 'none',
     external_reference_id: matchId || '',
     ledger_group_id: crypto.randomUUID(),
+    correlation_id: matchId || userId,
+    currency: 'USD',
+    schema_version: 1,
   });
 }
 
@@ -131,6 +135,9 @@ async function postRemedyLegs(base44, { matchId, admin, triggerEvent, legs }) {
           external_reference_type: 'match',
           external_reference_id: matchId || '',
           ledger_group_id: groupId,
+          correlation_id: matchId || groupId,
+          currency: 'USD',
+          schema_version: 1,
         })
       );
     } else {
@@ -153,6 +160,9 @@ async function postRemedyLegs(base44, { matchId, admin, triggerEvent, legs }) {
           external_reference_type: 'match',
           external_reference_id: matchId || '',
           ledger_group_id: groupId,
+          correlation_id: matchId || groupId,
+          currency: 'USD',
+          schema_version: 1,
         })
       );
     }
@@ -597,6 +607,36 @@ Deno.serve(async (req) => {
         )
         .catch(() => {});
     }
+
+    await recordIntegrationEvent(base44, {
+      eventType: `dispute.${action}`,
+      aggregateType: 'dispute_case',
+      aggregateId: disputeCase.id,
+      correlationId: disputeCase.match_id || disputeCase.id,
+      idempotencyKey: `dispute.action:${note.id}`,
+      actorType: 'administrator',
+      actorId: admin.id,
+      userId: disputeCase.reporting_user_id,
+      counterpartyUserId: disputeCase.reported_user_id || '',
+      matchId: disputeCase.match_id || '',
+      gameId: disputeCase.game_id || '',
+      disputeCaseId: disputeCase.id,
+      status: updatedCase.status,
+      amount: Number(updatedCase.held_amount) || undefined,
+      result: updatedCase.resolution_type || actionType,
+      eventData: {
+        case_number: disputeCase.case_number,
+        action,
+        action_type: actionType,
+        previous_status: previousStatus || disputeCase.status,
+        new_status: newStatus || updatedCase.status,
+        hold_status: updatedCase.hold_status || 'none',
+        hold_target_user_id: updatedCase.hold_target_user_id || '',
+        resolution_type: updatedCase.resolution_type || '',
+        violation_found: updatedCase.violation_found === true,
+        note_id: note.id,
+      },
+    });
 
     return Response.json({ case: updatedCase, note });
   } catch (error) {
