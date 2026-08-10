@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { publicAvailableMatchQuery } from '../../shared/marketplaceStats.ts';
 
 Deno.serve(async (req) => {
   try {
@@ -6,14 +7,14 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const openMatches = await base44.asServiceRole.entities.Match.filter(
-      { status: 'searching' },
+    // Apply the exact same eligibility definition used by the marketplace
+    // headline count before limiting the result set. Filtering after a limit
+    // could hide valid public challenges behind the viewer's own/private rows.
+    const available = await base44.asServiceRole.entities.Match.filter(
+      publicAvailableMatchQuery(user.id),
       '-created_date',
       20
     );
-    // Private matches are only discoverable via their invite link — never
-    // surfaced in the public marketplace or its refreshes.
-    const available = openMatches.filter((m) => m.player1_id !== user.id && !m.is_private);
 
     // Games played and win percentage are read directly from the User
     // entity (maintained by settleMatch on every completed match) — never
