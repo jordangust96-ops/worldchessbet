@@ -233,7 +233,7 @@ export default function AdminUserIntegrity() {
                   <div className="flex items-center gap-2">
                     <div className="text-right">
                       <p className={band === "review" ? "text-red-400 font-semibold capitalize" : band === "monitor" ? "text-amber-400 font-semibold capitalize" : "text-white/50 capitalize"}>
-                        {band || "pending"}
+                        {band?.replace(/_/g, " ") || "pending"}
                       </p>
                       {typeof score === "number" && <p className="text-white/30 mt-0.5">Score {score}</p>}
                     </div>
