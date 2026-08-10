@@ -99,6 +99,44 @@ export default function Home() {
     return () => unsubscribe();
   }, [user?.id]);
 
+  // Polling safety net for the "searching → preparing" transition. The realtime
+  // subscription handles the common path, but if that event is ever dropped
+  // (network blip, connection lag) the host would be left on their "searching"
+  // challenge with no signal it was accepted — and they get no email either,
+  // since notifyMatchAccepted skips hosts who are active in-app. Re-check
+  // directly here (where myMatchId lives) so the host is reliably brought to
+  // the Preparing Match screen regardless of realtime delivery or which tab
+  // they're on. Stops the moment an active match is found.
+  useEffect(() => {
+    if (!user?.id || myMatchId) return;
+    const poll = async () => {
+      try {
+        const asP1 = await base44.entities.Match.filter({ player1_id: user.id }, "-created_date", 5);
+        const asP2 = await base44.entities.Match.filter({ player2_id: user.id }, "-created_date", 5);
+        const candidate = [...asP1, ...asP2].find(
+          (m) =>
+            ["preparing", "both_ready", "in_progress"].includes(m.status) &&
+            m.id !== dismissedMatchIdRef.current
+        );
+        if (!candidate) return;
+        let genuinelyActive = true;
+        if (candidate.status === "in_progress") {
+          const games = await base44.entities.Game.filter({ match_id: candidate.id }, "-created_date", 1);
+          genuinelyActive = games[0]?.status !== "completed";
+        }
+        if (genuinelyActive && candidate.id !== dismissedMatchIdRef.current) {
+          setMyMatchId(candidate.id);
+          setActiveMatch(candidate);
+        }
+      } catch (e) {
+        // transient — ignore
+      }
+    };
+    poll();
+    const interval = setInterval(poll, 5000);
+    return () => clearInterval(interval);
+  }, [user?.id, myMatchId]);
+
   // Recovery fetch for the active match — covers paths that set myMatchId
   // without already having the full record (e.g. accepting a match from
   // MatchCenter), plus the initial load. Only fires when needed, never polls.
