@@ -1,0 +1,167 @@
+{
+  "name": "IntegrationEvent",
+  "type": "object",
+  "properties": {
+    "event_type": {
+      "type": "string",
+      "maxLength": 128,
+      "description": "Provider-neutral lifecycle event name, e.g. contest.created or financial.match_entry."
+    },
+    "event_version": {
+      "type": "integer",
+      "default": 1,
+      "minimum": 1,
+      "description": "Version of the event contract."
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Server timestamp when the source action occurred."
+    },
+    "aggregate_type": {
+      "type": "string",
+      "enum": [
+        "user",
+        "wallet",
+        "wallet_transaction",
+        "match",
+        "game",
+        "contest_record",
+        "dispute_case",
+        "integrity_flag",
+        "ledger_group"
+      ],
+      "description": "Canonical record type that owns this event."
+    },
+    "aggregate_id": {
+      "type": "string",
+      "description": "Canonical Base44 ID of the aggregate."
+    },
+    "correlation_id": {
+      "type": "string",
+      "description": "Stable cross-record trace key. Match ID for contest activity; WalletTransaction ID for standalone money movement."
+    },
+    "causation_id": {
+      "type": "string",
+      "description": "Optional ID of the event or operation that caused this event."
+    },
+    "idempotency_key": {
+      "type": "string",
+      "maxLength": 255,
+      "description": "Stable deduplication key used by future adapters and webhook handlers."
+    },
+    "actor_type": {
+      "type": "string",
+      "enum": [
+        "user",
+        "system",
+        "administrator"
+      ],
+      "description": "Who initiated the underlying action."
+    },
+    "actor_id": {
+      "type": "string",
+      "description": "Canonical User ID of the initiating user or administrator, when applicable."
+    },
+    "user_id": {
+      "type": "string",
+      "description": "Primary participant affected by the event."
+    },
+    "counterparty_user_id": {
+      "type": "string",
+      "description": "Other participant affected by the event, when applicable."
+    },
+    "match_id": {
+      "type": "string"
+    },
+    "game_id": {
+      "type": "string"
+    },
+    "wallet_transaction_id": {
+      "type": "string"
+    },
+    "ledger_group_id": {
+      "type": "string"
+    },
+    "dispute_case_id": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "maxLength": 64,
+      "description": "Normalized result/status after the action."
+    },
+    "amount": {
+      "type": "number",
+      "description": "Primary monetary amount, when applicable."
+    },
+    "currency": {
+      "type": "string",
+      "default": "USD",
+      "maxLength": 3
+    },
+    "result": {
+      "type": "string",
+      "maxLength": 128,
+      "description": "Normalized contest, game, case, or financial result."
+    },
+    "event_data_json": {
+      "type": "string",
+      "maxLength": 12000,
+      "description": "Sanitized versioned event details. Never contains credentials, raw identity documents, or unrestricted provider payloads."
+    },
+    "delivery_state": {
+      "type": "string",
+      "enum": [
+        "unconfigured",
+        "pending",
+        "delivered",
+        "failed",
+        "ignored"
+      ],
+      "default": "unconfigured",
+      "description": "Outbox delivery state. Remains unconfigured until a funds-flow partner adapter is enabled."
+    },
+    "delivery_attempts": {
+      "type": "integer",
+      "default": 0,
+      "minimum": 0
+    },
+    "last_delivery_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_delivery_error": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Sanitized delivery error for administrator diagnostics."
+    }
+  },
+  "required": [
+    "event_type",
+    "occurred_at",
+    "aggregate_type",
+    "aggregate_id",
+    "correlation_id",
+    "idempotency_key",
+    "actor_type"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": false
+  }
+}
