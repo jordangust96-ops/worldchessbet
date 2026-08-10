@@ -20,6 +20,7 @@ import {
 export default function Home() {
   const [user, setUser] = useState(null);
   const [wallet, setWallet] = useState(null);
+  const settledWalletRefreshRef = useRef(null);
   const [myMatchId, setMyMatchId] = useState(null);
   // The single authoritative Match record for the active match — sourced from
   // the one Match subscription below, and passed down to MatchView as a prop
@@ -207,6 +208,29 @@ export default function Home() {
     setActiveMatch(m);
   };
 
+  const refreshWallet = useCallback(async () => {
+    if (!user?.id) return null;
+    const wallets = await base44.entities.Wallet.filter({ user_id: user.id });
+    const currentWallet = wallets[0] || null;
+    if (currentWallet) setWallet(currentWallet);
+    return currentWallet;
+  }, [user?.id]);
+
+  // Settlement writes the authoritative Wallet before it marks the Match
+  // completed. Refresh as soon as that terminal status arrives so the result
+  // screen and marketplace share the newly settled balance.
+  useEffect(() => {
+    if (!activeMatch?.id || activeMatch.status !== "completed" || !user?.id) return;
+    if (settledWalletRefreshRef.current === activeMatch.id) return;
+    settledWalletRefreshRef.current = activeMatch.id;
+    refreshWallet().catch(() => {
+      // Allow the Return action below to retry a transient failed read.
+      if (settledWalletRefreshRef.current === activeMatch.id) {
+        settledWalletRefreshRef.current = null;
+      }
+    });
+  }, [activeMatch?.id, activeMatch?.status, user?.id, refreshWallet]);
+
   useEffect(() => {
     const load = async () => {
       const me = await base44.auth.me();
@@ -317,12 +341,21 @@ export default function Home() {
               key={myMatchId}
               matchId={myMatchId}
               userId={user?.id}
-              onExit={() => {
-                dismissedMatchIdRef.current = myMatchId;
-                sessionStorage.setItem("chessbet_dismissed_match_id", myMatchId);
-                setMyMatchId(null);
-                setActiveMatch(null);
-                setBoardState("marketplace");
+              onExit={async () => {
+                const exitingMatchId = myMatchId;
+                try {
+                  // Re-read before leaving the result/cancellation state so
+                  // the marketplace never opens with a pre-settlement balance.
+                  await refreshWallet();
+                } catch {
+                  // Navigation must remain available during a transient read failure.
+                } finally {
+                  dismissedMatchIdRef.current = exitingMatchId;
+                  sessionStorage.setItem("chessbet_dismissed_match_id", exitingMatchId);
+                  setMyMatchId(null);
+                  setActiveMatch(null);
+                  setBoardState("marketplace");
+                }
               }}
               onStateChange={setBoardState}
               game={game}
