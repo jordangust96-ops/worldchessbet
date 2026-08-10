@@ -44,7 +44,8 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
     setHostError("");
     try {
       // Runs server-side (createMatch): validates eligibility and balance,
-      // places the Entry Hold, and only then creates the Match.
+      // then creates the challenge. Funds are reserved later in the shared
+      // Preparing Match phase after both players have joined.
       const { data } = await base44.functions.invoke("createMatch", {
         wagerAmount: wagerValue,
         timeControl,
