@@ -210,8 +210,15 @@ Deno.serve(async (req) => {
       integrationEvents = events;
       integrationReferences = references;
       const matchIds = [...new Set([...asPlayer1, ...asPlayer2].map((item) => item.id))];
-      disputes = (await base44.asServiceRole.entities.DisputeCase.filter({ reporting_user_id: canonicalUserId }, '-created_date', 100))
-        .filter((item) => !item.match_id || matchIds.includes(item.match_id));
+      const [reportedCases, reportingCases] = await Promise.all([
+        base44.asServiceRole.entities.DisputeCase.filter({ reported_user_id: canonicalUserId }, '-created_date', 100),
+        base44.asServiceRole.entities.DisputeCase.filter({ reporting_user_id: canonicalUserId }, '-created_date', 100),
+      ]);
+      disputes = [...new Map(
+        [...reportedCases, ...reportingCases]
+          .filter((item) => !item.match_id || matchIds.includes(item.match_id))
+          .map((item) => [item.id, item])
+      ).values()];
     }
 
     if (canonicalCaseId && !disputeCase) {
