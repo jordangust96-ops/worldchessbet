@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { postLedgerLegs } from '../../shared/ledger.ts';
+import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 import { EARLY_ACCESS_MODE } from '../../shared/earlyAccess.ts';
 
 // Reserves a player's Entry Amount into escrow during the shared Preparing
@@ -147,6 +148,29 @@ Deno.serve(async (req) => {
 
     const depositUpdates = isP1 ? { player1_deposited: true } : { player2_deposited: true };
     let updatedMatch = await base44.asServiceRole.entities.Match.update(match.id, depositUpdates);
+
+    await recordIntegrationEvent(base44, {
+      eventType: 'contest.participant_funded',
+      aggregateType: 'match',
+      aggregateId: match.id,
+      correlationId: match.id,
+      idempotencyKey: `contest.participant_funded:${match.id}:${user.id}`,
+      actorType: 'user',
+      actorId: user.id,
+      userId: user.id,
+      counterpartyUserId: isP1 ? match.player2_id : match.player1_id,
+      matchId: match.id,
+      status: updatedMatch.status,
+      amount: totalCharge,
+      result: 'entry_and_fee_reserved',
+      eventData: {
+        player_role: isP1 ? 'player1' : 'player2',
+        entry_amount: match.wager_amount,
+        platform_service_fee: serviceFee,
+        total_reserved: totalCharge,
+        wallet_transaction_ids: [entryTransaction.id, feeTransaction.id],
+      },
+    });
 
     // Only when BOTH players have certified Fair Play AND successfully
     // reserved funds does the match go live — never earlier. finalizeMatchStart
