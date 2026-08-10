@@ -42,6 +42,7 @@ import MyReports from '@/pages/MyReports';
 import AdminSiteActivity from '@/pages/AdminSiteActivity';
 import AdminUserFinancials from '@/pages/AdminUserFinancials';
 import AdminEarlyAccessCampaign from '@/pages/AdminEarlyAccessCampaign';
+import AdminActionCenter from '@/pages/AdminActionCenter';
 
 // Layout
 import AppLayout from '@/components/layout/AppLayout';
@@ -94,6 +95,7 @@ const AuthenticatedApp = () => {
             <Route path="/admin/privacy-policy" element={<PrivacyPolicyAdmin />} />
             <Route path="/admin/terms-of-service" element={<TermsOfServiceAdmin />} />
             <Route path="/admin/official-rules" element={<OfficialRulesAdmin />} />
+            <Route path="/admin/actions" element={<AdminActionCenter />} />
             <Route path="/admin/integrity" element={<IntegrityReviewQueue />} />
             <Route path="/admin/integrity/:userId" element={<AdminUserIntegrity />} />
             <Route path="/admin/game-settings" element={<AdminGameSettings />} />
