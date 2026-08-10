@@ -13,12 +13,13 @@ function numberOrNull(value: unknown) {
 function normalizedSide(value: Record<string, unknown> | undefined) {
   const side = value || {};
   return {
-    eligible_moves: numberOrNull(side.eligible_moves) ?? 0,
+    eligible_moves: numberOrNull(side.eligible_moves) ?? numberOrNull(side.analyzed_moves) ?? 0,
     average_centipawn_loss: numberOrNull(side.average_centipawn_loss),
     median_centipawn_loss: numberOrNull(side.median_centipawn_loss),
-    top_1_match_rate: numberOrNull(side.top_1_match_rate),
-    top_3_match_rate: numberOrNull(side.top_3_match_rate),
-    critical_move_match_rate: numberOrNull(side.critical_move_match_rate),
+    top_1_match_rate: numberOrNull(side.top_1_match_rate) ?? numberOrNull(side.top1_match_rate),
+    top_3_match_rate: numberOrNull(side.top_3_match_rate) ?? numberOrNull(side.top3_match_rate),
+    critical_move_match_rate: numberOrNull(side.critical_move_match_rate) ?? numberOrNull(side.critical_match_rate),
+    average_move_time_ms: numberOrNull(side.average_move_time_ms),
     move_time_consistency: numberOrNull(side.move_time_consistency),
     risk_score: numberOrNull(side.risk_score),
     risk_band: VALID_BANDS.includes(String(side.risk_band)) ? side.risk_band : 'insufficient_data',
@@ -33,7 +34,7 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { matchId, gameId } = await req.json();
+    const { matchId, gameId, force = false } = await req.json();
     if (!matchId || !gameId) {
       return Response.json({ error: 'matchId and gameId are required' }, { status: 400 });
     }
@@ -71,7 +72,8 @@ Deno.serve(async (req) => {
     const responseForCaller = (payload: Record<string, unknown>) =>
       isAdmin ? Response.json(payload) : Response.json({ accepted: true, status: payload.status || analysis.status });
 
-    if (analysis.status === 'completed' || analysis.status === 'manual_review') {
+    const forceReanalysis = force === true && isAdmin;
+    if (!forceReanalysis && (analysis.status === 'completed' || analysis.status === 'manual_review')) {
       return responseForCaller({ analysis, alreadyAnalyzed: true, status: analysis.status });
     }
 
@@ -117,6 +119,10 @@ Deno.serve(async (req) => {
     }
     const white = normalizedSide(result.white);
     const black = normalizedSide(result.black);
+    const reportedEligibleMoveCount = numberOrNull(result.eligible_move_count);
+    if (reportedEligibleMoveCount !== null && reportedEligibleMoveCount > 0 && white.eligible_moves + black.eligible_moves === 0) {
+      throw new Error('Analyzer response omitted per-side analyzed move counts');
+    }
     const status = white.risk_band === 'review' || black.risk_band === 'review' ? 'manual_review' : 'completed';
 
     const completed = await base44.asServiceRole.entities.FairPlayAnalysis.update(analysis.id, {
@@ -136,6 +142,8 @@ Deno.serve(async (req) => {
       black_top_3_match_rate: black.top_3_match_rate,
       white_critical_move_match_rate: white.critical_move_match_rate,
       black_critical_move_match_rate: black.critical_move_match_rate,
+      white_average_move_time_ms: white.average_move_time_ms,
+      black_average_move_time_ms: black.average_move_time_ms,
       white_move_time_consistency: white.move_time_consistency,
       black_move_time_consistency: black.move_time_consistency,
       white_focus_loss_count: game.white_focus_loss_count || 0,
