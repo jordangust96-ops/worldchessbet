@@ -81,17 +81,19 @@ export function useChessClock(game) {
     timeoutFlaggedRef.current = false;
     syncClock();
 
-    const resyncInterval = setInterval(syncClock, 5000);
     const resyncWhenVisible = () => {
-      if (!document.hidden) syncClock();
+      if (document.visibilityState === "visible") syncClock();
     };
+    const resyncInterval = setInterval(resyncWhenVisible, 5000);
     document.addEventListener("visibilitychange", resyncWhenVisible);
-    window.addEventListener("focus", syncClock);
+    window.addEventListener("focus", resyncWhenVisible);
+    window.addEventListener("online", resyncWhenVisible);
 
     return () => {
       clearInterval(resyncInterval);
       document.removeEventListener("visibilitychange", resyncWhenVisible);
-      window.removeEventListener("focus", syncClock);
+      window.removeEventListener("focus", resyncWhenVisible);
+      window.removeEventListener("online", resyncWhenVisible);
     };
   }, [
     game?.id,
