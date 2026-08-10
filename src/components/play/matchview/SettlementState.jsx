@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Trophy, Minus, X } from "lucide-react";
+import { Trophy, Minus, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import { getEndReason } from "@/lib/gameEndReason";
@@ -12,6 +12,7 @@ import { trackPixelEvent } from "@/lib/metaPixel";
 export default function SettlementState({ match, game, userId, onReturn }) {
   const [opponentName, setOpponentName] = useState("Opponent");
   const [winnerName, setWinnerName] = useState("You");
+  const [returning, setReturning] = useState(false);
   // Guards against firing "Match Completed" more than once for the same
   // match if this component re-renders/remounts while still showing it.
   const trackedMatchIdRef = useRef(null);
@@ -44,6 +45,16 @@ export default function SettlementState({ match, game, userId, onReturn }) {
   }, [userId, opponentId]);
 
   const endReason = useMemo(() => getEndReason(game), [game]);
+
+  const handleReturn = async () => {
+    if (returning) return;
+    setReturning(true);
+    try {
+      await onReturn?.();
+    } finally {
+      setReturning(false);
+    }
+  };
 
   return (
     <div className="space-y-5 lg:space-y-3 text-center py-4">
@@ -81,8 +92,13 @@ export default function SettlementState({ match, game, userId, onReturn }) {
       )}
       <p className="text-xs text-white/30">Wallet Updated</p>
       <div className="space-y-2">
-        <Button onClick={onReturn} className="w-full h-12 rounded-2xl font-bold gold-gradient text-black hover:opacity-90">
-          Return to Marketplace
+        <Button
+          onClick={handleReturn}
+          disabled={returning}
+          className="w-full h-12 rounded-2xl font-bold gold-gradient text-black hover:opacity-90 disabled:opacity-60"
+        >
+          {returning ? <Loader2 size={16} className="animate-spin mr-2" /> : null}
+          {returning ? "Updating Balance..." : "Return to Marketplace"}
         </Button>
         {won && (
           <>
