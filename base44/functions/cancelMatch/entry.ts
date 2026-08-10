@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { postLedgerLegs } from '../../shared/ledger.ts';
+import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 
 // Cancels a pending (not yet in-progress) match and refunds any escrowed
 // Contest Entry Amount AND Platform Service Fee back to whichever player(s)
@@ -92,6 +93,28 @@ Deno.serve(async (req) => {
     }
 
     const updatedMatch = await base44.asServiceRole.entities.Match.update(match.id, { status: 'cancelled' });
+
+    await recordIntegrationEvent(base44, {
+      eventType: 'contest.cancelled',
+      aggregateType: 'match',
+      aggregateId: match.id,
+      correlationId: match.id,
+      idempotencyKey: `contest.cancelled:${match.id}`,
+      actorType: 'user',
+      actorId: user.id,
+      userId: user.id,
+      counterpartyUserId: isP1 ? match.player2_id : match.player1_id,
+      matchId: match.id,
+      status: updatedMatch.status,
+      amount: match.wager_amount,
+      result: 'user_cancelled',
+      eventData: {
+        player1_id: match.player1_id,
+        player2_id: match.player2_id || '',
+        refunded_user_ids: refundTargets,
+      },
+    });
+
     return Response.json({ match: updatedMatch });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
