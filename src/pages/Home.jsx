@@ -10,6 +10,7 @@ import RestrictedModeBanner from "@/components/RestrictedModeBanner";
 import { useChessGame } from "@/hooks/useChessGame";
 import { trackPixelEvent } from "@/lib/metaPixel";
 import {
+  getMoveSoundCue,
   getStoredSoundPreference,
   installGameAudioUnlock,
   playGameSound,
@@ -232,7 +233,7 @@ export default function Home() {
     if (moveCount > moveSoundStateRef.current.moveCount) {
       const lastMove = game.move_log[moveCount - 1];
       const myColor = activeMatch?.player1_id === user?.id ? "w" : "b";
-      playGameSound(lastMove?.color === myColor ? "move_self" : "move_opponent", soundEnabledRef.current);
+      playGameSound(getMoveSoundCue(lastMove, myColor), soundEnabledRef.current);
     }
     moveSoundStateRef.current.moveCount = Math.max(moveSoundStateRef.current.moveCount, moveCount);
   }, [game?.id, game?.move_log?.length, activeMatch?.player1_id, user?.id]);
