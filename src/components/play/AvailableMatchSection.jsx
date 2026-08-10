@@ -32,6 +32,8 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
     try {
       const res = await base44.functions.invoke("getAvailableMatches", {});
       setOpponents(res.data.matches || []);
+    } catch {
+      // Preserve the last known list during a temporary marketplace refresh failure.
     } finally {
       refreshInFlightRef.current = false;
     }
@@ -40,8 +42,11 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
   useEffect(() => {
     if (!userId) return;
     (async () => {
-      await fetchMatches({ allowHidden: true });
-      setLoading(false);
+      try {
+        await fetchMatches({ allowHidden: true });
+      } finally {
+        setLoading(false);
+      }
     })();
   }, [userId, fetchMatches]);
 
@@ -73,15 +78,21 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
 
   const handleFindMatch = async () => {
     setSearching(true);
-    await fetchMatches();
-    setSearching(false);
+    try {
+      await fetchMatches();
+    } finally {
+      setSearching(false);
+    }
   };
 
   const handleFindNewMatches = async () => {
     setSearching(true);
     setDeclinedIds([]);
-    await fetchMatches();
-    setSearching(false);
+    try {
+      await fetchMatches();
+    } finally {
+      setSearching(false);
+    }
   };
 
   const handleDecline = () => {
@@ -94,22 +105,31 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
     if (!current) return;
     setAccepting(true);
     setAcceptError("");
-    if (activeMatch) {
-      await base44.functions.invoke("cancelMatch", { matchId: activeMatch.id });
-      onChallengeCancelled?.();
+    try {
+      if (activeMatch) {
+        await base44.functions.invoke("cancelMatch", { matchId: activeMatch.id });
+        onChallengeCancelled?.();
+      }
+      // Immediately reserves the opponent slot and moves both players into the
+      // shared Preparing Match screen — Fair Play certification and the Entry
+      // Amount reservation both happen there, not here.
+      const { data } = await base44.functions.invoke("acceptMatch", { matchId: current.id });
+      if (data?.error) {
+        setAcceptError(data.error);
+        return;
+      }
+      trackPixelEvent("Match Accepted", { value: current.wager_amount, currency: "USD" });
+      setDeclinedIds([]);
+      onAccepted?.(current.id);
+    } catch (error) {
+      setAcceptError(
+        error?.response?.data?.error ||
+        error?.message ||
+        "Unable to accept this challenge right now."
+      );
+    } finally {
+      setAccepting(false);
     }
-    // Immediately reserves the opponent slot and moves both players into the
-    // shared Preparing Match screen — Fair Play certification and the Entry
-    // Amount reservation both happen there, not here.
-    const { data } = await base44.functions.invoke("acceptMatch", { matchId: current.id });
-    setAccepting(false);
-    if (data?.error) {
-      setAcceptError(data.error);
-      return;
-    }
-    trackPixelEvent("Match Accepted", { value: current.wager_amount, currency: "USD" });
-    setDeclinedIds([]);
-    onAccepted?.(current.id);
   };
 
   if (loading) {
@@ -127,8 +147,7 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
         <div className="text-center py-6 lg:py-3 px-2 space-y-2 lg:space-y-1">
           <p className="text-white font-bold text-base lg:text-sm">No Matches Available</p>
           <p className="text-white/40 text-sm lg:text-xs leading-relaxed max-w-xs mx-auto">
-            No one is waiting to play right now. Create your own challenge below and we'll automatically
-            present it to other players.
+            No public challenges are available. Create one below or refresh.
           </p>
           <Button
             onClick={handleFindMatch}
@@ -157,7 +176,7 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
           <SearchX size={22} className="text-white/20 mx-auto" />
           <p className="text-white font-bold text-base lg:text-sm">No More Matches</p>
           <p className="text-white/40 text-sm lg:text-xs leading-relaxed max-w-xs mx-auto">
-            You've reviewed all currently available public matches. New matches may appear at any time.
+            You've reviewed every available challenge.
           </p>
           <Button
             onClick={handleFindNewMatches}
@@ -170,7 +189,7 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
                 <Loader2 className="animate-spin mr-2" size={16} /> Searching...
               </>
             ) : (
-              "Refresh Your Matches"
+              "Refresh Matches"
             )}
           </Button>
         </div>
