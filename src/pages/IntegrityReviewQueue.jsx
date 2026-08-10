@@ -40,15 +40,13 @@ export default function IntegrityReviewQueue() {
     });
     setFlagCountsByUser(counts);
 
-    const userIds = [...new Set(allFlags.map((f) => f.user_id))];
-    const labels = {};
-    await Promise.all(
-      userIds.map(async (id) => {
-        const u = await base44.entities.User.get(id).catch(() => null);
-        labels[id] = u ? u.full_name || u.email || id : id;
-      })
-    );
-    setUserLabels(labels);
+    const userIds = [...new Set(allFlags.map((f) => f.user_id).filter(Boolean))];
+    if (userIds.length > 0) {
+      const { data } = await base44.functions.invoke("getUserDisplayNames", { userIds });
+      setUserLabels(data?.names || {});
+    } else {
+      setUserLabels({});
+    }
 
     setLoading(false);
   };
