@@ -5,6 +5,7 @@ import { useChessClock } from "@/hooks/useChessClock";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import MovementModeToggle from "@/components/play/MovementModeToggle";
+import SoundToggle from "@/components/play/SoundToggle";
 import OpponentConnectionBanner from "@/components/play/matchview/OpponentConnectionBanner";
 import ReportContestButton from "@/components/disputes/ReportContestButton";
 import FoundingPlayerBadge from "@/components/profile/FoundingPlayerBadge";
@@ -34,7 +35,15 @@ function formatClock(ms) {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
-export default function GameHUD({ match, game, userId, movementMode, onMovementModeChange }) {
+export default function GameHUD({
+  match,
+  game,
+  userId,
+  movementMode,
+  onMovementModeChange,
+  soundEnabled,
+  onSoundEnabledChange,
+}) {
   const [names, setNames] = useState({ me: "You", opponent: "Opponent" });
   const [founding, setFounding] = useState({ me: false, opponent: false });
   const [showResignConfirm, setShowResignConfirm] = useState(false);
@@ -270,10 +279,16 @@ export default function GameHUD({ match, game, userId, movementMode, onMovementM
         <ReportContestButton matchId={match.id} gameId={game?.id} />
       </div>
 
-      {/* Section 4.5 — Movement Mode */}
-      <div className="space-y-1.5">
-        <p className="text-[10px] uppercase tracking-widest text-white/30 px-1">Movement Mode</p>
-        <MovementModeToggle mode={movementMode} onChange={onMovementModeChange} />
+      {/* Section 4.5 — Player Controls */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-3 px-1">
+          <p className="text-[10px] uppercase tracking-widest text-white/30">Match Sound</p>
+          <SoundToggle enabled={soundEnabled} onChange={onSoundEnabledChange} compact />
+        </div>
+        <div className="space-y-1.5">
+          <p className="text-[10px] uppercase tracking-widest text-white/30 px-1">Movement Mode</p>
+          <MovementModeToggle mode={movementMode} onChange={onMovementModeChange} />
+        </div>
       </div>
 
       {/* Section 5 — Game Controls */}
