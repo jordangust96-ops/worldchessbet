@@ -135,6 +135,11 @@
       "type": "string",
       "maxLength": 1000,
       "description": "Sanitized delivery error for administrator diagnostics."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional description"
     }
   },
   "required": [

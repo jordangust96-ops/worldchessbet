@@ -28,6 +28,11 @@
     "error_message": {
       "type": "string",
       "description": "Delivery failure details, if any."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional description"
     }
   },
   "required": [
