@@ -1,4 +1,12 @@
 User-agent: *
 Allow: /
+Disallow: /admin/
+Disallow: /wallet
+Disallow: /profile
+Disallow: /my-reports
+Disallow: /verify-mfa
+Disallow: /join/
+Disallow: /unsubscribe
+Disallow: /api/
 
 Sitemap: https://worldchessbet.com/sitemap.xml
