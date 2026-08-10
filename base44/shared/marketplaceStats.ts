@@ -3,7 +3,7 @@ const PAGE_SIZE = 500;
 export const ONLINE_WINDOW_MS = 2 * 60 * 1000;
 
 export function publicAvailableMatchQuery(userId = '') {
-  const query = {
+  const query: Record<string, unknown> = {
     status: 'searching',
     is_private: { $ne: true },
   };
