@@ -35,6 +35,101 @@
         "failed"
       ],
       "default": "completed"
+    },
+    "currency": {
+      "type": "string",
+      "default": "USD",
+      "maxLength": 3,
+      "description": "ISO currency code for this transaction."
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "credit",
+        "debit",
+        "reserve",
+        "release",
+        "internal"
+      ],
+      "description": "Normalized movement direction from the participant's perspective."
+    },
+    "correlation_id": {
+      "type": "string",
+      "description": "Stable trace key across user, match, game, ledger, dispute, and future provider records."
+    },
+    "ledger_group_id": {
+      "type": "string",
+      "description": "Balanced Internal Ledger group posted for this transaction."
+    },
+    "source_event": {
+      "type": "string",
+      "maxLength": 128,
+      "description": "Server event that created the transaction."
+    },
+    "initiating_actor": {
+      "type": "string",
+      "enum": [
+        "user",
+        "system",
+        "administrator"
+      ]
+    },
+    "initiating_actor_id": {
+      "type": "string",
+      "description": "Internal actor ID; visible only to administrators.",
+      "rls": {
+        "read": {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        "write": {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      }
+    },
+    "processed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Server timestamp when the internal ledger posting completed."
+    },
+    "integration_status": {
+      "type": "string",
+      "enum": [
+        "internal_complete",
+        "unrouted",
+        "pending",
+        "submitted",
+        "settled",
+        "failed",
+        "reversed"
+      ],
+      "default": "internal_complete",
+      "description": "Provider-neutral integration state. External routing is added only after a partner is selected."
+    },
+    "idempotency_key": {
+      "type": "string",
+      "maxLength": 255,
+      "description": "Stable deduplication key for future provider requests and webhook reconciliation.",
+      "rls": {
+        "read": {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        "write": {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      }
+    },
+    "schema_version": {
+      "type": "integer",
+      "default": 1,
+      "minimum": 1
     }
   },
   "required": [
