@@ -100,7 +100,7 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
       <div className={`space-y-5 lg:space-y-2 ${disabled || noFunds || jurisdictionBlocked ? "opacity-40 pointer-events-none" : ""}`}>
         <div>
           <h3 className="text-base lg:text-sm font-bold text-white">Create a Challenge</h3>
-          <p className="text-xs text-white/40 mt-0.5 lg:hidden">Choose your contest entry amount and time control, then create your challenge publicly or privately.</p>
+          <p className="text-xs text-white/40 mt-0.5 lg:hidden">Choose an entry amount and time control.</p>
           {disabled && (
             <p className="text-xs text-[#C9A84C]/70 mt-1">
               You already have an active challenge. Cancel it to create a new one.
@@ -159,9 +159,6 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
               <span className="text-[#C9A84C]/70">Potential Winner Award</span>
               <span className="font-bold text-[#C9A84C]">${financials.potentialWinnerAward.toFixed(2)}</span>
             </div>
-            <p className="pt-1 text-[11px] leading-relaxed text-white/40">
-              The Platform Service Fee is separate from the Contest Entry Amount and is not deducted from the winner's award. The winner receives 100% of the combined Contest Entry Amounts. The Platform Service Fee is refunded if the match is cancelled, voided, or ends without a decisive result.
-            </p>
           </div>
         )}
 
