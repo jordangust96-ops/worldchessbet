@@ -21,13 +21,22 @@ export default function PrivateWaitingCard({ match, onCancel }) {
   const [copied, setCopied] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [actionError, setActionError] = useState("");
 
   const inviteLink = `${window.location.origin}/join/${match.invite_code}`;
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(inviteLink);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setActionError("");
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(inviteLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      return true;
+    } catch {
+      setActionError("Copy failed. Select the invitation link above and copy it manually.");
+      return false;
+    }
   };
 
   const handleShare = async () => {
@@ -38,19 +47,32 @@ export default function PrivateWaitingCard({ match, onCancel }) {
           text: "Join my private ChessBet match!",
           url: inviteLink,
         });
-      } catch (e) {
-        // User dismissed the native share sheet — nothing to do.
+      } catch (error) {
+        // Dismissing the native share sheet is not an error. If sharing fails
+        // for another reason, fall back to copying the link.
+        if (error?.name !== "AbortError") await handleCopy();
       }
     } else {
-      handleCopy();
+      await handleCopy();
     }
   };
 
   const handleCancel = async () => {
+    if (cancelling) return;
     setCancelling(true);
-    await onCancel();
-    setCancelling(false);
-    setShowConfirm(false);
+    setActionError("");
+    try {
+      await onCancel();
+      setShowConfirm(false);
+    } catch (error) {
+      setActionError(
+        error?.response?.data?.error ||
+        error?.message ||
+        "Unable to cancel this match right now. Please try again."
+      );
+    } finally {
+      setCancelling(false);
+    }
   };
 
   return (
@@ -82,6 +104,12 @@ export default function PrivateWaitingCard({ match, onCancel }) {
         </div>
 
         <NotifyOnAcceptToggle match={match} />
+
+        {actionError && (
+          <p role="alert" className="text-xs text-red-400">
+            {actionError}
+          </p>
+        )}
 
         <div className="grid grid-cols-2 gap-2">
           <Button
@@ -122,7 +150,15 @@ export default function PrivateWaitingCard({ match, onCancel }) {
             <AlertDialogCancel className="bg-transparent border-white/10 text-white/70 hover:bg-white/5 hover:text-white">
               Keep Waiting
             </AlertDialogCancel>
-            <AlertDialogAction onClick={handleCancel} className="bg-red-500/90 text-white hover:bg-red-500">
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                handleCancel();
+              }}
+              disabled={cancelling}
+              className="bg-red-500/90 text-white hover:bg-red-500"
+            >
+              {cancelling ? <Loader2 size={14} className="animate-spin mr-2" /> : null}
               Cancel Match
             </AlertDialogAction>
           </AlertDialogFooter>
