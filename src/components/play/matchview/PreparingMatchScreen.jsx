@@ -179,7 +179,7 @@ export default function PreparingMatchScreen({ match, userId, opponentId, onCanc
         <div className="rounded-2xl border border-[#C9A84C]/20 bg-[#C9A84C]/5 p-3.5">
           <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]/60">Entry Amount</p>
           <p className="mt-1 text-xl font-bold text-[#C9A84C]">
-            $${financials.entryAmount.toFixed(2)}
+            ${financials.entryAmount.toFixed(2)}
           </p>
         </div>
         <div className="rounded-2xl bg-white/[0.03] p-3.5">
@@ -191,20 +191,20 @@ export default function PreparingMatchScreen({ match, userId, opponentId, onCanc
       <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4 space-y-2">
         <div className="flex items-center justify-between text-sm">
           <span className="text-white/50">Contest Entry Amount</span>
-          <span className="font-semibold text-white/80">$${financials.entryAmount.toFixed(2)}</span>
+          <span className="font-semibold text-white/80">${financials.entryAmount.toFixed(2)}</span>
         </div>
         <div className="flex items-center justify-between text-sm">
           <span className="text-white/50">Platform Service Fee</span>
-          <span className="font-semibold text-white/80">$${financials.serviceFee.toFixed(2)}</span>
+          <span className="font-semibold text-white/80">${financials.serviceFee.toFixed(2)}</span>
         </div>
         <div className="flex items-center justify-between border-t border-white/10 pt-2 text-sm">
           <span className="font-semibold text-white/75">Total Reserved</span>
-          <span className="font-bold text-white">$${financials.totalCharge.toFixed(2)}</span>
+          <span className="font-bold text-white">${financials.totalCharge.toFixed(2)}</span>
         </div>
         <div className="flex items-center justify-between text-sm">
           <span className="text-[#C9A84C]/70">Potential Winner Award</span>
           <span className="font-bold text-[#C9A84C]">
-            $${financials.potentialWinnerAward.toFixed(2)}
+            ${financials.potentialWinnerAward.toFixed(2)}
           </span>
         </div>
         <p className="pt-1 text-[11px] leading-relaxed text-white/40">
