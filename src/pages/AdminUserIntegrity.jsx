@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import moment from "moment";
-import { ArrowLeft, Loader2, ShieldAlert, Plus } from "lucide-react";
+import { ArrowLeft, Loader2, ShieldAlert, Plus, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import IntegrityFlagCard from "@/components/integrity/IntegrityFlagCard";
@@ -20,6 +20,8 @@ export default function AdminUserIntegrity() {
   const [transactions, setTransactions] = useState([]);
   const [jurisdictionLogs, setJurisdictionLogs] = useState([]);
   const [fairPlayAnalyses, setFairPlayAnalyses] = useState([]);
+  const [retryingAnalysisId, setRetryingAnalysisId] = useState(null);
+  const [retryError, setRetryError] = useState("");
   const [showNewFlag, setShowNewFlag] = useState(false);
 
   useEffect(() => {
@@ -66,6 +68,24 @@ export default function AdminUserIntegrity() {
         .slice(0, 20)
     );
     setLoading(false);
+  };
+
+  const retryFairPlayAnalysis = async (analysis) => {
+    setRetryingAnalysisId(analysis.id);
+    setRetryError("");
+    try {
+      await base44.functions.invoke("requestFairPlayAnalysis", {
+        matchId: analysis.match_id,
+        gameId: analysis.game_id,
+      });
+      await load();
+    } catch (error) {
+      setRetryError(
+        error?.response?.data?.error || error?.message || "The Fair Play analysis retry failed."
+      );
+    } finally {
+      setRetryingAnalysisId(null);
+    }
   };
 
   if (loading) {
@@ -149,17 +169,36 @@ export default function AdminUserIntegrity() {
                     <p className="text-white/60 capitalize">{status}</p>
                     <p className="text-white/30 mt-0.5">{moment(analysis.created_date).format("MMM D, YYYY h:mm A")}</p>
                   </div>
-                  <div className="text-right">
-                    <p className={band === "review" ? "text-red-400 font-semibold capitalize" : band === "monitor" ? "text-amber-400 font-semibold capitalize" : "text-white/50 capitalize"}>
-                      {band || "pending"}
-                    </p>
-                    {typeof score === "number" && <p className="text-white/30 mt-0.5">Score {score}</p>}
+                  <div className="flex items-center gap-2">
+                    <div className="text-right">
+                      <p className={band === "review" ? "text-red-400 font-semibold capitalize" : band === "monitor" ? "text-amber-400 font-semibold capitalize" : "text-white/50 capitalize"}>
+                        {band || "pending"}
+                      </p>
+                      {typeof score === "number" && <p className="text-white/30 mt-0.5">Score {score}</p>}
+                    </div>
+                    {(analysis.status === "failed" || analysis.status === "awaiting_analyzer") && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={retryingAnalysisId === analysis.id}
+                        onClick={() => retryFairPlayAnalysis(analysis)}
+                        className="h-7 rounded-lg text-[10px] border-white/10 text-white/60 hover:text-white bg-transparent"
+                      >
+                        {retryingAnalysisId === analysis.id ? (
+                          <Loader2 size={11} className="animate-spin mr-1" />
+                        ) : (
+                          <RotateCcw size={11} className="mr-1" />
+                        )}
+                        Retry
+                      </Button>
+                    )}
                   </div>
                 </div>
               );
             })
           )}
         </div>
+        {retryError && <p className="text-xs text-red-400/80 mt-2">{retryError}</p>}
       </div>
 
       <div className="mt-6 flex items-center justify-between">
