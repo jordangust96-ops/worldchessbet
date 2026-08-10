@@ -162,20 +162,32 @@ export function useChessGame(matchId, userId, active) {
       }
     });
 
-    // Always-on safety net: realtime is the primary, fast path, but a
-    // websocket can die silently (e.g. an idle proxy/connection timeout)
-    // without ever firing a browser "offline" event — leaving a player
-    // stuck looking at a stale board (wrong turn, or a resignation/move that
-    // never visibly lands) with no signal to reconnect. A light periodic
-    // poll runs continuously as a correctness backstop regardless of
-    // connectivity events, so the client always self-heals within seconds.
-    const pollInterval = setInterval(() => {
-      base44.entities.Game.get(game.id).then(applyLatest);
-    }, 5000);
+    // Realtime remains the primary path. The visible-tab safety poll recovers
+    // silently dropped websocket updates, while background tabs avoid repeated
+    // reads and perform an immediate authoritative refresh on return.
+    let recoveryInFlight = false;
+    const recoverLatest = async () => {
+      if (document.visibilityState !== "visible" || recoveryInFlight) return;
+      recoveryInFlight = true;
+      try {
+        applyLatest(await base44.entities.Game.get(game.id));
+      } catch {
+        // The next realtime event or visible recovery interval will retry.
+      } finally {
+        recoveryInFlight = false;
+      }
+    };
+    const pollInterval = setInterval(recoverLatest, 5000);
+    document.addEventListener("visibilitychange", recoverLatest);
+    window.addEventListener("focus", recoverLatest);
+    window.addEventListener("online", recoverLatest);
 
     return () => {
       unsubscribe();
       clearInterval(pollInterval);
+      document.removeEventListener("visibilitychange", recoverLatest);
+      window.removeEventListener("focus", recoverLatest);
+      window.removeEventListener("online", recoverLatest);
     };
   }, [active, game?.id]);
 
