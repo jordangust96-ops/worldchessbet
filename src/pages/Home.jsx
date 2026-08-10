@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import Logo from "@/components/Logo";
@@ -9,6 +9,12 @@ import DemoModeNotice from "@/components/DemoModeNotice";
 import RestrictedModeBanner from "@/components/RestrictedModeBanner";
 import { useChessGame } from "@/hooks/useChessGame";
 import { trackPixelEvent } from "@/lib/metaPixel";
+import {
+  getStoredSoundPreference,
+  installGameAudioUnlock,
+  playGameSound,
+  storeSoundPreference,
+} from "@/lib/gameSounds";
 
 export default function Home() {
   const [user, setUser] = useState(null);
@@ -32,6 +38,9 @@ export default function Home() {
     boardState === "in_progress" || boardState === "finalizing" || boardState === "settlement";
   const isLive = boardState === "in_progress";
   const [movementMode, setMovementMode] = useState("drag");
+  const [soundEnabled, setSoundEnabled] = useState(getStoredSoundPreference);
+  const soundEnabledRef = useRef(soundEnabled);
+  const moveSoundStateRef = useRef({ gameId: null, moveCount: 0 });
   const { fen, handleDrop, handleSquareClick, selectedSquare, legalTargets, orientation, game } =
     useChessGame(myMatchId, user?.id, gameActive);
 
@@ -39,6 +48,38 @@ export default function Home() {
     setMovementMode(mode);
     base44.auth.updateMe({ movement_mode: mode });
   };
+
+  useEffect(() => {
+    soundEnabledRef.current = soundEnabled;
+    storeSoundPreference(soundEnabled);
+  }, [soundEnabled]);
+
+  useEffect(() => installGameAudioUnlock(), []);
+
+  const handleSoundEnabledChange = useCallback(async (enabled) => {
+    const previous = soundEnabledRef.current;
+    soundEnabledRef.current = enabled;
+    setSoundEnabled(enabled);
+    storeSoundPreference(enabled);
+    if (enabled) playGameSound("enabled", true);
+    try {
+      await base44.auth.updateMe({ sound_enabled: enabled });
+    } catch {
+      soundEnabledRef.current = previous;
+      setSoundEnabled(previous);
+      storeSoundPreference(previous);
+    }
+  }, []);
+
+  const handleMatchAccepted = useCallback((matchId) => {
+    if (!matchId) return;
+    const storageKey = "chessbet_accept_sound_match_id";
+    if (sessionStorage.getItem(storageKey) !== matchId) {
+      sessionStorage.setItem(storageKey, matchId);
+      playGameSound("accepted", soundEnabledRef.current);
+    }
+    setMyMatchId(matchId);
+  }, []);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -90,14 +131,15 @@ export default function Home() {
       isMatchGenuinelyActive(event.data)
         .then((genuinelyActive) => {
           if (genuinelyActive && event.data.id !== dismissedMatchIdRef.current) {
-            setMyMatchId(event.data.id);
+            if (event.data.status === "preparing") handleMatchAccepted(event.data.id);
+            else setMyMatchId(event.data.id);
             setActiveMatch(event.data);
           }
         })
         .catch(() => {});
     });
     return () => unsubscribe();
-  }, [user?.id]);
+  }, [user?.id, handleMatchAccepted]);
 
   // Polling safety net for the "searching → preparing" transition. The realtime
   // subscription handles the common path, but if that event is ever dropped
@@ -125,7 +167,8 @@ export default function Home() {
           genuinelyActive = games[0]?.status !== "completed";
         }
         if (genuinelyActive && candidate.id !== dismissedMatchIdRef.current) {
-          setMyMatchId(candidate.id);
+          if (candidate.status === "preparing") handleMatchAccepted(candidate.id);
+          else setMyMatchId(candidate.id);
           setActiveMatch(candidate);
         }
       } catch (e) {
@@ -135,7 +178,7 @@ export default function Home() {
     poll();
     const interval = setInterval(poll, 5000);
     return () => clearInterval(interval);
-  }, [user?.id, myMatchId]);
+  }, [user?.id, myMatchId, handleMatchAccepted]);
 
   // Recovery fetch for the active match — covers paths that set myMatchId
   // without already having the full record (e.g. accepting a match from
@@ -157,6 +200,10 @@ export default function Home() {
       const me = await base44.auth.me();
       setUser(me);
       setMovementMode(me.movement_mode === "click" ? "click" : "drag");
+      const soundsOn = me.sound_enabled == null ? getStoredSoundPreference() : me.sound_enabled !== false;
+      soundEnabledRef.current = soundsOn;
+      setSoundEnabled(soundsOn);
+      storeSoundPreference(soundsOn);
       // Ensures a Wallet exists and, while Early Access Mode is on, grants the
       // one-time $500 bonus balance (recorded as a real WalletTransaction so
       // it shows in the user's transaction history) — see
@@ -171,6 +218,37 @@ export default function Home() {
     };
     load();
   }, []);
+
+  useEffect(() => {
+    if (!game?.id) {
+      moveSoundStateRef.current = { gameId: null, moveCount: 0 };
+      return;
+    }
+    const moveCount = Array.isArray(game.move_log) ? game.move_log.length : 0;
+    if (moveSoundStateRef.current.gameId !== game.id) {
+      moveSoundStateRef.current = { gameId: game.id, moveCount };
+      return;
+    }
+    if (moveCount > moveSoundStateRef.current.moveCount) {
+      const lastMove = game.move_log[moveCount - 1];
+      const myColor = activeMatch?.player1_id === user?.id ? "w" : "b";
+      playGameSound(lastMove?.color === myColor ? "move_self" : "move_opponent", soundEnabledRef.current);
+    }
+    moveSoundStateRef.current.moveCount = Math.max(moveSoundStateRef.current.moveCount, moveCount);
+  }, [game?.id, game?.move_log?.length, activeMatch?.player1_id, user?.id]);
+
+  useEffect(() => {
+    if (!activeMatch?.id || activeMatch.status !== "completed" || !user?.id) return;
+    const storageKey = "chessbet_result_sound_match_id";
+    if (sessionStorage.getItem(storageKey) === activeMatch.id) return;
+    sessionStorage.setItem(storageKey, activeMatch.id);
+    const cue = activeMatch.result === "draw"
+      ? "draw"
+      : activeMatch.winner_id === user.id
+        ? "victory"
+        : "defeat";
+    playGameSound(cue, soundEnabledRef.current);
+  }, [activeMatch?.id, activeMatch?.status, activeMatch?.result, activeMatch?.winner_id, user?.id]);
 
   return (
     <div className="min-h-screen px-5 pt-6 lg:h-screen lg:overflow-hidden lg:flex lg:flex-col lg:pb-24">
@@ -240,12 +318,14 @@ export default function Home() {
               onRefresh={handleRefreshActiveMatch}
               movementMode={movementMode}
               onMovementModeChange={handleMovementModeChange}
+              soundEnabled={soundEnabled}
+              onSoundEnabledChange={handleSoundEnabledChange}
             />
           ) : (
             <MatchCenter
               userId={user?.id}
               balance={wallet?.balance || 0}
-              onMatchAccepted={(id) => setMyMatchId(id)}
+              onMatchAccepted={handleMatchAccepted}
             />
           )}
         </motion.div>
