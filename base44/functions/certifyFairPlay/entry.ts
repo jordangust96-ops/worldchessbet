@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 
 // Records a player's independent Fair Play certification during the shared
 // Preparing Match phase. Required before that player's Entry Amount can be
@@ -44,6 +45,25 @@ Deno.serve(async (req) => {
     // reserved funds does the match go live — never earlier. finalizeMatchStart
     // is idempotent and is the single shared transition path (also re-invoked
     // by the client as a repair mechanism if it ever fails partway).
+    await recordIntegrationEvent(base44, {
+      eventType: 'contest.fair_play_certified',
+      aggregateType: 'match',
+      aggregateId: match.id,
+      correlationId: match.id,
+      idempotencyKey: `contest.fair_play_certified:${match.id}:${user.id}`,
+      actorType: 'user',
+      actorId: user.id,
+      userId: user.id,
+      counterpartyUserId: isP1 ? match.player2_id : match.player1_id,
+      matchId: match.id,
+      status: updatedMatch.status,
+      result: 'certified',
+      eventData: {
+        player_role: isP1 ? 'player1' : 'player2',
+        certified_at: now,
+      },
+    });
+
     const bothCertified = updatedMatch.player1_certified && updatedMatch.player2_certified;
     const bothDeposited = updatedMatch.player1_deposited && updatedMatch.player2_deposited;
     if (bothCertified && bothDeposited) {
