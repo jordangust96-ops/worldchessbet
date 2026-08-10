@@ -21,6 +21,7 @@ export default function WalletPage() {
   const [transactions, setTransactions] = useState([]);
   const [txPage, setTxPage] = useState(1);
   const [txTotalCount, setTxTotalCount] = useState(0);
+  const [matchDetailsById, setMatchDetailsById] = useState({});
   const [stats, setStats] = useState({ won: 0, lost: 0, wagered: 0 });
   const [loading, setLoading] = useState(true);
   const [depositAmount, setDepositAmount] = useState("");
@@ -46,6 +47,59 @@ export default function WalletPage() {
     setTransactions(txs);
     setTxTotalCount(allIds.length);
     setTxPage(page);
+
+    // Enrich only the visible page with participant-readable contest facts.
+    // WalletTransaction remains the financial source of truth; this map is
+    // read-only display context and never changes ledger or match records.
+    const matchIds = [...new Set(txs.map((tx) => tx.match_id).filter(Boolean))];
+    if (matchIds.length === 0) {
+      setMatchDetailsById({});
+      return;
+    }
+
+    try {
+      const matches = (
+        await Promise.all(
+          matchIds.map(async (matchId) => {
+            try {
+              return await base44.entities.Match.get(matchId);
+            } catch {
+              return null;
+            }
+          })
+        )
+      ).filter(Boolean);
+
+      const opponentIds = [
+        ...new Set(
+          matches
+            .map((match) => (match.player1_id === uid ? match.player2_id : match.player1_id))
+            .filter(Boolean)
+        ),
+      ];
+      let names = {};
+      if (opponentIds.length > 0) {
+        const { data } = await base44.functions.invoke("getUserDisplayNames", {
+          userIds: opponentIds,
+        });
+        names = data?.names || {};
+      }
+
+      setMatchDetailsById(
+        matches.reduce((details, match) => {
+          const opponentId = match.player1_id === uid ? match.player2_id : match.player1_id;
+          details[match.id] = {
+            match,
+            opponentName: names[opponentId] || "Opponent",
+          };
+          return details;
+        }, {})
+      );
+    } catch {
+      // Transaction history must remain available even if optional contest
+      // context cannot be loaded for an older record.
+      setMatchDetailsById({});
+    }
   };
 
   const handleTxPageChange = (page) => {
@@ -251,6 +305,8 @@ export default function WalletPage() {
           <h3 className="text-sm font-semibold text-white/70 mb-4">Transaction History</h3>
           <TransactionHistory
             transactions={transactions}
+            matchDetailsById={matchDetailsById}
+            userId={userId}
             page={txPage}
             pageSize={TX_PAGE_SIZE}
             totalCount={txTotalCount}
