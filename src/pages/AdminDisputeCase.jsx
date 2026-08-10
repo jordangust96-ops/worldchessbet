@@ -185,21 +185,6 @@ export default function AdminDisputeCase() {
         />
       </Card>
 
-      <Card title="Player Account Context" description="Current wallet and account state for each participant.">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <PlayerWalletCard label="Reporting User" player={financials?.reportingPlayer} />
-          <PlayerWalletCard label="Reported User" player={financials?.reportedPlayer} />
-        </div>
-      </Card>
-
-      <Card title="Match Replay">
-        <MatchReplay moveLog={financials?.game?.move_log} finalFen={disputeCase.final_fen} />
-      </Card>
-
-      <Card title="Ledger Activity">
-        <LedgerEntriesPanel entries={financials?.ledgerEntries} />
-      </Card>
-
       <Card
         title="Decision Evidence"
         description="System-derived facts are investigative aids, not automatic findings or proof of a violation."
@@ -218,6 +203,21 @@ export default function AdminDisputeCase() {
           recommendedAction={recommendedAction}
           recommendationRationale={decisionGuidance?.rationale}
         />
+      </Card>
+
+      <Card title="Player Account Context" description="Current wallet and account state for each participant.">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <PlayerWalletCard label="Reporting User" player={financials?.reportingPlayer} />
+          <PlayerWalletCard label="Reported User" player={financials?.reportedPlayer} />
+        </div>
+      </Card>
+
+      <Card title="Match Replay">
+        <MatchReplay moveLog={financials?.game?.move_log} finalFen={disputeCase.final_fen} />
+      </Card>
+
+      <Card title="Ledger Activity">
+        <LedgerEntriesPanel entries={financials?.ledgerEntries} />
       </Card>
 
       <Card title="Related User History">
