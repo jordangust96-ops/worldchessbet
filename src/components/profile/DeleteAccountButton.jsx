@@ -25,12 +25,12 @@ export default function DeleteAccountButton({ onClosed }) {
       const { data } = await base44.functions.invoke("closeAccount", {});
       if (data?.error) {
         setError(data.error);
-        setClosing(false);
         return;
       }
       onClosed?.();
-    } catch (e) {
+    } catch {
       setError("Something went wrong closing your account. Please try again.");
+    } finally {
       setClosing(false);
     }
   };
@@ -60,7 +60,10 @@ export default function DeleteAccountButton({ onClosed }) {
         <AlertDialogFooter>
           <AlertDialogCancel disabled={closing}>Cancel</AlertDialogCancel>
           <AlertDialogAction
-            onClick={handleConfirm}
+            onClick={(event) => {
+              event.preventDefault();
+              handleConfirm();
+            }}
             disabled={closing}
             className="bg-red-500 text-white hover:bg-red-600"
           >
