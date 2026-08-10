@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 
 const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+const CLOCK_START_DELAY_MS = 4000;
 
 // Starting clock time per ChessBet time control (mirrors the client-side map
 // previously in useChessGame.js). No increments — clocks only count down.
@@ -54,6 +55,9 @@ Deno.serve(async (req) => {
         white_time_ms: tc.initialMs,
         black_time_ms: tc.initialMs,
         increment_ms: 0,
+        // The shared UI ceremony lasts three seconds. A small server-side
+        // buffer ensures neither player loses time before the board is usable.
+        turn_started_at: new Date(Date.now() + CLOCK_START_DELAY_MS).toISOString(),
       });
       // Re-fetch rather than trust our own create result, so that if another
       // concurrent call also created one, every caller deterministically
@@ -64,7 +68,15 @@ Deno.serve(async (req) => {
     // Oldest record is the canonical Game — deterministic across every
     // concurrent caller, so all clients end up attaching/loading the same one
     // even if more than one Game row was momentarily created.
-    const canonicalGame = candidates[0];
+    let canonicalGame = candidates[0];
+
+    // Repair any pre-hardening or partially-created active game that lacks a
+    // clock anchor. Once set, this timestamp is never reset by later loads.
+    if (!canonicalGame.turn_started_at) {
+      canonicalGame = await base44.asServiceRole.entities.Game.update(canonicalGame.id, {
+        turn_started_at: new Date(Date.now() + CLOCK_START_DELAY_MS).toISOString(),
+      });
+    }
 
     const freshMatch = await base44.asServiceRole.entities.Match.get(matchId);
     if (!freshMatch.game_id) {
