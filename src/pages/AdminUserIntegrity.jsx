@@ -54,9 +54,14 @@ export default function AdminUserIntegrity() {
     setTransactions(txs);
     setJurisdictionLogs(jurisdictionHistory);
     const playerMatchIds = new Set([...asP1, ...asP2].map((match) => match.id));
+    const playerColorByMatchId = new Map([
+      ...asP1.map((match) => [match.id, "white"]),
+      ...asP2.map((match) => [match.id, "black"]),
+    ]);
     setFairPlayAnalyses(
       fairPlayRecords
         .filter((analysis) => playerMatchIds.has(analysis.match_id))
+        .map((analysis) => ({ ...analysis, reviewed_player_color: playerColorByMatchId.get(analysis.match_id) }))
         .sort((a, b) => new Date(b.created_date) - new Date(a.created_date))
         .slice(0, 20)
     );
@@ -134,7 +139,7 @@ export default function AdminUserIntegrity() {
             <p className="text-xs text-white/30 p-4">No completed-game screening records yet.</p>
           ) : (
             fairPlayAnalyses.map((analysis) => {
-              const isWhite = matches.find((match) => match.id === analysis.match_id)?.player1_id === userId;
+              const isWhite = analysis.reviewed_player_color === "white";
               const band = isWhite ? analysis.white_risk_band : analysis.black_risk_band;
               const score = isWhite ? analysis.white_risk_score : analysis.black_risk_score;
               const status = analysis.status?.replace(/_/g, " ") || "queued";
