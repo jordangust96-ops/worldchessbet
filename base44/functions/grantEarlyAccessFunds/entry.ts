@@ -23,7 +23,11 @@ Deno.serve(async (req) => {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     let wallets = await base44.asServiceRole.entities.Wallet.filter({ user_id: user.id });
-    let wallet = wallets[0];
+    // Idempotent against any duplicate wallet records: if ANY of the user's
+    // wallets has already received the Early Access bonus, treat it as the
+    // canonical wallet and never credit again. (A prior bug created duplicate
+    // user-role wallets; this guard prevents re-crediting them.)
+    let wallet = wallets.find((w) => w.early_access_credited) || wallets[0];
     if (!wallet) {
       wallet = await base44.asServiceRole.entities.Wallet.create({
         user_id: user.id, balance: 0, available_balance: 0, held_balance: 0, total_balance: 0,

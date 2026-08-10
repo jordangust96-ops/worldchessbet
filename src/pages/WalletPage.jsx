@@ -58,19 +58,18 @@ export default function WalletPage() {
     setUserId(me.id);
     setWithdrawalHold(!!me.withdrawal_hold);
     setAccountState(me.account_state || "verified");
+    // The wallet is always created by the backend (grantEarlyAccessFunds, as
+    // the service role) so there is exactly one per user. Never create a
+    // wallet from the client — that previously produced a duplicate wallet
+    // (user-role created, which the financial backend updated separately from
+    // the one the UI showed) and split balances. If none is visible yet,
+    // invoke the canonical creator.
     const wallets = await base44.entities.Wallet.filter({ user_id: me.id });
     if (wallets.length > 0) {
       setWallet(wallets[0]);
     } else {
-      const w = await base44.entities.Wallet.create({
-        user_id: me.id,
-        balance: 0,
-        total_wagered: 0,
-        total_won: 0,
-        total_deposited: 0,
-        total_withdrawn: 0,
-      });
-      setWallet(w);
+      const { data } = await base44.functions.invoke("grantEarlyAccessFunds", {});
+      setWallet(data.wallet);
     }
     await loadTransactions(me.id, 1);
 
