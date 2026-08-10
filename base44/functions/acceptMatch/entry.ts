@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 
 // Joining a match (public or private) only reserves the opponent slot and
 // starts the shared Preparing Match phase — it never moves any funds and
@@ -54,6 +55,27 @@ Deno.serve(async (req) => {
       player2_id: user.id,
       status: 'preparing',
       preparation_started_at: new Date().toISOString(),
+    });
+
+    await recordIntegrationEvent(base44, {
+      eventType: 'contest.accepted',
+      aggregateType: 'match',
+      aggregateId: match.id,
+      correlationId: match.id,
+      idempotencyKey: `contest.accepted:${match.id}`,
+      actorType: 'user',
+      actorId: user.id,
+      userId: user.id,
+      counterpartyUserId: match.player1_id,
+      matchId: match.id,
+      status: updatedMatch.status,
+      amount: match.wager_amount,
+      result: 'opponent_reserved',
+      eventData: {
+        player1_id: match.player1_id,
+        player2_id: user.id,
+        preparation_started_at: updatedMatch.preparation_started_at,
+      },
     });
 
     return Response.json({ match: updatedMatch });
