@@ -71,6 +71,8 @@ export function useChessGame(matchId, userId, active) {
       renderedPlyRef.current = 0;
       renderedUpdatedAtRef.current = 0;
       renderedStatusRef.current = null;
+      setSelectedSquare(null);
+      setLegalTargets([]);
       return;
     }
     loadGame();
@@ -184,9 +186,17 @@ export function useChessGame(matchId, userId, active) {
     (sourceSquare, targetSquare) => {
       if (!game || game.status === "completed") return false;
 
+      // Only the player whose turn it is may initiate a move. This keeps
+      // click and drag input aligned with server authority and prevents legal
+      // targets for the opponent's pieces from appearing locally.
+      const playerColor = color === "white" ? "w" : "b";
+      const currentPosition = chessRef.current;
+      const sourcePiece = currentPosition.get(sourceSquare);
+      if (currentPosition.turn() !== playerColor || sourcePiece?.color !== playerColor) return false;
+
       // Quick client-side legality check purely for instant snap-back UX.
       // The server remains the sole authority over the persisted game state.
-      const preview = new Chess(chessRef.current.fen());
+      const preview = new Chess(currentPosition.fen());
       let previewMove;
       try {
         previewMove = preview.move({ from: sourceSquare, to: targetSquare, promotion: "q" });
@@ -260,7 +270,7 @@ export function useChessGame(matchId, userId, active) {
 
       return true;
     },
-    [game, toast]
+    [game, color, toast]
   );
 
   const handleDrop = useCallback(
@@ -276,6 +286,15 @@ export function useChessGame(matchId, userId, active) {
       if (!game || game.status === "completed") return;
       const chess = chessRef.current;
       const turn = chess.turn();
+      const playerColor = color === "white" ? "w" : "b";
+
+      // Ignore board clicks while waiting for the opponent and remove any
+      // stale highlight left over from a prior local interaction.
+      if (turn !== playerColor) {
+        setSelectedSquare(null);
+        setLegalTargets([]);
+        return;
+      }
 
       if (selectedSquare) {
         if (square === selectedSquare) {
@@ -307,7 +326,7 @@ export function useChessGame(matchId, userId, active) {
         setLegalTargets(moves.map((m) => m.to));
       }
     },
-    [game, selectedSquare, legalTargets, attemptMove]
+    [game, color, selectedSquare, legalTargets, attemptMove]
   );
 
   return {
