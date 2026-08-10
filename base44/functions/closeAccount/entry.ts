@@ -60,6 +60,24 @@ Deno.serve(async (req) => {
       }
 
       await base44.asServiceRole.entities.Match.update(match.id, { status: 'cancelled' });
+      await recordIntegrationEvent(base44, {
+        eventType: 'contest.cancelled',
+        aggregateType: 'match',
+        aggregateId: match.id,
+        correlationId: match.id,
+        idempotencyKey: `contest.cancelled:${match.id}`,
+        actorType: 'user',
+        actorId: user.id,
+        userId: user.id,
+        counterpartyUserId: match.player1_id === user.id ? match.player2_id : match.player1_id,
+        matchId: match.id,
+        status: 'cancelled',
+        amount: match.wager_amount,
+        result: 'account_closure',
+        eventData: {
+          refunded_user_ids: refundTargets,
+        },
+      });
     }
 
     // (iv) Disburse any remaining undisputed balance, subject to compliance
