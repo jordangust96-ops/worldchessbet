@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 
 // Admin-only: completes identity verification for a user. Each individual may
 // hold only one Account — the submitted ID number is hashed and checked
@@ -27,7 +28,7 @@ Deno.serve(async (req) => {
     const duplicate = matches.find((u) => u.id !== userId);
 
     if (duplicate) {
-      await base44.asServiceRole.entities.IntegrityFlag.create({
+      const duplicateFlag = await base44.asServiceRole.entities.IntegrityFlag.create({
         user_id: userId,
         flag_type: 'duplicate_identity_document',
         severity: 'high',
@@ -35,6 +36,24 @@ Deno.serve(async (req) => {
         assigned_admin_id: admin.id,
         description: `Submitted ID matches an existing account (${duplicate.id}). Verification denied.`,
       });
+      await recordIntegrationEvent(base44, {
+        eventType: 'identity.verification_denied',
+        aggregateType: 'user',
+        aggregateId: userId,
+        correlationId: userId,
+        idempotencyKey: `identity.verification_denied:${duplicateFlag.id}`,
+        actorType: 'administrator',
+        actorId: admin.id,
+        userId,
+        counterpartyUserId: duplicate.id,
+        status: 'failed',
+        result: 'duplicate_identity_document',
+        eventData: {
+          integrity_flag_id: duplicateFlag.id,
+          duplicate_user_id: duplicate.id,
+        },
+      });
+
       return Response.json({
         success: false,
         duplicate: true,
@@ -47,6 +66,23 @@ Deno.serve(async (req) => {
       identity_verification_status: 'verified',
       identity_verified_at: new Date().toISOString(),
       account_state: 'verified',
+    });
+
+    await recordIntegrationEvent(base44, {
+      eventType: 'identity.verified',
+      aggregateType: 'user',
+      aggregateId: userId,
+      correlationId: userId,
+      idempotencyKey: `identity.verified:${userId}`,
+      actorType: 'administrator',
+      actorId: admin.id,
+      userId,
+      status: updatedUser.identity_verification_status,
+      result: updatedUser.account_state,
+      eventData: {
+        identity_verified_at: updatedUser.identity_verified_at,
+        account_state: updatedUser.account_state,
+      },
     });
 
     return Response.json({ success: true, user: updatedUser });
