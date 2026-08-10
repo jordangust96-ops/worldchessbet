@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 
 const VALID_CATEGORIES = ['fair_play', 'collusion', 'harassment', 'technical_issue', 'rules_violation', 'other'];
 
@@ -132,6 +133,33 @@ Deno.serve(async (req) => {
       legal_hold: false,
     });
     await base44.asServiceRole.entities.DisputeCase.update(disputeCase.id, { evidence_id: evidence.id });
+
+    await recordIntegrationEvent(base44, {
+      eventType: 'dispute.opened',
+      aggregateType: 'dispute_case',
+      aggregateId: disputeCase.id,
+      correlationId: matchId,
+      idempotencyKey: `dispute.opened:${disputeCase.id}`,
+      actorType: 'user',
+      actorId: user.id,
+      userId: user.id,
+      counterpartyUserId: opponentId || '',
+      matchId,
+      gameId: game?.id || match.game_id || '',
+      disputeCaseId: disputeCase.id,
+      status: disputeCase.status,
+      result: category,
+      eventData: {
+        case_number: caseNumber,
+        reported_user_id: opponentId || '',
+        category,
+        subcategory: subcategory || '',
+        contest_record_id: contestRecord?.id || '',
+        evidence_id: evidence.id,
+        wallet_transaction_ids: walletTransactionIds,
+        ledger_entry_ids: ledgerEntryIds,
+      },
+    });
 
     // Append-only, immutable-Contest-Record-preserving link — only created
     // when the contest has already settled into a ContestRecord.
