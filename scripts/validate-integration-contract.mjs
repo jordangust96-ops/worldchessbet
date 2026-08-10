@@ -6,8 +6,8 @@ const readJson = async (path) => JSON.parse(await read(path));
 
 const walletTransaction = await readJson('base44/entities/WalletTransaction.jsonc');
 const ledgerEntry = await readJson('base44/entities/LedgerEntry.jsonc');
-const integrationEvent = await readJson('base44/entities/integration-event.jsonc');
-const integrationReference = await readJson('base44/entities/integration-reference.jsonc');
+const integrationEvent = await readJson('base44/entities/IntegrationEvent.jsonc');
+const integrationReference = await readJson('base44/entities/IntegrationReference.jsonc');
 const ledgerHelper = await read('base44/shared/ledger.ts');
 const packetFunction = await read('base44/functions/getIntegrationPacket/entry.ts');
 
