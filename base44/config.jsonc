@@ -1,5 +1,6 @@
 {
-  "name": "untitled",
+  "name": "ChessBet",
+  "description": "Skill-based, head-to-head online chess contests for real prizes with secure contest funds and monitored fair play.",
   "site": {
     "installCommand": "npm install",
     "buildCommand": "npm run build",
