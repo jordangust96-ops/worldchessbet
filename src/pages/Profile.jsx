@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { User, Mail, Trophy, Swords, LogOut, Loader2, Crown, XCircle, Flag, ShieldAlert, ChevronRight, HelpCircle } from "lucide-react";
+import { Mail, Trophy, Swords, LogOut, Loader2, Crown, XCircle, Flag, ChevronRight, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import Logo from "@/components/Logo";
@@ -95,7 +95,7 @@ export default function Profile() {
             <p className="text-sm text-white/40">{user?.email}</p>
             {user?.role === "admin" && (
               <p className="text-[11px] text-white/30 mt-1">
-                Your account has elevated administrative access — see "Admin Tools" below.
+                Private administrative review and operations workspace enabled.
               </p>
             )}
           </div>
@@ -190,7 +190,7 @@ export default function Profile() {
         <SecuritySection email={user?.email} />
 
         {/* Legal */}
-        <LegalSection isAdmin={user?.role === "admin"} />
+        <LegalSection />
 
         {/* Logout */}
         <Button
