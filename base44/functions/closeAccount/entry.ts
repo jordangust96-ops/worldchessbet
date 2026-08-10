@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { postLedgerLegs } from '../../shared/ledger.ts';
+import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 
 // Self-service account closure. Runs server-side with the service role so
 // contest cancellations, refunds, and the closure payout are always computed
@@ -97,6 +98,25 @@ Deno.serve(async (req) => {
     // deposits, withdrawals, and contest entry per the existing account_state gate.
     const updatedUser = await base44.asServiceRole.entities.User.update(user.id, {
       account_state: 'closed',
+    });
+
+    await recordIntegrationEvent(base44, {
+      eventType: 'account.closed',
+      aggregateType: 'user',
+      aggregateId: user.id,
+      correlationId: user.id,
+      idempotencyKey: `account.closed:${user.id}`,
+      actorType: 'user',
+      actorId: user.id,
+      userId: user.id,
+      status: updatedUser.account_state,
+      amount: payout || 0,
+      result: user.withdrawal_hold ? 'funds_held_for_compliance' : 'closure_requested',
+      eventData: {
+        cancelled_match_ids: openInvitations.map((match) => match.id),
+        payout_pending: payout,
+        withdrawal_hold: !!user.withdrawal_hold,
+      },
     });
 
     return Response.json({
