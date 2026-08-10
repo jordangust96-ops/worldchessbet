@@ -145,6 +145,11 @@ export default function PrivateWaitingCard({ match, onCancel }) {
             <AlertDialogDescription className="text-white/50">
               Your invitation link will be invalidated and your friend will no longer be able to join.
             </AlertDialogDescription>
+            {actionError && (
+              <p role="alert" className="text-xs text-red-400">
+                {actionError}
+              </p>
+            )}
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-transparent border-white/10 text-white/70 hover:bg-white/5 hover:text-white">
