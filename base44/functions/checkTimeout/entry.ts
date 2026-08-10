@@ -7,10 +7,11 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 // isn't UTC. Always force UTC interpretation by appending 'Z' when no offset
 // is present. Mirrors the same fix in src/hooks/useChessClock.js and is
 // duplicated (not imported) in submitMove for the same reason as below.
-function parseServerDate(dateStr) {
-  if (!dateStr) return null;
+function parseServerTime(dateStr, fallbackMs) {
+  if (!dateStr) return fallbackMs;
   const hasTz = /Z$|[+-]\d{2}:?\d{2}$/.test(dateStr);
-  return new Date(hasTz ? dateStr : `${dateStr}Z`);
+  const parsedMs = new Date(hasTz ? dateStr : `${dateStr}Z`).getTime();
+  return Number.isFinite(parsedMs) ? parsedMs : fallbackMs;
 }
 
 // Authoritative determination of whether a color has sufficient material to
@@ -65,7 +66,7 @@ Deno.serve(async (req) => {
     // Determine side to move from FEN, and check if their authoritative clock has expired.
     const sideToMove = game.fen?.split(' ')[1] === 'b' ? 'b' : 'w';
     const now = Date.now();
-    const turnStartedAt = game.turn_started_at ? parseServerDate(game.turn_started_at).getTime() : now;
+    const turnStartedAt = parseServerTime(game.turn_started_at, now);
     const elapsedMs = Math.max(0, now - turnStartedAt);
     const timeField = sideToMove === 'w' ? 'white_time_ms' : 'black_time_ms';
     const remainingMs = (game[timeField] ?? 0) - elapsedMs;
