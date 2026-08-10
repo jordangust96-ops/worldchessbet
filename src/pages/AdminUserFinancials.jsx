@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Loader2, Wallet as WalletIcon, Search } from "lucide-react";
+import { ArrowLeft, ChevronRight, Loader2, Search, UserRoundSearch } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Input } from "@/components/ui/input";
 
@@ -68,13 +68,12 @@ export default function AdminUserFinancials() {
 
       <div className="flex items-center gap-3 mb-1">
         <div className="w-10 h-10 rounded-xl bg-[#C9A84C]/10 flex items-center justify-center shrink-0">
-          <WalletIcon size={18} className="text-[#C9A84C]" />
+          <UserRoundSearch size={18} className="text-[#C9A84C]" />
         </div>
-        <h1 className="text-xl font-extrabold text-white">User Financial Overview</h1>
+        <h1 className="text-xl font-extrabold text-white">Player & Financial Review</h1>
       </div>
       <p className="text-xs text-white/40 mb-5">
-        Lifetime wagering activity per user \u2014 wallet balance, amount wagered, amount won, amount lost, and total
-        platform service fees paid.
+        Search any player, review their lifetime wagering activity, or open their complete integrity and account record.
       </p>
 
       <div className="relative mb-4">
@@ -97,11 +96,12 @@ export default function AdminUserFinancials() {
               <th className="p-3 font-semibold text-right">Amount Won</th>
               <th className="p-3 font-semibold text-right">Amount Lost</th>
               <th className="p-3 font-semibold text-right">Platform Fees</th>
+              <th className="p-3 font-semibold text-right">Integrity</th>
             </tr>
           </thead>
           <tbody>
             {filteredRows.map((r) => (
-              <tr key={r.id} className="border-b border-white/5 last:border-0">
+              <tr key={r.id} className="border-b border-white/5 last:border-0 hover:bg-white/[0.02]">
                 <td className="p-3">
                   <p className="text-white font-medium">{r.full_name || "\u2014"}</p>
                   <p className="text-white/40 text-xs">{r.email}</p>
@@ -111,11 +111,20 @@ export default function AdminUserFinancials() {
                 <td className="p-3 text-right text-emerald-400">{formatUsd(r.amount_won)}</td>
                 <td className="p-3 text-right text-red-400">{formatUsd(r.amount_lost)}</td>
                 <td className="p-3 text-right text-[#C9A84C]">{formatUsd(r.total_platform_fees)}</td>
+                <td className="p-3 text-right">
+                  <Link
+                    to={`/admin/integrity/${r.id}`}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-[#C9A84C]/25 px-2.5 py-1.5 text-xs font-semibold text-[#C9A84C] hover:bg-[#C9A84C]/10 transition-colors"
+                    aria-label={`Review integrity record for ${r.full_name || r.email}`}
+                  >
+                    Review <ChevronRight size={13} />
+                  </Link>
+                </td>
               </tr>
             ))}
             {filteredRows.length === 0 && (
               <tr>
-                <td colSpan={6} className="p-6 text-center text-white/30 text-sm">
+                <td colSpan={7} className="p-6 text-center text-white/30 text-sm">
                   No users found.
                 </td>
               </tr>
