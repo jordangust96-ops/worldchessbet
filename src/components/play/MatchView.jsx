@@ -22,6 +22,8 @@ export default function MatchView({
   onRefresh,
   movementMode,
   onMovementModeChange,
+  soundEnabled,
+  onSoundEnabledChange,
 }) {
   const { toast } = useToast();
   // Tracks whether this client is the one who initiated the cancellation, so the
@@ -93,6 +95,8 @@ export default function MatchView({
             game={game}
             movementMode={movementMode}
             onMovementModeChange={onMovementModeChange}
+            soundEnabled={soundEnabled}
+            onSoundEnabledChange={onSoundEnabledChange}
           />
         );
       }
