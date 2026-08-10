@@ -1,8 +1,11 @@
+import { recordIntegrationEvent } from './integrationEvents.ts';
+
 // Shared Internal Ledger posting helper, used by every backend function that
 // moves money (deposits, withdrawals, contest entries/settlements, account
 // closure, Early Access bonus credits, etc.). Posts a balanced set of Ledger
 // entries and updates the derived Wallet / SystemLedgerAccount balances.
-export async function postLedgerLegs(base44, { groupId, matchId, walletTransactionId, actor, actorId, triggerEvent, externalRefType, externalRefId, legs }) {
+export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletTransactionId, actor, actorId, triggerEvent, externalRefType, externalRefId, legs }) {
+  const correlationId = matchId || walletTransactionId || groupId;
   const totalDebit = legs.reduce((s, l) => s + (l.debit || 0), 0);
   const totalCredit = legs.reduce((s, l) => s + (l.credit || 0), 0);
   if (Math.round(totalDebit * 100) !== Math.round(totalCredit * 100)) {
@@ -39,7 +42,8 @@ export async function postLedgerLegs(base44, { groupId, matchId, walletTransacti
         resulting_available_balance: newAvailable, resulting_held_balance: newHeld, resulting_total_balance: newTotal,
         initiating_actor: actor, initiating_actor_id: actorId || '', trigger_event: triggerEvent,
         external_reference_type: externalRefType || 'none', external_reference_id: externalRefId || '',
-        ledger_group_id: groupId,
+        ledger_group_id: groupId, correlation_id: correlationId, game_id: gameId || '',
+        currency: 'USD', schema_version: 1,
       });
     } else {
       const accounts = await base44.asServiceRole.entities.SystemLedgerAccount.filter({ account_name: leg.ledgerAccount });
@@ -54,10 +58,80 @@ export async function postLedgerLegs(base44, { groupId, matchId, walletTransacti
         resulting_total_balance: newBalance,
         initiating_actor: actor, initiating_actor_id: actorId || '', trigger_event: triggerEvent,
         external_reference_type: externalRefType || 'none', external_reference_id: externalRefId || '',
-        ledger_group_id: groupId,
+        ledger_group_id: groupId, correlation_id: correlationId, game_id: gameId || '',
+        currency: 'USD', schema_version: 1,
       });
     }
   }
-  await base44.asServiceRole.entities.LedgerEntry.bulkCreate(entries);
-  return entries;
+  const createdEntries = await base44.asServiceRole.entities.LedgerEntry.bulkCreate(entries);
+
+  // Normalize the user-facing transaction and emit a provider-neutral outbox
+  // record only after the balanced ledger posting has succeeded. Integration
+  // metadata is deliberately non-authoritative and cannot roll back money.
+  let walletTransaction = null;
+  if (walletTransactionId) {
+    try {
+      walletTransaction = await base44.asServiceRole.entities.WalletTransaction.get(walletTransactionId);
+      const directionByType = {
+        deposit: 'credit',
+        withdrawal: 'debit',
+        wager_lock: 'reserve',
+        wager_refund: 'release',
+        payout: 'credit',
+        service_fee_charge: 'reserve',
+        service_fee_refund: 'release',
+      };
+      const requiresExternalRail = ['deposit', 'withdrawal', 'account_closure_disbursement'].includes(triggerEvent);
+      await base44.asServiceRole.entities.WalletTransaction.update(walletTransactionId, {
+        currency: 'USD',
+        direction: directionByType[walletTransaction.type] || 'internal',
+        correlation_id: correlationId,
+        ledger_group_id: groupId,
+        source_event: triggerEvent,
+        initiating_actor: actor,
+        initiating_actor_id: actorId || '',
+        processed_at: new Date().toISOString(),
+        integration_status: requiresExternalRail ? 'unrouted' : 'internal_complete',
+        idempotency_key: `ledger:${groupId}`,
+        schema_version: 1,
+      });
+    } catch (error) {
+      console.error(JSON.stringify({
+        event: 'wallet_transaction_trace_update_failed',
+        wallet_transaction_id: walletTransactionId,
+        ledger_group_id: groupId,
+        error: error?.message || 'unknown_error',
+      }));
+    }
+  }
+
+  const affectedUserIds = [...new Set(legs.map((leg) => leg.userId).filter(Boolean))];
+  await recordIntegrationEvent(base44, {
+    eventType: `financial.${triggerEvent}`,
+    aggregateType: walletTransactionId ? 'wallet_transaction' : 'ledger_group',
+    aggregateId: walletTransactionId || groupId,
+    correlationId,
+    idempotencyKey: `ledger:${groupId}`,
+    actorType: actor,
+    actorId: actorId || '',
+    userId: walletTransaction?.user_id || affectedUserIds[0] || '',
+    counterpartyUserId: affectedUserIds.find((id) => id !== (walletTransaction?.user_id || affectedUserIds[0])) || '',
+    matchId: matchId || '',
+    gameId: gameId || '',
+    walletTransactionId: walletTransactionId || '',
+    ledgerGroupId: groupId,
+    status: walletTransaction?.status || 'completed',
+    amount: walletTransaction?.amount,
+    currency: 'USD',
+    result: walletTransaction?.type || triggerEvent,
+    eventData: {
+      ledger_entry_ids: (createdEntries || []).map((entry) => entry.id),
+      transaction_type: walletTransaction?.type || '',
+      external_reference_type: externalRefType || 'none',
+      external_reference_id: externalRefId || '',
+      affected_user_ids: affectedUserIds,
+    },
+  });
+
+  return createdEntries || entries;
 }
