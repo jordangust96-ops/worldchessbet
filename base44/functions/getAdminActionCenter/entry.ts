@@ -207,10 +207,11 @@ Deno.serve(async (req) => {
       const evidence = sideEvidence(analysis, match, dispute.reported_user_id);
       const guidance = disputeRecommendation(dispute, evidence);
       const priority = priorityForDispute(dispute, evidence);
+      const fairPlayRelevant = dispute.report_category === 'fair_play' || dispute.fair_play_review_flag;
       const facts = [
         `Player report: ${(dispute.report_category || 'other').replaceAll('_', ' ')}.`,
         dispute.reported_user_username ? `Reported player: ${dispute.reported_user_username}.` : 'No opposing player was identified in the report.',
-        ...evidenceFacts(evidence),
+        ...(fairPlayRelevant ? evidenceFacts(evidence) : []),
       ];
 
       items.push({
@@ -256,7 +257,7 @@ Deno.serve(async (req) => {
         rationale: guidance.rationale,
         facts: [
           `Integrity flag: ${(flag.flag_type || 'manual').replaceAll('_', ' ')} (${flag.severity || 'low'} severity).`,
-          ...evidenceFacts(evidence),
+          ...(flag.flag_type === 'engine_assistance_suspected' ? evidenceFacts(evidence) : []),
         ],
         evidence,
       });
