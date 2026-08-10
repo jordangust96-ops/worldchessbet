@@ -19,7 +19,7 @@ export default function AppLayout() {
 
   return (
     <div className="min-h-screen bg-background">
-      <PresenceHeartbeat />
+      {user && <PresenceHeartbeat />}
       <main className={hideNav ? "" : "pb-24"}>
         {!hideNav && user?.role === "admin" && <AdminActionAlert />}
         {showHere && (
