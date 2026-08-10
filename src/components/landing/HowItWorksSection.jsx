@@ -21,8 +21,8 @@ const STEPS = [
   },
   {
     icon: ShieldCheck,
-    title: "Get Paid Instantly",
-    description: "When the match ends decisively, winnings are settled automatically and securely.",
+    title: "Verified Result & Settlement",
+    description: "When a contest ends decisively, the server-verified result triggers secure, recorded settlement.",
   },
 ];
 
