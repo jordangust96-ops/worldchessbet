@@ -9,11 +9,6 @@ export default function AdminActionAlert() {
 
   const refresh = useCallback(async () => {
     try {
-      const me = await base44.auth.me();
-      if (me?.role !== "admin") {
-        setSummary(null);
-        return;
-      }
       const response = await base44.functions.invoke("getAdminActionCenter", {});
       setSummary(response.data);
     } catch {
@@ -23,9 +18,21 @@ export default function AdminActionAlert() {
   }, []);
 
   useEffect(() => {
-    refresh();
-    const interval = window.setInterval(refresh, 60_000);
-    return () => window.clearInterval(interval);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+
+    refreshWhenVisible();
+    const interval = window.setInterval(refreshWhenVisible, 60_000);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    window.addEventListener("focus", refreshWhenVisible);
+    window.addEventListener("online", refreshWhenVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      window.removeEventListener("focus", refreshWhenVisible);
+      window.removeEventListener("online", refreshWhenVisible);
+    };
   }, [refresh, location.pathname]);
 
   if (!summary?.count) return null;
