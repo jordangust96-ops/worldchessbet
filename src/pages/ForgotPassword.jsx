@@ -33,6 +33,7 @@ export default function ForgotPassword() {
         title="Forgot Password | ChessBet"
         description="Reset your ChessBet password securely. Enter your email to receive a password reset link and regain access to your real-money chess account safely."
         canonicalUrl={`${SITE_URL}/forgot-password`}
+        noindex
         structuredData={{
           "@context": "https://schema.org",
           "@type": "WebPage",
