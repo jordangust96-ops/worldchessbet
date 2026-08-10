@@ -31,6 +31,10 @@
     "analysis_depth": {
       "type": "number"
     },
+    "eligible_move_count": {
+      "type": "number",
+      "description": "Total engine-eligible plies reported by the analyzer"
+    },
     "white_eligible_moves": {
       "type": "number",
       "default": 0
@@ -80,6 +84,38 @@
     },
     "black_move_time_consistency": {
       "type": "number"
+    },
+    "white_timing_sample_count": {
+      "type": "number",
+      "description": "Number of finite, nonnegative eligible move-time samples for White"
+    },
+    "black_timing_sample_count": {
+      "type": "number",
+      "description": "Number of finite, nonnegative eligible move-time samples for Black"
+    },
+    "white_centipawn_loss_sample_count": {
+      "type": "number",
+      "description": "Number of eligible White moves with a usable centipawn-loss value"
+    },
+    "black_centipawn_loss_sample_count": {
+      "type": "number",
+      "description": "Number of eligible Black moves with a usable centipawn-loss value"
+    },
+    "white_ranked_engine_move_sample_count": {
+      "type": "number",
+      "description": "Number of eligible White moves with comparable ranked engine recommendations"
+    },
+    "black_ranked_engine_move_sample_count": {
+      "type": "number",
+      "description": "Number of eligible Black moves with comparable ranked engine recommendations"
+    },
+    "white_critical_position_count": {
+      "type": "number",
+      "description": "Number of eligible White moves classified as critical by the analyzer"
+    },
+    "black_critical_position_count": {
+      "type": "number",
+      "description": "Number of eligible Black moves classified as critical by the analyzer"
     },
     "white_focus_loss_count": {
       "type": "number",
