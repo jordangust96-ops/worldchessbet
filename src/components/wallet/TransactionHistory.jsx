@@ -1,5 +1,13 @@
-import React from "react";
-import { ArrowUpRight, ArrowDownLeft, Plus, Minus } from "lucide-react";
+import React, { useState } from "react";
+import {
+  ArrowUpRight,
+  ArrowDownLeft,
+  Plus,
+  Minus,
+  ChevronDown,
+  Copy,
+  Check,
+} from "lucide-react";
 import moment from "moment";
 import TransactionPagination from "@/components/wallet/TransactionPagination";
 
@@ -13,14 +21,71 @@ const typeConfig = {
   service_fee_refund: { icon: Plus, color: "text-blue-400", bg: "bg-blue-500/10", label: "Platform Service Fee Refund" },
 };
 
-// Renders one page of transactions plus pagination controls. Data fetching /
-// page-size logic lives in the parent (WalletPage) — this component is purely
-// presentational so future additions (search, filters, export, infinite
-// scroll) can be layered on the parent without touching this file.
-export default function TransactionHistory({ transactions, page, pageSize, totalCount, onPageChange }) {
+const statusConfig = {
+  completed: { label: "Completed", className: "text-green-400 bg-green-500/10 border-green-500/20" },
+  pending: { label: "Pending", className: "text-[#C9A84C] bg-[#C9A84C]/10 border-[#C9A84C]/20" },
+  failed: { label: "Failed", className: "text-red-400 bg-red-500/10 border-red-500/20" },
+};
+
+const incomingTypes = ["deposit", "payout", "wager_refund", "service_fee_refund"];
+
+function shortReference(id) {
+  if (!id) return null;
+  return id.slice(-8).toUpperCase();
+}
+
+function formatMoney(value) {
+  return Number(value || 0).toFixed(2);
+}
+
+function titleCase(value) {
+  if (!value) return null;
+  return value.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function getMatchResult(match, userId) {
+  if (!match) return null;
+  if (match.status === "cancelled" || match.result === "cancelled") return "Cancelled";
+  if (match.status === "disputed") return "Under review";
+  if (match.status !== "completed") return titleCase(match.status);
+  if (match.result === "draw" || !match.winner_id) return "Draw";
+  return match.winner_id === userId ? "Won" : "Lost";
+}
+
+function DetailItem({ label, value }) {
+  if (value == null || value === "") return null;
+  return (
+    <div>
+      <p className="text-[10px] uppercase tracking-wider text-white/25">{label}</p>
+      <p className="mt-1 text-xs font-medium text-white/70">{value}</p>
+    </div>
+  );
+}
+
+export default function TransactionHistory({
+  transactions,
+  matchDetailsById = {},
+  userId,
+  page,
+  pageSize,
+  totalCount,
+  onPageChange,
+}) {
+  const [expandedId, setExpandedId] = useState(null);
+  const [copiedId, setCopiedId] = useState(null);
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const rangeStart = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
   const rangeEnd = Math.min(page * pageSize, totalCount);
+
+  const copyReference = async (transactionId) => {
+    try {
+      await navigator.clipboard.writeText(transactionId);
+      setCopiedId(transactionId);
+      window.setTimeout(() => setCopiedId(null), 1800);
+    } catch {
+      setCopiedId(null);
+    }
+  };
 
   if (totalCount === 0) {
     return (
@@ -39,26 +104,117 @@ export default function TransactionHistory({ transactions, page, pageSize, total
         {transactions.map((tx) => {
           const config = typeConfig[tx.type] || typeConfig.deposit;
           const Icon = config.icon;
-          const isIncoming = ["deposit", "payout", "wager_refund", "service_fee_refund"].includes(tx.type);
+          const isIncoming = incomingTypes.includes(tx.type);
+          const isExpanded = expandedId === tx.id;
+          const context = tx.match_id ? matchDetailsById[tx.match_id] : null;
+          const match = context?.match;
+          const matchReference = shortReference(tx.match_id);
+          const transactionReference = shortReference(tx.id);
+          const opponentName = context?.opponentName;
+          const timeControl = match?.display_name || titleCase(match?.time_control);
+          const result = getMatchResult(match, userId);
+          const status = statusConfig[tx.status] || statusConfig.completed;
+          const subtitleParts = match
+            ? [
+                opponentName ? `vs. ${opponentName}` : "Contest transaction",
+                timeControl,
+                matchReference ? `Match ${matchReference}` : null,
+              ]
+            : [moment(tx.created_date).format("MMM D, YYYY"), titleCase(tx.status || "completed")];
+
           return (
             <div
               key={tx.id}
-              className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.03] border border-white/5"
+              className={`overflow-hidden rounded-2xl border transition-colors ${
+                isExpanded
+                  ? "bg-white/[0.045] border-white/10"
+                  : "bg-white/[0.03] border-white/5"
+              }`}
             >
-              <div className="flex items-center gap-3">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${config.bg}`}>
-                  <Icon size={16} className={config.color} />
+              <button
+                type="button"
+                onClick={() => setExpandedId(isExpanded ? null : tx.id)}
+                aria-expanded={isExpanded}
+                className="w-full p-4 flex items-center justify-between gap-3 text-left hover:bg-white/[0.025] transition-colors"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className={`w-9 h-9 rounded-xl shrink-0 flex items-center justify-center ${config.bg}`}>
+                    <Icon size={16} className={config.color} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-white">{config.label}</p>
+                    <p className="mt-0.5 truncate text-[11px] text-white/35">
+                      {subtitleParts.filter(Boolean).join(" · ")}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-semibold text-white">{config.label}</p>
-                  <p className="text-[11px] text-white/30">
-                    {moment(tx.created_date).format("MMM D, YYYY")}
-                  </p>
+                <div className="flex shrink-0 items-center gap-2.5">
+                  <div className="text-right">
+                    <p className={`text-sm font-bold ${isIncoming ? "text-green-400" : "text-red-400"}`}>
+                      {isIncoming ? "+" : "-"}${formatMoney(tx.amount)}
+                    </p>
+                    <p className="mt-0.5 text-[10px] text-white/25">
+                      {moment(tx.created_date).format("h:mm A")}
+                    </p>
+                  </div>
+                  <ChevronDown
+                    size={15}
+                    className={`text-white/25 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                  />
                 </div>
-              </div>
-              <p className={`text-sm font-bold ${isIncoming ? "text-green-400" : "text-red-400"}`}>
-                {isIncoming ? "+" : "-"}${tx.amount?.toFixed(2)}
-              </p>
+              </button>
+
+              {isExpanded && (
+                <div className="border-t border-white/[0.06] px-4 pb-4 pt-3">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                    <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${status.className}`}>
+                      {status.label}
+                    </span>
+                    <p className="text-[11px] text-white/30">
+                      {moment(tx.created_date).format("MMM D, YYYY [at] h:mm:ss A")}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3">
+                    <DetailItem label="Transaction amount" value={`${isIncoming ? "+" : "-"}$${formatMoney(tx.amount)}`} />
+                    {match && (
+                      <>
+                        <DetailItem label="Opponent" value={opponentName || "Opponent"} />
+                        <DetailItem label="Time control" value={timeControl} />
+                        <DetailItem label="Contest result" value={result} />
+                        <DetailItem label="Entry amount" value={`$${formatMoney(match.wager_amount)}`} />
+                        <DetailItem label="Platform service fee" value={`$${formatMoney(match.platform_service_fee)}`} />
+                        <DetailItem
+                          label="Total reserved per player"
+                          value={`$${formatMoney((match.wager_amount || 0) + (match.platform_service_fee || 0))}`}
+                        />
+                      </>
+                    )}
+                  </div>
+
+                  {tx.description && (
+                    <div className="mt-4 rounded-xl bg-white/[0.025] px-3 py-2.5">
+                      <p className="text-[10px] uppercase tracking-wider text-white/25">Details</p>
+                      <p className="mt-1 text-xs leading-relaxed text-white/55">{tx.description}</p>
+                    </div>
+                  )}
+
+                  <div className="mt-4 flex items-center justify-between gap-3 border-t border-white/[0.05] pt-3">
+                    <div className="min-w-0">
+                      <p className="text-[10px] uppercase tracking-wider text-white/25">Transaction reference</p>
+                      <p className="mt-1 font-mono text-[11px] text-white/45">{transactionReference}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => copyReference(tx.id)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-[11px] font-semibold text-white/55 hover:bg-white/5 hover:text-white/80"
+                    >
+                      {copiedId === tx.id ? <Check size={12} /> : <Copy size={12} />}
+                      {copiedId === tx.id ? "Copied" : "Copy ID"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
