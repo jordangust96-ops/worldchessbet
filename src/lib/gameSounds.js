@@ -55,6 +55,24 @@ function scheduleCue(context, cue) {
       { frequency: 220, duration: 0.08, volume: 0.024, type: "triangle" },
       { frequency: 330, start: 0.018, duration: 0.07, volume: 0.014, type: "sine" },
     ],
+    capture_self: [
+      { frequency: 190, duration: 0.1, volume: 0.032, type: "triangle" },
+      { frequency: 285, start: 0.012, duration: 0.09, volume: 0.019, type: "sine" },
+    ],
+    capture_opponent: [
+      { frequency: 165, duration: 0.105, volume: 0.03, type: "triangle" },
+      { frequency: 247.5, start: 0.012, duration: 0.095, volume: 0.018, type: "sine" },
+    ],
+    castle_self: [
+      { frequency: 246.94, duration: 0.09, volume: 0.024, type: "triangle" },
+      { frequency: 329.63, start: 0.075, duration: 0.11, volume: 0.025, type: "triangle" },
+      { frequency: 493.88, start: 0.13, duration: 0.2, volume: 0.014, type: "sine" },
+    ],
+    castle_opponent: [
+      { frequency: 220, duration: 0.09, volume: 0.023, type: "triangle" },
+      { frequency: 293.66, start: 0.075, duration: 0.11, volume: 0.024, type: "triangle" },
+      { frequency: 440, start: 0.13, duration: 0.2, volume: 0.013, type: "sine" },
+    ],
     victory: [
       { frequency: 523.25, duration: 0.34, volume: 0.028, type: "sine" },
       { frequency: 659.25, start: 0.11, duration: 0.38, volume: 0.03, type: "sine" },
@@ -76,6 +94,14 @@ function scheduleCue(context, cue) {
   };
 
   (cues[cue] || cues.move_self).forEach((tone) => scheduleTone(context, tone));
+}
+
+export function getMoveSoundCue(move, myColor) {
+  const ownership = move?.color === myColor ? "self" : "opponent";
+  const san = typeof move?.san === "string" ? move.san : "";
+  if (/^(O-O|0-0)/.test(san)) return `castle_${ownership}`;
+  if (san.includes("x")) return `capture_${ownership}`;
+  return `move_${ownership}`;
 }
 
 export function getStoredSoundPreference() {
