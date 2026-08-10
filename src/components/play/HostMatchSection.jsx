@@ -42,26 +42,33 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled }
     if (!wagerValue || !userId || !canAffordTotal) return;
     setHosting(true);
     setHostError("");
-    // Runs server-side (createMatch): validates eligibility and balance, places
-    // the Entry Hold (Available -> Held + ledger entries), and only then
-    // creates the Match — so it's never published unless already fully funded.
-    const { data } = await base44.functions.invoke("createMatch", {
-      wagerAmount: wagerValue,
-      timeControl,
-      displayName: selectedTimeControl.label,
-      isPrivate,
-    });
-    setHosting(false);
-    if (data?.match) {
-      trackPixelEvent("Match Hosted", { value: wagerValue, currency: "USD", time_control: timeControl });
-      // Event tracking for monitoring private game link creation.
-      if (isPrivate) {
-        base44.analytics.track({ eventName: "private_game_link_created", properties: { wager_amount: wagerValue, time_control: timeControl } });
-        trackPixelEvent("Private Game Link Created", { value: wagerValue, currency: "USD", time_control: timeControl });
+    try {
+      // Runs server-side (createMatch): validates eligibility and balance,
+      // places the Entry Hold, and only then creates the Match.
+      const { data } = await base44.functions.invoke("createMatch", {
+        wagerAmount: wagerValue,
+        timeControl,
+        displayName: selectedTimeControl.label,
+        isPrivate,
+      });
+      if (data?.match) {
+        trackPixelEvent("Match Hosted", { value: wagerValue, currency: "USD", time_control: timeControl });
+        if (isPrivate) {
+          base44.analytics.track({ eventName: "private_game_link_created", properties: { wager_amount: wagerValue, time_control: timeControl } });
+          trackPixelEvent("Private Game Link Created", { value: wagerValue, currency: "USD", time_control: timeControl });
+        }
+        onHosted?.(data.match);
+      } else {
+        setHostError(data?.error || "Unable to create this challenge right now.");
       }
-      onHosted?.(data.match);
-    } else {
-      setHostError(data?.error || "Unable to create this challenge right now.");
+    } catch (error) {
+      setHostError(
+        error?.response?.data?.error ||
+        error?.message ||
+        "Unable to create this challenge right now."
+      );
+    } finally {
+      setHosting(false);
     }
   };
 
