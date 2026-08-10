@@ -165,6 +165,9 @@
           "created_by_id": "{{user.id}}"
         },
         {
+          "data.player1_id": "{{user.id}}"
+        },
+        {
           "data.player2_id": "{{user.id}}"
         },
         {
