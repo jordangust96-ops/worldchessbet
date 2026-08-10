@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, ChevronDown, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import DisputeCaseTimeline from "@/components/disputes/DisputeCaseTimeline";
 import DisputeCaseActions from "@/components/disputes/DisputeCaseActions";
@@ -23,6 +23,21 @@ function Card({ title, description, id, children }) {
       </div>
       {children}
     </section>
+  );
+}
+
+function ExpandableCard({ title, summary, children, defaultOpen = false }) {
+  return (
+    <details open={defaultOpen} className="group rounded-2xl bg-white/[0.03] border border-white/5 mb-4">
+      <summary className="list-none cursor-pointer p-4 flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xs font-semibold text-white/65 uppercase tracking-wider">{title}</h2>
+          {summary && <p className="mt-1 text-[11px] text-white/30">{summary}</p>}
+        </div>
+        <ChevronDown size={16} className="shrink-0 text-white/30 transition-transform group-open:rotate-180" />
+      </summary>
+      <div className="border-t border-white/5 p-4">{children}</div>
+    </details>
   );
 }
 
@@ -212,34 +227,50 @@ export default function AdminDisputeCase() {
         </div>
       </Card>
 
-      <Card title="Match Replay">
+      <ExpandableCard
+        title="Match Replay"
+        summary={`${financials?.game?.move_log?.length || 0} recorded moves · Open to inspect board history`}
+      >
         <MatchReplay moveLog={financials?.game?.move_log} finalFen={disputeCase.final_fen} />
-      </Card>
+      </ExpandableCard>
 
-      <Card title="Ledger Activity">
+      <ExpandableCard
+        title="Ledger Activity"
+        summary={`${financials?.ledgerEntries?.length || 0} related entries · Read-only financial evidence`}
+      >
         <LedgerEntriesPanel entries={financials?.ledgerEntries} />
-      </Card>
+      </ExpandableCard>
 
-      <Card title="Related User History">
+      <ExpandableCard
+        title="Related User History"
+        summary="Prior account, contest, and report context for both participants"
+      >
         <RelatedUserHistoryPanel reportingPlayer={financials?.reportingPlayer} reportedPlayer={financials?.reportedPlayer} />
-      </Card>
+      </ExpandableCard>
 
       {priorReports.length > 0 && (
-        <Card title={`Previous Reports Involving Either Player (${priorReports.length})`}>
+        <ExpandableCard
+          title="Previous Reports"
+          summary={`${priorReports.length} prior case${priorReports.length === 1 ? "" : "s"} involving either player`}
+        >
           <div className="space-y-1.5">
             {priorReports.map((p) => (
-              <Link key={p.id} to={`/admin/disputes/${p.id}`} className="flex justify-between text-xs hover:text-white">
+              <Link key={p.id} to={`/admin/disputes/${p.id}`} className="flex justify-between gap-3 text-xs hover:text-white">
                 <span className="text-white/60">Case #{p.case_number} — {p.report_category?.replace("_", " ")}</span>
-                <span className="text-white/30">{CASE_STATUS_LABELS[p.status]}</span>
+                <span className="text-white/30 shrink-0">{CASE_STATUS_LABELS[p.status]}</span>
               </Link>
             ))}
           </div>
-        </Card>
+        </ExpandableCard>
       )}
 
-      <Card title="Case Timeline">
+      <ExpandableCard
+        title="Case Timeline"
+        summary={`${notes.length} timestamped audit event${notes.length === 1 ? "" : "s"}`}
+        defaultOpen={notes.length <= 3}
+      >
         <DisputeCaseTimeline notes={notes} />
-      </Card>
+      </ExpandableCard>
     </div>
   );
 }
