@@ -160,6 +160,7 @@ Deno.serve(async (req) => {
       canonicalMatchId = canonicalMatchId || disputeCase.match_id || '';
       canonicalUserId = canonicalUserId || disputeCase.reporting_user_id || '';
     }
+    const transactionOnlyScope = !!seedTransaction && !canonicalMatchId && !userId && !caseId;
 
     let match = null;
     let game = null;
@@ -190,6 +191,11 @@ Deno.serve(async (req) => {
         base44.asServiceRole.entities.IntegrationReference.filter({ match_id: canonicalMatchId }, 'created_date', 500),
         base44.asServiceRole.entities.DisputeCase.filter({ match_id: canonicalMatchId }, 'created_date', 100),
       ]);
+    } else if (seedTransaction && transactionOnlyScope) {
+      walletTransactions = [seedTransaction];
+      ledgerEntries = await base44.asServiceRole.entities.LedgerEntry.filter({ wallet_transaction_id: seedTransaction.id }, 'created_date', 100);
+      integrationEvents = await base44.asServiceRole.entities.IntegrationEvent.filter({ wallet_transaction_id: seedTransaction.id }, 'occurred_at', 100);
+      integrationReferences = await base44.asServiceRole.entities.IntegrationReference.filter({ wallet_transaction_id: seedTransaction.id }, 'created_date', 100);
     } else if (canonicalUserId) {
       const [asPlayer1, asPlayer2, txs, ledger, events, references] = await Promise.all([
         base44.asServiceRole.entities.Match.filter({ player1_id: canonicalUserId }, '-created_date', 100),
@@ -206,11 +212,6 @@ Deno.serve(async (req) => {
       const matchIds = [...new Set([...asPlayer1, ...asPlayer2].map((item) => item.id))];
       disputes = (await base44.asServiceRole.entities.DisputeCase.filter({ reporting_user_id: canonicalUserId }, '-created_date', 100))
         .filter((item) => !item.match_id || matchIds.includes(item.match_id));
-    } else if (seedTransaction) {
-      walletTransactions = [seedTransaction];
-      ledgerEntries = await base44.asServiceRole.entities.LedgerEntry.filter({ wallet_transaction_id: seedTransaction.id }, 'created_date', 100);
-      integrationEvents = await base44.asServiceRole.entities.IntegrationEvent.filter({ wallet_transaction_id: seedTransaction.id }, 'occurred_at', 100);
-      integrationReferences = await base44.asServiceRole.entities.IntegrationReference.filter({ wallet_transaction_id: seedTransaction.id }, 'created_date', 100);
     }
 
     if (canonicalCaseId && !disputeCase) {
@@ -236,6 +237,14 @@ Deno.serve(async (req) => {
         ...disputes.flatMap((item) => [item.reporting_user_id, item.reported_user_id]),
       ].filter(Boolean)),
     ];
+
+    const participantRecords = (
+      await Promise.all(
+        participantIds.map((participantId) =>
+          base44.asServiceRole.entities.User.get(participantId).catch(() => null)
+        )
+      )
+    ).filter(Boolean);
 
     const diagnostics = {
       ledger_groups_balanced: ledgerGroups.every((group) => group.balanced),
@@ -268,6 +277,17 @@ Deno.serve(async (req) => {
         ledger_group_ids: ledgerGroups.map((item) => item.ledger_group_id),
         integration_event_ids: integrationEvents.map((item) => item.id),
       },
+      participants: participantRecords.map((participant) => ({
+        player_id: participant.id,
+        account_state: participant.account_state || 'provisional',
+        identity_verification_status: participant.identity_verification_status || 'not_started',
+        identity_verified_at: participant.identity_verified_at || '',
+        jurisdiction_status: participant.jurisdiction_status || 'unknown',
+        jurisdiction_state: participant.current_jurisdiction_state || '',
+        jurisdiction_country: participant.current_jurisdiction_country || '',
+        jurisdiction_last_verified_at: participant.jurisdiction_last_verified_at || '',
+        withdrawal_hold: !!participant.withdrawal_hold,
+      })),
       contest: match ? {
         match_id: match.id,
         game_id: game?.id || match.game_id || '',
