@@ -2,21 +2,37 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://worldchessbet.com/landing</loc>
+    <lastmod>2026-08-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://worldchessbet.com/privacy-policy</loc>
+    <loc>https://worldchessbet.com/fair-play-integrity</loc>
+    <lastmod>2026-08-10</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://worldchessbet.com/terms-of-service</loc>
+    <loc>https://worldchessbet.com/faq</loc>
+    <lastmod>2026-08-10</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.7</priority>
   </url>
   <url>
     <loc>https://worldchessbet.com/official-rules</loc>
+    <lastmod>2026-08-10</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://worldchessbet.com/terms-of-service</loc>
+    <lastmod>2026-08-10</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://worldchessbet.com/privacy-policy</loc>
+    <lastmod>2026-08-10</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
