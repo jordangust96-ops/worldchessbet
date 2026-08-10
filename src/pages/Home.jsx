@@ -142,20 +142,21 @@ export default function Home() {
     return () => unsubscribe();
   }, [user?.id, handleMatchAccepted]);
 
-  // Polling safety net for the "searching → preparing" transition. The realtime
-  // subscription handles the common path, but if that event is ever dropped
-  // (network blip, connection lag) the host would be left on their "searching"
-  // challenge with no signal it was accepted — and they get no email either,
-  // since notifyMatchAccepted skips hosts who are active in-app. Re-check
-  // directly here (where myMatchId lives) so the host is reliably brought to
-  // the Preparing Match screen regardless of realtime delivery or which tab
-  // they're on. Stops the moment an active match is found.
+  // Polling safety net for the "searching → preparing" transition. Realtime is
+  // the primary path; this lower-frequency visible-tab check recovers a dropped
+  // event without issuing continuous reads from background tabs. Focus,
+  // visibility, and connectivity changes trigger an immediate recovery check.
   useEffect(() => {
     if (!user?.id || myMatchId) return;
+    let requestInFlight = false;
     const poll = async () => {
+      if (document.visibilityState !== "visible" || requestInFlight) return;
+      requestInFlight = true;
       try {
-        const asP1 = await base44.entities.Match.filter({ player1_id: user.id }, "-created_date", 5);
-        const asP2 = await base44.entities.Match.filter({ player2_id: user.id }, "-created_date", 5);
+        const [asP1, asP2] = await Promise.all([
+          base44.entities.Match.filter({ player1_id: user.id }, "-created_date", 5),
+          base44.entities.Match.filter({ player2_id: user.id }, "-created_date", 5),
+        ]);
         const candidate = [...asP1, ...asP2].find(
           (m) =>
             ["preparing", "both_ready", "in_progress"].includes(m.status) &&
@@ -172,13 +173,23 @@ export default function Home() {
           else setMyMatchId(candidate.id);
           setActiveMatch(candidate);
         }
-      } catch (e) {
-        // transient — ignore
+      } catch {
+        // Transient recovery failures are retried on the next visible interval.
+      } finally {
+        requestInFlight = false;
       }
     };
     poll();
-    const interval = setInterval(poll, 5000);
-    return () => clearInterval(interval);
+    const interval = setInterval(poll, 20_000);
+    document.addEventListener("visibilitychange", poll);
+    window.addEventListener("focus", poll);
+    window.addEventListener("online", poll);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", poll);
+      window.removeEventListener("focus", poll);
+      window.removeEventListener("online", poll);
+    };
   }, [user?.id, myMatchId, handleMatchAccepted]);
 
   // Recovery fetch for the active match — covers paths that set myMatchId
