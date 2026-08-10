@@ -14,24 +14,10 @@ import {
   AlertDialogTitle } from
 "@/components/ui/alert-dialog";
 
-function formatElapsed(startDate) {
-  const secs = Math.max(0, Math.floor((Date.now() - new Date(startDate).getTime()) / 1000));
-  const m = String(Math.floor(secs / 60)).padStart(2, "0");
-  const s = String(secs % 60).padStart(2, "0");
-  return `${m}:${s}`;
-}
-
 export default function ActiveChallengeCard({ match, onCancel }) {
-  const [elapsed, setElapsed] = useState(match ? formatElapsed(match.created_date) : "00:00");
   const [opponentName, setOpponentName] = useState("");
   const [cancelling, setCancelling] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-
-  useEffect(() => {
-    if (!match) return;
-    const tick = setInterval(() => setElapsed(formatElapsed(match.created_date)), 1000);
-    return () => clearInterval(tick);
-  }, [match?.created_date]);
 
   useEffect(() => {
     if (!match || match.status !== "preparing" || !match.player2_id) {
@@ -48,9 +34,12 @@ export default function ActiveChallengeCard({ match, onCancel }) {
 
   const handleCancel = async () => {
     setCancelling(true);
-    await onCancel();
-    setCancelling(false);
-    setShowConfirm(false);
+    try {
+      await onCancel();
+      setShowConfirm(false);
+    } finally {
+      setCancelling(false);
+    }
   };
 
   return (
