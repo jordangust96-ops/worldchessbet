@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 import { getPlatformServiceFee, PLATFORM_FEE_SCHEDULE_VERSION, requiresManualFeeApproval } from '../../shared/platformFee.ts';
 
 // Creates a new challenge (public or private). No funds move at creation time
@@ -52,6 +53,29 @@ Deno.serve(async (req) => {
       player1_deposited: false,
       player1_certified: false,
       ...(isPrivate ? { invite_code: crypto.randomUUID() } : {}),
+    });
+
+    await recordIntegrationEvent(base44, {
+      eventType: 'contest.created',
+      aggregateType: 'match',
+      aggregateId: match.id,
+      correlationId: match.id,
+      idempotencyKey: `contest.created:${match.id}`,
+      actorType: 'user',
+      actorId: user.id,
+      userId: user.id,
+      matchId: match.id,
+      status: match.status,
+      amount: match.wager_amount,
+      result: 'created',
+      eventData: {
+        player1_id: match.player1_id,
+        time_control: match.time_control,
+        entry_amount: match.wager_amount,
+        platform_service_fee: match.platform_service_fee,
+        platform_fee_schedule_version: match.platform_fee_schedule_version,
+        is_private: !!match.is_private,
+      },
     });
 
     return Response.json({ match });
