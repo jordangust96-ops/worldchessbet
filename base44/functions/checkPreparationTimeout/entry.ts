@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { postLedgerLegs } from '../../shared/ledger.ts';
+import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 
 // System sweep (invoked on a schedule by the Preparation Timeout Sweep
 // workflow — no user session involved, so this never checks auth.me()):
@@ -82,7 +83,26 @@ Deno.serve(async (req) => {
         });
       }
 
-      await base44.asServiceRole.entities.Match.update(match.id, { status: 'cancelled' });
+      const cancelledMatch = await base44.asServiceRole.entities.Match.update(match.id, { status: 'cancelled' });
+      await recordIntegrationEvent(base44, {
+        eventType: 'contest.cancelled',
+        aggregateType: 'match',
+        aggregateId: match.id,
+        correlationId: match.id,
+        idempotencyKey: `contest.cancelled:${match.id}`,
+        actorType: 'system',
+        userId: match.player1_id,
+        counterpartyUserId: match.player2_id || '',
+        matchId: match.id,
+        status: cancelledMatch.status,
+        amount: match.wager_amount,
+        result: 'preparation_timeout',
+        eventData: {
+          player1_id: match.player1_id,
+          player2_id: match.player2_id || '',
+          refunded_user_ids: refundTargets,
+        },
+      });
       cancelledIds.push(match.id);
     }
 
