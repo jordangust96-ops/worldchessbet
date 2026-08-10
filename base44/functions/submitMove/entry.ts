@@ -8,10 +8,11 @@ import { Chess } from 'npm:chess.js@1.0.0';
 // isn't UTC. Always force UTC interpretation by appending 'Z' when no offset
 // is present. Mirrors the same fix in src/hooks/useChessClock.js and is
 // duplicated (not imported) in checkTimeout for the same reason as below.
-function parseServerDate(dateStr) {
-  if (!dateStr) return null;
+function parseServerTime(dateStr, fallbackMs) {
+  if (!dateStr) return fallbackMs;
   const hasTz = /Z$|[+-]\d{2}:?\d{2}$/.test(dateStr);
-  return new Date(hasTz ? dateStr : `${dateStr}Z`);
+  const parsedMs = new Date(hasTz ? dateStr : `${dateStr}Z`).getTime();
+  return Number.isFinite(parsedMs) ? parsedMs : fallbackMs;
 }
 
 // Authoritative determination of whether a color has sufficient material to
@@ -46,7 +47,7 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { gameId, from, to, promotion } = await req.json();
+    const { gameId, from, to, promotion, expectedFen } = await req.json();
     if (!gameId || !from || !to) {
       return Response.json({ error: 'gameId, from, and to are required' }, { status: 400 });
     }
@@ -55,6 +56,9 @@ Deno.serve(async (req) => {
     if (!game) return Response.json({ error: 'Game not found' }, { status: 404 });
     if (game.status === 'completed') {
       return Response.json({ error: 'Game has already ended' }, { status: 400 });
+    }
+    if (expectedFen && expectedFen !== game.fen) {
+      return Response.json({ error: 'Game state changed; refresh before moving' }, { status: 409 });
     }
 
     const match = await base44.asServiceRole.entities.Match.get(game.match_id);
@@ -82,10 +86,10 @@ Deno.serve(async (req) => {
 
     // Server-authoritative clock: deduct time elapsed since this player's clock started.
     const now = Date.now();
-    const turnStartedAt = game.turn_started_at ? parseServerDate(game.turn_started_at).getTime() : now;
+    const turnStartedAt = parseServerTime(game.turn_started_at, now);
     const elapsedMs = Math.max(0, now - turnStartedAt);
     const moverTimeField = myColor === 'w' ? 'white_time_ms' : 'black_time_ms';
-    const moverRemainingMs = (game[moverTimeField] ?? 0) - elapsedMs;
+    const moverRemainingMs = Math.floor((game[moverTimeField] ?? 0) - elapsedMs);
 
     if (moverRemainingMs <= 0) {
       // FIDE Article 6.9: the flagged player only loses if the opponent has
