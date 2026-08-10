@@ -1,0 +1,18 @@
+{
+  "name": "ChessBet",
+  "short_name": "ChessBet",
+  "description": "Skill-based, head-to-head online chess contests for real prizes.",
+  "start_url": "/landing",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0A0A0A",
+  "theme_color": "#0A0A0A",
+  "icons": [
+    {
+      "src": "https://media.base44.com/images/public/6a4ed72536c51cb3280d2bc6/7eb5eb625_logo-removebg-preview.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
