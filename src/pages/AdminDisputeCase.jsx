@@ -10,20 +10,25 @@ import LedgerEntriesPanel from "@/components/disputes/LedgerEntriesPanel";
 import MatchReplay from "@/components/disputes/MatchReplay";
 import SystemFindingsPanel from "@/components/disputes/SystemFindingsPanel";
 import RelatedUserHistoryPanel from "@/components/disputes/RelatedUserHistoryPanel";
+import CaseReviewStatus from "@/components/disputes/CaseReviewStatus";
 import { buildSystemFindings } from "@/lib/disputeFindings";
 import { CASE_STATUS_LABELS } from "@/lib/reportCategories";
 
-function Card({ title, children }) {
+function Card({ title, description, id, children }) {
   return (
-    <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4 mb-4">
-      <p className="text-xs font-semibold text-white/70 uppercase tracking-wider mb-3">{title}</p>
+    <section id={id} className="rounded-2xl bg-white/[0.03] border border-white/5 p-4 mb-4">
+      <div className="mb-3">
+        <h2 className="text-xs font-semibold text-white/70 uppercase tracking-wider">{title}</h2>
+        {description && <p className="mt-1 text-[11px] leading-4 text-white/35">{description}</p>}
+      </div>
       {children}
-    </div>
+    </section>
   );
 }
 
 export default function AdminDisputeCase() {
   const { caseId } = useParams();
+  const [admin, setAdmin] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [disputeCase, setDisputeCase] = useState(null);
@@ -42,6 +47,7 @@ export default function AdminDisputeCase() {
         setLoading(false);
         return;
       }
+      setAdmin(me);
       setIsAdmin(true);
 
       const [caseRecord, caseNotes] = await Promise.all([
@@ -125,22 +131,19 @@ export default function AdminDisputeCase() {
         <ArrowLeft size={14} /> Back to Dispute Cases
       </Link>
 
-      <div className="flex items-center justify-between mb-1">
-        <h1 className="text-xl font-extrabold text-white">Case #{disputeCase.case_number}</h1>
-        <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full bg-white/10 text-white/60">
-          {CASE_STATUS_LABELS[disputeCase.status]}
-        </span>
-      </div>
+      <h1 className="text-xl font-extrabold text-white">Case #{disputeCase.case_number}</h1>
       <p className="text-xs text-white/40 mb-6">
         {disputeCase.report_category?.replace("_", " ")}
         {disputeCase.report_subcategory ? ` · ${disputeCase.report_subcategory}` : ""} · Priority: {disputeCase.priority}
       </p>
 
-      <Card title="Report Details">
+      <CaseReviewStatus disputeCase={disputeCase} adminId={admin?.id} />
+
+      <Card title="Player Report">
         <p className="text-sm text-white/80 whitespace-pre-wrap">{disputeCase.report_description}</p>
       </Card>
 
-      <Card title="Contest Information">
+      <Card title="Contest Summary">
         <div className="grid grid-cols-2 gap-3 text-xs">
           <div>
             <p className="text-white/30">Reporting User</p>
@@ -166,18 +169,14 @@ export default function AdminDisputeCase() {
             <p className="text-white/30">Match ID</p>
             <p className="text-white/80 font-mono text-[11px]">{disputeCase.match_id}</p>
           </div>
-          {(disputeCase.fair_play_review_flag || disputeCase.aml_review_flag || disputeCase.manual_settlement_review_flag || disputeCase.escalated) && (
-            <div className="col-span-2 flex flex-wrap gap-1.5 pt-1">
-              {disputeCase.escalated && <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/10 text-red-400">Escalated</span>}
-              {disputeCase.fair_play_review_flag && <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400">Fair Play Review</span>}
-              {disputeCase.aml_review_flag && <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400">AML Review</span>}
-              {disputeCase.manual_settlement_review_flag && <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400">Manual Settlement Review</span>}
-            </div>
-          )}
+
         </div>
       </Card>
 
-      <Card title="Financial Resolution">
+      <Card
+        title="Financial Snapshot"
+        description="Read-only authoritative contest and wallet context. No control in this section changes funds."
+      >
         <FinancialResolutionPanel
           match={financials?.match}
           contestRecord={financials?.contestRecord}
@@ -186,8 +185,8 @@ export default function AdminDisputeCase() {
         />
       </Card>
 
-      <Card title="Players">
-        <div className="grid grid-cols-2 gap-3">
+      <Card title="Player Account Context" description="Current wallet and account state for each participant.">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <PlayerWalletCard label="Reporting User" player={financials?.reportingPlayer} />
           <PlayerWalletCard label="Reported User" player={financials?.reportedPlayer} />
         </div>
@@ -201,11 +200,23 @@ export default function AdminDisputeCase() {
         <LedgerEntriesPanel entries={financials?.ledgerEntries} />
       </Card>
 
-      <Card title="System Findings">
-        <SystemFindingsPanel
-          facts={findingFacts}
+      <Card
+        title="Decision Evidence"
+        description="System-derived facts are investigative aids, not automatic findings or proof of a violation."
+      >
+        <SystemFindingsPanel facts={findingFacts} />
+      </Card>
+
+      <Card
+        id="case-actions"
+        title="Case Decision & Administrative Actions"
+        description="Actions are ordered by workflow and explain their exact effect before submission."
+      >
+        <DisputeCaseActions
+          disputeCase={disputeCase}
+          onChanged={load}
           recommendedAction={recommendedAction}
-          rationale={decisionGuidance?.rationale}
+          recommendationRationale={decisionGuidance?.rationale}
         />
       </Card>
 
@@ -225,10 +236,6 @@ export default function AdminDisputeCase() {
           </div>
         </Card>
       )}
-
-      <Card title="Administrative Actions">
-        <DisputeCaseActions disputeCase={disputeCase} onChanged={load} />
-      </Card>
 
       <Card title="Case Timeline">
         <DisputeCaseTimeline notes={notes} />
