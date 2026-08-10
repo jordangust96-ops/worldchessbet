@@ -81,6 +81,13 @@
     "external_reference_type": {
       "type": "string",
       "enum": [
+        "provider_authorization",
+        "provider_payment",
+        "provider_transfer",
+        "provider_payout",
+        "provider_refund",
+        "provider_reversal",
+        "provider_dispute",
         "finix_transaction",
         "match",
         "withdrawal",
@@ -96,6 +103,24 @@
     "ledger_group_id": {
       "type": "string",
       "description": "Groups together the balanced set of entries created for a single financial event"
+    },
+    "correlation_id": {
+      "type": "string",
+      "description": "Stable trace key across participant, match, game, wallet transaction, dispute, and provider records."
+    },
+    "game_id": {
+      "type": "string",
+      "description": "Related authoritative Game ID, when applicable."
+    },
+    "currency": {
+      "type": "string",
+      "default": "USD",
+      "maxLength": 3
+    },
+    "schema_version": {
+      "type": "integer",
+      "default": 1,
+      "minimum": 1
     },
     "reversal_of_entry_id": {
       "type": "string",
