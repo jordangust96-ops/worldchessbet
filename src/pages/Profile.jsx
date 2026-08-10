@@ -33,18 +33,14 @@ export default function Profile() {
       setSoundEnabled(soundsOn);
       storeSoundPreference(soundsOn);
 
-      // Calculate stats
-      const matches = await base44.entities.Match.filter({ status: "completed" });
-      const userMatches = matches.filter(
-        (m) => m.player1_id === me.id || m.player2_id === me.id
-      );
-      const wins = userMatches.filter((m) => m.winner_id === me.id).length;
-      const losses = userMatches.filter((m) => m.winner_id && m.winner_id !== me.id).length;
+      // Settlement maintains these canonical per-player counters. Reading the
+      // current user avoids loading every completed platform match just to
+      // calculate one profile card.
       setStats({
-        played: userMatches.length,
-        won: wins,
-        lost: losses,
-        winRate: userMatches.length > 0 ? Math.round(wins / userMatches.length * 100) : 0
+        played: me.games_played || 0,
+        won: me.games_won || 0,
+        lost: me.games_lost || 0,
+        winRate: me.win_percentage || 0,
       });
       setLoading(false);
     };
