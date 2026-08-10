@@ -30,6 +30,7 @@ export default function AdminDisputeCase() {
   const [notes, setNotes] = useState([]);
   const [priorReports, setPriorReports] = useState([]);
   const [financials, setFinancials] = useState(null);
+  const [decisionGuidance, setDecisionGuidance] = useState(null);
   const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(async () => {
@@ -50,12 +51,13 @@ export default function AdminDisputeCase() {
       setDisputeCase(caseRecord);
       setNotes(caseNotes);
 
-      const [byReporter, byReported, overviewRes] = await Promise.all([
+      const [byReporter, byReported, overviewRes, actionCenterRes] = await Promise.all([
         base44.entities.DisputeCase.filter({ reporting_user_id: caseRecord.reporting_user_id }),
         caseRecord.reported_user_id
           ? base44.entities.DisputeCase.filter({ reported_user_id: caseRecord.reported_user_id })
           : Promise.resolve([]),
         base44.functions.invoke("getCaseFinancialOverview", { caseId }),
+        base44.functions.invoke("getAdminActionCenter", {}).catch(() => ({ data: { items: [] } })),
       ]);
       const priorMap = new Map();
       [...byReporter, ...byReported].forEach((c) => {
@@ -63,6 +65,9 @@ export default function AdminDisputeCase() {
       });
       setPriorReports(Array.from(priorMap.values()));
       setFinancials(overviewRes.data);
+      setDecisionGuidance(
+        actionCenterRes.data?.items?.find((item) => item.type === "dispute" && item.record_id === caseId) || null
+      );
     } catch (err) {
       setLoadError(true);
     } finally {
@@ -100,12 +105,15 @@ export default function AdminDisputeCase() {
     );
   }
 
-  const { facts, recommendedAction } = buildSystemFindings({
+  const { facts, recommendedAction: fallbackRecommendedAction } = buildSystemFindings({
     disputeCase,
     match: financials?.match,
     game: financials?.game,
     contestRecord: financials?.contestRecord,
   });
+
+  const findingFacts = decisionGuidance?.facts || facts;
+  const recommendedAction = decisionGuidance?.recommendation || fallbackRecommendedAction;
 
   const fundsRecoverable = financials?.contestRecord
     ? !(financials.reportingPlayer?.withdrawalsAfterSettlement || financials.reportedPlayer?.withdrawalsAfterSettlement)
@@ -194,7 +202,11 @@ export default function AdminDisputeCase() {
       </Card>
 
       <Card title="System Findings">
-        <SystemFindingsPanel facts={facts} recommendedAction={recommendedAction} />
+        <SystemFindingsPanel
+          facts={findingFacts}
+          recommendedAction={recommendedAction}
+          rationale={decisionGuidance?.rationale}
+        />
       </Card>
 
       <Card title="Related User History">
