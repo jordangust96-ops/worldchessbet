@@ -17,6 +17,14 @@ function plyFromFen(fenStr) {
   return (fullmove - 1) * 2 + (turn === "b" ? 1 : 0);
 }
 
+function recordUpdatedAtMs(record) {
+  if (!record?.updated_date) return 0;
+  const value = record.updated_date;
+  const hasTz = /Z$|[+-]\d{2}:?\d{2}$/.test(value);
+  const parsed = new Date(hasTz ? value : `${value}Z`).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 // Manages loading/creating the Game entity for a match, hydrating the board,
 // and submitting moves to the submitMove backend function (the sole authority
 // over FEN, PGN, status, result, and winner_id).
@@ -28,6 +36,8 @@ export function useChessGame(matchId, userId, active) {
   // Ply of the position currently rendered — the single source of truth for
   // ordering. Never let a lower-ply update overwrite it.
   const renderedPlyRef = useRef(0);
+  const renderedUpdatedAtRef = useRef(0);
+  const renderedStatusRef = useRef(null);
   const [selectedSquare, setSelectedSquare] = useState(null);
   const [legalTargets, setLegalTargets] = useState([]);
   const { toast } = useToast();
@@ -47,6 +57,8 @@ export function useChessGame(matchId, userId, active) {
     chessRef.current.load(g.fen || START_FEN);
     setFen(chessRef.current.fen());
     renderedPlyRef.current = plyFromFen(chessRef.current.fen());
+    renderedUpdatedAtRef.current = recordUpdatedAtMs(g);
+    renderedStatusRef.current = g.status;
   }, [matchId, userId]);
 
   useEffect(() => {
@@ -57,6 +69,8 @@ export function useChessGame(matchId, userId, active) {
       setFen(START_FEN);
       chessRef.current = new Chess();
       renderedPlyRef.current = 0;
+      renderedUpdatedAtRef.current = 0;
+      renderedStatusRef.current = null;
       return;
     }
     loadGame();
@@ -108,12 +122,17 @@ export function useChessGame(matchId, userId, active) {
       // stops a delayed/in-flight poll or subscription event from ever
       // rolling the board back to an earlier position.
       const latestPly = plyFromFen(latest.fen);
+      const latestUpdatedAt = recordUpdatedAtMs(latest);
       if (latestPly < renderedPlyRef.current) return;
+      if (latestPly === renderedPlyRef.current && latestUpdatedAt < renderedUpdatedAtRef.current) return;
+      if (renderedStatusRef.current === "completed" && latest.status !== "completed") return;
       if (latest.fen !== chessRef.current.fen()) {
         chessRef.current.load(latest.fen);
         setFen(chessRef.current.fen());
       }
       renderedPlyRef.current = latestPly;
+      renderedUpdatedAtRef.current = Math.max(renderedUpdatedAtRef.current, latestUpdatedAt);
+      renderedStatusRef.current = latest.status;
       setGame(latest);
       // Any externally-sourced position change (opponent's move, reconnect,
       // poll) invalidates whatever square was selected for click-to-move.
@@ -188,6 +207,7 @@ export function useChessGame(matchId, userId, active) {
             from: sourceSquare,
             to: targetSquare,
             promotion: "q",
+            expectedFen: previousFen,
           });
         } catch (error) {
           // The request failed — but on a flaky connection (common on mobile)
@@ -205,6 +225,8 @@ export function useChessGame(matchId, userId, active) {
               chessRef.current.load(latest.fen);
               setFen(chessRef.current.fen());
               renderedPlyRef.current = latestPly;
+              renderedUpdatedAtRef.current = Math.max(renderedUpdatedAtRef.current, recordUpdatedAtMs(latest));
+              renderedStatusRef.current = latest.status;
               setGame(latest);
               moveAlreadyLanded = latest.fen === preview.fen();
             } else {
