@@ -7,24 +7,23 @@ import NotifyAtLaunchModal from "@/components/NotifyAtLaunchModal";
 import HowItWorksSection from "@/components/landing/HowItWorksSection";
 import Logo from "@/components/Logo";
 import SEO from "@/components/seo/SEO";
-import { SITE_URL, LOGO_URL, SOCIAL_PROFILES } from "@/lib/seoConfig";
+import { SITE_URL } from "@/lib/seoConfig";
+
+const LANDING_URL = `${SITE_URL}/landing`;
+const SEO_TITLE = "ChessBet | Play Online Chess for Real Prizes";
+const SEO_DESCRIPTION =
+  "Play skill-based, head-to-head online chess for real prizes with secure contest funds, verified results, and Stockfish-powered fair-play screening.";
 
 const STRUCTURED_DATA = {
   "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@type": "Organization",
-      name: "ChessBet",
-      url: SITE_URL,
-      logo: LOGO_URL,
-      sameAs: SOCIAL_PROFILES,
-    },
-    {
-      "@type": "WebSite",
-      name: "ChessBet",
-      url: SITE_URL,
-    },
-  ],
+  "@type": "WebPage",
+  "@id": `${LANDING_URL}#webpage`,
+  url: LANDING_URL,
+  name: SEO_TITLE,
+  description: SEO_DESCRIPTION,
+  isPartOf: { "@id": `${SITE_URL}/#website` },
+  about: { "@id": `${SITE_URL}/#organization` },
+  inLanguage: "en-US",
 };
 
 export default function Landing() {
@@ -33,9 +32,10 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-[#0A0A0A] flex flex-col">
       <SEO
-        title="ChessBet | Real-Money Skill-Based Chess Matches"
-        description="ChessBet is a skill-based real-money chess platform where you challenge real opponents, wager on head-to-head matches, and get paid instantly when you win."
-        canonicalUrl={SITE_URL}
+        title={SEO_TITLE}
+        description={SEO_DESCRIPTION}
+        canonicalUrl={LANDING_URL}
+        imageAlt="ChessBet — skill-based online chess contests"
         structuredData={STRUCTURED_DATA}
       />
       {/* Header */}
@@ -58,7 +58,9 @@ export default function Landing() {
         >
           <div className="space-y-4">
             <Logo size="lg" className="justify-center" />
-            <h1 className="sr-only">Real-Money Skill-Based Chess Matches</h1>
+            <h1 className="text-white text-2xl sm:text-3xl font-extrabold leading-tight max-w-md mx-auto">
+              Play Online Chess for Real Prizes
+            </h1>
             <p className="text-white/70 text-xl font-semibold leading-snug max-w-sm mx-auto">
               Challenge. Compete. Win.
             </p>
@@ -100,7 +102,7 @@ export default function Landing() {
           {[
             { icon: Zap, label: "Instant\nMatching" },
             { icon: Shield, label: "Secure\nFunds" },
-            { icon: Crown, label: "Fast\nPayout" },
+            { icon: Crown, label: "Verified\nResults" },
           ].map(({ icon: Icon, label }) => (
             <div
               key={label}
@@ -129,7 +131,14 @@ export default function Landing() {
       <HowItWorksSection />
 
       {/* Footer */}
-      <footer className="px-6 py-6 text-center">
+      <footer className="px-6 py-8 text-center border-t border-white/5">
+        <nav aria-label="ChessBet information" className="mb-4 flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs">
+          <Link to="/fair-play-integrity" className="text-white/45 hover:text-[#C9A84C]">Fair Play & Integrity</Link>
+          <Link to="/official-rules" className="text-white/45 hover:text-[#C9A84C]">Official Rules</Link>
+          <Link to="/faq" className="text-white/45 hover:text-[#C9A84C]">FAQ</Link>
+          <Link to="/terms-of-service" className="text-white/45 hover:text-[#C9A84C]">Terms</Link>
+          <Link to="/privacy-policy" className="text-white/45 hover:text-[#C9A84C]">Privacy</Link>
+        </nav>
         <p className="text-white/20 text-xs">
           © 2026 ChessBet. All rights reserved.
         </p>
