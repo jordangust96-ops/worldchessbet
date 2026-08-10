@@ -1,4 +1,9 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
+import {
+  ONLINE_WINDOW_MS,
+  countEntities,
+  publicAvailableMatchQuery,
+} from '../../shared/marketplaceStats.ts';
 
 Deno.serve(async (req) => {
   try {
@@ -6,29 +11,36 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-    const onlineSince = new Date(now.getTime() - 2 * 60 * 1000).toISOString();
+    const generatedAt = new Date();
+    const onlineSince = new Date(generatedAt.getTime() - ONLINE_WINDOW_MS).toISOString();
 
-    const [onlineUsers, liveMatches, availableMatches, startedTodayMatches] = await Promise.all([
-      base44.asServiceRole.entities.User.filter({ last_active_at: { $gte: onlineSince } }),
-      base44.asServiceRole.entities.Match.filter({ status: 'in_progress' }),
-      base44.asServiceRole.entities.Match.filter({ status: 'searching', is_private: false }),
-      base44.asServiceRole.entities.Match.filter({
-        status: { $in: ['preparing', 'both_ready', 'in_progress', 'completed'] },
-        created_date: { $gte: startOfToday },
+    // Count every matching row in pages. Calling filter() without an explicit
+    // limit silently caps these headline metrics at the SDK default page size.
+    const [playersOnline, matchesLive, availableMatches] = await Promise.all([
+      countEntities(base44.asServiceRole.entities.User, {
+        role: 'user',
+        account_state: { $ne: 'closed' },
+        last_active_at: { $gte: onlineSince },
       }),
+      countEntities(base44.asServiceRole.entities.Match, { status: 'in_progress' }),
+      countEntities(
+        base44.asServiceRole.entities.Match,
+        publicAvailableMatchQuery(user.id)
+      ),
     ]);
 
-    const totalWageredToday = startedTodayMatches.reduce((sum, m) => sum + (m.wager_amount || 0) * 2, 0);
-
     return Response.json({
-      playersOnline: onlineUsers.length,
-      matchesLive: liveMatches.length,
-      availableMatches: availableMatches.length,
-      totalWageredToday,
+      playersOnline,
+      matchesLive,
+      availableMatches,
+      generatedAt: generatedAt.toISOString(),
+      onlineWindowSeconds: ONLINE_WINDOW_MS / 1000,
     });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    console.error(JSON.stringify({
+      event: 'live_stats_failed',
+      error: error?.message || 'unknown_error',
+    }));
+    return Response.json({ error: 'Unable to load live marketplace activity' }, { status: 500 });
   }
 });
