@@ -60,20 +60,25 @@ export const PROHIBITED_CATEGORIES = [
 ];
 
 export const MONITORING_SOURCES = [
-  "Game records",
-  "Server logs",
-  "Move history",
-  "Account history",
-  "Device information",
-  "Connection history",
+  "Server-authoritative game records, move history, results, and clock data",
+  "Post-game Stockfish screening metrics, including engine agreement and centipawn-loss indicators",
+  "Critical-position performance and available per-move timing data",
+  "Focus-loss events recorded during gameplay",
+  "Rule-based indicators for repeated opponents, unusual resignations, and unusual timeouts",
+  "Account and contest history",
+  "Device and connection information",
   "Payment activity",
   "Geolocation information",
-  "Contest history",
-  "User reports",
+  "Player reports and dispute evidence",
+  "Integrity flags, administrative notes, and audit history",
   "Other relevant evidence available to ChessBet",
 ];
 
 export const RISK_INDICATORS = [
+  "Unusually high engine move agreement",
+  "Centipawn-loss or critical-position patterns that warrant review",
+  "Move-timing patterns that warrant review",
+  "Repeated focus-loss events during gameplay",
   "Repeated contests between the same players",
   "Unusual resignation patterns",
   "Unusual timeout patterns",
