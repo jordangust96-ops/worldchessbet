@@ -27,8 +27,12 @@ function normalizedSide(value: Record<string, unknown> | undefined) {
 }
 
 Deno.serve(async (req) => {
+  let analysisId = '';
   try {
     const base44 = createClientFromRequest(req);
+    const user = await base44.auth.me();
+    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
     const { matchId, gameId } = await req.json();
     if (!matchId || !gameId) {
       return Response.json({ error: 'matchId and gameId are required' }, { status: 400 });
@@ -40,6 +44,11 @@ Deno.serve(async (req) => {
     ]);
     if (!match || !game || game.match_id !== match.id) {
       return Response.json({ error: 'Match or Game not found' }, { status: 404 });
+    }
+    const isAdmin = user.role === 'admin';
+    const isParticipant = match.player1_id === user.id || match.player2_id === user.id;
+    if (!isAdmin && !isParticipant) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
     if (game.status !== 'completed') {
       return Response.json({ error: 'Only completed games can be screened' }, { status: 400 });
@@ -55,9 +64,15 @@ Deno.serve(async (req) => {
       white_total_focus_lost_ms: game.white_total_focus_lost_ms || 0,
       black_total_focus_lost_ms: game.black_total_focus_lost_ms || 0,
     });
+    analysisId = analysis.id;
+
+    // Match participants may trigger their own screening idempotently, but
+    // detailed results remain admin-only through the entity's RLS.
+    const responseForCaller = (payload: Record<string, unknown>) =>
+      isAdmin ? Response.json(payload) : Response.json({ accepted: true, status: payload.status || analysis.status });
 
     if (analysis.status === 'completed' || analysis.status === 'manual_review') {
-      return Response.json({ analysis, alreadyAnalyzed: true });
+      return responseForCaller({ analysis, alreadyAnalyzed: true, status: analysis.status });
     }
 
     const enabled = Deno.env.get('FAIR_PLAY_SCREENING_ENABLED') === 'true';
@@ -68,7 +83,7 @@ Deno.serve(async (req) => {
         status: 'awaiting_analyzer',
         error_message: enabled ? 'Analyzer URL or secret is not configured.' : 'Fair Play screening is not enabled.',
       });
-      return Response.json({ analysis: queued, awaitingAnalyzer: true });
+      return responseForCaller({ analysis: queued, awaitingAnalyzer: true, status: queued.status });
     }
 
     await base44.asServiceRole.entities.FairPlayAnalysis.update(analysis.id, {
@@ -97,6 +112,9 @@ Deno.serve(async (req) => {
     });
     if (!response.ok) throw new Error(`Analyzer returned HTTP ${response.status}`);
     const result = await response.json();
+    if (!result || typeof result !== 'object') {
+      throw new Error('Analyzer returned an invalid response body');
+    }
     const white = normalizedSide(result.white);
     const black = normalizedSide(result.black);
     const status = white.risk_band === 'review' || black.risk_band === 'review' ? 'manual_review' : 'completed';
@@ -164,8 +182,20 @@ Deno.serve(async (req) => {
       createReviewFlag(match.player2_id, 'Black', black),
     ]);
 
-    return Response.json({ analysis: completed });
+    return responseForCaller({ analysis: completed, status: completed.status });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Fair Play analysis failed';
+    if (analysisId) {
+      try {
+        const base44 = createClientFromRequest(req);
+        await base44.asServiceRole.entities.FairPlayAnalysis.update(analysisId, {
+          status: 'failed',
+          error_message: message.slice(0, 2000),
+        });
+      } catch {
+        // Preserve the original error response even if persistence is unavailable.
+      }
+    }
+    return Response.json({ error: message }, { status: 500 });
   }
 });
