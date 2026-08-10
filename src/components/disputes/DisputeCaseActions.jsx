@@ -33,8 +33,8 @@ export default function DisputeCaseActions({ disputeCase, onChanged }) {
         <Button size="sm" variant="outline" disabled={busy} onClick={() => run("request_information")} className="border-white/10 text-amber-400/80">
           Request Info
         </Button>
-        <Button size="sm" variant="outline" disabled={busy} onClick={() => run("dismiss")} className="border-white/10 text-white/50">
-          Dismiss
+        <Button size="sm" variant="outline" disabled={busy || disputeCase.status === "under_review"} onClick={() => run("change_status", { status: "under_review" })} className="border-white/10 text-white/50">
+          Start Review
         </Button>
         <Button size="sm" variant="outline" disabled={busy} onClick={() => run("flag_fair_play_review")} className="border-white/10 text-white/70">
           Flag Fair Play
@@ -61,20 +61,31 @@ export default function DisputeCaseActions({ disputeCase, onChanged }) {
       </div>
 
       <div className="space-y-1.5 pt-2 border-t border-white/5">
-        <p className="text-xs text-white/50">Resolve Case</p>
+        <p className="text-xs text-white/50">Resolve — No Violation</p>
+        <p className="text-[10px] leading-4 text-white/35">
+          Use only after reviewing the evidence. This creates the formal audited resolution and closes the case without enforcement.
+        </p>
         <Textarea
           value={resolution}
           onChange={(e) => setResolution(e.target.value)}
-          placeholder="Resolution summary..."
+          placeholder="Internal rationale supporting a no-violation decision..."
           className="bg-white/[0.03] border-white/10 text-white text-xs min-h-[70px]"
         />
         <Button
           size="sm"
           disabled={busy || !resolution.trim()}
-          onClick={() => run("set_resolution", { resolution })}
+          onClick={() => {
+            if (window.confirm("Resolve this case as no violation? This records a formal resolution and closes the case.")) {
+              run("resolve_case", {
+                resolutionType: "no_violation",
+                internalRationale: resolution,
+                userFacingSummary: "Review completed. No violation was found.",
+              });
+            }
+          }}
           className="bg-emerald-500/90 text-black font-semibold hover:opacity-90"
         >
-          Mark Resolved
+          Resolve as No Violation
         </Button>
       </div>
     </div>
