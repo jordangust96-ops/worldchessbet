@@ -2,12 +2,13 @@ const PAGE_SIZE = 500;
 
 export const ONLINE_WINDOW_MS = 2 * 60 * 1000;
 
-export function publicAvailableMatchQuery(userId) {
-  return {
+export function publicAvailableMatchQuery(userId = '') {
+  const query = {
     status: 'searching',
     is_private: { $ne: true },
-    player1_id: { $ne: userId },
   };
+  if (userId) query.player1_id = { $ne: userId };
+  return query;
 }
 
 export async function countEntities(entity, query) {
