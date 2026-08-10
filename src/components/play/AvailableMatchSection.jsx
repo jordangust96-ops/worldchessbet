@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import { User, Loader2, SearchX } from "lucide-react";
@@ -23,27 +23,43 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
   const [searching, setSearching] = useState(false);
   const [accepting, setAccepting] = useState(false);
   const [acceptError, setAcceptError] = useState("");
+  const refreshInFlightRef = useRef(false);
 
-  const fetchMatches = useCallback(async () => {
-    if (!userId) return;
-    const res = await base44.functions.invoke("getAvailableMatches", {});
-    setOpponents(res.data.matches || []);
+  const fetchMatches = useCallback(async ({ allowHidden = false } = {}) => {
+    if (!userId || refreshInFlightRef.current) return;
+    if (!allowHidden && document.visibilityState !== "visible") return;
+    refreshInFlightRef.current = true;
+    try {
+      const res = await base44.functions.invoke("getAvailableMatches", {});
+      setOpponents(res.data.matches || []);
+    } finally {
+      refreshInFlightRef.current = false;
+    }
   }, [userId]);
 
   useEffect(() => {
     if (!userId) return;
     (async () => {
-      await fetchMatches();
+      await fetchMatches({ allowHidden: true });
       setLoading(false);
     })();
   }, [userId, fetchMatches]);
 
-  // Automatic background refresh so newly hosted matches surface without
-  // requiring a page reload.
+  // Realtime marketplace responsiveness is preserved for the visible player,
+  // while background tabs stop issuing repeated availability requests.
   useEffect(() => {
     if (!userId) return;
-    const interval = setInterval(fetchMatches, AUTO_REFRESH_INTERVAL_MS);
-    return () => clearInterval(interval);
+    const refreshWhenVisible = () => fetchMatches();
+    const interval = setInterval(refreshWhenVisible, AUTO_REFRESH_INTERVAL_MS);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    window.addEventListener("focus", refreshWhenVisible);
+    window.addEventListener("online", refreshWhenVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      window.removeEventListener("focus", refreshWhenVisible);
+      window.removeEventListener("online", refreshWhenVisible);
+    };
   }, [userId, fetchMatches]);
 
   // Hosting a match ends the current browsing session — start fresh next time.
