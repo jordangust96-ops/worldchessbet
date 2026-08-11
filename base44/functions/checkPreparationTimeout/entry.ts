@@ -25,7 +25,19 @@ Deno.serve(async (req) => {
     );
 
     const cancelledIds = [];
-    for (const match of stale) {
+    for (const candidate of stale) {
+      let match = candidate;
+      if (match.cancellation_operation_id || match.status === 'cancelling') continue;
+
+      const cancellationOperationId = crypto.randomUUID();
+      await base44.asServiceRole.entities.Match.update(match.id, {
+        status: 'cancelling',
+        cancellation_operation_id: cancellationOperationId,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      match = await base44.asServiceRole.entities.Match.get(match.id);
+      if (match.cancellation_operation_id !== cancellationOperationId) continue;
+
       const refundTargets = [];
       if (match.player1_deposited) refundTargets.push(match.player1_id);
       if (match.player2_deposited) refundTargets.push(match.player2_id);
@@ -83,7 +95,11 @@ Deno.serve(async (req) => {
         });
       }
 
-      const cancelledMatch = await base44.asServiceRole.entities.Match.update(match.id, { status: 'cancelled' });
+      const cancelledMatch = await base44.asServiceRole.entities.Match.update(match.id, {
+        status: 'cancelled',
+        cancellation_operation_id: cancellationOperationId,
+        result: 'cancelled',
+      });
       await recordIntegrationEvent(base44, {
         eventType: 'contest.cancelled',
         aggregateType: 'match',
