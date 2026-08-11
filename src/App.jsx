@@ -47,6 +47,7 @@ import AdminActionCenter from '@/pages/AdminActionCenter';
 // Layout
 import AppLayout from '@/components/layout/AppLayout';
 import MfaGuard from '@/components/MfaGuard';
+import AdminGuard from '@/components/AdminGuard';
 import PolicyAcceptanceGuard from '@/components/legal/PolicyAcceptanceGuard';
 
 const AuthenticatedApp = () => {
@@ -92,18 +93,20 @@ const AuthenticatedApp = () => {
         <Route path="/verify-mfa" element={<VerifyMfa />} />
         <Route element={<MfaGuard />}>
           <Route element={<PolicyAcceptanceGuard />}>
-            <Route path="/admin/privacy-policy" element={<PrivacyPolicyAdmin />} />
-            <Route path="/admin/terms-of-service" element={<TermsOfServiceAdmin />} />
-            <Route path="/admin/official-rules" element={<OfficialRulesAdmin />} />
-            <Route path="/admin/actions" element={<AdminActionCenter />} />
-            <Route path="/admin/integrity" element={<IntegrityReviewQueue />} />
-            <Route path="/admin/integrity/:userId" element={<AdminUserIntegrity />} />
-            <Route path="/admin/game-settings" element={<AdminGameSettings />} />
-            <Route path="/admin/disputes" element={<DisputeCaseQueue />} />
-            <Route path="/admin/disputes/:caseId" element={<AdminDisputeCase />} />
-            <Route path="/admin/site-activity" element={<AdminSiteActivity />} />
-            <Route path="/admin/user-financials" element={<AdminUserFinancials />} />
-            <Route path="/admin/campaigns/early-access-500" element={<AdminEarlyAccessCampaign />} />
+            <Route element={<AdminGuard />}>
+              <Route path="/admin/privacy-policy" element={<PrivacyPolicyAdmin />} />
+              <Route path="/admin/terms-of-service" element={<TermsOfServiceAdmin />} />
+              <Route path="/admin/official-rules" element={<OfficialRulesAdmin />} />
+              <Route path="/admin/actions" element={<AdminActionCenter />} />
+              <Route path="/admin/integrity" element={<IntegrityReviewQueue />} />
+              <Route path="/admin/integrity/:userId" element={<AdminUserIntegrity />} />
+              <Route path="/admin/game-settings" element={<AdminGameSettings />} />
+              <Route path="/admin/disputes" element={<DisputeCaseQueue />} />
+              <Route path="/admin/disputes/:caseId" element={<AdminDisputeCase />} />
+              <Route path="/admin/site-activity" element={<AdminSiteActivity />} />
+              <Route path="/admin/user-financials" element={<AdminUserFinancials />} />
+              <Route path="/admin/campaigns/early-access-500" element={<AdminEarlyAccessCampaign />} />
+            </Route>
             <Route element={<AppLayout />}>
               <Route path="/" element={<Home />} />
               <Route path="/wallet" element={<WalletPage />} />
