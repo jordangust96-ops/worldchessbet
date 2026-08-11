@@ -41,9 +41,6 @@ Deno.serve(async (req) => {
       try {
         await base44.asServiceRole.functions.invoke('settleMatch', { gameId: game.id });
         summary.settled += 1;
-        await base44.asServiceRole.functions
-          .invoke('runPostSettlementJobs', { matchId: match.id, gameId: game.id })
-          .catch(() => {});
       } catch (error) {
         const code = error?.response?.data?.error || error?.message || 'unknown_error';
         if (code === 'settlement_in_progress') summary.pending += 1;
