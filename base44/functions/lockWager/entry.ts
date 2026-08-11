@@ -42,22 +42,6 @@ Deno.serve(async (req) => {
       deviceFingerprintHash,
     } = await req.json();
 
-    // Re-verify jurisdiction immediately before payment authorization — never
-    // rely on a stale client-side or earlier-in-flow check.
-    const jurisdictionRes = await base44.functions.invoke('getCurrentJurisdiction', {
-      triggerEvent: 'lock_wager',
-      relatedEntityType: 'match',
-      relatedEntityId: matchId || '',
-      browserGeoPermission,
-      browserLatitude,
-      browserLongitude,
-      browserAccuracyMeters,
-      deviceFingerprintHash,
-    });
-    if (jurisdictionRes.data?.error || jurisdictionRes.data?.status !== 'approved') {
-      return Response.json({ error: jurisdictionRes.data?.reason || 'You are not currently eligible to fund a contest entry from your location.' }, { status: 403 });
-    }
-
     if (!matchId) return Response.json({ error: 'matchId is required' }, { status: 400 });
 
     let match = await base44.asServiceRole.entities.Match.get(matchId);
@@ -93,6 +77,24 @@ Deno.serve(async (req) => {
     const wallet = wallets[0];
     if (!wallet || wallet.available_balance < totalCharge) {
       return Response.json({ error: 'Insufficient balance for this entry amount and platform service fee' }, { status: 400 });
+    }
+
+    // Jurisdiction is the final gate before a financial reservation. All free
+    // request, match, membership, certification, and balance checks above run
+    // first. A same-IP result from create/join may be reused briefly.
+    const jurisdictionRes = await base44.functions.invoke('getCurrentJurisdiction', {
+      triggerEvent: 'lock_wager',
+      relatedEntityType: 'match',
+      relatedEntityId: match.id,
+      contextAmount: totalCharge,
+      browserGeoPermission,
+      browserLatitude,
+      browserLongitude,
+      browserAccuracyMeters,
+      deviceFingerprintHash,
+    });
+    if (jurisdictionRes.data?.error || jurisdictionRes.data?.status !== 'approved') {
+      return Response.json({ error: jurisdictionRes.data?.reason || 'You are not currently eligible to fund a contest entry from your location.' }, { status: 403 });
     }
 
     const fundingOperationField = isP1 ? 'player1_funding_operation_id' : 'player2_funding_operation_id';
