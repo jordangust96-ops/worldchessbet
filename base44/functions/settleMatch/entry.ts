@@ -360,10 +360,10 @@ Deno.serve(async (req) => {
     });
 
     // Integrity review and Stockfish screening are intentionally dispatched
-    // by the Match Settlement workflow only after this function returns.
-    // Keeping those non-financial jobs outside the player-facing settlement
-    // response prevents external analysis latency from extending the
-    // "Finalizing match result..." state.
+    // by the independent Post-Settlement Integrity workflow after this Match
+    // reaches completed. Keeping those non-financial jobs outside the
+    // player-facing settlement workflow prevents external analysis latency
+    // from extending the "Finalizing match result..." state.
     return Response.json({ match: updatedMatch });
   } catch (error) {
     console.error(JSON.stringify({ event: 'backend_function_failed', error: error?.message || 'unknown_error' }));
