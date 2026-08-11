@@ -38,6 +38,7 @@ Deno.serve(async (req) => {
     // Match. No funds are held here.
     const eligibilityRes = await base44.functions.invoke('runContestEligibility', {
       entryAmount: match.wager_amount,
+      triggerEvent: 'accept_match',
       relatedEntityType: 'match',
       relatedEntityId: match.id,
     });
