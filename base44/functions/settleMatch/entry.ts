@@ -149,6 +149,7 @@ Deno.serve(async (req) => {
     let settlementLoserId = '';
     let settlementPayout = 0;
     let settlementFee = 0;
+    let appliedReconciliation = null;
 
     // Updates the player-facing stats cache on the User entity
     // (games_played/games_won/games_lost/win_percentage) so the marketplace
@@ -240,6 +241,19 @@ Deno.serve(async (req) => {
       settlementPayout = pot;
       settlementFee = totalFee;
 
+      const approvals = await base44.asServiceRole.entities.SettlementReconciliation.filter({
+        match_id: match.id,
+        status: 'approved',
+      }, '-approved_at', 1);
+      const approvedReconciliation = approvals[0] || null;
+      const approvedShortfall = approvedReconciliation
+        ? Number(approvedReconciliation.reserve_shortfall || 0)
+        : 0;
+      if (!Number.isFinite(approvedShortfall) || approvedShortfall < 0 || approvedShortfall > pot) {
+        return Response.json({ error: 'invalid_settlement_reconciliation_shortfall' }, { status: 409 });
+      }
+      appliedReconciliation = approvedReconciliation;
+
       const walletTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
         user_id: winnerId,
         type: 'payout',
@@ -255,14 +269,6 @@ Deno.serve(async (req) => {
       // Suspense to Platform Revenue, now that the contest has a valid,
       // decisive settlement. The loser's held stake is simply released — it
       // was already spent when it moved into the Contest Reserve at lock time.
-      const approvedShortfall =
-        match.settlement_reconciliation_operation_id && match.settlement_reconciliation_approved_by
-          ? Number(match.settlement_reconciliation_shortfall || 0)
-          : 0;
-      if (!Number.isFinite(approvedShortfall) || approvedShortfall < 0 || approvedShortfall > pot) {
-        return Response.json({ error: 'invalid_settlement_reconciliation_shortfall' }, { status: 409 });
-      }
-
       const legs = [
         // Validate/debit protected reserve accounts before any user credit is applied.
         { ledgerAccount: 'contest_clearing', debit: pot - approvedShortfall, credit: 0, transactionType: 'match_settlement' },
@@ -312,6 +318,13 @@ Deno.serve(async (req) => {
       result: game.result,
       completed_at: game.completed_at || new Date().toISOString(),
     });
+
+    if (appliedReconciliation) {
+      await base44.asServiceRole.entities.SettlementReconciliation.update(appliedReconciliation.id, {
+        status: 'applied',
+        applied_at: new Date().toISOString(),
+      });
+    }
 
     // Immutable Contest Record — ChessBet's permanent system of record for this
     // contest. Created exactly once, only after the outcome is determined,
