@@ -1,15 +1,20 @@
-// Tracks whether the current logged-in session has completed the MFA
-// second factor. Cleared on logout so the next login always re-requires it.
-const KEY = "chessbet_mfa_verified";
+const KEY = "chessbet_mfa_session_token";
 
-export function isMfaVerified() {
-  return localStorage.getItem(KEY) === "true";
+export function getMfaSessionToken() {
+  return sessionStorage.getItem(KEY) || "";
 }
 
-export function setMfaVerified() {
-  localStorage.setItem(KEY, "true");
+export function isMfaVerified() {
+  return Boolean(getMfaSessionToken());
+}
+
+export function setMfaVerified(sessionToken) {
+  if (typeof sessionToken !== "string" || sessionToken.length < 32) {
+    throw new Error("A valid server-issued MFA session is required");
+  }
+  sessionStorage.setItem(KEY, sessionToken);
 }
 
 export function clearMfaVerified() {
-  localStorage.removeItem(KEY);
+  sessionStorage.removeItem(KEY);
 }
