@@ -321,19 +321,11 @@ Deno.serve(async (req) => {
       },
     });
 
-    // Fire the lightweight integrity check after settlement so it never
-    // delays or blocks the contest's own settlement/response.
-    await base44.asServiceRole.functions
-      .invoke('runIntegrityCheck', { matchId: match.id, gameId: game.id })
-      .catch(() => {});
-
-    // Queue post-game engine screening separately from financial settlement.
-    // A missing/unavailable analyzer can never change the already-settled
-    // contest outcome; it only leaves an admin-only analysis record queued.
-    await base44.asServiceRole.functions
-      .invoke('requestFairPlayAnalysis', { matchId: match.id, gameId: game.id })
-      .catch(() => {});
-
+    // Integrity review and Stockfish screening are intentionally dispatched
+    // by the Match Settlement workflow only after this function returns.
+    // Keeping those non-financial jobs outside the player-facing settlement
+    // response prevents external analysis latency from extending the
+    // "Finalizing match result..." state.
     return Response.json({ match: updatedMatch });
   } catch (error) {
     console.error(JSON.stringify({ event: 'backend_function_failed', error: error?.message || 'unknown_error' }));
