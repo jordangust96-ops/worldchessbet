@@ -12,6 +12,8 @@ Deno.serve(async (req) => {
   if(!Number.isFinite(value)||value<=0||value>10000||!['deposit','withdrawal'].includes(direction)) return Response.json({error:'Invalid transfer request'},{status:400});
   const bank=(await base44.asServiceRole.entities.PlaidBankAccount.filter({user_id:user.id,status:'linked'}))[0];
   if(!bank) return Response.json({error:'Link a bank account first'},{status:400});
+  const jurisdiction = await base44.functions.invoke('getCurrentJurisdiction', { triggerEvent: direction, relatedEntityType: direction, contextAmount: value });
+  if (jurisdiction.data?.status !== 'approved') return Response.json({ error: jurisdiction.data?.reason || 'You are not currently eligible for a bank transfer.' }, { status: 403 });
   const wallet=(await base44.asServiceRole.entities.Wallet.filter({user_id:user.id}))[0];
   if(direction==='withdrawal' && (!wallet || wallet.available_balance < value)) return Response.json({error:'Insufficient available balance'},{status:400});
   const legal_name=user.full_name||user.name||user.email;
