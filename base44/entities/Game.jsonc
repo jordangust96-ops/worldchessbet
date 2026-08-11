@@ -6,6 +6,14 @@
       "type": "string",
       "description": "ID of the Match this game belongs to"
     },
+    "player1_id": {
+      "type": "string",
+      "description": "White participant ID, copied from the authoritative Match for participant-scoped reads"
+    },
+    "player2_id": {
+      "type": "string",
+      "description": "Black participant ID, copied from the authoritative Match for participant-scoped reads"
+    },
     "status": {
       "type": "string",
       "enum": [
@@ -229,14 +237,14 @@
     "status"
   ],
   "rls": {
-    "create": {
-      "created_by_id": "{{user.id}}"
-    },
-    "read": null,
-    "update": {
+    "create": false,
+    "read": {
       "$or": [
         {
-          "created_by_id": "{{user.id}}"
+          "data.player1_id": "{{user.id}}"
+        },
+        {
+          "data.player2_id": "{{user.id}}"
         },
         {
           "user_condition": {
@@ -245,6 +253,7 @@
         }
       ]
     },
+    "update": false,
     "delete": {
       "user_condition": {
         "role": "admin"
