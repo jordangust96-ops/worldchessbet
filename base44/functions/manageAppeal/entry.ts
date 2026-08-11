@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { requireAdminMfa } from '../../shared/mfa.ts';
 
 const VALID_ACTIONS = ['assign_to_me', 'change_status', 'add_notes'];
 const VALID_STATUSES = ['submitted', 'under_review', 'additional_information_requested', 'granted', 'denied', 'closed'];
@@ -11,10 +12,11 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const admin = await base44.auth.me();
-    if (!admin) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    if (admin.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 });
+    const body = await req.json();
+    const mfaError = await requireAdminMfa(base44, admin, body?.mfaSessionToken, req.headers.get('user-agent') || '');
+    if (mfaError) return mfaError;
 
-    const { appealId, action, payload = {} } = await req.json();
+    const { appealId, action, payload = {} } = body;
     if (!appealId) return Response.json({ error: 'appealId is required' }, { status: 400 });
     if (!VALID_ACTIONS.includes(action)) return Response.json({ error: 'Invalid action' }, { status: 400 });
 
