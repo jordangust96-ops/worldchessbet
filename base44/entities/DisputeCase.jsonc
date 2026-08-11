@@ -277,11 +277,7 @@
     "status"
   ],
   "rls": {
-    "create": {
-      "user_condition": {
-        "role": "admin"
-      }
-    },
+    "create": false,
     "read": {
       "$or": [
         {
@@ -294,11 +290,7 @@
         }
       ]
     },
-    "update": {
-      "user_condition": {
-        "role": "admin"
-      }
-    },
+    "update": false,
     "delete": false
   }
 }
