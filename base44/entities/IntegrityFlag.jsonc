@@ -75,21 +75,13 @@
     "severity"
   ],
   "rls": {
-    "create": {
-      "user_condition": {
-        "role": "admin"
-      }
-    },
+    "create": false,
     "read": {
       "user_condition": {
         "role": "admin"
       }
     },
-    "update": {
-      "user_condition": {
-        "role": "admin"
-      }
-    },
+    "update": false,
     "delete": {
       "user_condition": {
         "role": "admin"
