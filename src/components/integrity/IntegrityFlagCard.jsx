@@ -22,6 +22,23 @@ export default function IntegrityFlagCard({ flag, withdrawalHold, onChanged }) {
   };
 
   const isResolved = flag.status === "cleared" || flag.status === "action_taken";
+  const isSettlementReconciliation = flag.flag_type === "settlement_reconciliation_required";
+
+  const reconcileSettlement = async () => {
+    const confirmed = window.confirm(
+      "This will reconcile the contest ledger and complete settlement using the authoritative game result. Continue?"
+    );
+    if (!confirmed) return;
+
+    setBusyAction("reconcile_settlement");
+    try {
+      await invokeAdminFunction("resolveSettlementReconciliation", { flagId: flag.id });
+      setNotes("");
+      onChanged?.();
+    } finally {
+      setBusyAction(null);
+    }
+  };
 
   return (
     <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4 space-y-3">
@@ -36,6 +53,15 @@ export default function IntegrityFlagCard({ flag, withdrawalHold, onChanged }) {
       <p className="text-sm font-semibold text-white">{FLAG_TYPE_LABELS[flag.flag_type] || flag.flag_type}</p>
       {flag.match_id && <p className="text-[11px] text-white/40">Linked contest: {flag.match_id}</p>}
       {flag.notes && <p className="text-xs text-white/50 whitespace-pre-wrap">{flag.notes}</p>}
+      {isSettlementReconciliation && !isResolved && (
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] p-3">
+          <p className="text-xs font-medium text-amber-300">Financial settlement is incomplete</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-white/50">
+            Do not clear this item manually. Reconcile the ledger to complete the authoritative result, or keep it
+            under review while the financial records are investigated.
+          </p>
+        </div>
+      )}
       {flag.action_taken && (
         <p className="text-xs text-white/70">
           <span className="text-white/40">Action taken: </span>
@@ -63,26 +89,41 @@ export default function IntegrityFlagCard({ flag, withdrawalHold, onChanged }) {
               {busyAction === "mark_under_review" && <Loader2 size={12} className="animate-spin mr-1" />}
               Mark Under Review
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={!!busyAction}
-              onClick={() => runAction("mark_cleared")}
-              className="h-8 rounded-lg text-xs border-green-500/20 text-green-400 hover:bg-green-500/5 bg-transparent"
-            >
-              {busyAction === "mark_cleared" && <Loader2 size={12} className="animate-spin mr-1" />}
-              Mark Cleared
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={!!busyAction}
-              onClick={() => runAction("mark_action_taken")}
-              className="h-8 rounded-lg text-xs border-white/10 text-white/60 hover:text-white bg-transparent"
-            >
-              {busyAction === "mark_action_taken" && <Loader2 size={12} className="animate-spin mr-1" />}
-              Mark Action Taken
-            </Button>
+            {isSettlementReconciliation ? (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!!busyAction}
+                onClick={reconcileSettlement}
+                className="h-8 rounded-lg text-xs border-amber-500/30 text-amber-300 hover:bg-amber-500/10 bg-transparent"
+              >
+                {busyAction === "reconcile_settlement" && <Loader2 size={12} className="animate-spin mr-1" />}
+                Reconcile & Complete
+              </Button>
+            ) : (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!!busyAction}
+                  onClick={() => runAction("mark_cleared")}
+                  className="h-8 rounded-lg text-xs border-green-500/20 text-green-400 hover:bg-green-500/5 bg-transparent"
+                >
+                  {busyAction === "mark_cleared" && <Loader2 size={12} className="animate-spin mr-1" />}
+                  Mark Cleared
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!!busyAction}
+                  onClick={() => runAction("mark_action_taken")}
+                  className="h-8 rounded-lg text-xs border-white/10 text-white/60 hover:text-white bg-transparent"
+                >
+                  {busyAction === "mark_action_taken" && <Loader2 size={12} className="animate-spin mr-1" />}
+                  Mark Action Taken
+                </Button>
+              </>
+            )}
             <Button
               size="sm"
               variant="outline"
@@ -93,7 +134,7 @@ export default function IntegrityFlagCard({ flag, withdrawalHold, onChanged }) {
               {busyAction === "add_notes" && <Loader2 size={12} className="animate-spin mr-1" />}
               Add Notes
             </Button>
-            {withdrawalHold ? (
+            {!isSettlementReconciliation && (withdrawalHold ? (
               <Button
                 size="sm"
                 variant="outline"
@@ -115,17 +156,19 @@ export default function IntegrityFlagCard({ flag, withdrawalHold, onChanged }) {
                 {busyAction === "freeze_withdrawals" && <Loader2 size={12} className="animate-spin mr-1" />}
                 Freeze Withdrawals
               </Button>
+            ))}
+            {!isSettlementReconciliation && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!!busyAction}
+                onClick={() => runAction("request_identity_verification")}
+                className="h-8 rounded-lg text-xs border-white/10 text-white/60 hover:text-white bg-transparent"
+              >
+                {busyAction === "request_identity_verification" && <Loader2 size={12} className="animate-spin mr-1" />}
+                Request Identity Verification
+              </Button>
             )}
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={!!busyAction}
-              onClick={() => runAction("request_identity_verification")}
-              className="h-8 rounded-lg text-xs border-white/10 text-white/60 hover:text-white bg-transparent"
-            >
-              {busyAction === "request_identity_verification" && <Loader2 size={12} className="animate-spin mr-1" />}
-              Request Identity Verification
-            </Button>
           </div>
         </>
       )}
