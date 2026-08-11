@@ -11,12 +11,13 @@ export default function Unsubscribe() {
     const run = async () => {
       const params = new URLSearchParams(window.location.search);
       const userId = params.get("userId");
-      if (!userId) {
+      const token = params.get("token");
+      if (!userId || !token) {
         setStatus("error");
         return;
       }
       try {
-        await base44.functions.invoke("unsubscribeMarketingEmail", { userId });
+        await base44.functions.invoke("unsubscribeMarketingEmail", { userId, token });
         setStatus("success");
       } catch {
         setStatus("error");
