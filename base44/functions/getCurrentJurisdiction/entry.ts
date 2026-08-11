@@ -288,7 +288,7 @@ Deno.serve(async (req) => {
     const wouldBeReason = reason;
     let enforcementBypassed = false;
 
-    // REQUIRED BEFORE PUBLIC LAUNCH: set ENABLE_GEOLOCATION_ENFORCEMENT=true.
+    // REQUIRED BEFORE PUBLIC LAUNCH: set EARLY_ACCESS_MODE=false.
     // The one and only bypass branch in the app — overrides a non-approved
     // result so it never blocks/restricts a flow while enforcement is
     // disabled. The original result computed above is untouched in
