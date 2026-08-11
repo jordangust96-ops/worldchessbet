@@ -82,6 +82,25 @@ Deno.serve(async (req) => {
           settlement_transaction_count: settlementTransactions.length,
           settlement_ledger_entry_count: settlementLedgerEntries.length,
         }));
+
+        // A partial financial write must never be retried blindly. Surface one
+        // admin-only, high-priority action instead; no enforcement, account, or
+        // additional financial action is taken automatically.
+        const existingFlags = await base44.asServiceRole.entities.IntegrityFlag.filter({
+          match_id: match.id,
+          flag_type: 'settlement_reconciliation_required',
+        }, '-created_date', 5);
+        if (!existingFlags.some((flag) => ['open', 'under_review'].includes(flag.status))) {
+          await base44.asServiceRole.entities.IntegrityFlag.create({
+            user_id: game.winner_id || match.player1_id || match.player2_id,
+            match_id: match.id,
+            flag_type: 'settlement_reconciliation_required',
+            severity: 'high',
+            status: 'open',
+            description: 'Server settlement requires financial reconciliation before completion.',
+            notes: `Automatic retry stopped to prevent a duplicate payout. Game ${game.id}; settlement transactions ${settlementTransactions.length}; settlement ledger entries ${settlementLedgerEntries.length}.`,
+          });
+        }
         return Response.json({ error: 'settlement_reconciliation_required' }, { status: 409 });
       }
 
@@ -163,7 +182,7 @@ Deno.serve(async (req) => {
           amount: wagerAmount,
           match_id: match.id,
           description: 'Contest entry amount refunded — match ended in a draw',
-          status: 'completed',
+          status: 'pending',
         });
 
         // Double-entry: Debit Contest Reserve, Credit User Available Balance.
@@ -188,7 +207,7 @@ Deno.serve(async (req) => {
           amount: serviceFee,
           match_id: match.id,
           description: 'Platform service fee refunded — match ended in a draw',
-          status: 'completed',
+          status: 'pending',
         });
 
         // Separate double-entry: Debit Suspense (never recognized), Credit
@@ -226,7 +245,7 @@ Deno.serve(async (req) => {
         amount: pot,
         match_id: match.id,
         description: 'Contest winnings payout — full combined entry amounts',
-        status: 'completed',
+        status: 'pending',
       });
 
       // Double-entry: Debit Contest Reserve for the full pot; Credit Winner
