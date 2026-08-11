@@ -8,7 +8,6 @@ import Logo from "@/components/Logo";
 import DemoModeNotice from "@/components/DemoModeNotice";
 import RestrictedModeBanner from "@/components/RestrictedModeBanner";
 import TransactionHistory from "@/components/wallet/TransactionHistory";
-import { useAuth } from "@/lib/AuthContext";
 import { trackPixelEvent } from "@/lib/metaPixel";
 
 const TX_PAGE_SIZE = 20;
@@ -31,7 +30,6 @@ async function listCompletedMatchesForPlayer(field, userId) {
 }
 
 export default function WalletPage() {
-  const { jurisdictionStatus } = useAuth();
   const [wallet, setWallet] = useState(null);
   const [userId, setUserId] = useState(null);
   const [transactions, setTransactions] = useState([]);
@@ -263,7 +261,6 @@ export default function WalletPage() {
         <div className="grid grid-cols-2 gap-3">
           <Button
             onClick={() => { setTransferDirection("deposit"); setShowDeposit(!showDeposit); }}
-            disabled={jurisdictionStatus && jurisdictionStatus !== "approved"}
             className="h-12 rounded-2xl gold-gradient text-black font-bold hover:opacity-90 disabled:opacity-30"
           >
             <Plus size={16} className="mr-2" /> Fund Account
