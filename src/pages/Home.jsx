@@ -21,6 +21,7 @@ export default function Home() {
   const [user, setUser] = useState(null);
   const [wallet, setWallet] = useState(null);
   const settledWalletRefreshRef = useRef(null);
+  const settlementRecoveryRequestRef = useRef({ matchId: null, attemptedAt: 0 });
   const [myMatchId, setMyMatchId] = useState(null);
   // The single authoritative Match record for the active match — sourced from
   // the one Match subscription below, and passed down to MatchView as a prop
@@ -231,6 +232,22 @@ export default function Home() {
       try {
         const latestMatch = await base44.entities.Match.get(myMatchId);
         if (mounted) setActiveMatch(latestMatch);
+
+        // The normal Game-completion workflow is server-side. This participant
+        // call is an immediate, idempotent recovery path if that workflow event
+        // was missed; it cannot choose the result or settle twice.
+        const previousAttempt = settlementRecoveryRequestRef.current;
+        const shouldRequestRecovery =
+          latestMatch.status === "in_progress" &&
+          !latestMatch.settlement_hold &&
+          game?.id &&
+          (previousAttempt.matchId !== myMatchId || Date.now() - previousAttempt.attemptedAt >= 10_000);
+        if (shouldRequestRecovery) {
+          settlementRecoveryRequestRef.current = { matchId: myMatchId, attemptedAt: Date.now() };
+          base44.functions.invoke("settleMatch", { gameId: game.id }).catch(() => {
+            // Polling continues and may safely retry after the cooldown.
+          });
+        }
       } catch {
         // The next short recovery interval retries transient read failures.
       } finally {
@@ -248,7 +265,7 @@ export default function Home() {
       window.removeEventListener("focus", recoverSettlementStatus);
       window.removeEventListener("online", recoverSettlementStatus);
     };
-  }, [myMatchId, game?.status, activeMatch?.status]);
+  }, [myMatchId, game?.id, game?.status, activeMatch?.status]);
 
   const refreshWallet = useCallback(async () => {
     if (!user?.id) return null;
