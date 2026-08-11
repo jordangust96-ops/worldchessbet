@@ -33,9 +33,7 @@
     "event"
   ],
   "rls": {
-    "create": {
-      "created_by_id": "{{user.id}}"
-    },
+    "create": false,
     "read": {
       "$or": [
         {
@@ -48,15 +46,7 @@
         }
       ]
     },
-    "update": {
-      "user_condition": {
-        "role": "admin"
-      }
-    },
-    "delete": {
-      "user_condition": {
-        "role": "admin"
-      }
-    }
+    "update": false,
+    "delete": false
   }
 }
