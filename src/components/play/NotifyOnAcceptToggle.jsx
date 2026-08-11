@@ -13,10 +13,16 @@ export default function NotifyOnAcceptToggle({ match }) {
   }, [match?.id, match?.notify_on_accept]);
 
   const handleToggle = async (checked) => {
+    const previous = notifyOnAccept;
     setNotifyOnAccept(checked);
-    // Only the match creator can update this record client-side — enforced
-    // by Match RLS, which no longer grants the accepting opponent write access.
-    await base44.entities.Match.update(match.id, { notify_on_accept: checked });
+    try {
+      await base44.functions.invoke("updateMatchPreference", {
+        matchId: match.id,
+        notifyOnAccept: checked,
+      });
+    } catch {
+      setNotifyOnAccept(previous);
+    }
   };
 
   return (
