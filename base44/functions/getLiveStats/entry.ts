@@ -4,6 +4,7 @@ import {
   countEntities,
   publicAvailableMatchQuery,
 } from '../../shared/marketplaceStats.ts';
+import { countCurrentlyLiveGames } from '../../shared/gameActivity.ts';
 
 const AGGREGATE_CACHE_MS = 5000;
 let aggregateCache = null;
@@ -25,7 +26,10 @@ async function loadAggregateStats(base44) {
         account_state: { $ne: 'closed' },
         last_active_at: { $gte: onlineSince },
       }),
-      countEntities(base44.asServiceRole.entities.Match, { status: 'in_progress' }),
+      // A Match row can remain in_progress briefly after its Game becomes
+      // terminal. Count only active Games whose authoritative clock is still
+      // running so stale workflow state is never presented as a live contest.
+      countCurrentlyLiveGames(base44.asServiceRole.entities.Game, generatedAt.getTime()),
       countEntities(
         base44.asServiceRole.entities.Match,
         publicAvailableMatchQuery()
