@@ -83,6 +83,18 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Certify Fair Play before reserving your entry amount' }, { status: 400 });
     }
 
+    const serviceFee = Number(match.platform_service_fee);
+    if (!Number.isFinite(serviceFee) || serviceFee < 0) {
+      return Response.json({ error: 'This contest is missing its disclosed Platform Service Fee.' }, { status: 409 });
+    }
+    const totalCharge = match.wager_amount + serviceFee;
+
+    const wallets = await base44.asServiceRole.entities.Wallet.filter({ user_id: user.id });
+    const wallet = wallets[0];
+    if (!wallet || wallet.available_balance < totalCharge) {
+      return Response.json({ error: 'Insufficient balance for this entry amount and platform service fee' }, { status: 400 });
+    }
+
     const fundingOperationField = isP1 ? 'player1_funding_operation_id' : 'player2_funding_operation_id';
     if (match[fundingOperationField]) {
       return Response.json({ error: 'funding_in_progress' }, { status: 409 });
@@ -98,18 +110,6 @@ Deno.serve(async (req) => {
     }
     if (isP1 ? match.player1_deposited : match.player2_deposited) {
       return Response.json({ error: 'already_funded' }, { status: 409 });
-    }
-
-    const serviceFee = Number(match.platform_service_fee);
-    if (!Number.isFinite(serviceFee) || serviceFee < 0) {
-      return Response.json({ error: 'This contest is missing its disclosed Platform Service Fee.' }, { status: 409 });
-    }
-    const totalCharge = match.wager_amount + serviceFee;
-
-    const wallets = await base44.asServiceRole.entities.Wallet.filter({ user_id: user.id });
-    const wallet = wallets[0];
-    if (!wallet || wallet.available_balance < totalCharge) {
-      return Response.json({ error: 'Insufficient balance for this entry amount and platform service fee' }, { status: 400 });
     }
 
     const entryTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
