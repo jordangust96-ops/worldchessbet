@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
 const MAX_ATTEMPTS = 5;
+const MFA_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 
 async function sha256Hex(text) {
   const data = new TextEncoder().encode(text);
@@ -88,15 +89,50 @@ Deno.serve(async (req) => {
     }
 
     await base44.asServiceRole.entities.MfaCode.update(mfaCode.id, { status: 'verified' });
+
+    const tokenBytes = new Uint8Array(32);
+    crypto.getRandomValues(tokenBytes);
+    const sessionToken = btoa(String.fromCharCode(...tokenBytes))
+      .replaceAll('+', '-')
+      .replaceAll('/', '_')
+      .replaceAll('=', '');
+    const tokenHash = await sha256Hex(sessionToken);
+    const deviceHash = await sha256Hex(req.headers.get('user-agent') || '');
+    const expiresAt = new Date(now.getTime() + MFA_SESSION_TTL_MS).toISOString();
+
+    const existingSessions = await base44.asServiceRole.entities.MfaSession.filter(
+      { user_id: user.id, revoked: false },
+      '-created_date',
+      20
+    );
+    for (const session of existingSessions) {
+      await base44.asServiceRole.entities.MfaSession.update(session.id, { revoked: true });
+    }
+
+    await base44.asServiceRole.entities.MfaSession.create({
+      user_id: user.id,
+      token_hash: tokenHash,
+      device_hash: deviceHash,
+      verified_at: now.toISOString(),
+      expires_at: expiresAt,
+      revoked: false,
+    });
+
     await base44.asServiceRole.entities.MfaAuditLog.create({
       user_id: user.id,
       email: user.email,
       event: 'otp_verified',
-      detail: 'MFA verification succeeded',
+      detail: 'MFA verification succeeded and a server session was issued',
     });
 
-    return Response.json({ success: true, verified_at: now.toISOString() });
+    return Response.json({
+      success: true,
+      verified_at: now.toISOString(),
+      expires_at: expiresAt,
+      session_token: sessionToken,
+    });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    console.error(JSON.stringify({ event: 'verify_mfa_failed', error: error?.message || 'unknown_error' }));
+    return Response.json({ error: 'internal_error', message: 'Verification is temporarily unavailable.' }, { status: 500 });
   }
 });
