@@ -28,8 +28,11 @@ Deno.serve(async (req) => {
 
     const match = await base44.asServiceRole.entities.Match.get(matchId);
     const game = await base44.asServiceRole.entities.Game.get(gameId);
-    if (!match || !game) {
+    if (!match || !game || game.match_id !== match.id) {
       return Response.json({ error: 'Match or Game not found' }, { status: 404 });
+    }
+    if (match.status !== 'completed' || game.status !== 'completed') {
+      return Response.json({ error: 'Integrity checks require a completed contest' }, { status: 409 });
     }
 
     const nowIso = new Date().toISOString();
