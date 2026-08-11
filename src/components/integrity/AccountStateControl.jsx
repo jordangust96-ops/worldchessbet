@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Loader2 } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { invokeAdminFunction } from "@/lib/adminApi";
 
 const STATES = [
   { value: "provisional", label: "Provisional" },
@@ -24,7 +24,10 @@ export default function AccountStateControl({ targetUser, onChanged }) {
     if (value === current || saving) return;
     setSaving(true);
     try {
-      await base44.entities.User.update(targetUser.id, { account_state: value });
+      await invokeAdminFunction("manageUserAccountState", {
+        userId: targetUser.id,
+        accountState: value,
+      });
       onChanged(value);
     } finally {
       setSaving(false);
