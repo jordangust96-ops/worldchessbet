@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { buildTimeoutCompletion } from '../../shared/gameActivity.ts';
 
 const STALE_LEASE_MS = 2 * 60 * 1000;
 
@@ -18,7 +19,7 @@ Deno.serve(async (req) => {
     ]);
 
     const candidates = [...settlingMatches, ...inProgressMatches];
-    const summary = { checked: candidates.length, settled: 0, pending: 0, reconciliation_required: 0, failed: 0 };
+    const summary = { checked: candidates.length, timed_out: 0, settled: 0, pending: 0, reconciliation_required: 0, failed: 0 };
 
     for (const match of candidates) {
       if (match.settlement_hold) continue;
@@ -40,7 +41,19 @@ Deno.serve(async (req) => {
         const games = await base44.asServiceRole.entities.Game.filter({ match_id: match.id }, '-created_date', 1);
         game = games[0] || null;
       }
-      if (!game || game.status !== 'completed') continue;
+      if (!game) continue;
+
+      // The sweep must remain independent of either browser. If both players
+      // leave an active game, complete an expired authoritative clock here so
+      // disconnecting cannot strand the contest or its reserved funds.
+      if (game.status === 'active') {
+        const timeoutUpdates = buildTimeoutCompletion(game, match);
+        if (!timeoutUpdates) continue;
+        game = await base44.asServiceRole.entities.Game.update(game.id, timeoutUpdates);
+        summary.timed_out += 1;
+      }
+
+      if (game.status !== 'completed') continue;
 
       try {
         await base44.asServiceRole.functions.invoke('settleMatch', { gameId: game.id });
