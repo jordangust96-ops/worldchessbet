@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
 
     if (!matchId) return Response.json({ error: 'matchId is required' }, { status: 400 });
 
-    const match = await base44.asServiceRole.entities.Match.get(matchId);
+    let match = await base44.asServiceRole.entities.Match.get(matchId);
     if (!match) return Response.json({ error: 'Match not found' }, { status: 404 });
 
     const isP1 = match.player1_id === user.id;
@@ -81,6 +81,23 @@ Deno.serve(async (req) => {
     const certified = isP1 ? match.player1_certified : match.player2_certified;
     if (!certified) {
       return Response.json({ error: 'Certify Fair Play before reserving your entry amount' }, { status: 400 });
+    }
+
+    const fundingOperationField = isP1 ? 'player1_funding_operation_id' : 'player2_funding_operation_id';
+    if (match[fundingOperationField]) {
+      return Response.json({ error: 'funding_in_progress' }, { status: 409 });
+    }
+    const fundingOperationId = crypto.randomUUID();
+    await base44.asServiceRole.entities.Match.update(match.id, {
+      [fundingOperationField]: fundingOperationId,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    match = await base44.asServiceRole.entities.Match.get(match.id);
+    if (match[fundingOperationField] !== fundingOperationId) {
+      return Response.json({ error: 'funding_claim_lost' }, { status: 409 });
+    }
+    if (isP1 ? match.player1_deposited : match.player2_deposited) {
+      return Response.json({ error: 'already_funded' }, { status: 409 });
     }
 
     const serviceFee = Number(match.platform_service_fee);
@@ -146,7 +163,9 @@ Deno.serve(async (req) => {
       ],
     });
 
-    const depositUpdates = isP1 ? { player1_deposited: true } : { player2_deposited: true };
+    const depositUpdates = isP1
+      ? { player1_deposited: true, player1_funding_operation_id: fundingOperationId }
+      : { player2_deposited: true, player2_funding_operation_id: fundingOperationId };
     let updatedMatch = await base44.asServiceRole.entities.Match.update(match.id, depositUpdates);
 
     await recordIntegrationEvent(base44, {
