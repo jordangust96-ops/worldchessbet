@@ -222,8 +222,10 @@ Deno.serve(async (req) => {
         legs,
       });
 
-      await updatePlayerStats(winnerId, 'win');
-      await updatePlayerStats(loserId, 'loss');
+      await Promise.all([
+        updatePlayerStats(winnerId, 'win'),
+        updatePlayerStats(loserId, 'loss'),
+      ]);
     }
 
     const updatedMatch = await base44.asServiceRole.entities.Match.update(match.id, {
