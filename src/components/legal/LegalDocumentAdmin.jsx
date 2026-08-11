@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowLeft, Loader2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
+import { invokeAdminFunction } from "@/lib/adminApi";
 import moment from "moment";
 import { LEGAL_DOCUMENT_TYPES } from "@/lib/legalDocumentTypes";
 
@@ -42,19 +43,10 @@ export default function LegalDocumentAdmin({ policyType }) {
 
   const handleSave = async () => {
     setSaving(true);
-    const active = history.find((c) => c.is_active);
-    const nextVersion = (active?.version || 0) + 1;
-
-    if (active) {
-      await base44.entities.PrivacyPolicyConfig.update(active.id, { is_active: false });
-    }
-    await base44.entities.PrivacyPolicyConfig.create({
-      policy_type: policyType,
-      version: nextVersion,
-      last_updated: moment().format("YYYY-MM-DD"),
-      support_email: supportEmail,
-      content_markdown: contentMarkdown,
-      is_active: true,
+    await invokeAdminFunction("publishLegalDocument", {
+      policyType,
+      supportEmail,
+      contentMarkdown,
     });
     await load();
     setSaving(false);
