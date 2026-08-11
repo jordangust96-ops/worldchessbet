@@ -9,7 +9,6 @@ import DemoModeNotice from "@/components/DemoModeNotice";
 import RestrictedModeBanner from "@/components/RestrictedModeBanner";
 import TransactionHistory from "@/components/wallet/TransactionHistory";
 import { useAuth } from "@/lib/AuthContext";
-import { getBrowserGeolocation, getDeviceFingerprintHash } from "@/lib/deviceContext";
 import { trackPixelEvent } from "@/lib/metaPixel";
 
 const TX_PAGE_SIZE = 20;
@@ -194,10 +193,6 @@ export default function WalletPage() {
     setDepositError("");
     try {
       trackPixelEvent("Deposit Initiated", { value: requestedAmount, currency: "USD" });
-      // Secondary, non-authoritative signals for fraud/forensic logging only —
-      // requested right before this paid action, never gating it either way.
-      const geo = await getBrowserGeolocation();
-      const deviceFingerprintHash = await getDeviceFingerprintHash();
       const { data: link } = await base44.functions.invoke("createPlaidLinkToken", {});
       if (!link?.enabled) throw new Error(link?.reason || "Bank transfers are not available right now.");
       await openPlaidLink(link.link_token, async (publicToken, metadata) => {
@@ -212,6 +207,8 @@ export default function WalletPage() {
         if (transferDirection === "deposit") trackPixelEvent("Deposit Initiated", { value: requestedAmount, currency: "USD" });
         setDepositAmount(""); setShowDeposit(false); loadData();
       });
+    } catch (error) {
+      setDepositError(error?.message || "Unable to start the bank transfer.");
     } finally {
       setIsProcessingDeposit(false);
     }
