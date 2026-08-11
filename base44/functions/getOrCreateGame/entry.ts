@@ -36,8 +36,16 @@ Deno.serve(async (req) => {
 
     // Already attached — just return it.
     if (match.game_id) {
-      const existingGame = await base44.asServiceRole.entities.Game.get(match.game_id);
-      if (existingGame) return Response.json({ game: existingGame });
+      let existingGame = await base44.asServiceRole.entities.Game.get(match.game_id);
+      if (existingGame) {
+        if (existingGame.player1_id !== match.player1_id || existingGame.player2_id !== match.player2_id) {
+          existingGame = await base44.asServiceRole.entities.Game.update(existingGame.id, {
+            player1_id: match.player1_id,
+            player2_id: match.player2_id,
+          });
+        }
+        return Response.json({ game: existingGame });
+      }
     }
 
     // No game_id on the match yet. Check whether one was already created (by a
@@ -48,6 +56,8 @@ Deno.serve(async (req) => {
       const tc = TIME_CONTROLS[match.time_control] || TIME_CONTROLS.rapid;
       await base44.asServiceRole.entities.Game.create({
         match_id: matchId,
+        player1_id: match.player1_id,
+        player2_id: match.player2_id,
         status: 'active',
         fen: START_FEN,
         pgn: '',
@@ -69,6 +79,13 @@ Deno.serve(async (req) => {
     // concurrent caller, so all clients end up attaching/loading the same one
     // even if more than one Game row was momentarily created.
     let canonicalGame = candidates[0];
+
+    if (canonicalGame.player1_id !== match.player1_id || canonicalGame.player2_id !== match.player2_id) {
+      canonicalGame = await base44.asServiceRole.entities.Game.update(canonicalGame.id, {
+        player1_id: match.player1_id,
+        player2_id: match.player2_id,
+      });
+    }
 
     // Repair any pre-hardening or partially-created active game that lacks a
     // clock anchor. Once set, this timestamp is never reset by later loads.
