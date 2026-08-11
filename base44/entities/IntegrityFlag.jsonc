@@ -24,6 +24,7 @@
         "rapid_deposit_contest_withdrawal",
         "repeated_payment_failures",
         "chargeback",
+        "settlement_reconciliation_required",
         "vpn_detected",
         "geolocation_mismatch",
         "engine_assistance_suspected",
