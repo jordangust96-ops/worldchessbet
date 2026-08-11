@@ -12,9 +12,11 @@ export async function awardFoundingPlayerBadge(base44, targetUser, appUrl) {
     return { awarded: false, alreadyAwarded: true };
   }
 
+  const unsubscribeToken = targetUser.marketing_unsubscribe_token || crypto.randomUUID();
   await base44.asServiceRole.entities.User.update(targetUser.id, {
     founding_player: true,
     founding_player_awarded_at: new Date().toISOString(),
+    marketing_unsubscribe_token: unsubscribeToken,
   });
 
   if (targetUser.marketing_email_opt_out) {
@@ -23,7 +25,7 @@ export async function awardFoundingPlayerBadge(base44, targetUser, appUrl) {
 
   const firstName = (targetUser.full_name || '').trim().split(' ')[0] || 'there';
   const subject = "You're a ChessBet Founding Player \u265E\uFE0F";
-  const unsubscribeUrl = `${appUrl}/unsubscribe?userId=${targetUser.id}`;
+  const unsubscribeUrl = `${appUrl}/unsubscribe?userId=${encodeURIComponent(targetUser.id)}&token=${encodeURIComponent(unsubscribeToken)}`;
 
   const policies = await base44.asServiceRole.entities.PrivacyPolicyConfig.filter({ policy_type: 'privacy_policy', is_active: true });
   const supportEmail = policies[0]?.support_email || '';
