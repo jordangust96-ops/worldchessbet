@@ -68,7 +68,8 @@ Deno.serve(async (req) => {
       }
 
       const settlementTransactions = fundingTransactions.filter((transaction) =>
-        ['payout', 'wager_refund', 'service_fee_refund'].includes(transaction.type)
+        ['payout', 'wager_refund', 'service_fee_refund'].includes(transaction.type) &&
+        transaction.status !== 'failed'
       );
       const ledgerEntries = await base44.asServiceRole.entities.LedgerEntry.filter({ match_id: match.id });
       const settlementLedgerEntries = ledgerEntries.filter((entry) =>
@@ -90,7 +91,7 @@ Deno.serve(async (req) => {
           match_id: match.id,
           flag_type: 'settlement_reconciliation_required',
         }, '-created_date', 5);
-        if (!existingFlags.some((flag) => ['open', 'under_review'].includes(flag.status))) {
+        if (!existingFlags.length) {
           await base44.asServiceRole.entities.IntegrityFlag.create({
             user_id: game.winner_id || match.player1_id || match.player2_id,
             match_id: match.id,
@@ -254,13 +255,34 @@ Deno.serve(async (req) => {
       // Suspense to Platform Revenue, now that the contest has a valid,
       // decisive settlement. The loser's held stake is simply released — it
       // was already spent when it moved into the Contest Reserve at lock time.
+      const approvedShortfall =
+        match.settlement_reconciliation_operation_id && match.settlement_reconciliation_approved_by
+          ? Number(match.settlement_reconciliation_shortfall || 0)
+          : 0;
+      if (!Number.isFinite(approvedShortfall) || approvedShortfall < 0 || approvedShortfall > pot) {
+        return Response.json({ error: 'invalid_settlement_reconciliation_shortfall' }, { status: 409 });
+      }
+
       const legs = [
         // Validate/debit protected reserve accounts before any user credit is applied.
-        { ledgerAccount: 'contest_clearing', debit: pot, credit: 0, transactionType: 'match_settlement' },
+        { ledgerAccount: 'contest_clearing', debit: pot - approvedShortfall, credit: 0, transactionType: 'match_settlement' },
+      ];
+      if (approvedShortfall > 0) {
+        // Explicit contra-expense leg approved by an administrator. This keeps
+        // the payout balanced without fabricating reserve funds or silently
+        // reducing the winner's authoritative prize.
+        legs.push({
+          ledgerAccount: 'settlement_reconciliation_adjustment',
+          debit: approvedShortfall,
+          credit: 0,
+          transactionType: 'settlement_reconciliation',
+        });
+      }
+      legs.push(
         { ledgerAccount: 'suspense', debit: totalFee, credit: 0, transactionType: 'platform_fee' },
         { ledgerAccount: 'user_account', userId: winnerId, debit: 0, credit: pot, heldDelta: -(wagerAmount + serviceFee), transactionType: 'match_settlement', totalWonDelta: pot },
         { ledgerAccount: 'platform_revenue', debit: 0, credit: totalFee, transactionType: 'platform_fee' },
-      ];
+      );
       if (loserId) {
         legs.push({ ledgerAccount: 'user_account', userId: loserId, debit: 0, credit: 0, heldDelta: -(wagerAmount + serviceFee), transactionType: 'match_settlement' });
       }
