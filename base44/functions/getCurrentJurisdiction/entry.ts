@@ -163,7 +163,10 @@ async function getReusableVerification(base44, userId, ip) {
   if (!Number.isFinite(verifiedAtMs) || Date.now() - verifiedAtMs > VERIFICATION_CACHE_TTL_MS) return null;
 
   const computedStatus = latest.pre_bypass_verification_result || latest.verification_result;
-  if (!['approved', 'blocked'].includes(computedStatus)) return null;
+  const isReusableDecision =
+    ['approved', 'blocked'].includes(computedStatus) ||
+    (computedStatus === 'verification_failed' && latest.vpn_or_proxy_detected);
+  if (!isReusableDecision) return null;
 
   return {
     status: computedStatus,
