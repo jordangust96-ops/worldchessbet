@@ -18,7 +18,19 @@ async function resolveOpponentName(base44Client, opponentId) {
   return 'Your opponent';
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
 function buildEmailBody({ opponentName, wagerAmount, timeControlLabel, appUrl }) {
+  const safeOpponentName = escapeHtml(opponentName);
+  const safeTimeControlLabel = escapeHtml(timeControlLabel);
+  const safeAppUrl = escapeHtml(appUrl);
   return `
     <div style="font-family: Arial, sans-serif; color: #111; line-height: 1.6; max-width: 480px;">
       <p style="color:#C9A84C; font-weight:bold; letter-spacing:1px; text-transform:uppercase; font-size:12px;">ChessBet</p>
@@ -26,7 +38,7 @@ function buildEmailBody({ opponentName, wagerAmount, timeControlLabel, appUrl })
       <table style="width:100%; border-collapse: collapse; margin: 20px 0;">
         <tr>
           <td style="padding: 8px 0; color:#555;">Opponent</td>
-          <td style="padding: 8px 0; text-align:right; font-weight:bold;">${opponentName}</td>
+          <td style="padding: 8px 0; text-align:right; font-weight:bold;">${safeOpponentName}</td>
         </tr>
         <tr>
           <td style="padding: 8px 0; color:#555;">Entry Amount</td>
@@ -34,11 +46,11 @@ function buildEmailBody({ opponentName, wagerAmount, timeControlLabel, appUrl })
         </tr>
         <tr>
           <td style="padding: 8px 0; color:#555;">Time Control</td>
-          <td style="padding: 8px 0; text-align:right; font-weight:bold;">${timeControlLabel}</td>
+          <td style="padding: 8px 0; text-align:right; font-weight:bold;">${safeTimeControlLabel}</td>
         </tr>
       </table>
       <p style="margin-top: 24px;">
-        <a href="${appUrl}/" style="background: #C9A84C; color: #000; font-weight: bold; padding: 12px 24px; border-radius: 8px; text-decoration: none; display:inline-block;">
+        <a href="${safeAppUrl}/" style="background: #C9A84C; color: #000; font-weight: bold; padding: 12px 24px; border-radius: 8px; text-decoration: none; display:inline-block;">
           Play Now
         </a>
       </p>
