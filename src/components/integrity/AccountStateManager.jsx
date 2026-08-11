@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { base44 } from "@/api/base44Client";
+import { invokeAdminFunction } from "@/lib/adminApi";
 import { trackPixelEvent } from "@/lib/metaPixel";
 
 const STATE_STYLES = {
@@ -22,7 +22,10 @@ export default function AccountStateManager({ targetUser, onChanged }) {
   const setState = async (nextState) => {
     setSettingState(nextState);
     try {
-      await base44.entities.User.update(targetUser.id, { account_state: nextState });
+      await invokeAdminFunction("manageUserAccountState", {
+        userId: targetUser.id,
+        accountState: nextState,
+      });
       onChanged?.();
     } finally {
       setSettingState(null);
@@ -35,7 +38,7 @@ export default function AccountStateManager({ targetUser, onChanged }) {
     setVerifyResult(null);
     trackPixelEvent("Identity Verification Started", { user_id: targetUser.id });
     try {
-      const res = await base44.functions.invoke("verifyUserIdentity", {
+      const res = await invokeAdminFunction("verifyUserIdentity", {
         userId: targetUser.id,
         idNumber: idNumber.trim(),
       });
