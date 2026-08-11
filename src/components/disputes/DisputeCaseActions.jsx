@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { base44 } from "@/api/base44Client";
+import { invokeAdminFunction } from "@/lib/adminApi";
 import { useAuth } from "@/lib/AuthContext";
 
 const SPECIALIST_REVIEWS = [
@@ -72,7 +72,7 @@ export default function DisputeCaseActions({
     disputeCase.hold_status && !["none", "released"].includes(disputeCase.hold_status);
 
   const invoke = (action, payload = {}) =>
-    base44.functions.invoke("manageDisputeCase", {
+    invokeAdminFunction("manageDisputeCase", {
       caseId: disputeCase.id,
       action,
       payload,
