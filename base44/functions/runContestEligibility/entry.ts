@@ -7,11 +7,14 @@ import { EARLY_ACCESS_MODE } from '../../shared/earlyAccess.ts';
 // or Match state transition occurs. There is no separate/duplicated version
 // of this validation logic anywhere else.
 //
-// Checks run in a fixed order:
+// Checks run in a fixed, cost-aware order:
 //   1. Identity Verification (account_state === 'verified')
-//   2. Geolocation Check (fresh, re-verified server-side every call)
-//   3. Participation Restrictions (admin-applied withdrawal_hold)
-//   4. Available Balance Check (>= entryAmount)
+//   2. Participation Restrictions (admin-applied withdrawal_hold)
+//   3. Available Balance Check (>= entryAmount)
+//   4. Jurisdiction Check (fresh or same-IP short-cache, server-side)
+//
+// Cheap local checks run first so an account that cannot participate never
+// causes a paid location lookup.
 //
 // Returns { eligible: boolean, reason?: string } and never mutates any
 // financial or Match state itself — callers only proceed with their own
@@ -40,8 +43,24 @@ Deno.serve(async (req) => {
       return Response.json({ eligible: false, reason });
     }
 
-    // 2. Jurisdiction Check — always re-verified server-side, never trusted
-    // from a stale value. Only 'approved' jurisdictions may proceed.
+    // 2. Participation Restrictions — admin-applied hold during an integrity review.
+    if (user.withdrawal_hold) {
+      return Response.json({
+        eligible: false,
+        reason: 'Your account is currently under review and cannot enter new contests at this time.',
+      });
+    }
+
+    // 3. Available Balance Check
+    const wallets = await base44.asServiceRole.entities.Wallet.filter({ user_id: user.id });
+    const wallet = wallets[0];
+    if (!wallet || (wallet.available_balance || 0) < amount) {
+      return Response.json({ eligible: false, reason: 'Insufficient balance for this entry amount.' });
+    }
+
+    // 4. Jurisdiction Check — performed only after all free local checks pass.
+    // getCurrentJurisdiction may reuse a recent result only for the exact same
+    // trusted edge IP; otherwise it performs a fresh provider lookup.
     const jurisdictionRes = await base44.functions.invoke('getCurrentJurisdiction', {
       triggerEvent: 'contest_eligibility',
       relatedEntityType: relatedEntityType || 'match',
@@ -53,21 +72,6 @@ Deno.serve(async (req) => {
         eligible: false,
         reason: jurisdictionRes.data?.reason || 'You are not currently eligible to enter a contest from your location.',
       });
-    }
-
-    // 3. Participation Restrictions — admin-applied hold during an integrity review.
-    if (user.withdrawal_hold) {
-      return Response.json({
-        eligible: false,
-        reason: 'Your account is currently under review and cannot enter new contests at this time.',
-      });
-    }
-
-    // 4. Available Balance Check
-    const wallets = await base44.asServiceRole.entities.Wallet.filter({ user_id: user.id });
-    const wallet = wallets[0];
-    if (!wallet || (wallet.available_balance || 0) < amount) {
-      return Response.json({ eligible: false, reason: 'Insufficient balance for this entry amount.' });
     }
 
     return Response.json({ eligible: true });
