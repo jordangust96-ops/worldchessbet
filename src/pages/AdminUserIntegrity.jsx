@@ -4,6 +4,7 @@ import moment from "moment";
 import { ArrowLeft, Loader2, ShieldAlert, Plus, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
+import { invokeAdminFunction } from "@/lib/adminApi";
 import IntegrityFlagCard from "@/components/integrity/IntegrityFlagCard";
 import NewIntegrityFlagForm from "@/components/integrity/NewIntegrityFlagForm";
 import AccountStateManager from "@/components/integrity/AccountStateManager";
@@ -82,7 +83,7 @@ export default function AdminUserIntegrity() {
     setRetryingAnalysisId(analysis.id);
     setRetryError("");
     try {
-      await base44.functions.invoke("requestFairPlayAnalysis", {
+      await invokeAdminFunction("requestFairPlayAnalysis", {
         matchId: analysis.match_id,
         gameId: analysis.game_id,
         force: analysis.status === "completed" || analysis.status === "manual_review",
