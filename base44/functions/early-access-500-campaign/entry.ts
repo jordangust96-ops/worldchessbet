@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk';
 import { EARLY_ACCESS_MODE, EARLY_ACCESS_STARTING_BALANCE } from '../../shared/earlyAccess.ts';
 import { postLedgerLegs } from '../../shared/ledger.ts';
+import { requireAdminMfa } from '../../shared/mfa.ts';
 
 const CAMPAIGN_KEY = 'early-access-500-july-2026';
 const SUBJECT = 'Your $500 Early Access stack is ready';
@@ -55,7 +56,9 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const caller = await base44.auth.me();
-    if (!caller || caller.role !== 'admin') return Response.json({ error: 'Admin access required' }, { status: 403 });
+    const body = await req.json();
+    const mfaError = await requireAdminMfa(base44, caller, body?.mfaSessionToken, req.headers.get('user-agent') || '');
+    if (mfaError) return mfaError;
 
     let run = (await base44.asServiceRole.entities.CampaignRun.filter({ campaign_key: CAMPAIGN_KEY }))[0];
     if (!run) {
