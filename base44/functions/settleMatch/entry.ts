@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Game is not completed yet' }, { status: 400 });
     }
 
-    const match = await base44.asServiceRole.entities.Match.get(game.match_id);
+    let match = await base44.asServiceRole.entities.Match.get(game.match_id);
     if (!match) return Response.json({ error: 'Match not found' }, { status: 404 });
 
     // Administrative pre-settlement hold — set only via a Dispute Case
@@ -51,6 +51,38 @@ Deno.serve(async (req) => {
     // this function is retried or the trigger fires more than once.
     if (match.status === 'completed') {
       return Response.json({ alreadySettled: true, match });
+    }
+    if (match.status === 'settling' || match.settlement_operation_id) {
+      return Response.json({ error: 'settlement_in_progress' }, { status: 409 });
+    }
+    if (!match.player1_deposited || !match.player2_deposited || !match.player1_certified || !match.player2_certified) {
+      return Response.json({ error: 'settlement_funding_evidence_missing' }, { status: 409 });
+    }
+
+    const fundingTransactions = await base44.asServiceRole.entities.WalletTransaction.filter({ match_id: match.id });
+    const hasCompletedFunding = (userId, type) => fundingTransactions.some(
+      (transaction) =>
+        transaction.user_id === userId &&
+        transaction.type === type &&
+        transaction.status === 'completed' &&
+        transaction.ledger_group_id &&
+        transaction.processed_at
+    );
+    for (const playerId of [match.player1_id, match.player2_id]) {
+      if (!playerId || !hasCompletedFunding(playerId, 'wager_lock') || !hasCompletedFunding(playerId, 'service_fee_charge')) {
+        return Response.json({ error: 'settlement_ledger_evidence_missing' }, { status: 409 });
+      }
+    }
+
+    const settlementOperationId = crypto.randomUUID();
+    await base44.asServiceRole.entities.Match.update(match.id, {
+      status: 'settling',
+      settlement_operation_id: settlementOperationId,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    match = await base44.asServiceRole.entities.Match.get(match.id);
+    if (match.settlement_operation_id !== settlementOperationId) {
+      return Response.json({ error: 'settlement_claim_lost' }, { status: 409 });
     }
 
     const wagerAmount = match.wager_amount || 0;
@@ -196,6 +228,7 @@ Deno.serve(async (req) => {
 
     const updatedMatch = await base44.asServiceRole.entities.Match.update(match.id, {
       status: 'completed',
+      settlement_operation_id: settlementOperationId,
       winner_id: game.winner_id || '',
       result: game.result,
       completed_at: game.completed_at || new Date().toISOString(),
