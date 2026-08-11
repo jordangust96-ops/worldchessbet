@@ -16,7 +16,7 @@ Deno.serve(async (req) => {
     const { matchId } = await req.json();
     if (!matchId) return Response.json({ error: 'matchId is required' }, { status: 400 });
 
-    const match = await base44.asServiceRole.entities.Match.get(matchId);
+    let match = await base44.asServiceRole.entities.Match.get(matchId);
     if (!match) return Response.json({ error: 'Match not found' }, { status: 404 });
 
     const isP1 = match.player1_id === user.id;
@@ -25,8 +25,22 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'You are not a player in this match' }, { status: 403 });
     }
 
-    if (match.status === 'cancelled' || match.status === 'completed' || match.status === 'in_progress') {
+    if (match.status === 'cancelled' || match.status === 'completed' || match.status === 'in_progress' || match.status === 'settling') {
       return Response.json({ error: 'This match can no longer be cancelled' }, { status: 400 });
+    }
+    if (match.status === 'cancelling' || match.cancellation_operation_id) {
+      return Response.json({ error: 'cancellation_in_progress' }, { status: 409 });
+    }
+
+    const cancellationOperationId = crypto.randomUUID();
+    await base44.asServiceRole.entities.Match.update(match.id, {
+      status: 'cancelling',
+      cancellation_operation_id: cancellationOperationId,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    match = await base44.asServiceRole.entities.Match.get(match.id);
+    if (match.cancellation_operation_id !== cancellationOperationId) {
+      return Response.json({ error: 'cancellation_claim_lost' }, { status: 409 });
     }
 
     const refundTargets = [];
@@ -92,7 +106,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    const updatedMatch = await base44.asServiceRole.entities.Match.update(match.id, { status: 'cancelled' });
+    const updatedMatch = await base44.asServiceRole.entities.Match.update(match.id, {
+      status: 'cancelled',
+      cancellation_operation_id: cancellationOperationId,
+      result: 'cancelled',
+    });
 
     await recordIntegrationEvent(base44, {
       eventType: 'contest.cancelled',
