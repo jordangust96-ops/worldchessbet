@@ -206,6 +206,7 @@ Deno.serve(async (req) => {
 
     return Response.json({ match: updatedMatch });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    console.error(JSON.stringify({ event: 'backend_function_failed', error: error?.message || 'unknown_error' }));
+    return Response.json({ error: 'internal_error' }, { status: 500 });
   }
 });
