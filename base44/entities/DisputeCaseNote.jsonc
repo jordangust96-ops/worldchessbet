@@ -106,11 +106,7 @@
     "action_type"
   ],
   "rls": {
-    "create": {
-      "user_condition": {
-        "role": "admin"
-      }
-    },
+    "create": false,
     "read": {
       "$or": [
         {
