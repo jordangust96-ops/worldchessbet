@@ -1,0 +1,43 @@
+{
+  "name": "MfaSession",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "Authenticated user bound to this second-factor session"
+    },
+    "token_hash": {
+      "type": "string",
+      "description": "SHA-256 hash of the opaque browser session token"
+    },
+    "device_hash": {
+      "type": "string",
+      "description": "SHA-256 hash of the user-agent binding"
+    },
+    "verified_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "revoked": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "user_id",
+    "token_hash",
+    "device_hash",
+    "verified_at",
+    "expires_at"
+  ],
+  "rls": {
+    "create": false,
+    "read": false,
+    "update": false,
+    "delete": false
+  }
+}
