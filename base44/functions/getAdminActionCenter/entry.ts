@@ -103,6 +103,13 @@ function disputeRecommendation(dispute, evidence) {
 }
 
 function flagRecommendation(flag, evidence) {
+  if (flag.flag_type === 'settlement_reconciliation_required') {
+    return {
+      recommendation: 'Reconcile the contest ledger before completing settlement; do not initiate a second payout.',
+      rationale: 'A settlement artifact exists without a completed Match. Automatic retries stopped to prevent duplicate financial movement. Verify the WalletTransaction, ledger group, wallet balances, and protected system accounts before taking a documented corrective action.',
+    };
+  }
+
   if (flag.flag_type === 'engine_assistance_suspected') {
     const result = fairPlayRecommendation(evidence);
     if (evidence?.band === 'cleared') {
