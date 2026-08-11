@@ -3,6 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { appParams } from '@/lib/app-params';
 import { createAxiosClient } from '@base44/sdk/dist/utils/axios-client';
 import { clearMfaVerified } from '@/lib/mfaSession';
+import { DEMO_MODE } from '@/lib/appConfig';
 
 const AuthContext = createContext();
 
@@ -14,11 +15,9 @@ export const AuthProvider = ({ children }) => {
   const [authError, setAuthError] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [appPublicSettings, setAppPublicSettings] = useState(null); // Contains only { id, public_settings }
-  // Jurisdiction status is re-verified server-side on every login via the
-  // centralized getCurrentJurisdiction function. Only 'approved' unlocks
-  // paid functionality; every other value places the account in Restricted
-  // Mode across the app. This context value is informational only — the
-  // real enforcement always happens server-side, on every paid action.
+  // This is the most recently persisted jurisdiction result and is display
+  // context only. Fresh enforcement happens server-side at funding and
+  // contest-participation boundaries, never during ordinary login/navigation.
   const [jurisdictionStatus, setJurisdictionStatus] = useState(null);
   const [jurisdictionReason, setJurisdictionReason] = useState('');
 
@@ -114,17 +113,11 @@ export const AuthProvider = ({ children }) => {
         base44.functions.invoke('sendWelcomeEmail', { userId: currentUser.id }).catch(() => {});
       }
 
-      // Verify the user's current jurisdiction on every login — never rely
-      // solely on registration-time verification.
-      base44.functions.invoke('getCurrentJurisdiction', { triggerEvent: 'login' })
-        .then(({ data }) => {
-          setJurisdictionStatus(data?.status || 'unknown');
-          setJurisdictionReason(data?.reason || '');
-        })
-        .catch(() => {
-          setJurisdictionStatus('verification_failed');
-          setJurisdictionReason('Unable to verify your location right now. Please try again shortly.');
-        });
+      // Do not spend a provider lookup on login. During Early Access the
+      // compliance gate is intentionally bypassed; after launch this display
+      // reflects the last server-side paid-action verification.
+      setJurisdictionStatus(DEMO_MODE ? 'approved' : (currentUser?.jurisdiction_status || 'unknown'));
+      setJurisdictionReason('');
     } catch (error) {
       console.error('User auth check failed:', error);
       setIsLoadingAuth(false);
