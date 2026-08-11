@@ -133,7 +133,6 @@ Deno.serve(async (req) => {
       status: 'in_progress',
       settlement_hold: false,
       settlement_operation_id: '',
-      settlement_claimed_at: '',
     });
 
     try {
