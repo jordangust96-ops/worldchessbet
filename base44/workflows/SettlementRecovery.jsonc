@@ -1,13 +1,13 @@
 {
   "name": "Settlement Recovery Sweep",
-  "description": "Every minute, retries completed games whose server-side settlement workflow was missed or safely recovers an abandoned pre-ledger settlement lease.",
+  "description": "Every five minutes, retries completed games whose server-side settlement workflow was missed or safely recovers an abandoned pre-ledger settlement lease.",
   "trigger": {
     "condition": null,
     "config": {
       "trigger_type": "scheduled",
       "events": [],
       "schedule_mode": "recurring",
-      "cron_expression": "* * * * *",
+      "cron_expression": "*/5 * * * *",
       "one_time_date": null,
       "timezone": "UTC",
       "interval_value": null,
