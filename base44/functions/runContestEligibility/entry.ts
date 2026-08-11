@@ -25,8 +25,11 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { entryAmount, relatedEntityType, relatedEntityId } = await req.json();
+    const { entryAmount, triggerEvent, relatedEntityType, relatedEntityId } = await req.json();
     const amount = Number(entryAmount);
+    const jurisdictionTrigger = ['create_match', 'accept_match'].includes(triggerEvent)
+      ? triggerEvent
+      : 'contest_eligibility';
     if (!Number.isFinite(amount) || amount <= 0) {
       return Response.json({ error: 'Invalid entry amount' }, { status: 400 });
     }
@@ -62,7 +65,7 @@ Deno.serve(async (req) => {
     // getCurrentJurisdiction may reuse a recent result only for the exact same
     // trusted edge IP; otherwise it performs a fresh provider lookup.
     const jurisdictionRes = await base44.functions.invoke('getCurrentJurisdiction', {
-      triggerEvent: 'contest_eligibility',
+      triggerEvent: jurisdictionTrigger,
       relatedEntityType: relatedEntityType || 'match',
       relatedEntityId: relatedEntityId || '',
       contextAmount: amount,
