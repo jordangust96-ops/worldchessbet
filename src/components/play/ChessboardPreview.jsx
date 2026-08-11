@@ -136,7 +136,7 @@ export default function ChessboardPreview({
         borderColor: style.borderColor,
       }}
       transition={style.wrapperTransition}
-      className="relative w-full lg:w-auto lg:h-full lg:aspect-square rounded-3xl overflow-hidden border shadow-2xl shadow-black/50"
+      className="relative w-full aspect-square lg:w-[var(--desktop-board-size)] lg:h-[var(--desktop-board-size)] lg:max-w-full lg:max-h-full rounded-3xl overflow-hidden border shadow-2xl shadow-black/50"
     >
       {style.breathe && (
         <motion.div
