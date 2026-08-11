@@ -208,6 +208,48 @@ export default function Home() {
     setActiveMatch(m);
   };
 
+  // Realtime remains the primary Match update path. While a completed Game is
+  // waiting for its Match settlement record, briefly poll the one active Match
+  // as a recovery path so a dropped realtime event cannot strand either player
+  // on "Finalizing match result...". Polling stops immediately at a terminal
+  // Match state and never runs during live play or in the marketplace.
+  useEffect(() => {
+    if (
+      !myMatchId ||
+      game?.status !== "completed" ||
+      activeMatch?.status === "completed" ||
+      activeMatch?.status === "cancelled"
+    ) {
+      return;
+    }
+
+    let mounted = true;
+    let requestInFlight = false;
+    const recoverSettlementStatus = async () => {
+      if (!mounted || requestInFlight || document.visibilityState !== "visible") return;
+      requestInFlight = true;
+      try {
+        const latestMatch = await base44.entities.Match.get(myMatchId);
+        if (mounted) setActiveMatch(latestMatch);
+      } catch {
+        // The next short recovery interval retries transient read failures.
+      } finally {
+        requestInFlight = false;
+      }
+    };
+
+    recoverSettlementStatus();
+    const interval = window.setInterval(recoverSettlementStatus, 2000);
+    window.addEventListener("focus", recoverSettlementStatus);
+    window.addEventListener("online", recoverSettlementStatus);
+    return () => {
+      mounted = false;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", recoverSettlementStatus);
+      window.removeEventListener("online", recoverSettlementStatus);
+    };
+  }, [myMatchId, game?.status, activeMatch?.status]);
+
   const refreshWallet = useCallback(async () => {
     if (!user?.id) return null;
     const wallets = await base44.entities.Wallet.filter({ user_id: user.id });
