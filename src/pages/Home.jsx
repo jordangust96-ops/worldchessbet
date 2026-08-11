@@ -8,6 +8,7 @@ import MatchView from "@/components/play/MatchView";
 import DemoModeNotice from "@/components/DemoModeNotice";
 import RestrictedModeBanner from "@/components/RestrictedModeBanner";
 import { useChessGame } from "@/hooks/useChessGame";
+import { useSize } from "@/hooks/use-size";
 import { trackPixelEvent } from "@/lib/metaPixel";
 import {
   getMoveSoundCue,
@@ -43,6 +44,12 @@ export default function Home() {
   const [movementMode, setMovementMode] = useState("drag");
   const [soundEnabled, setSoundEnabled] = useState(getStoredSoundPreference);
   const soundEnabledRef = useRef(soundEnabled);
+  const boardAreaRef = useRef(null);
+  const boardAreaSize = useSize(boardAreaRef);
+  const desktopBoardSize =
+    boardAreaSize?.width > 0 && boardAreaSize?.height > 0
+      ? Math.floor(Math.min(boardAreaSize.width, boardAreaSize.height))
+      : null;
   const moveSoundStateRef = useRef({ gameId: null, moveCount: 0 });
   const { fen, handleDrop, handleSquareClick, selectedSquare, legalTargets, orientation, game } =
     useChessGame(myMatchId, user?.id, gameActive);
@@ -346,7 +353,7 @@ export default function Home() {
   }, [activeMatch?.id, activeMatch?.status, activeMatch?.result, activeMatch?.winner_id, user?.id]);
 
   return (
-    <div className="min-h-screen px-5 pt-6 lg:h-screen lg:overflow-hidden lg:flex lg:flex-col lg:pb-24">
+    <div className="min-h-screen px-5 pt-6 lg:h-dvh lg:overflow-hidden lg:flex lg:flex-col lg:pb-24">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
@@ -374,7 +381,9 @@ export default function Home() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="lg:w-[62%] w-full lg:h-full lg:flex lg:flex-col lg:items-center lg:justify-center gap-3"
+          ref={boardAreaRef}
+          className="w-full min-w-0 min-h-0 lg:h-full lg:flex-[62_1_0%] lg:flex lg:flex-col lg:items-center lg:justify-center lg:overflow-hidden gap-3"
+          style={desktopBoardSize ? { "--desktop-board-size": `${desktopBoardSize}px` } : undefined}
         >
           <ChessboardPreview
             state={boardState}
@@ -393,7 +402,7 @@ export default function Home() {
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="lg:w-[38%] w-full lg:h-full lg:min-h-0"
+          className="w-full min-w-0 lg:h-full lg:min-h-0 lg:flex-[38_1_0%]"
         >
           {myMatchId ? (
             <MatchView
