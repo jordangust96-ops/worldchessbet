@@ -166,11 +166,7 @@
     "resolution_timestamp"
   ],
   "rls": {
-    "create": {
-      "user_condition": {
-        "role": "admin"
-      }
-    },
+    "create": false,
     "read": {
       "user_condition": {
         "role": "admin"
