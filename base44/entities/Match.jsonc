@@ -50,6 +50,8 @@
         "both_ready",
         "in_progress",
         "completed",
+        "settling",
+        "cancelling",
         "cancelled",
         "disputed"
       ],
@@ -141,6 +143,22 @@
       "type": "boolean",
       "default": false,
       "description": "Set by an administrator (via a Dispute Case pre-settlement hold) to pause automatic settlement while an investigation is open. While true, settleMatch takes no action even after the Game completes \u2014 both players' funds remain in the Contest Clearing Account. Cleared only by the administrator releasing the hold, which resumes settlement."
+    },
+    "settlement_operation_id": {
+      "type": "string",
+      "description": "Server-generated ownership token for an in-flight settlement"
+    },
+    "cancellation_operation_id": {
+      "type": "string",
+      "description": "Server-generated ownership token for an in-flight cancellation/refund"
+    },
+    "player1_funding_operation_id": {
+      "type": "string",
+      "description": "Server-generated ownership token for player 1 funding"
+    },
+    "player2_funding_operation_id": {
+      "type": "string",
+      "description": "Server-generated ownership token for player 2 funding"
     },
     "description": {
       "type": "string",
