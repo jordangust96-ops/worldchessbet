@@ -17,11 +17,14 @@ Deno.serve(async (req) => {
     const { matchId, inviteCode } = await req.json();
     if (!matchId) return Response.json({ error: 'matchId is required' }, { status: 400 });
 
-    const match = await base44.asServiceRole.entities.Match.get(matchId);
+    let match = await base44.asServiceRole.entities.Match.get(matchId);
     if (!match) return Response.json({ error: 'Match not found' }, { status: 404 });
 
     if (match.status !== 'searching') {
       return Response.json({ error: 'This match is no longer available' }, { status: 400 });
+    }
+    if (match.acceptance_operation_id) {
+      return Response.json({ error: 'acceptance_in_progress' }, { status: 409 });
     }
     if (match.player1_id === user.id) {
       return Response.json({ error: 'You cannot accept your own match' }, { status: 400 });
@@ -42,6 +45,16 @@ Deno.serve(async (req) => {
       return Response.json({ error: eligibilityRes.data?.reason || eligibilityRes.data?.error || 'You are not eligible to join this contest' }, { status: 403 });
     }
 
+    const acceptanceOperationId = crypto.randomUUID();
+    await base44.asServiceRole.entities.Match.update(match.id, {
+      acceptance_operation_id: acceptanceOperationId,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    match = await base44.asServiceRole.entities.Match.get(match.id);
+    if (match.acceptance_operation_id !== acceptanceOperationId || match.status !== 'searching') {
+      return Response.json({ error: 'match_acceptance_claim_lost' }, { status: 409 });
+    }
+
     // The host's own jurisdiction is never trusted from a cached field here —
     // that previously relied on host.jurisdiction_status, which could go
     // stale (e.g. it would keep rejecting a Michigan host who was verified
@@ -56,6 +69,7 @@ Deno.serve(async (req) => {
     // slot. Moves both players into the shared Preparing Match phase.
     const updatedMatch = await base44.asServiceRole.entities.Match.update(match.id, {
       player2_id: user.id,
+      acceptance_operation_id: acceptanceOperationId,
       status: 'preparing',
       preparation_started_at: new Date().toISOString(),
     });
