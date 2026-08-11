@@ -169,39 +169,6 @@
         "write": false
       }
     },
-    "settlement_reconciliation_operation_id": {
-      "type": "string",
-      "description": "Server-generated identifier for an administrator-approved settlement reconciliation.",
-      "rls": {
-        "read": false,
-        "write": false
-      }
-    },
-    "settlement_reconciliation_shortfall": {
-      "type": "number",
-      "description": "Admin-approved reserve variance covered by the reconciliation expense leg.",
-      "rls": {
-        "read": false,
-        "write": false
-      }
-    },
-    "settlement_reconciliation_approved_by": {
-      "type": "string",
-      "description": "Administrator who approved the settlement reconciliation.",
-      "rls": {
-        "read": false,
-        "write": false
-      }
-    },
-    "settlement_reconciliation_approved_at": {
-      "type": "string",
-      "format": "date-time",
-      "description": "Timestamp of administrator approval for settlement reconciliation.",
-      "rls": {
-        "read": false,
-        "write": false
-      }
-    },
     "cancellation_operation_id": {
       "type": "string",
       "description": "Server-generated ownership token for an in-flight cancellation/refund",
