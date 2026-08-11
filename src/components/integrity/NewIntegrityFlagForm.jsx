@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { base44 } from "@/api/base44Client";
+import { invokeAdminFunction } from "@/lib/adminApi";
 import { FLAG_TYPE_LABELS } from "@/lib/integrityLabels";
 
 export default function NewIntegrityFlagForm({ userId, onCreated }) {
@@ -13,7 +13,7 @@ export default function NewIntegrityFlagForm({ userId, onCreated }) {
   const handleCreate = async () => {
     setSaving(true);
     try {
-      await base44.functions.invoke("createIntegrityFlag", { userId, flagType, severity, notes });
+      await invokeAdminFunction("createIntegrityFlag", { userId, flagType, severity, notes });
       setNotes("");
       onCreated?.();
     } finally {
