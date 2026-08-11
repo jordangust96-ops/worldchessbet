@@ -144,6 +144,10 @@
       "default": false,
       "description": "Set by an administrator (via a Dispute Case pre-settlement hold) to pause automatic settlement while an investigation is open. While true, settleMatch takes no action even after the Game completes \u2014 both players' funds remain in the Contest Clearing Account. Cleared only by the administrator releasing the hold, which resumes settlement."
     },
+    "acceptance_operation_id": {
+      "type": "string",
+      "description": "Server-generated ownership token for an in-flight opponent reservation"
+    },
     "settlement_operation_id": {
       "type": "string",
       "description": "Server-generated ownership token for an in-flight settlement"
