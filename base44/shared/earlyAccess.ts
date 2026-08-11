@@ -6,9 +6,9 @@
 // platform — identity verification (Plaid), geolocation enforcement
 // (MaxMind), bank account linking, and Finix payment processing — to be
 // bypassed, so the app behaves as a fully playable beta WITHOUT removing or
-// altering any of the underlying production integration code. Affected
-// functions still run their real checks and log the outcome; only the
-// decision to actually block the user is skipped while this flag is true.
+// altering any underlying production integration code. Paid geolocation
+// lookups are skipped entirely in this mode, except for an explicit admin-only
+// forced integration test; other integrations follow their own safe bypass.
 //
 // MUST be switched to false before public production launch. Doing so
 // restores full enforcement everywhere with no other code changes required,
