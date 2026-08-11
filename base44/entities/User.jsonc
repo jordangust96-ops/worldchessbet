@@ -68,7 +68,7 @@
     },
     "jurisdiction_status": {
       "type": "string",
-      "description": "Current jurisdiction verification status, maintained exclusively by the getCurrentJurisdiction backend function. Only 'approved' may access paid platform functionality (deposits, withdrawals, contest creation/joining). All other values place the account in Restricted Mode.",
+      "description": "Most recent jurisdiction verification status, maintained exclusively by the getCurrentJurisdiction backend function. Only 'approved' may fund an account or create/join/fund a paid contest. Location never prevents withdrawal of the user's existing available funds.",
       "enum": [
         "approved",
         "blocked",
