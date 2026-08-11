@@ -160,6 +160,15 @@
         "write": false
       }
     },
+    "settlement_claimed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Server timestamp for the current settlement lease. Used only to recover abandoned pre-ledger attempts.",
+      "rls": {
+        "read": false,
+        "write": false
+      }
+    },
     "cancellation_operation_id": {
       "type": "string",
       "description": "Server-generated ownership token for an in-flight cancellation/refund",
