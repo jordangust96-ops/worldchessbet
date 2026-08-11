@@ -1,19 +1,42 @@
+import { useEffect, useState } from "react";
 import { Navigate, Outlet } from "react-router-dom";
-import { isMfaVerified } from "@/lib/mfaSession";
-import { useAuth } from "@/lib/AuthContext";
+import { base44 } from "@/api/base44Client";
+import { clearMfaVerified, getMfaSessionToken } from "@/lib/mfaSession";
 
-// This admin account never requires the 2FA second factor.
-const MFA_EXEMPT_EMAILS = ["jordangust96@gmail.com"];
-
-// Sits inside ProtectedRoute: the user already holds a valid session token
-// here, but every protected page still requires the MFA second factor to
-// have been completed for this session before rendering.
 export default function MfaGuard() {
-  const { user } = useAuth();
-  const isExempt = MFA_EXEMPT_EMAILS.includes(user?.email);
+  const [status, setStatus] = useState("checking");
+  const token = getMfaSessionToken();
 
-  if (!isExempt && !isMfaVerified()) {
-    return <Navigate to="/verify-mfa" replace />;
+  useEffect(() => {
+    let active = true;
+    const validate = async () => {
+      if (!token) {
+        if (active) setStatus("invalid");
+        return;
+      }
+      try {
+        const { data } = await base44.functions.invoke("validateMfaSession", {
+          sessionToken: token,
+        });
+        if (active) setStatus(data?.valid ? "valid" : "invalid");
+      } catch {
+        clearMfaVerified();
+        if (active) setStatus("invalid");
+      }
+    };
+    validate();
+    return () => {
+      active = false;
+    };
+  }, [token]);
+
+  if (status === "checking") {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-[#0A0A0A]">
+        <div className="w-8 h-8 border-4 border-white/10 border-t-[#C9A84C] rounded-full animate-spin" />
+      </div>
+    );
   }
+  if (status !== "valid") return <Navigate to="/verify-mfa" replace />;
   return <Outlet />;
 }
