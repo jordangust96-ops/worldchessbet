@@ -293,17 +293,37 @@ Deno.serve(async (req) => {
         legs.push({ ledgerAccount: 'user_account', userId: loserId, debit: 0, credit: 0, heldDelta: -(wagerAmount + serviceFee), transactionType: 'match_settlement' });
       }
 
-      await postLedgerLegs(base44, {
-        groupId: crypto.randomUUID(),
-        matchId: match.id,
-        gameId: game.id,
-        walletTransactionId: walletTransaction.id,
-        actor: 'system',
-        triggerEvent: 'match_settlement',
-        externalRefType: 'match',
-        externalRefId: match.id,
-        legs,
-      });
+      try {
+        await postLedgerLegs(base44, {
+          groupId: crypto.randomUUID(),
+          matchId: match.id,
+          gameId: game.id,
+          walletTransactionId: walletTransaction.id,
+          actor: 'system',
+          triggerEvent: 'match_settlement',
+          externalRefType: 'match',
+          externalRefId: match.id,
+          legs,
+        });
+      } catch (postingError) {
+        const diagnostic = String(postingError?.message || 'unknown_posting_error').slice(0, 500);
+        console.error(JSON.stringify({
+          event: 'settlement_ledger_posting_failed',
+          match_id: match.id,
+          game_id: game.id,
+          diagnostic,
+        }));
+        const reconciliationFlags = await base44.asServiceRole.entities.IntegrityFlag.filter({
+          match_id: match.id,
+          flag_type: 'settlement_reconciliation_required',
+        }, '-created_date', 10);
+        await Promise.all(reconciliationFlags
+          .filter((row) => ['open', 'under_review'].includes(row.status))
+          .map((row) => base44.asServiceRole.entities.IntegrityFlag.update(row.id, {
+            notes: `${row.notes || ''}\n\nLatest settlement posting diagnostic: ${diagnostic}`.trim(),
+          })));
+        throw postingError;
+      }
 
       await Promise.all([
         updatePlayerStats(winnerId, 'win'),
