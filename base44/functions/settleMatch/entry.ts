@@ -52,14 +52,49 @@ Deno.serve(async (req) => {
     if (match.status === 'completed') {
       return Response.json({ alreadySettled: true, match });
     }
+
+    const fundingTransactions = await base44.asServiceRole.entities.WalletTransaction.filter({ match_id: match.id });
+
+    // Settlement ownership is a short lease rather than a permanent lock. A
+    // process can disappear before it writes any financial result, so a stale
+    // lease is recoverable only when there is no payout/refund or settlement
+    // ledger evidence. Once financial writing has begun, fail closed for manual
+    // reconciliation instead of risking a duplicate payout.
     if (match.status === 'settling' || match.settlement_operation_id) {
-      return Response.json({ error: 'settlement_in_progress' }, { status: 409 });
+      const leaseTimestamp = match.settlement_claimed_at || match.updated_date || match.created_date;
+      const leaseAgeMs = Date.now() - new Date(leaseTimestamp || 0).getTime();
+      if (!Number.isFinite(leaseAgeMs) || leaseAgeMs < 2 * 60 * 1000) {
+        return Response.json({ error: 'settlement_in_progress' }, { status: 409 });
+      }
+
+      const settlementTransactions = fundingTransactions.filter((transaction) =>
+        ['payout', 'wager_refund', 'service_fee_refund'].includes(transaction.type)
+      );
+      const ledgerEntries = await base44.asServiceRole.entities.LedgerEntry.filter({ match_id: match.id });
+      const settlementLedgerEntries = ledgerEntries.filter((entry) =>
+        ['match_settlement', 'match_settlement_draw', 'service_fee_refund'].includes(entry.trigger_event)
+      );
+      if (settlementTransactions.length || settlementLedgerEntries.length) {
+        console.error(JSON.stringify({
+          event: 'settlement_reconciliation_required',
+          match_id: match.id,
+          game_id: game.id,
+          settlement_transaction_count: settlementTransactions.length,
+          settlement_ledger_entry_count: settlementLedgerEntries.length,
+        }));
+        return Response.json({ error: 'settlement_reconciliation_required' }, { status: 409 });
+      }
+
+      await base44.asServiceRole.entities.Match.update(match.id, {
+        status: 'in_progress',
+        settlement_operation_id: '',
+      });
+      match = await base44.asServiceRole.entities.Match.get(match.id);
     }
+
     if (!match.player1_deposited || !match.player2_deposited || !match.player1_certified || !match.player2_certified) {
       return Response.json({ error: 'settlement_funding_evidence_missing' }, { status: 409 });
     }
-
-    const fundingTransactions = await base44.asServiceRole.entities.WalletTransaction.filter({ match_id: match.id });
     const hasCompletedFunding = (userId, type) => fundingTransactions.some(
       (transaction) =>
         transaction.user_id === userId &&
@@ -78,6 +113,7 @@ Deno.serve(async (req) => {
     await base44.asServiceRole.entities.Match.update(match.id, {
       status: 'settling',
       settlement_operation_id: settlementOperationId,
+      settlement_claimed_at: new Date().toISOString(),
     });
     await new Promise((resolve) => setTimeout(resolve, 150));
     match = await base44.asServiceRole.entities.Match.get(match.id);
