@@ -11,7 +11,6 @@ import GoogleIcon from "@/components/GoogleIcon";
 import AppleIcon from "@/components/AppleIcon";
 import FacebookIcon from "@/components/FacebookIcon";
 import { toast } from "@/components/ui/use-toast";
-import { setMfaVerified } from "@/lib/mfaSession";
 import { getPostAuthRedirect } from "@/lib/postAuthRedirect";
 import { POLICY_TYPE_ORDER } from "@/lib/legalDocumentTypes";
 import { trackPixelEvent } from "@/lib/metaPixel";
@@ -97,12 +96,9 @@ export default function Register() {
       } catch (acceptanceErr) {
         // Non-fatal: acceptance recording should not block account access.
       }
-      // The registration OTP already confirmed control of this email address —
-      // don't immediately trigger a second, separate MFA verification email.
-      setMfaVerified();
       trackPixelEvent("Registration Completed");
       base44.analytics.track({ eventName: "user_login", properties: { method: "email", user_type: "new" } });
-      window.location.href = getPostAuthRedirect() || "/";
+      window.location.href = "/verify-mfa";
     } catch (err) {
       setError(err.message || "Invalid verification code");
     } finally {
