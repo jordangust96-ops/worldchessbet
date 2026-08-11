@@ -100,6 +100,7 @@ export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletT
       };
       const requiresExternalRail = ['deposit', 'withdrawal', 'account_closure_disbursement'].includes(triggerEvent);
       await base44.asServiceRole.entities.WalletTransaction.update(walletTransactionId, {
+        status: 'completed',
         currency: 'USD',
         direction: directionByType[walletTransaction.type] || 'internal',
         correlation_id: correlationId,
