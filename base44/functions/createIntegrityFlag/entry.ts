@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { requireAdminMfa } from '../../shared/mfa.ts';
 
 // Lets an admin manually open an IntegrityFlag (e.g. a reported concern that
 // doesn't fit an automatic rule yet). Admin-only. Never suspends users or
@@ -7,10 +8,11 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const admin = await base44.auth.me();
-    if (!admin) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    if (admin.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 });
+    const body = await req.json();
+    const mfaError = await requireAdminMfa(base44, admin, body?.mfaSessionToken, req.headers.get('user-agent') || '');
+    if (mfaError) return mfaError;
 
-    const { userId, matchId, flagType, severity, notes } = await req.json();
+    const { userId, matchId, flagType, severity, notes } = body;
     if (!userId) return Response.json({ error: 'userId is required' }, { status: 400 });
 
     const flag = await base44.asServiceRole.entities.IntegrityFlag.create({
