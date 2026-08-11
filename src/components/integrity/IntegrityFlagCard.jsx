@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import moment from "moment";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { base44 } from "@/api/base44Client";
+import { invokeAdminFunction } from "@/lib/adminApi";
 import { SeverityBadge, StatusBadge } from "@/components/integrity/IntegrityBadges";
 import { FLAG_TYPE_LABELS } from "@/lib/integrityLabels";
 
@@ -13,7 +13,7 @@ export default function IntegrityFlagCard({ flag, withdrawalHold, onChanged }) {
   const runAction = async (action) => {
     setBusyAction(action);
     try {
-      await base44.functions.invoke("manageIntegrityFlag", { flagId: flag.id, action, notes });
+      await invokeAdminFunction("manageIntegrityFlag", { flagId: flag.id, action, notes });
       setNotes("");
       onChanged?.();
     } finally {
