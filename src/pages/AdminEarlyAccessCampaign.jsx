@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Loader2, Mail, Send } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
+import { invokeAdminFunction } from '@/lib/adminApi';
 
 const ALLOWED_ADMIN_EMAIL = 'jordangust96@gmail.com';
 
@@ -23,7 +24,7 @@ export default function AdminEarlyAccessCampaign() {
     setRunning(true);
     setError('');
     try {
-      const { data } = await base44.functions.invoke('early-access-500-campaign', {});
+      const { data } = await invokeAdminFunction('early-access-500-campaign', {});
       setResult(data);
     } catch (err) {
       setError(err?.response?.data?.error || err.message || 'Campaign could not be completed.');
