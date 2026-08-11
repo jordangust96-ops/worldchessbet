@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { requireAdminMfa } from '../../shared/mfa.ts';
 
 // Admin-only actions on an existing IntegrityFlag. Every action writes an
 // immutable IntegrityAuditLog entry. No action here ever automatically bans
@@ -18,10 +19,11 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const admin = await base44.auth.me();
-    if (!admin) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    if (admin.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 });
+    const body = await req.json();
+    const mfaError = await requireAdminMfa(base44, admin, body?.mfaSessionToken, req.headers.get('user-agent') || '');
+    if (mfaError) return mfaError;
 
-    const { flagId, action, notes } = await req.json();
+    const { flagId, action, notes } = body;
     if (!flagId || !VALID_ACTIONS.includes(action)) {
       return Response.json({ error: 'A valid flagId and action are required' }, { status: 400 });
     }
