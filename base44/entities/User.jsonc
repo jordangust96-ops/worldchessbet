@@ -224,6 +224,14 @@
       "rls": {
         "write": false
       }
+    },
+    "marketing_unsubscribe_token": {
+      "type": "string",
+      "description": "Opaque capability token required by public marketing unsubscribe links",
+      "rls": {
+        "read": false,
+        "write": false
+      }
     }
   },
   "required": [
