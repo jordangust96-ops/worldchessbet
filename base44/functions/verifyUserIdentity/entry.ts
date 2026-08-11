@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
+import { requireAdminMfa } from '../../shared/mfa.ts';
 
 // Admin-only: completes identity verification for a user. Each individual may
 // hold only one Account — the submitted ID number is hashed and checked
@@ -9,10 +10,11 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const admin = await base44.auth.me();
-    if (!admin) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    if (admin.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 });
+    const body = await req.json();
+    const mfaError = await requireAdminMfa(base44, admin, body?.mfaSessionToken, req.headers.get('user-agent') || '');
+    if (mfaError) return mfaError;
 
-    const { userId, idNumber } = await req.json();
+    const { userId, idNumber } = body;
     if (!userId || !idNumber || typeof idNumber !== 'string' || !idNumber.trim()) {
       return Response.json({ error: 'userId and idNumber are required' }, { status: 400 });
     }
