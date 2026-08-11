@@ -238,7 +238,7 @@ export default function Home() {
         // was missed; it cannot choose the result or settle twice.
         const previousAttempt = settlementRecoveryRequestRef.current;
         const shouldRequestRecovery =
-          latestMatch.status === "in_progress" &&
+          ["in_progress", "settling"].includes(latestMatch.status) &&
           !latestMatch.settlement_hold &&
           game?.id &&
           (previousAttempt.matchId !== myMatchId || Date.now() - previousAttempt.attemptedAt >= 10_000);
