@@ -253,6 +253,11 @@ Deno.serve(async (req) => {
         return Response.json({ error: 'invalid_settlement_reconciliation_shortfall' }, { status: 409 });
       }
       appliedReconciliation = approvedReconciliation;
+      if (appliedReconciliation) {
+        await base44.asServiceRole.entities.SettlementReconciliation.update(appliedReconciliation.id, {
+          notes: `${appliedReconciliation.notes || ''}\nLatest stage: approval_loaded (shortfall $${approvedShortfall.toFixed(2)})`.trim(),
+        });
+      }
 
       const walletTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
         user_id: winnerId,
@@ -262,6 +267,11 @@ Deno.serve(async (req) => {
         description: 'Contest winnings payout — full combined entry amounts',
         status: 'pending',
       });
+      if (appliedReconciliation) {
+        await base44.asServiceRole.entities.SettlementReconciliation.update(appliedReconciliation.id, {
+          notes: `${appliedReconciliation.notes || ''}\nLatest stage: payout_created (${walletTransaction.id})`.trim(),
+        });
+      }
 
       // Double-entry: Debit Contest Reserve for the full pot; Credit Winner
       // Available Balance the ENTIRE pot (100% — no percentage deducted).
@@ -293,6 +303,11 @@ Deno.serve(async (req) => {
         legs.push({ ledgerAccount: 'user_account', userId: loserId, debit: 0, credit: 0, heldDelta: -(wagerAmount + serviceFee), transactionType: 'match_settlement' });
       }
 
+      if (appliedReconciliation) {
+        await base44.asServiceRole.entities.SettlementReconciliation.update(appliedReconciliation.id, {
+          notes: `${appliedReconciliation.notes || ''}\nLatest stage: ledger_posting_started`.trim(),
+        });
+      }
       try {
         await postLedgerLegs(base44, {
           groupId: crypto.randomUUID(),
@@ -313,6 +328,11 @@ Deno.serve(async (req) => {
           game_id: game.id,
           diagnostic,
         }));
+        if (appliedReconciliation) {
+          await base44.asServiceRole.entities.SettlementReconciliation.update(appliedReconciliation.id, {
+            notes: `${appliedReconciliation.notes || ''}\nLatest stage: ledger_posting_failed — ${diagnostic}`.trim(),
+          });
+        }
         const reconciliationFlags = await base44.asServiceRole.entities.IntegrityFlag.filter({
           match_id: match.id,
           flag_type: 'settlement_reconciliation_required',
