@@ -114,12 +114,24 @@ Deno.serve(async (req) => {
     }
 
     const reconciliationOperationId = crypto.randomUUID();
+    const existingApprovals = await base44.asServiceRole.entities.SettlementReconciliation.filter({
+      match_id: match.id,
+      status: 'approved',
+    }, '-approved_at', 5);
+    if (!existingApprovals.length) {
+      await base44.asServiceRole.entities.SettlementReconciliation.create({
+        match_id: match.id,
+        operation_id: reconciliationOperationId,
+        reserve_shortfall: reserveShortfall,
+        approved_by: admin.id,
+        approved_at: new Date().toISOString(),
+        status: 'approved',
+        notes: 'Approved from the admin settlement-reconciliation workflow after orphan transaction and ledger evidence validation.',
+      });
+    }
+
     await base44.asServiceRole.entities.Match.update(match.id, {
       settlement_hold: true,
-      settlement_reconciliation_operation_id: reconciliationOperationId,
-      settlement_reconciliation_shortfall: reserveShortfall,
-      settlement_reconciliation_approved_by: admin.id,
-      settlement_reconciliation_approved_at: new Date().toISOString(),
     });
 
     await base44.asServiceRole.entities.WalletTransaction.update(orphanTransactions[0].id, {
