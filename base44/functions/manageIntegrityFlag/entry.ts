@@ -31,6 +31,20 @@ Deno.serve(async (req) => {
     const flag = await base44.asServiceRole.entities.IntegrityFlag.get(flagId);
     if (!flag) return Response.json({ error: 'Flag not found' }, { status: 404 });
 
+    if (
+      flag.flag_type === 'settlement_reconciliation_required' &&
+      ['mark_cleared', 'mark_action_taken'].includes(action)
+    ) {
+      const match = flag.match_id
+        ? await base44.asServiceRole.entities.Match.get(flag.match_id).catch(() => null)
+        : null;
+      if (!match || !['completed', 'cancelled'].includes(match.status)) {
+        return Response.json({
+          error: 'Financial settlement alerts cannot be cleared while the linked contest remains unresolved. Use Reconcile & Complete or keep the item under review.',
+        }, { status: 409 });
+      }
+    }
+
     const previousStatus = flag.status;
     let newStatus = previousStatus;
     const flagUpdates = { assigned_admin_id: admin.id };
