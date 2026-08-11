@@ -10,6 +10,11 @@ import { getPlatformServiceFee, PLATFORM_FEE_SCHEDULE_VERSION, requiresManualFee
 // same screen, regardless of how they found their opponent.
 
 const VALID_TIME_CONTROLS = new Set(['blitz', 'rapid', 'classical']);
+const TIME_CONTROL_LABELS = {
+  blitz: 'Blitz (3+0)',
+  rapid: 'Rapid (10+0)',
+  classical: 'Classical (15+0)',
+};
 
 Deno.serve(async (req) => {
   try {
@@ -17,7 +22,7 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { wagerAmount, timeControl, displayName, isPrivate } = await req.json();
+    const { wagerAmount, timeControl, isPrivate } = await req.json();
     const wager = Number(wagerAmount);
     if (!Number.isFinite(wager) || wager < 5) {
       return Response.json({ error: 'The minimum Contest Entry Amount is $5.00.' }, { status: 400 });
@@ -47,7 +52,7 @@ Deno.serve(async (req) => {
       platform_service_fee: platformServiceFee,
       platform_fee_schedule_version: PLATFORM_FEE_SCHEDULE_VERSION,
       time_control: timeControl,
-      display_name: displayName,
+      display_name: TIME_CONTROL_LABELS[timeControl],
       status: 'searching',
       is_private: !!isPrivate,
       player1_deposited: false,
