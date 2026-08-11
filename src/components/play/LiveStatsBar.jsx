@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 
 const REFRESH_INTERVAL_MS = 15000;
 const RELEVANT_MATCH_STATUSES = new Set(["searching", "preparing", "both_ready", "in_progress", "completed", "cancelled"]);
+const RELEVANT_GAME_STATUSES = new Set(["active", "completed", "abandoned"]);
 
 // Thin, subtle stats strip shown above the match list — read-only and purely
 // informational. It preserves its height while loading to avoid layout shifts.
@@ -39,10 +40,18 @@ export default function LiveStatsBar() {
     const refreshWhenVisible = () => {
       if (document.visibilityState === "visible") fetchStats();
     };
-    const unsubscribe = base44.entities.Match.subscribe((event) => {
+    const unsubscribeMatches = base44.entities.Match.subscribe((event) => {
       if (
         (event.type === "create" || event.type === "update") &&
         RELEVANT_MATCH_STATUSES.has(event.data?.status)
+      ) {
+        fetchStats();
+      }
+    });
+    const unsubscribeGames = base44.entities.Game.subscribe((event) => {
+      if (
+        (event.type === "create" || event.type === "update") &&
+        RELEVANT_GAME_STATUSES.has(event.data?.status)
       ) {
         fetchStats();
       }
@@ -53,7 +62,8 @@ export default function LiveStatsBar() {
     window.addEventListener("online", refreshWhenVisible);
     return () => {
       clearInterval(interval);
-      unsubscribe();
+      unsubscribeMatches();
+      unsubscribeGames();
       document.removeEventListener("visibilitychange", refreshWhenVisible);
       window.removeEventListener("focus", refreshWhenVisible);
       window.removeEventListener("online", refreshWhenVisible);
@@ -72,7 +82,7 @@ export default function LiveStatsBar() {
       icon: Swords,
       value: stats?.matchesLive,
       label: "Live games",
-      help: "Contests currently in progress",
+      help: "Games with an active server record and a running authoritative clock",
     },
     {
       icon: ListChecks,
