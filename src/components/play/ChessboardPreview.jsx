@@ -6,6 +6,7 @@ import { useSize } from "@/hooks/use-size";
 const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 // Board surface colors — marketplace stays quiet/dark, active states get a brighter, illuminated surface.
+// Illumination uses inset shadows so it never paints beyond the rounded board border.
 const MARKETPLACE_SQUARES = { dark: "#171310", light: "#2A231A" };
 const ACTIVE_SQUARES = { dark: "#241C15", light: "#3A3021" };
 
@@ -19,7 +20,7 @@ const STATE_STYLES = {
   marketplace: {
     wrapperAnimate: { opacity: 1 },
     wrapperTransition: { duration: 0.8, ease: "easeOut" },
-    glow: "0 0 0 rgba(201,168,76,0)",
+    glow: "inset 0 0 0 rgba(201,168,76,0)",
     borderColor: "rgba(201,168,76,0.2)",
     ambientOpacity: 0,
     breathe: false,
@@ -31,7 +32,7 @@ const STATE_STYLES = {
   accepted: {
     wrapperAnimate: { opacity: 1 },
     wrapperTransition: { duration: 1, ease: "easeOut" },
-    glow: "0 0 30px rgba(201,168,76,0.18)",
+    glow: "inset 0 0 18px rgba(201,168,76,0.1)",
     borderColor: "rgba(201,168,76,0.35)",
     ambientOpacity: 0.55,
     breathe: false,
@@ -43,7 +44,7 @@ const STATE_STYLES = {
   deposit_waiting: {
     wrapperAnimate: { opacity: 1 },
     wrapperTransition: { duration: 1, ease: "easeOut" },
-    glow: "0 0 30px rgba(201,168,76,0.18)",
+    glow: "inset 0 0 18px rgba(201,168,76,0.1)",
     borderColor: "rgba(201,168,76,0.35)",
     ambientOpacity: 0.55,
     breathe: true,
@@ -55,7 +56,7 @@ const STATE_STYLES = {
   both_ready: {
     wrapperAnimate: { opacity: 1 },
     wrapperTransition: { duration: 0.8, ease: "easeOut" },
-    glow: "0 0 45px rgba(201,168,76,0.3)",
+    glow: "inset 0 0 24px rgba(201,168,76,0.14)",
     borderColor: "rgba(201,168,76,0.6)",
     ambientOpacity: 0.75,
     breathe: false,
@@ -67,7 +68,7 @@ const STATE_STYLES = {
   in_progress: {
     wrapperAnimate: { opacity: 1 },
     wrapperTransition: { duration: 0.8, ease: "easeOut" },
-    glow: "0 0 60px rgba(201,168,76,0.45)",
+    glow: "inset 0 0 28px rgba(201,168,76,0.16)",
     borderColor: "rgba(201,168,76,0.9)",
     ambientOpacity: 1,
     breathe: false,
@@ -79,7 +80,7 @@ const STATE_STYLES = {
   settlement: {
     wrapperAnimate: { opacity: 1 },
     wrapperTransition: { duration: 1.6, ease: "easeInOut" },
-    glow: "0 0 0 rgba(201,168,76,0)",
+    glow: "inset 0 0 0 rgba(201,168,76,0)",
     borderColor: "rgba(201,168,76,0.2)",
     ambientOpacity: 0,
     breathe: false,
@@ -91,7 +92,7 @@ const STATE_STYLES = {
   game_summary: {
     wrapperAnimate: { opacity: 1 },
     wrapperTransition: { duration: 1.2, ease: "easeInOut" },
-    glow: "0 0 0 rgba(201,168,76,0)",
+    glow: "inset 0 0 0 rgba(201,168,76,0)",
     borderColor: "rgba(201,168,76,0.2)",
     ambientOpacity: 0,
     breathe: false,
