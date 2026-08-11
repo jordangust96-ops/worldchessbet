@@ -28,27 +28,10 @@
               "gameId": "${ .trigger.entity_id }"
             }
           },
-          "then": "run_post_settlement_jobs",
+          "then": "end",
           "x-base44": {
             "title": "Settle Match",
             "description": "Update wallets & Match status"
-          }
-        }
-      },
-      {
-        "run_post_settlement_jobs": {
-          "call": "invoke_backend_function",
-          "with": {
-            "function_name": "runPostSettlementJobs",
-            "args": {
-              "matchId": "${ .trigger.data.match_id }",
-              "gameId": "${ .trigger.entity_id }"
-            }
-          },
-          "then": "end",
-          "x-base44": {
-            "title": "Run Post-Settlement Jobs",
-            "description": "Dispatch integrity rules and Stockfish screening after player-facing settlement"
           }
         }
       }
