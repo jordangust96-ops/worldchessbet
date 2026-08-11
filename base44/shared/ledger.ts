@@ -6,6 +6,17 @@ import { recordIntegrationEvent } from './integrationEvents.ts';
 // entries and updates the derived Wallet / SystemLedgerAccount balances.
 export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletTransactionId, actor, actorId, triggerEvent, externalRefType, externalRefId, legs }) {
   const correlationId = matchId || walletTransactionId || groupId;
+  if (!groupId || !Array.isArray(legs) || legs.length < 2) {
+    throw new Error('Invalid ledger posting request');
+  }
+  for (const leg of legs) {
+    for (const amount of [leg.debit || 0, leg.credit || 0, leg.heldDelta || 0]) {
+      if (!Number.isFinite(amount)) throw new Error('Ledger amount must be finite');
+    }
+    if ((leg.debit || 0) < 0 || (leg.credit || 0) < 0) {
+      throw new Error('Ledger debit and credit amounts cannot be negative');
+    }
+  }
   const totalDebit = legs.reduce((s, l) => s + (l.debit || 0), 0);
   const totalCredit = legs.reduce((s, l) => s + (l.credit || 0), 0);
   if (Math.round(totalDebit * 100) !== Math.round(totalCredit * 100)) {
@@ -25,6 +36,9 @@ export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletT
       const newAvailable = (wallet.available_balance || 0) - (leg.debit || 0) + (leg.credit || 0);
       const newHeld = (wallet.held_balance || 0) + (leg.heldDelta || 0);
       const newTotal = newAvailable + newHeld;
+      if (newAvailable < -0.001 || newHeld < -0.001 || newTotal < -0.001) {
+        throw new Error('Ledger posting would create a negative user balance');
+      }
       await base44.asServiceRole.entities.Wallet.update(wallet.id, {
         available_balance: newAvailable,
         held_balance: newHeld,
@@ -50,6 +64,9 @@ export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletT
       let acct = accounts[0];
       if (!acct) acct = await base44.asServiceRole.entities.SystemLedgerAccount.create({ account_name: leg.ledgerAccount, balance: 0 });
       const newBalance = (acct.balance || 0) - (leg.debit || 0) + (leg.credit || 0);
+      if (['contest_clearing', 'suspense', 'platform_revenue'].includes(leg.ledgerAccount) && newBalance < -0.001) {
+        throw new Error(`Ledger posting would overdraw protected account: ${leg.ledgerAccount}`);
+      }
       await base44.asServiceRole.entities.SystemLedgerAccount.update(acct.id, { balance: newBalance });
       entries.push({
         match_id: matchId || '', wallet_transaction_id: walletTransactionId || '',
