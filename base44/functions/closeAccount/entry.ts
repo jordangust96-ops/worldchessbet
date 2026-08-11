@@ -145,6 +145,7 @@ Deno.serve(async (req) => {
       user: updatedUser,
     });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    console.error(JSON.stringify({ event: 'backend_function_failed', error: error?.message || 'unknown_error' }));
+    return Response.json({ error: 'internal_error' }, { status: 500 });
   }
 });
