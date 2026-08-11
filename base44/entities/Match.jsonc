@@ -146,23 +146,43 @@
     },
     "acceptance_operation_id": {
       "type": "string",
-      "description": "Server-generated ownership token for an in-flight opponent reservation"
+      "description": "Server-generated ownership token for an in-flight opponent reservation",
+      "rls": {
+        "read": false,
+        "write": false
+      }
     },
     "settlement_operation_id": {
       "type": "string",
-      "description": "Server-generated ownership token for an in-flight settlement"
+      "description": "Server-generated ownership token for an in-flight settlement",
+      "rls": {
+        "read": false,
+        "write": false
+      }
     },
     "cancellation_operation_id": {
       "type": "string",
-      "description": "Server-generated ownership token for an in-flight cancellation/refund"
+      "description": "Server-generated ownership token for an in-flight cancellation/refund",
+      "rls": {
+        "read": false,
+        "write": false
+      }
     },
     "player1_funding_operation_id": {
       "type": "string",
-      "description": "Server-generated ownership token for player 1 funding"
+      "description": "Server-generated ownership token for player 1 funding",
+      "rls": {
+        "read": false,
+        "write": false
+      }
     },
     "player2_funding_operation_id": {
       "type": "string",
-      "description": "Server-generated ownership token for player 2 funding"
+      "description": "Server-generated ownership token for player 2 funding",
+      "rls": {
+        "read": false,
+        "write": false
+      }
     },
     "description": {
       "type": "string",
