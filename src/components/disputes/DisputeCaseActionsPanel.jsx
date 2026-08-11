@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { base44 } from "@/api/base44Client";
+import { invokeAdminFunction } from "@/lib/adminApi";
 
 // Admin action bar for a single case. Every action posts through
 // manageDisputeCase, which appends an immutable note and never touches the
@@ -14,7 +14,11 @@ export default function DisputeCaseActionsPanel({ disputeCase, onChanged }) {
     if (requireNotes && !notes.trim()) return;
     setBusyAction(action);
     try {
-      await base44.functions.invoke("manageDisputeCase", { caseId: disputeCase.id, action, notes });
+      await invokeAdminFunction("manageDisputeCase", {
+        caseId: disputeCase.id,
+        action,
+        payload: { notes },
+      });
       setNotes("");
       onChanged?.();
     } finally {
