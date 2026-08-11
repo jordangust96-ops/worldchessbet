@@ -27,6 +27,8 @@ Deno.serve(async (req) => {
     const cancelledIds = [];
     for (const candidate of stale) {
       let match = candidate;
+      const serviceFee = Number(match.platform_service_fee);
+      if (!Number.isFinite(serviceFee) || serviceFee < 0) continue;
       if (match.cancellation_operation_id || match.status === 'cancelling') continue;
 
       const cancellationOperationId = crypto.randomUUID();
@@ -41,11 +43,6 @@ Deno.serve(async (req) => {
       const refundTargets = [];
       if (match.player1_deposited) refundTargets.push(match.player1_id);
       if (match.player2_deposited) refundTargets.push(match.player2_id);
-
-      const serviceFee = Number(match.platform_service_fee);
-      if (!Number.isFinite(serviceFee) || serviceFee < 0) {
-        continue;
-      }
 
       for (const depositorId of refundTargets) {
         const entryTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
