@@ -43,13 +43,16 @@ export default function LegalDocumentAdmin({ policyType }) {
 
   const handleSave = async () => {
     setSaving(true);
-    await invokeAdminFunction("publishLegalDocument", {
-      policyType,
-      supportEmail,
-      contentMarkdown,
-    });
-    await load();
-    setSaving(false);
+    try {
+      await invokeAdminFunction("publishLegalDocument", {
+        policyType,
+        supportEmail,
+        contentMarkdown,
+      });
+      await load();
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) {
