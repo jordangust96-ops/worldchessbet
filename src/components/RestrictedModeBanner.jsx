@@ -3,10 +3,10 @@ import { AlertTriangle } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { getJurisdictionMessage } from "@/lib/jurisdictionConfig";
 
-// Shown whenever the current user's jurisdiction status (verified at login,
-// and re-verified before every paid action) is anything other than
-// 'approved'. Purely informational — actual enforcement always happens
-// server-side.
+// Shows the most recent persisted jurisdiction result. It is informational:
+// the server performs a fresh or same-IP short-cached check at funding and
+// contest-participation boundaries. Ordinary login and withdrawals are not
+// location-gated.
 export default function RestrictedModeBanner() {
   const { jurisdictionStatus, jurisdictionReason } = useAuth();
   if (!jurisdictionStatus || jurisdictionStatus === "approved") return null;
