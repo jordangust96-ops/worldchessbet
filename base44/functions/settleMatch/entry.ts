@@ -168,9 +168,10 @@ Deno.serve(async (req) => {
       // decisive settlement. The loser's held stake is simply released — it
       // was already spent when it moved into the Contest Reserve at lock time.
       const legs = [
+        // Validate/debit protected reserve accounts before any user credit is applied.
         { ledgerAccount: 'contest_clearing', debit: pot, credit: 0, transactionType: 'match_settlement' },
-        { ledgerAccount: 'user_account', userId: winnerId, debit: 0, credit: pot, heldDelta: -(wagerAmount + serviceFee), transactionType: 'match_settlement', totalWonDelta: pot },
         { ledgerAccount: 'suspense', debit: totalFee, credit: 0, transactionType: 'platform_fee' },
+        { ledgerAccount: 'user_account', userId: winnerId, debit: 0, credit: pot, heldDelta: -(wagerAmount + serviceFee), transactionType: 'match_settlement', totalWonDelta: pot },
         { ledgerAccount: 'platform_revenue', debit: 0, credit: totalFee, transactionType: 'platform_fee' },
       ];
       if (loserId) {
