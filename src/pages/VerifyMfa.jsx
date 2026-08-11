@@ -60,8 +60,8 @@ export default function VerifyMfa() {
     setVerifying(true);
     setError("");
     try {
-      await base44.functions.invoke("verifyMfaOtp", { code });
-      setMfaVerified();
+      const { data } = await base44.functions.invoke("verifyMfaOtp", { code });
+      setMfaVerified(data?.session_token);
       window.location.href = getPostAuthRedirect() || "/";
     } catch (err) {
       const message = err?.response?.data?.message || "Invalid code. Please try again.";
