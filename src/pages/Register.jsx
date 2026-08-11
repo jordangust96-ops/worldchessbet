@@ -11,7 +11,6 @@ import GoogleIcon from "@/components/GoogleIcon";
 import AppleIcon from "@/components/AppleIcon";
 import FacebookIcon from "@/components/FacebookIcon";
 import { toast } from "@/components/ui/use-toast";
-import { getPostAuthRedirect } from "@/lib/postAuthRedirect";
 import { POLICY_TYPE_ORDER } from "@/lib/legalDocumentTypes";
 import { trackPixelEvent } from "@/lib/metaPixel";
 import SEO from "@/components/seo/SEO";
