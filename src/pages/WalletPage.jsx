@@ -43,6 +43,7 @@ export default function WalletPage() {
   const [loading, setLoading] = useState(true);
   const [depositAmount, setDepositAmount] = useState("");
   const [showDeposit, setShowDeposit] = useState(false);
+  const [transferDirection, setTransferDirection] = useState("deposit");
   const [isProcessingDeposit, setIsProcessingDeposit] = useState(false);
   const [depositError, setDepositError] = useState("");
   const [withdrawalHold, setWithdrawalHold] = useState(false);
@@ -172,9 +173,19 @@ export default function WalletPage() {
     setLoading(false);
   };
 
-  // Called when the user confirms the amount. The actual balance update and
-  // eligibility check both happen server-side in the depositFunds function —
-  // the client never computes or sends a resulting balance.
+  // Plaid Link is loaded only for a user-initiated funding or withdrawal action.
+  const openPlaidLink = (token, onSuccess) => new Promise((resolve, reject) => {
+    const open = () => window.Plaid.create({ token, onSuccess, onExit: (error) => error ? reject(error) : resolve() }).open();
+    if (window.Plaid) return open();
+    const script = document.createElement("script");
+    script.src = "https://cdn.plaid.com/link/v2/stable/link-initialize.js";
+    script.onload = open;
+    script.onerror = () => reject(new Error("Unable to load secure bank linking."));
+    document.head.appendChild(script);
+  });
+
+  // The server creates the Link token, exchanges the one-time public token,
+  // and submits the ACH transfer. The client never receives an access token.
   const confirmDeposit = async () => {
     const requestedAmount = parseFloat(depositAmount);
     if (!requestedAmount || requestedAmount <= 0 || !wallet) return;
@@ -187,22 +198,20 @@ export default function WalletPage() {
       // requested right before this paid action, never gating it either way.
       const geo = await getBrowserGeolocation();
       const deviceFingerprintHash = await getDeviceFingerprintHash();
-      const { data } = await base44.functions.invoke("depositFunds", {
-        amount: requestedAmount,
-        browserGeoPermission: geo.permission,
-        browserLatitude: geo.latitude,
-        browserLongitude: geo.longitude,
-        browserAccuracyMeters: geo.accuracyMeters,
-        deviceFingerprintHash,
+      const { data: link } = await base44.functions.invoke("createPlaidLinkToken", {});
+      if (!link?.enabled) throw new Error(link?.reason || "Bank transfers are not available right now.");
+      await openPlaidLink(link.link_token, async (publicToken, metadata) => {
+        const account = metadata?.accounts?.[0];
+        if (!account?.id) throw new Error("Please select a checking or savings account.");
+        const { data: exchange } = await base44.functions.invoke("exchangePlaidPublicToken", {
+          public_token: publicToken, account_id: account.id, account_name: account.name, account_mask: account.mask,
+        });
+        if (!exchange?.success) throw new Error(exchange?.error || "Unable to save the bank account.");
+        const { data: transfer } = await base44.functions.invoke("createPlaidTransfer", { amount: requestedAmount, direction: transferDirection });
+        if (!transfer?.success) throw new Error(transfer?.error || "Unable to submit the bank transfer.");
+        if (transferDirection === "deposit") trackPixelEvent("Deposit Initiated", { value: requestedAmount, currency: "USD" });
+        setDepositAmount(""); setShowDeposit(false); loadData();
       });
-      if (data?.eligible) {
-        trackPixelEvent("Deposit Completed", { value: requestedAmount, currency: "USD" });
-        setDepositAmount("");
-        setShowDeposit(false);
-        loadData();
-      } else {
-        setDepositError(data?.reason || data?.error || "You're not currently eligible to fund your account.");
-      }
     } finally {
       setIsProcessingDeposit(false);
     }
@@ -256,7 +265,7 @@ export default function WalletPage() {
         {/* Quick Actions */}
         <div className="grid grid-cols-2 gap-3">
           <Button
-            onClick={() => setShowDeposit(!showDeposit)}
+            onClick={() => { setTransferDirection("deposit"); setShowDeposit(!showDeposit); }}
             disabled={jurisdictionStatus && jurisdictionStatus !== "approved"}
             className="h-12 rounded-2xl gold-gradient text-black font-bold hover:opacity-90 disabled:opacity-30"
           >
@@ -264,6 +273,7 @@ export default function WalletPage() {
           </Button>
           <Button
             variant="outline"
+            onClick={() => { setTransferDirection("withdrawal"); setShowDeposit(true); }}
             disabled={withdrawalHold || accountState !== "verified"}
             className="h-12 rounded-2xl border-white/10 text-white/70 font-bold hover:bg-white/5 disabled:opacity-40"
           >
@@ -302,7 +312,7 @@ export default function WalletPage() {
               type="number"
               value={depositAmount}
               onChange={(e) => setDepositAmount(e.target.value)}
-              placeholder="Enter amount"
+              placeholder={transferDirection === "deposit" ? "Amount to fund" : "Amount to withdraw"}
               className="w-full h-12 px-4 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder:text-white/20 text-sm focus:border-[#C9A84C]/50 focus:outline-none"
             />
             <Button
@@ -310,7 +320,7 @@ export default function WalletPage() {
               disabled={!depositAmount || parseFloat(depositAmount) <= 0 || isProcessingDeposit}
               className="w-full h-12 rounded-xl gold-gradient text-black font-bold hover:opacity-90 disabled:opacity-30"
             >
-              {isProcessingDeposit ? "Confirming..." : "Confirm Funding"}
+              {isProcessingDeposit ? "Connecting securely..." : transferDirection === "deposit" ? "Connect bank & fund" : "Connect bank & withdraw"}
             </Button>
             {depositError && (
               <p className="text-xs text-red-400 text-center">{depositError}</p>
