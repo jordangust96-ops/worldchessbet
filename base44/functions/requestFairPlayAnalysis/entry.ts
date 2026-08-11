@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
     }
     const isAdmin = user.role === 'admin';
     const isParticipant = match.player1_id === user.id || match.player2_id === user.id;
-    if (isAdmin) {
+    if (isAdmin && force === true) {
       const mfaError = await requireAdminMfa(base44, user, mfaSessionToken, req.headers.get('user-agent') || '');
       if (mfaError) return mfaError;
     }
