@@ -8,12 +8,16 @@ const STALE_LEASE_MS = 2 * 60 * 1000;
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const [inProgressMatches, settlingMatches] = await Promise.all([
-      base44.asServiceRole.entities.Match.filter({ status: 'in_progress' }),
-      base44.asServiceRole.entities.Match.filter({ status: 'settling' }),
+    // Always prioritize claimed settlements so active live matches can never
+    // crowd an abandoned settlement out of the recovery batch. The remaining
+    // capacity checks recently-updated in-progress matches for a missed
+    // Game-completion workflow.
+    const [settlingMatches, inProgressMatches] = await Promise.all([
+      base44.asServiceRole.entities.Match.filter({ status: 'settling' }, 'settlement_claimed_at', 50),
+      base44.asServiceRole.entities.Match.filter({ status: 'in_progress' }, '-updated_date', 100),
     ]);
 
-    const candidates = [...inProgressMatches, ...settlingMatches].slice(0, 50);
+    const candidates = [...settlingMatches, ...inProgressMatches];
     const summary = { checked: candidates.length, settled: 0, pending: 0, reconciliation_required: 0, failed: 0 };
 
     for (const match of candidates) {
