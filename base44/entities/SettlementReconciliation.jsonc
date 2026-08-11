@@ -1,0 +1,62 @@
+{
+  "name": "SettlementReconciliation",
+  "type": "object",
+  "properties": {
+    "match_id": {
+      "type": "string",
+      "description": "Contest requiring an administrator-approved settlement correction."
+    },
+    "operation_id": {
+      "type": "string",
+      "description": "Stable reconciliation operation identifier."
+    },
+    "reserve_shortfall": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Verified contest-clearing variance recorded as an explicit reconciliation expense."
+    },
+    "approved_by": {
+      "type": "string",
+      "description": "Administrator who approved the correction."
+    },
+    "approved_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "approved",
+        "applied",
+        "failed"
+      ],
+      "default": "approved"
+    },
+    "applied_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "notes": {
+      "type": "string",
+      "maxLength": 2000
+    }
+  },
+  "required": [
+    "match_id",
+    "operation_id",
+    "reserve_shortfall",
+    "approved_by",
+    "approved_at",
+    "status"
+  ],
+  "rls": {
+    "create": false,
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": false,
+    "delete": false
+  }
+}
