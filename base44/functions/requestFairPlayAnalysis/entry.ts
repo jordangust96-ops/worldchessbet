@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { requireAdminMfa } from '../../shared/mfa.ts';
 
 // Queues one completed ChessBet game for the external Stockfish analyzer. The
 // analyzer is optional during setup; records remain awaiting_analyzer until its
@@ -38,7 +39,8 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { matchId, gameId, force = false } = await req.json();
+    const body = await req.json();
+    const { matchId, gameId, force = false, mfaSessionToken } = body;
     if (!matchId || !gameId) {
       return Response.json({ error: 'matchId and gameId are required' }, { status: 400 });
     }
@@ -52,6 +54,10 @@ Deno.serve(async (req) => {
     }
     const isAdmin = user.role === 'admin';
     const isParticipant = match.player1_id === user.id || match.player2_id === user.id;
+    if (isAdmin) {
+      const mfaError = await requireAdminMfa(base44, user, mfaSessionToken, req.headers.get('user-agent') || '');
+      if (mfaError) return mfaError;
+    }
     if (!isAdmin && !isParticipant) {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
