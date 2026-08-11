@@ -102,7 +102,7 @@ export default function AdminGameSettings() {
             id="grace-seconds"
             type="number"
             min={5}
-            max={600}
+            max={300}
             value={graceSeconds}
             onChange={(e) => setGraceSeconds(e.target.value)}
             className="bg-white/[0.03] border-white/10 text-white max-w-[160px]"
