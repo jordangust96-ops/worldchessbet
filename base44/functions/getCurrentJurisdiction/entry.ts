@@ -17,32 +17,20 @@ import { EARLY_ACCESS_MODE } from '../../shared/earlyAccess.ts';
 const APPROVED_STATES = ['AR', 'CO', 'GA', 'IA', 'KS', 'ND', 'TX', 'VA', 'WI', 'WY'];
 
 // ============================================================================
-// REQUIRED BEFORE PUBLIC LAUNCH: set ENABLE_GEOLOCATION_ENFORCEMENT=true.
+// REQUIRED BEFORE PUBLIC LAUNCH: set EARLY_ACCESS_MODE=false.
 //
-// This flag is the SOLE gate for jurisdiction/geolocation enforcement across
-// the entire platform. Every paid flow (login, deposits, match creation,
-// match acceptance, lockWager/entry reservation, withdrawals, gameplay,
-// etc.) funnels through this function — directly or via
-// runContestEligibility, which calls this function — and none of them may
-// ever implement their own separate bypass.
+// This flag is the sole gate for jurisdiction enforcement. While enforcement
+// is disabled, ordinary app flows return an approved bypass without calling
+// MaxMind or writing a verification event. This prevents paid provider usage
+// during pre-launch testing. An administrator may explicitly request one live
+// lookup with forceLiveCheck=true for a controlled integration test.
 //
-// While false (pre-launch/dev/staging default): the full check below still
-// runs — the MaxMind Insights lookup, every anonymizer/VPN signal, and the
-// complete JurisdictionVerificationLog audit record are still captured and
-// written exactly as in production — but the decision returned to the
-// caller (and persisted onto the User record) is always forced to
-// 'approved' so no flow is blocked or restricted based on location. The
-// original, pre-bypass result is preserved in the audit log for
-// auditability (see pre_bypass_verification_result / pre_bypass_reason /
-// enforcement_bypassed / geolocation_enforcement_enabled below).
-//
-// While true: production behavior is exactly as implemented below —
-// whitelist enforcement (APPROVED_STATES) plus all VPN/anonymizer blocking
-// — with no other code changes required to flip this on.
-//
-// This is now sourced from the single, app-wide EARLY_ACCESS_MODE flag in
-// base44/shared/earlyAccess.ts, so geolocation enforcement, identity
-// verification, and every other compliance gate all flip together.
+// When enforcement is enabled, fresh checks occur only at meaningful paid
+// boundaries: account funding, contest creation/joining, and final entry
+// reservation. Withdrawals and ordinary login/navigation are never location
+// gated. Successful approved/blocked results may be reused briefly when the
+// trusted edge IP is unchanged, avoiding duplicate calls during one match
+// preparation flow without trusting a stale location.
 // ============================================================================
 const ENABLE_GEOLOCATION_ENFORCEMENT = !EARLY_ACCESS_MODE;
 
@@ -50,6 +38,7 @@ const ENABLE_GEOLOCATION_ENFORCEMENT = !EARLY_ACCESS_MODE;
 // (e.g. GeoComply) can replace or supplement this function's internals
 // without any caller of getCurrentJurisdiction ever needing to change.
 const PROVIDER = 'MaxMind';
+const VERIFICATION_CACHE_TTL_MS = 15 * 60 * 1000;
 
 const UNKNOWN_MESSAGE =
   'We could not verify your current location. Please disable any VPN, proxy, or location-masking software and try again.';
@@ -80,28 +69,53 @@ function haversineDistanceKm(lat1, lon1, lat2, lon2) {
 async function lookupWithMaxMind(ip) {
   const accountId = Deno.env.get('MAXMIND_ACCOUNT_ID');
   const licenseKey = Deno.env.get('MAXMIND_LICENSE_KEY');
-  const authHeader = 'Basic ' + btoa(`${accountId}:${licenseKey}`);
+  if (!accountId || !licenseKey) {
+    console.error(JSON.stringify({ event: 'maxmind_lookup_failed', reason: 'configuration_missing' }));
+    return { ok: false };
+  }
 
-  // The Insights endpoint provides both the subdivision (state) and the
-  // anonymizer/VPN/proxy signals needed for jurisdiction enforcement — the
-  // plain Country endpoint cannot support either requirement.
-  const res = await fetch(`https://geoip.maxmind.com/geoip/v2.1/insights/${ip}`, {
-    headers: { Authorization: authHeader },
-  });
+  const authHeader = 'Basic ' + btoa(`${accountId}:${licenseKey}`);
+  let res;
+  try {
+    // Insights supplies subdivision and anonymizer evidence. Keep this endpoint
+    // explicit: silently falling back to GeoLite City would remove the
+    // anonymizer signals required by the launch policy.
+    res = await fetch(`https://geoip.maxmind.com/geoip/v2.1/insights/${ip}`, {
+      headers: { Authorization: authHeader },
+      signal: AbortSignal.timeout(7000),
+    });
+  } catch (error) {
+    console.error(JSON.stringify({
+      event: 'maxmind_lookup_failed',
+      reason: error?.name === 'TimeoutError' ? 'timeout' : 'network_error',
+    }));
+    return { ok: false };
+  }
 
   if (!res.ok) {
+    console.error(JSON.stringify({ event: 'maxmind_lookup_failed', reason: 'provider_error', status: res.status }));
     return { ok: false };
   }
 
   const data = await res.json();
   const traits = data?.traits || {};
+  const anonymizer = data?.anonymizer || {};
+  const signal = (name) => !!(anonymizer[name] ?? traits[name]);
+  const isAnonymousVpn = signal('is_anonymous_vpn');
+  const isAnonymousProxy = signal('is_anonymous_proxy');
+  const isPublicProxy = signal('is_public_proxy');
+  const isHostingProvider = signal('is_hosting_provider');
+  const isAnonymous = signal('is_anonymous');
+  const isTorExitNode = signal('is_tor_exit_node');
+  const isResidentialProxy = signal('is_residential_proxy');
   const vpnDetected = !!(
-    traits.is_anonymous_vpn ||
-    traits.is_anonymous_proxy ||
-    traits.is_hosting_provider ||
-    traits.is_anonymous ||
-    traits.is_public_proxy ||
-    traits.is_tor_exit_node
+    isAnonymousVpn ||
+    isAnonymousProxy ||
+    isPublicProxy ||
+    isHostingProvider ||
+    isAnonymous ||
+    isTorExitNode ||
+    isResidentialProxy
   );
 
   return {
@@ -122,17 +136,42 @@ async function lookupWithMaxMind(ip) {
     organization: traits.organization || '',
     userType: traits.user_type || '',
     connectionType: traits.connection_type || '',
-    isAnonymousVpn: !!traits.is_anonymous_vpn,
-    isAnonymousProxy: !!traits.is_anonymous_proxy,
-    isPublicProxy: !!traits.is_public_proxy,
-    isHostingProvider: !!traits.is_hosting_provider,
-    isAnonymous: !!traits.is_anonymous,
-    isTorExitNode: !!traits.is_tor_exit_node,
+    isAnonymousVpn,
+    isAnonymousProxy,
+    isPublicProxy,
+    isHostingProvider,
+    isAnonymous,
+    isTorExitNode,
     isSatelliteProvider: !!traits.is_satellite_provider,
     isAnycast: !!traits.is_anycast,
-    isResidentialProxy: !!traits.is_residential_proxy,
-    staticIpScore: traits.static_ip_score,
+    isResidentialProxy,
+    staticIpScore: anonymizer.static_ip_score ?? traits.static_ip_score,
     vpnDetected,
+  };
+}
+
+async function getReusableVerification(base44, userId, ip) {
+  const logs = await base44.asServiceRole.entities.JurisdictionVerificationLog.filter(
+    { user_id: userId },
+    '-verified_at',
+    1
+  );
+  const latest = logs[0];
+  if (!latest || latest.ip_address !== ip) return null;
+
+  const verifiedAtMs = Date.parse(latest.verified_at || latest.created_date || '');
+  if (!Number.isFinite(verifiedAtMs) || Date.now() - verifiedAtMs > VERIFICATION_CACHE_TTL_MS) return null;
+
+  const computedStatus = latest.pre_bypass_verification_result || latest.verification_result;
+  if (!['approved', 'blocked'].includes(computedStatus)) return null;
+
+  return {
+    status: computedStatus,
+    reason: latest.pre_bypass_reason || '',
+    state: latest.detected_state || '',
+    country: latest.detected_country || '',
+    vpnDetected: !!latest.vpn_or_proxy_detected,
+    verifiedAt: latest.verified_at || latest.created_date,
   };
 }
 
@@ -151,6 +190,7 @@ Deno.serve(async (req) => {
     let browserAccuracyMeters;
     let browserGeoPermission = 'not_requested';
     let deviceFingerprintHash = '';
+    let forceLiveCheck = false;
     try {
       const body = await req.json();
       if (body?.triggerEvent) triggerEvent = body.triggerEvent;
@@ -162,6 +202,7 @@ Deno.serve(async (req) => {
       if (typeof body?.browserLongitude === 'number') browserLongitude = body.browserLongitude;
       if (typeof body?.browserAccuracyMeters === 'number') browserAccuracyMeters = body.browserAccuracyMeters;
       if (body?.deviceFingerprintHash) deviceFingerprintHash = body.deviceFingerprintHash;
+      forceLiveCheck = body?.forceLiveCheck === true;
     } catch {
       // No body provided — defaults above are fine.
     }
@@ -171,6 +212,24 @@ Deno.serve(async (req) => {
     // trusted as the primary source for a jurisdiction decision.
     const ip = req.headers.get('cf-connecting-ip') || '';
     const deviceIdentifier = req.headers.get('user-agent') || '';
+    const liveCheckForcedByAdmin = forceLiveCheck && user.role === 'admin';
+
+    // While the launch gate is disabled, ordinary traffic must not consume a
+    // paid lookup. Admins can still perform an explicit, auditable live test.
+    if (!ENABLE_GEOLOCATION_ENFORCEMENT && !liveCheckForcedByAdmin) {
+      return Response.json({
+        status: 'approved',
+        approved: true,
+        state: user.current_jurisdiction_state || '',
+        country: user.current_jurisdiction_country || '',
+        vpnDetected: !!user.jurisdiction_vpn_detected,
+        reason: '',
+        provider: PROVIDER,
+        enforcementEnabled: false,
+        verificationSkipped: true,
+        cached: false,
+      });
+    }
 
     let status = 'unknown';
     let state = '';
@@ -178,34 +237,44 @@ Deno.serve(async (req) => {
     let vpnDetected = false;
     let reason = '';
     let lookupDetails = {};
+    let cachedVerification = null;
 
     if (!ip) {
       status = 'unknown';
       reason = UNKNOWN_MESSAGE;
     } else {
-      const lookup = await lookupWithMaxMind(ip);
-      if (!lookup.ok) {
-        status = 'verification_failed';
-        reason = 'Unable to verify your location right now. Please try again shortly.';
+      cachedVerification = liveCheckForcedByAdmin ? null : await getReusableVerification(base44, user.id, ip);
+      if (cachedVerification) {
+        status = cachedVerification.status;
+        reason = cachedVerification.reason;
+        country = cachedVerification.country;
+        state = cachedVerification.state;
+        vpnDetected = cachedVerification.vpnDetected;
       } else {
-        lookupDetails = lookup;
-        country = lookup.country;
-        state = lookup.state;
-        vpnDetected = lookup.vpnDetected;
-
-        if (vpnDetected) {
-          // VPN / proxy / hosting provider / anonymous network — always
-          // treated as Verification Failed, regardless of detected location.
+        const lookup = await lookupWithMaxMind(ip);
+        if (!lookup.ok) {
           status = 'verification_failed';
-          reason = UNKNOWN_MESSAGE;
-        } else if (!country || !state) {
-          status = 'unknown';
-          reason = UNKNOWN_MESSAGE;
-        } else if (country === 'US' && APPROVED_STATES.includes(state)) {
-          status = 'approved';
+          reason = 'Unable to verify your location right now. Please try again shortly.';
         } else {
-          status = 'blocked';
-          reason = BLOCKED_MESSAGE;
+          lookupDetails = lookup;
+          country = lookup.country;
+          state = lookup.state;
+          vpnDetected = lookup.vpnDetected;
+
+          if (vpnDetected) {
+            // VPN / proxy / hosting provider / anonymous network — always
+            // treated as Verification Failed, regardless of detected location.
+            status = 'verification_failed';
+            reason = UNKNOWN_MESSAGE;
+          } else if (!country || !state) {
+            status = 'unknown';
+            reason = UNKNOWN_MESSAGE;
+          } else if (country === 'US' && APPROVED_STATES.includes(state)) {
+            status = 'approved';
+          } else {
+            status = 'blocked';
+            reason = BLOCKED_MESSAGE;
+          }
         }
       }
     }
@@ -225,6 +294,24 @@ Deno.serve(async (req) => {
       enforcementBypassed = true;
       status = 'approved';
       reason = '';
+    }
+
+    // A reused result already has an immutable provider audit record. Avoid
+    // duplicate User/log writes for the same IP during one short flow.
+    if (cachedVerification) {
+      return Response.json({
+        status,
+        approved: status === 'approved',
+        state,
+        country,
+        vpnDetected,
+        reason,
+        provider: PROVIDER,
+        enforcementEnabled: ENABLE_GEOLOCATION_ENFORCEMENT,
+        verificationSkipped: false,
+        cached: true,
+        verifiedAt: cachedVerification.verifiedAt,
+      });
     }
 
     const now = new Date().toISOString();
@@ -322,6 +409,11 @@ Deno.serve(async (req) => {
       country,
       vpnDetected,
       reason,
+      provider: PROVIDER,
+      enforcementEnabled: ENABLE_GEOLOCATION_ENFORCEMENT,
+      verificationSkipped: false,
+      cached: false,
+      verifiedAt: now,
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
