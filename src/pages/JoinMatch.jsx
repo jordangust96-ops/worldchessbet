@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Crown, Loader2, Shield, User } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { isMfaVerified } from "@/lib/mfaSession";
+import { getMfaSessionToken } from "@/lib/mfaSession";
 import { setPostAuthRedirect, clearPostAuthRedirect } from "@/lib/postAuthRedirect";
 import { computeContestFinancials } from "@/lib/contestFinancials";
 import SEO from "@/components/seo/SEO";
@@ -37,7 +37,18 @@ export default function JoinMatch() {
           navigate("/login", { replace: true });
           return;
         }
-        if (!isMfaVerified()) {
+        const mfaToken = getMfaSessionToken();
+        if (!mfaToken) {
+          setPostAuthRedirect(`/join/${inviteCode}`);
+          navigate("/verify-mfa", { replace: true });
+          return;
+        }
+        try {
+          const { data: mfaData } = await base44.functions.invoke("validateMfaSession", {
+            sessionToken: mfaToken,
+          });
+          if (!mfaData?.valid) throw new Error("invalid_mfa_session");
+        } catch {
           setPostAuthRedirect(`/join/${inviteCode}`);
           navigate("/verify-mfa", { replace: true });
           return;
