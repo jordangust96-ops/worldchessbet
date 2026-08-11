@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Loader2, WifiOff, Save } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { invokeAdminFunction } from "@/lib/adminApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,12 +44,10 @@ export default function AdminGameSettings() {
     setSaving(true);
     try {
       const value = Math.max(5, Math.round(Number(graceSeconds) || 45));
-      if (settingsId) {
-        await base44.entities.GameSettings.update(settingsId, { reconnect_grace_period_seconds: value });
-      } else {
-        const created = await base44.entities.GameSettings.create({ reconnect_grace_period_seconds: value });
-        setSettingsId(created.id);
-      }
+      const { data } = await invokeAdminFunction("updateGameSettings", {
+        reconnectGracePeriodSeconds: value,
+      });
+      if (data?.settings?.id) setSettingsId(data.settings.id);
       setGraceSeconds(value);
       toast({ title: "Saved", description: "Reconnect grace period updated." });
     } finally {
