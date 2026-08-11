@@ -8,7 +8,8 @@
         "contest_clearing",
         "platform_revenue",
         "suspense",
-        "settlement"
+        "settlement",
+        "settlement_reconciliation_adjustment"
       ],
       "description": "One record per system-wide internal ledger account"
     },
