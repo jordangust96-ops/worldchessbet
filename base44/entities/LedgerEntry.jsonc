@@ -21,7 +21,8 @@
         "contest_clearing",
         "platform_revenue",
         "suspense",
-        "settlement"
+        "settlement",
+        "settlement_reconciliation_adjustment"
       ],
       "description": "Which internal ledger account this row posts to"
     },
@@ -33,6 +34,7 @@
         "match_entry",
         "match_release",
         "match_settlement",
+        "settlement_reconciliation",
         "platform_fee",
         "refund",
         "admin_adjustment",
