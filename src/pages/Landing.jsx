@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Crown, Zap, Shield, CircleCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import NotifyAtLaunchModal from "@/components/NotifyAtLaunchModal";
@@ -56,6 +56,75 @@ const STRUCTURED_DATA = {
   inLanguage: "en-US",
 };
 
+function LandingAmbientGlow() {
+  const reduceMotion = useReducedMotion();
+
+  return (
+    <div
+      className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
+      aria-hidden="true"
+    >
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(ellipse 70% 48% at 50% 18%, rgba(201,168,76,0.055), rgba(201,168,76,0.018) 42%, transparent 72%)",
+        }}
+      />
+
+      <div className="absolute inset-x-0 top-[4%] flex justify-center">
+        <motion.div
+          className="h-[34rem] w-[34rem] sm:h-[44rem] sm:w-[44rem] rounded-full blur-[110px]"
+          style={{
+            background:
+              "radial-gradient(circle, rgba(225,193,101,0.12) 0%, rgba(201,168,76,0.04) 42%, transparent 72%)",
+            willChange: reduceMotion ? "auto" : "transform, opacity",
+          }}
+          animate={
+            reduceMotion
+              ? { opacity: 0.48 }
+              : {
+                  x: ["-5%", "7%", "-3%"],
+                  y: [0, 32, 8],
+                  scale: [0.96, 1.04, 0.98],
+                  opacity: [0.38, 0.62, 0.42],
+                }
+          }
+          transition={
+            reduceMotion
+              ? { duration: 0 }
+              : { duration: 22, repeat: Infinity, ease: "easeInOut" }
+          }
+        />
+      </div>
+
+      <div className="absolute inset-x-0 top-[15%] flex justify-center">
+        <motion.div
+          className="h-[23rem] w-[42rem] rounded-[50%] border border-[#C9A84C]/[0.055]"
+          style={{
+            boxShadow: "inset 0 0 45px rgba(201,168,76,0.018)",
+            willChange: reduceMotion ? "auto" : "transform, opacity",
+          }}
+          animate={
+            reduceMotion
+              ? { opacity: 0.55, rotate: -8 }
+              : {
+                  rotate: [-8, 5, -8],
+                  scale: [0.98, 1.025, 0.98],
+                  opacity: [0.38, 0.58, 0.38],
+                }
+          }
+          transition={
+            reduceMotion
+              ? { duration: 0 }
+              : { duration: 28, repeat: Infinity, ease: "easeInOut" }
+          }
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function Landing() {
   const [notifyModalOpen, setNotifyModalOpen] = useState(false);
   const [expandedFeature, setExpandedFeature] = useState(null);
@@ -63,7 +132,7 @@ export default function Landing() {
   const ActiveFeatureIcon = activeFeature?.icon;
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] flex flex-col">
+    <div className="relative isolate min-h-screen overflow-x-hidden bg-[#0A0A0A] flex flex-col">
       <SEO
         title={SEO_TITLE}
         description={SEO_DESCRIPTION}
@@ -71,8 +140,10 @@ export default function Landing() {
         imageAlt="ChessBet — skill-based online chess contests"
         structuredData={STRUCTURED_DATA}
       />
+      <LandingAmbientGlow />
+
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-5">
+      <header className="relative z-10 flex items-center justify-between px-6 py-5">
         <Logo size="md" />
         <Link to="/login">
           <Button variant="ghost" className="text-white/70 hover:text-white text-sm">
@@ -82,7 +153,7 @@ export default function Landing() {
       </header>
 
       {/* Hero */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 text-center">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -202,10 +273,12 @@ export default function Landing() {
         </p>
       </div>
 
-      <HowItWorksSection />
+      <div className="relative z-10">
+        <HowItWorksSection />
+      </div>
 
       {/* Footer */}
-      <footer className="px-6 py-8 text-center border-t border-white/5">
+      <footer className="relative z-10 px-6 py-8 text-center border-t border-white/5">
         <nav aria-label="ChessBet information" className="mb-4 flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs">
           <Link to="/fair-play-integrity" className="text-white/45 hover:text-[#C9A84C]">Fair Play & Integrity</Link>
           <Link to="/official-rules" className="text-white/45 hover:text-[#C9A84C]">Official Rules</Link>
