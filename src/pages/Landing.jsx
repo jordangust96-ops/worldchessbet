@@ -74,7 +74,7 @@ function LandingAmbientGlow() {
 
       <div className="absolute inset-x-0 top-[4%] flex justify-center">
         <motion.div
-          className="h-[34rem] w-[34rem] sm:h-[44rem] sm:w-[44rem] rounded-full blur-[110px]"
+          className="h-[34rem] w-[34rem] sm:h-[44rem] sm:w-[44rem] rounded-full"
           style={{
             background:
               "radial-gradient(circle, rgba(225,193,101,0.12) 0%, rgba(201,168,76,0.04) 42%, transparent 72%)",
