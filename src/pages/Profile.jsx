@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Trophy, Swords, LogOut, Loader2, Crown, XCircle, Flag, ChevronRight, HelpCircle } from "lucide-react";
+import { Trophy, Swords, LogOut, Loader2, Crown, XCircle, Flag, ChevronRight, HelpCircle, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import Logo from "@/components/Logo";
@@ -231,6 +231,7 @@ export default function Profile() {
           {[
             { to: "/my-reports", icon: Flag, label: "My Reports" },
             { to: "/faq", icon: HelpCircle, label: "FAQ" },
+            { to: "/blog", icon: BookOpen, label: "Blog" },
           ].map(({ to, icon: Icon, label }) => (
             <Link
               key={to}
