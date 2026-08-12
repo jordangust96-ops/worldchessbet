@@ -29,6 +29,7 @@ import TermsOfService from '@/pages/TermsOfService';
 import TermsOfServiceAdmin from '@/pages/TermsOfServiceAdmin';
 import OfficialRules from '@/pages/OfficialRules';
 import FAQ from '@/pages/FAQ';
+import Blog from '@/pages/Blog';
 import OfficialRulesAdmin from '@/pages/OfficialRulesAdmin';
 import FairPlayIntegrity from '@/pages/FairPlayIntegrity';
 import Unsubscribe from '@/pages/Unsubscribe';
@@ -82,6 +83,7 @@ const AuthenticatedApp = () => {
       <Route path="/terms-of-service" element={<TermsOfService />} />
       <Route path="/official-rules" element={<OfficialRules />} />
       <Route path="/faq" element={<FAQ />} />
+      <Route path="/blog" element={<Blog />} />
       <Route path="/fair-play-integrity" element={<FairPlayIntegrity />} />
       <Route path="/unsubscribe" element={<Unsubscribe />} />
       {/* Handles its own auth/MFA gating so it can return the visitor to this
