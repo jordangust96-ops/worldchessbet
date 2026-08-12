@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { Crown, Zap, Shield, ChevronDown, CircleCheck } from "lucide-react";
+import { Crown, Zap, Shield, CircleCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import NotifyAtLaunchModal from "@/components/NotifyAtLaunchModal";
 import HowItWorksSection from "@/components/landing/HowItWorksSection";
@@ -147,11 +147,6 @@ export default function Landing() {
                 <span className="text-[11px] text-white/50 font-medium text-center whitespace-pre-line leading-tight">
                   {label}
                 </span>
-                <ChevronDown
-                  size={11}
-                  aria-hidden="true"
-                  className={`absolute right-2.5 bottom-2.5 text-white/20 transition-transform duration-200 ${isExpanded ? "rotate-180 text-[#C9A84C]/70" : ""}`}
-                />
               </button>
             );
           })}
