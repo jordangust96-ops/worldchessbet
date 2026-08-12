@@ -140,7 +140,7 @@ export default function Landing() {
                 type="button"
                 onClick={() => setExpandedFeature(isExpanded ? null : id)}
                 aria-expanded={isExpanded}
-                aria-controls="hero-feature-details"
+                aria-controls={`hero-feature-details-${id}`}
                 className="relative flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/[0.03] border border-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0A]"
               >
                 <Icon size={20} className="text-[#C9A84C]" aria-hidden="true" />
@@ -155,7 +155,7 @@ export default function Landing() {
         <AnimatePresence initial={false} mode="wait">
           {activeFeature && ActiveFeatureIcon && (
             <motion.div
-              id="hero-feature-details"
+              id={`hero-feature-details-${activeFeature.id}`}
               key={activeFeature.id}
               initial={{ opacity: 0, height: 0, y: -6 }}
               animate={{ opacity: 1, height: "auto", y: 0 }}
