@@ -60,9 +60,9 @@ function LandingAmbientGlow() {
   const reduceMotion = useReducedMotion();
   const perimeterMask = {
     WebkitMaskImage:
-      "radial-gradient(ellipse 54% 54% at 50% 43%, transparent 0%, transparent 46%, rgba(0,0,0,0.38) 64%, black 84%)",
+      "radial-gradient(ellipse 78% 76% at 50% 45%, transparent 0%, transparent 56%, rgba(0,0,0,0.3) 74%, black 94%)",
     maskImage:
-      "radial-gradient(ellipse 54% 54% at 50% 43%, transparent 0%, transparent 46%, rgba(0,0,0,0.38) 64%, black 84%)",
+      "radial-gradient(ellipse 78% 76% at 50% 45%, transparent 0%, transparent 56%, rgba(0,0,0,0.3) 74%, black 94%)",
   };
 
   return (
@@ -123,7 +123,7 @@ function LandingAmbientGlow() {
         className="absolute inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 52% 58% at 50% 43%, rgba(10,10,10,0.96) 0%, rgba(10,10,10,0.84) 48%, rgba(10,10,10,0.32) 69%, transparent 84%)",
+            "radial-gradient(ellipse 76% 78% at 50% 45%, rgba(10,10,10,0.985) 0%, rgba(10,10,10,0.94) 58%, rgba(10,10,10,0.55) 76%, transparent 94%)",
         }}
       />
     </div>
