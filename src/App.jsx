@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Toaster } from "@/components/ui/toaster"
 import { HelmetProvider } from 'react-helmet-async'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -11,39 +12,40 @@ import GoogleAnalyticsTracker from '@/components/GoogleAnalyticsTracker';
 import MetaPixelTracker from '@/components/MetaPixelTracker';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
-// Auth pages
-import Login from '@/pages/Login';
-import Register from '@/pages/Register';
-import ForgotPassword from '@/pages/ForgotPassword';
-import ResetPassword from '@/pages/ResetPassword';
-
-// App pages
+// Keep the public landing page in the initial bundle. Other screens load only
+// when visited so marketing visitors do not download account, gameplay, wallet,
+// and admin code before seeing the homepage.
 import Landing from '@/pages/Landing';
-import Home from '@/pages/Home';
-import WalletPage from '@/pages/WalletPage';
-import Profile from '@/pages/Profile';
-import VerifyMfa from '@/pages/VerifyMfa';
-import PrivacyPolicy from '@/pages/PrivacyPolicy';
-import PrivacyPolicyAdmin from '@/pages/PrivacyPolicyAdmin';
-import TermsOfService from '@/pages/TermsOfService';
-import TermsOfServiceAdmin from '@/pages/TermsOfServiceAdmin';
-import OfficialRules from '@/pages/OfficialRules';
-import FAQ from '@/pages/FAQ';
-import Blog from '@/pages/Blog';
-import OfficialRulesAdmin from '@/pages/OfficialRulesAdmin';
-import FairPlayIntegrity from '@/pages/FairPlayIntegrity';
-import Unsubscribe from '@/pages/Unsubscribe';
-import JoinMatch from '@/pages/JoinMatch';
-import IntegrityReviewQueue from '@/pages/IntegrityReviewQueue';
-import AdminUserIntegrity from '@/pages/AdminUserIntegrity';
-import AdminGameSettings from '@/pages/AdminGameSettings';
-import DisputeCaseQueue from '@/pages/DisputeCaseQueue';
-import AdminDisputeCase from '@/pages/AdminDisputeCase';
-import MyReports from '@/pages/MyReports';
-import AdminSiteActivity from '@/pages/AdminSiteActivity';
-import AdminUserFinancials from '@/pages/AdminUserFinancials';
-import AdminEarlyAccessCampaign from '@/pages/AdminEarlyAccessCampaign';
-import AdminActionCenter from '@/pages/AdminActionCenter';
+
+const Login = lazy(() => import('@/pages/Login'));
+const Register = lazy(() => import('@/pages/Register'));
+const ForgotPassword = lazy(() => import('@/pages/ForgotPassword'));
+const ResetPassword = lazy(() => import('@/pages/ResetPassword'));
+const Home = lazy(() => import('@/pages/Home'));
+const WalletPage = lazy(() => import('@/pages/WalletPage'));
+const Profile = lazy(() => import('@/pages/Profile'));
+const VerifyMfa = lazy(() => import('@/pages/VerifyMfa'));
+const PrivacyPolicy = lazy(() => import('@/pages/PrivacyPolicy'));
+const PrivacyPolicyAdmin = lazy(() => import('@/pages/PrivacyPolicyAdmin'));
+const TermsOfService = lazy(() => import('@/pages/TermsOfService'));
+const TermsOfServiceAdmin = lazy(() => import('@/pages/TermsOfServiceAdmin'));
+const OfficialRules = lazy(() => import('@/pages/OfficialRules'));
+const FAQ = lazy(() => import('@/pages/FAQ'));
+const Blog = lazy(() => import('@/pages/Blog'));
+const OfficialRulesAdmin = lazy(() => import('@/pages/OfficialRulesAdmin'));
+const FairPlayIntegrity = lazy(() => import('@/pages/FairPlayIntegrity'));
+const Unsubscribe = lazy(() => import('@/pages/Unsubscribe'));
+const JoinMatch = lazy(() => import('@/pages/JoinMatch'));
+const IntegrityReviewQueue = lazy(() => import('@/pages/IntegrityReviewQueue'));
+const AdminUserIntegrity = lazy(() => import('@/pages/AdminUserIntegrity'));
+const AdminGameSettings = lazy(() => import('@/pages/AdminGameSettings'));
+const DisputeCaseQueue = lazy(() => import('@/pages/DisputeCaseQueue'));
+const AdminDisputeCase = lazy(() => import('@/pages/AdminDisputeCase'));
+const MyReports = lazy(() => import('@/pages/MyReports'));
+const AdminSiteActivity = lazy(() => import('@/pages/AdminSiteActivity'));
+const AdminUserFinancials = lazy(() => import('@/pages/AdminUserFinancials'));
+const AdminEarlyAccessCampaign = lazy(() => import('@/pages/AdminEarlyAccessCampaign'));
+const AdminActionCenter = lazy(() => import('@/pages/AdminActionCenter'));
 
 // Layout
 import AppLayout from '@/components/layout/AppLayout';
@@ -72,7 +74,14 @@ const AuthenticatedApp = () => {
   }
 
   return (
-    <Routes>
+    <Suspense
+      fallback={
+        <div className="fixed inset-0 flex items-center justify-center bg-[#0A0A0A]">
+          <div className="w-8 h-8 border-4 border-white/10 border-t-[#C9A84C] rounded-full animate-spin"></div>
+        </div>
+      }
+    >
+      <Routes>
       {/* Public routes */}
       <Route path="/landing" element={<Landing />} />
       <Route path="/login" element={<Login />} />
@@ -119,8 +128,9 @@ const AuthenticatedApp = () => {
         </Route>
       </Route>
 
-      <Route path="*" element={<PageNotFound />} />
-    </Routes>
+        <Route path="*" element={<PageNotFound />} />
+      </Routes>
+    </Suspense>
   );
 };
 
