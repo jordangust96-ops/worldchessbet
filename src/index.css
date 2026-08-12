@@ -78,3 +78,43 @@
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+
+/* Soro injects blog content at runtime. Keep every current and future article
+   legible within the site's dark-and-gold theme, regardless of its own defaults. */
+#soro-blog {
+  color: #EDEDED;
+  font-family: var(--font-body);
+}
+
+#soro-blog :not(svg):not(path):not(circle):not(rect):not(line):not(polyline):not(polygon) {
+  color: #EDEDED !important;
+}
+
+#soro-blog h1,
+#soro-blog h2,
+#soro-blog h3,
+#soro-blog h4,
+#soro-blog h5,
+#soro-blog h6 {
+  color: #F8F3E3 !important;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+#soro-blog p,
+#soro-blog li {
+  color: #D6D6D6 !important;
+  line-height: 1.8;
+}
+
+#soro-blog a {
+  color: #E8D48B !important;
+  text-decoration-color: rgba(232, 212, 139, 0.5);
+  text-underline-offset: 0.2em;
+}
+
+#soro-blog a:hover {
+  color: #FFF3BE !important;
+}
