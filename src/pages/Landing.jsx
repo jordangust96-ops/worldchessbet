@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
-import { Crown, Zap, Shield } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Crown, Zap, Shield, ChevronDown, CircleCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import NotifyAtLaunchModal from "@/components/NotifyAtLaunchModal";
 import HowItWorksSection from "@/components/landing/HowItWorksSection";
@@ -13,6 +13,36 @@ const LANDING_URL = `${SITE_URL}/landing`;
 const SEO_TITLE = "ChessBet | Play Online Chess for Real Prizes";
 const SEO_DESCRIPTION =
   "Play skill-based, head-to-head online chess for real prizes with secure contest funds, verified results, and Stockfish-powered fair-play screening.";
+
+const HERO_FEATURES = [
+  {
+    id: "instant-matching",
+    icon: Zap,
+    label: "Instant\nMatching",
+    heading: "Find the right contest quickly",
+    description:
+      "Browse available challenges or create your own with the Entry Amount and time control shown upfront.",
+    points: ["Clear challenge terms", "Fast marketplace updates", "Shared pre-match confirmation"],
+  },
+  {
+    id: "secure-funds",
+    icon: Shield,
+    label: "Secure\nFunds",
+    heading: "Contest funds are tracked end to end",
+    description:
+      "Each player's Entry Amount and separately disclosed Platform Service Fee are reserved before play and recorded through settlement.",
+    points: ["Server-controlled reservation", "Auditable transaction records", "Automatic result-based settlement"],
+  },
+  {
+    id: "verified-results",
+    icon: Crown,
+    label: "Verified\nResults",
+    heading: "Every result follows the game record",
+    description:
+      "Legal moves, chess clocks, and final results are server-authoritative, with automated fair-play screening supporting human review.",
+    points: ["Authoritative move and clock history", "Stockfish post-game screening", "Admin integrity review"],
+  },
+];
 
 const STRUCTURED_DATA = {
   "@context": "https://schema.org",
@@ -28,6 +58,9 @@ const STRUCTURED_DATA = {
 
 export default function Landing() {
   const [notifyModalOpen, setNotifyModalOpen] = useState(false);
+  const [expandedFeature, setExpandedFeature] = useState(null);
+  const activeFeature = HERO_FEATURES.find(({ id }) => id === expandedFeature);
+  const ActiveFeatureIcon = activeFeature?.icon;
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] flex flex-col">
@@ -99,22 +132,68 @@ export default function Landing() {
           transition={{ delay: 0.6, duration: 0.6 }}
           className="grid grid-cols-3 gap-4 mt-16 max-w-sm w-full"
         >
-          {[
-            { icon: Zap, label: "Instant\nMatching" },
-            { icon: Shield, label: "Secure\nFunds" },
-            { icon: Crown, label: "Verified\nResults" },
-          ].map(({ icon: Icon, label }) => (
-            <div
-              key={label}
-              className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/[0.03] border border-white/5"
-            >
-              <Icon size={20} className="text-[#C9A84C]" />
-              <span className="text-[11px] text-white/50 font-medium text-center whitespace-pre-line leading-tight">
-                {label}
-              </span>
-            </div>
-          ))}
+          {HERO_FEATURES.map(({ id, icon: Icon, label }) => {
+            const isExpanded = expandedFeature === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setExpandedFeature(isExpanded ? null : id)}
+                aria-expanded={isExpanded}
+                aria-controls="hero-feature-details"
+                className="relative flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/[0.03] border border-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0A]"
+              >
+                <Icon size={20} className="text-[#C9A84C]" aria-hidden="true" />
+                <span className="text-[11px] text-white/50 font-medium text-center whitespace-pre-line leading-tight">
+                  {label}
+                </span>
+                <ChevronDown
+                  size={11}
+                  aria-hidden="true"
+                  className={`absolute right-2.5 bottom-2.5 text-white/20 transition-transform duration-200 ${isExpanded ? "rotate-180 text-[#C9A84C]/70" : ""}`}
+                />
+              </button>
+            );
+          })}
         </motion.div>
+
+        <AnimatePresence initial={false} mode="wait">
+          {activeFeature && ActiveFeatureIcon && (
+            <motion.div
+              id="hero-feature-details"
+              key={activeFeature.id}
+              initial={{ opacity: 0, height: 0, y: -6 }}
+              animate={{ opacity: 1, height: "auto", y: 0 }}
+              exit={{ opacity: 0, height: 0, y: -6 }}
+              transition={{ duration: 0.24, ease: "easeOut" }}
+              className="max-w-sm w-full overflow-hidden text-left"
+              role="region"
+              aria-live="polite"
+            >
+              <div className="mt-3 rounded-2xl border border-[#C9A84C]/20 bg-gradient-to-br from-[#C9A84C]/[0.08] to-white/[0.02] p-5">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#C9A84C]/20 bg-[#C9A84C]/10">
+                    <ActiveFeatureIcon size={18} className="text-[#C9A84C]" aria-hidden="true" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-semibold text-white">{activeFeature.heading}</h2>
+                    <p className="mt-1.5 text-xs leading-relaxed text-white/50">
+                      {activeFeature.description}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-2 border-t border-white/[0.06] pt-4">
+                  {activeFeature.points.map((point) => (
+                    <div key={point} className="flex items-center gap-2 text-[11px] text-white/55">
+                      <CircleCheck size={13} className="shrink-0 text-[#C9A84C]/80" aria-hidden="true" />
+                      <span>{point}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <p className="text-white/35 text-xs mt-8 max-w-sm">
           Early Access: ChessBet is currently in early access. Real-money competitive play will be
