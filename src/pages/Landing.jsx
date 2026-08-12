@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
 import { Crown, Zap, Shield, CircleCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import NotifyAtLaunchModal from "@/components/NotifyAtLaunchModal";
@@ -58,6 +58,9 @@ const STRUCTURED_DATA = {
 
 function LandingAmbientGlow() {
   const reduceMotion = useReducedMotion();
+  const [pulse, setPulse] = useState(null);
+  const { scrollYProgress } = useScroll();
+  const scrollDrift = useTransform(scrollYProgress, [0, 1], ["-3%", "3%"]);
   const perimeterMask = {
     WebkitMaskImage:
       "radial-gradient(ellipse 78% 76% at 50% 45%, transparent 0%, transparent 56%, rgba(0,0,0,0.3) 74%, black 94%)",
@@ -65,59 +68,95 @@ function LandingAmbientGlow() {
       "radial-gradient(ellipse 78% 76% at 50% 45%, transparent 0%, transparent 56%, rgba(0,0,0,0.3) 74%, black 94%)",
   };
 
+  useEffect(() => {
+    if (reduceMotion) return undefined;
+
+    const handleClick = (event) => {
+      // Ignore keyboard-generated clicks, which do not have a meaningful
+      // viewport coordinate for the ambient droplet.
+      if (event.detail === 0) return;
+      setPulse({ id: Date.now(), x: event.clientX, y: event.clientY });
+    };
+
+    window.addEventListener("click", handleClick, { passive: true });
+    return () => window.removeEventListener("click", handleClick);
+  }, [reduceMotion]);
+
   return (
     <div
       className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
       aria-hidden="true"
     >
       <motion.div
-        className="absolute -inset-[32%]"
-        style={{
-          ...perimeterMask,
-          background:
-            "conic-gradient(from 25deg at 50% 50%, transparent 0deg, rgba(225,193,101,0.085) 38deg, transparent 82deg, transparent 164deg, rgba(201,168,76,0.055) 214deg, transparent 266deg, transparent 360deg)",
-          willChange: reduceMotion ? "auto" : "transform, opacity",
-        }}
-        animate={
-          reduceMotion
-            ? { opacity: 0.42, rotate: -5 }
-            : {
-                rotate: [-5, 9, -5],
-                scale: [1, 1.035, 1],
-                opacity: [0.32, 0.48, 0.32],
-              }
-        }
-        transition={
-          reduceMotion
-            ? { duration: 0 }
-            : { duration: 38, repeat: Infinity, ease: "easeInOut" }
-        }
-      />
+        className="absolute inset-0"
+        style={{ y: reduceMotion ? 0 : scrollDrift }}
+      >
+        <motion.div
+          className="absolute -inset-[32%]"
+          style={{
+            ...perimeterMask,
+            background:
+              "conic-gradient(from 25deg at 50% 50%, transparent 0deg, rgba(225,193,101,0.085) 38deg, transparent 82deg, transparent 164deg, rgba(201,168,76,0.055) 214deg, transparent 266deg, transparent 360deg)",
+            willChange: reduceMotion ? "auto" : "transform, opacity",
+          }}
+          animate={
+            reduceMotion
+              ? { opacity: 0.42, rotate: -7 }
+              : {
+                  rotate: [-7, 14, -7],
+                  scale: [0.985, 1.055, 0.985],
+                  opacity: [0.32, 0.5, 0.32],
+                }
+          }
+          transition={
+            reduceMotion
+              ? { duration: 0 }
+              : { duration: 32, repeat: Infinity, ease: "easeInOut" }
+          }
+        />
 
-      <motion.div
-        className="absolute -inset-[12%]"
-        style={{
-          ...perimeterMask,
-          background:
-            "radial-gradient(ellipse 38% 46% at 2% 18%, rgba(225,193,101,0.105), transparent 72%), radial-gradient(ellipse 42% 48% at 98% 68%, rgba(201,168,76,0.09), transparent 74%), radial-gradient(ellipse 34% 34% at 28% 100%, rgba(201,168,76,0.055), transparent 76%)",
-          willChange: reduceMotion ? "auto" : "transform, opacity",
-        }}
-        animate={
-          reduceMotion
-            ? { opacity: 0.52 }
-            : {
-                x: ["-1.5%", "1.5%", "-0.5%", "-1.5%"],
-                y: ["-1%", "1.5%", "0.5%", "-1%"],
-                scale: [1, 1.025, 0.99, 1],
-                opacity: [0.4, 0.58, 0.46, 0.4],
-              }
-        }
-        transition={
-          reduceMotion
-            ? { duration: 0 }
-            : { duration: 30, repeat: Infinity, ease: "easeInOut" }
-        }
-      />
+        <motion.div
+          className="absolute -inset-[12%]"
+          style={{
+            ...perimeterMask,
+            background:
+              "radial-gradient(ellipse 38% 46% at 2% 18%, rgba(225,193,101,0.105), transparent 72%), radial-gradient(ellipse 42% 48% at 98% 68%, rgba(201,168,76,0.09), transparent 74%), radial-gradient(ellipse 34% 34% at 28% 100%, rgba(201,168,76,0.055), transparent 76%)",
+            willChange: reduceMotion ? "auto" : "transform, opacity",
+          }}
+          animate={
+            reduceMotion
+              ? { opacity: 0.52 }
+              : {
+                  x: ["-3%", "3.5%", "-1.5%", "-3%"],
+                  y: ["-2%", "3%", "1%", "-2%"],
+                  scale: [0.985, 1.045, 0.99, 0.985],
+                  opacity: [0.4, 0.6, 0.46, 0.4],
+                }
+          }
+          transition={
+            reduceMotion
+              ? { duration: 0 }
+              : { duration: 24, repeat: Infinity, ease: "easeInOut" }
+          }
+        />
+      </motion.div>
+
+      {pulse && (
+        <motion.div
+          key={pulse.id}
+          className="absolute inset-0"
+          style={{
+            ...perimeterMask,
+            background: `radial-gradient(circle at ${pulse.x}px ${pulse.y}px, rgba(225,193,101,0.18) 0%, rgba(201,168,76,0.07) 18%, transparent 46%)`,
+            transformOrigin: `${pulse.x}px ${pulse.y}px`,
+            willChange: "transform, opacity",
+          }}
+          initial={{ opacity: 0, scale: 0.97 }}
+          animate={{ opacity: [0, 0.5, 0], scale: [0.97, 1.025, 1.07] }}
+          transition={{ duration: 1.3, ease: "easeOut" }}
+          onAnimationComplete={() => setPulse(null)}
+        />
+      )}
 
       <div
         className="absolute inset-0"
