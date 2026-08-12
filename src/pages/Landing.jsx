@@ -58,69 +58,74 @@ const STRUCTURED_DATA = {
 
 function LandingAmbientGlow() {
   const reduceMotion = useReducedMotion();
+  const perimeterMask = {
+    WebkitMaskImage:
+      "radial-gradient(ellipse 54% 54% at 50% 43%, transparent 0%, transparent 46%, rgba(0,0,0,0.38) 64%, black 84%)",
+    maskImage:
+      "radial-gradient(ellipse 54% 54% at 50% 43%, transparent 0%, transparent 46%, rgba(0,0,0,0.38) 64%, black 84%)",
+  };
 
   return (
     <div
       className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
       aria-hidden="true"
     >
+      <motion.div
+        className="absolute -inset-[32%]"
+        style={{
+          ...perimeterMask,
+          background:
+            "conic-gradient(from 25deg at 50% 50%, transparent 0deg, rgba(225,193,101,0.085) 38deg, transparent 82deg, transparent 164deg, rgba(201,168,76,0.055) 214deg, transparent 266deg, transparent 360deg)",
+          willChange: reduceMotion ? "auto" : "transform, opacity",
+        }}
+        animate={
+          reduceMotion
+            ? { opacity: 0.42, rotate: -5 }
+            : {
+                rotate: [-5, 9, -5],
+                scale: [1, 1.035, 1],
+                opacity: [0.32, 0.48, 0.32],
+              }
+        }
+        transition={
+          reduceMotion
+            ? { duration: 0 }
+            : { duration: 38, repeat: Infinity, ease: "easeInOut" }
+        }
+      />
+
+      <motion.div
+        className="absolute -inset-[12%]"
+        style={{
+          ...perimeterMask,
+          background:
+            "radial-gradient(ellipse 38% 46% at 2% 18%, rgba(225,193,101,0.105), transparent 72%), radial-gradient(ellipse 42% 48% at 98% 68%, rgba(201,168,76,0.09), transparent 74%), radial-gradient(ellipse 34% 34% at 28% 100%, rgba(201,168,76,0.055), transparent 76%)",
+          willChange: reduceMotion ? "auto" : "transform, opacity",
+        }}
+        animate={
+          reduceMotion
+            ? { opacity: 0.52 }
+            : {
+                x: ["-1.5%", "1.5%", "-0.5%", "-1.5%"],
+                y: ["-1%", "1.5%", "0.5%", "-1%"],
+                scale: [1, 1.025, 0.99, 1],
+                opacity: [0.4, 0.58, 0.46, 0.4],
+              }
+        }
+        transition={
+          reduceMotion
+            ? { duration: 0 }
+            : { duration: 30, repeat: Infinity, ease: "easeInOut" }
+        }
+      />
+
       <div
         className="absolute inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 70% 48% at 50% 18%, rgba(201,168,76,0.055), rgba(201,168,76,0.018) 42%, transparent 72%)",
+            "radial-gradient(ellipse 52% 58% at 50% 43%, rgba(10,10,10,0.96) 0%, rgba(10,10,10,0.84) 48%, rgba(10,10,10,0.32) 69%, transparent 84%)",
         }}
       />
-
-      <div className="absolute inset-x-0 top-[4%] flex justify-center">
-        <motion.div
-          className="h-[34rem] w-[34rem] sm:h-[44rem] sm:w-[44rem] rounded-full"
-          style={{
-            background:
-              "radial-gradient(circle, rgba(225,193,101,0.12) 0%, rgba(201,168,76,0.04) 42%, transparent 72%)",
-            willChange: reduceMotion ? "auto" : "transform, opacity",
-          }}
-          animate={
-            reduceMotion
-              ? { opacity: 0.48 }
-              : {
-                  x: ["-5%", "7%", "-3%"],
-                  y: [0, 32, 8],
-                  scale: [0.96, 1.04, 0.98],
-                  opacity: [0.38, 0.62, 0.42],
-                }
-          }
-          transition={
-            reduceMotion
-              ? { duration: 0 }
-              : { duration: 22, repeat: Infinity, ease: "easeInOut" }
-          }
-        />
-      </div>
-
-      <div className="absolute inset-x-0 top-[15%] flex justify-center">
-        <motion.div
-          className="h-[23rem] w-[42rem] rounded-[50%] border border-[#C9A84C]/[0.055]"
-          style={{
-            boxShadow: "inset 0 0 45px rgba(201,168,76,0.018)",
-            willChange: reduceMotion ? "auto" : "transform, opacity",
-          }}
-          animate={
-            reduceMotion
-              ? { opacity: 0.55, rotate: -8 }
-              : {
-                  rotate: [-8, 5, -8],
-                  scale: [0.98, 1.025, 0.98],
-                  opacity: [0.38, 0.58, 0.38],
-                }
-          }
-          transition={
-            reduceMotion
-              ? { duration: 0 }
-              : { duration: 28, repeat: Infinity, ease: "easeInOut" }
-          }
-        />
-      </div>
     </div>
   );
 }
