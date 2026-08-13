@@ -1,5 +1,5 @@
 import React from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ChevronLeft, HelpCircle } from "lucide-react";
 import {
   Accordion,
@@ -16,7 +16,9 @@ import PlayerProtectionCallout from "@/components/landing/PlayerProtectionCallou
 
 export default function FAQ() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAuthenticated } = useAuth();
+  const targetAnswerId = location.hash.slice(1);
 
   const structuredData = {
     "@context": "https://schema.org",
@@ -64,12 +66,18 @@ export default function FAQ() {
               <h2 className="text-xs font-semibold text-[#C9A84C] uppercase tracking-wider mb-2">
                 {section.category}
               </h2>
-              <Accordion type="single" collapsible className="w-full">
+              <Accordion
+                type="single"
+                collapsible
+                defaultValue={section.items.some((item) => item.id === targetAnswerId) ? targetAnswerId : undefined}
+                className="w-full"
+              >
                 {section.items.map((item, idx) => (
                   <AccordionItem
                     key={item.question}
-                    value={`${section.category}-${idx}`}
-                    className="border-white/5"
+                    value={item.id || `${section.category}-${idx}`}
+                    id={item.id}
+                    className="border-white/5 scroll-mt-28"
                   >
                     <AccordionTrigger className="text-white text-sm font-medium hover:no-underline">
                       {item.question}
