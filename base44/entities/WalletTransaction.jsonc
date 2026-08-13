@@ -32,7 +32,8 @@
       "enum": [
         "pending",
         "completed",
-        "failed"
+        "failed",
+        "review_required"
       ],
       "default": "completed"
     },
