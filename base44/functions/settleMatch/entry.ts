@@ -2,6 +2,122 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { postLedgerLegs } from '../../shared/ledger.ts';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 
+const SETTLEMENT_ELECTION_DELAY_MS = 250;
+
+function settlementIdempotencyKey(matchId, gameId, type, userId) {
+  return `settlement:${matchId}:${gameId}:${type}:${userId}`;
+}
+
+async function markSettlementAttempt(base44, transaction, match, game, status) {
+  if (!transaction?.id || transaction.status === 'completed') return;
+  const duplicate = status === 'failed';
+  await base44.asServiceRole.entities.WalletTransaction.update(transaction.id, {
+    status,
+    integration_status: 'failed',
+    direction: transaction.type === 'payout' ? 'credit' : 'release',
+    correlation_id: match.id,
+    source_event: 'match_settlement',
+    initiating_actor: 'system',
+    processed_at: new Date().toISOString(),
+    idempotency_key: transaction.idempotency_key ||
+      settlementIdempotencyKey(match.id, game.id, transaction.type, transaction.user_id),
+    description: duplicate
+      ? `${transaction.description || 'Settlement transaction'} — not applied; another settlement attempt completed this contest.`
+      : `${transaction.description || 'Settlement transaction'} — processing stopped and requires administrative review.`,
+    schema_version: 1,
+  });
+}
+
+async function createCanonicalSettlementTransaction(base44, { match, game, userId, type, amount, description }) {
+  const idempotencyKey = settlementIdempotencyKey(match.id, game.id, type, userId);
+  const existing = await base44.asServiceRole.entities.WalletTransaction.filter(
+    { idempotency_key: idempotencyKey },
+    'created_date',
+    20
+  );
+  if (existing.some((transaction) => transaction.status === 'completed')) return null;
+  if (existing.some((transaction) => ['pending', 'review_required'].includes(transaction.status))) return null;
+
+  const transaction = await base44.asServiceRole.entities.WalletTransaction.create({
+    user_id: userId,
+    type,
+    amount,
+    match_id: match.id,
+    description,
+    status: 'pending',
+    currency: 'USD',
+    direction: type === 'payout' ? 'credit' : 'release',
+    correlation_id: match.id,
+    source_event: 'match_settlement',
+    initiating_actor: 'system',
+    integration_status: 'pending',
+    idempotency_key: idempotencyKey,
+    schema_version: 1,
+  });
+
+  // Base44 entity writes are not a compare-and-set primitive. Elect a single
+  // canonical candidate after a short visibility window; non-canonical
+  // candidates become terminal failed audit records before any ledger posting.
+  await new Promise((resolve) => setTimeout(resolve, SETTLEMENT_ELECTION_DELAY_MS));
+  const candidates = await base44.asServiceRole.entities.WalletTransaction.filter(
+    { idempotency_key: idempotencyKey },
+    'created_date',
+    20
+  );
+  const eligible = candidates
+    .filter((candidate) => candidate.status !== 'failed')
+    .sort((a, b) =>
+      String(a.created_date || '').localeCompare(String(b.created_date || '')) ||
+      String(a.id).localeCompare(String(b.id))
+    );
+  const canonical = eligible.find((candidate) => candidate.status === 'completed') || eligible[0];
+  if (!canonical || canonical.id !== transaction.id) {
+    await markSettlementAttempt(base44, transaction, match, game, 'failed');
+    return null;
+  }
+
+  const latestMatch = await base44.asServiceRole.entities.Match.get(match.id);
+  if (latestMatch.settlement_operation_id !== match.settlement_operation_id) {
+    await markSettlementAttempt(base44, transaction, match, game, 'failed');
+    return null;
+  }
+  return transaction;
+}
+
+async function classifySettlementPostingFailure(base44, transaction, match, game) {
+  const latest = await base44.asServiceRole.entities.WalletTransaction.get(transaction.id);
+  if (latest?.status === 'completed') return 'completed';
+
+  const completedSiblings = await base44.asServiceRole.entities.WalletTransaction.filter({
+    match_id: match.id,
+    user_id: transaction.user_id,
+    type: transaction.type,
+    status: 'completed',
+  });
+  const duplicate = completedSiblings.some((candidate) => candidate.id !== transaction.id);
+  const terminalStatus = duplicate ? 'failed' : 'review_required';
+  await markSettlementAttempt(base44, latest || transaction, match, game, terminalStatus);
+
+  if (!duplicate) {
+    const existingFlags = await base44.asServiceRole.entities.IntegrityFlag.filter({
+      match_id: match.id,
+      flag_type: 'settlement_reconciliation_required',
+    }, '-created_date', 5);
+    if (!existingFlags.some((flag) => ['open', 'under_review'].includes(flag.status))) {
+      await base44.asServiceRole.entities.IntegrityFlag.create({
+        user_id: game.winner_id || match.player1_id || match.player2_id,
+        match_id: match.id,
+        flag_type: 'settlement_reconciliation_required',
+        severity: 'high',
+        status: 'open',
+        description: 'Server settlement requires financial reconciliation before completion.',
+        notes: `Settlement transaction ${transaction.id} stopped before it could be confirmed as completed. Automatic retry stopped to prevent duplicate funds movement.`,
+      });
+    }
+  }
+  return terminalStatus;
+}
+
 // Settles wallet balances once a Game has reached a terminal state (checkmate,
 // resignation, draw, or timeout — all already decided by existing gameplay
 // functions). This function does not decide the winner; it only applies the
