@@ -138,7 +138,10 @@ export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletT
     gameId: gameId || '',
     walletTransactionId: walletTransactionId || '',
     ledgerGroupId: groupId,
-    status: walletTransaction?.status || 'completed',
+    // This event is emitted only after the balanced ledger posting succeeds.
+    // The fetched transaction may still contain its pre-update `pending` value,
+    // so never copy that stale snapshot into the integration outbox.
+    status: 'completed',
     amount: walletTransaction?.amount,
     currency: 'USD',
     result: walletTransaction?.type || triggerEvent,
