@@ -67,11 +67,13 @@ export const FAQ_SECTIONS = [
         ],
       },
       {
+        id: "how-payouts-work",
         question: "How do payouts work?",
         paragraphs: [
-          "Each player contributes the agreed contest entry amount.",
-          "The winner receives the full combined contest prize.",
-          "ChessBet separately charges a transparent platform service fee that is shown before every contest begins.",
+          "Real-money settlement and withdrawals are not active during Early Access; all current balances are demo funds.",
+          "At launch, after a decisive result is confirmed, the winner will receive 100% of both players' combined Contest Entry Amounts in their ChessBet balance. The fixed Platform Service Fee is disclosed and reserved separately, so it is not deducted from the winner's prize.",
+          "For a draw, cancellation, or platform void, each player's Contest Entry Amount and Platform Service Fee are returned. If a report triggers an integrity review, the reserved funds remain pending until a person reviews the available evidence and the contest is resolved.",
+          "Available funds may then be withdrawn through the supported bank-transfer method, subject to identity verification, fraud-prevention review, active-contest holds, and verified provider status.",
         ],
       },
     ],
