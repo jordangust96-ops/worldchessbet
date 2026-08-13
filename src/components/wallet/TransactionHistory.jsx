@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import moment from "moment";
 import TransactionPagination from "@/components/wallet/TransactionPagination";
+import ReportContestButton from "@/components/disputes/ReportContestButton";
 
 const typeConfig = {
   deposit: { icon: ArrowDownLeft, color: "text-green-400", bg: "bg-green-500/10", label: "Fund Account" },
@@ -29,6 +30,7 @@ const statusConfig = {
 };
 
 const incomingTypes = ["deposit", "payout", "wager_refund", "service_fee_refund"];
+const REPORT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 function shortReference(id) {
   if (!id) return null;
@@ -42,6 +44,71 @@ function formatMoney(value) {
 function titleCase(value) {
   if (!value) return null;
   return value.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function serverTimestampMs(value) {
+  if (!value) return NaN;
+  const text = String(value);
+  const normalized = /Z$|[+-]\d{2}:?\d{2}$/.test(text) ? text : `${text}Z`;
+  return new Date(normalized).getTime();
+}
+
+function isSuppressedDuplicate(tx) {
+  if (tx.status !== "failed") return false;
+  const details = String(tx.description || "").toLowerCase();
+  return (
+    details.includes("duplicate") ||
+    details.includes("another settlement") ||
+    details.includes("already completed") ||
+    details.includes("already processed")
+  );
+}
+
+function getTransactionExplanation(tx, match) {
+  const amount = `$${formatMoney(tx.amount)}`;
+  const entry = match?.wager_amount != null ? `$${formatMoney(match.wager_amount)}` : null;
+
+  if (isSuppressedDuplicate(tx)) {
+    return {
+      heading: "No balance change",
+      text: "This was a duplicate processing attempt. It did not change your balance and can be ignored because the contest was completed in another transaction.",
+    };
+  }
+  if (tx.status === "failed") {
+    return {
+      heading: "Not applied",
+      text: "This transaction did not change your balance. Check the other transactions for this contest; if the expected result is missing, report the contest within 24 hours.",
+    };
+  }
+  if (tx.status === "review_required") {
+    return {
+      heading: "Review required",
+      text: "Processing paused for review, so the referenced amount is not shown as completed. ChessBet will review the contest and its ledger records.",
+    };
+  }
+  if (tx.status === "pending") {
+    return {
+      heading: "Still processing",
+      text: "This transaction has not finished processing. Your balance and transaction history will update when it completes.",
+    };
+  }
+
+  const explanations = {
+    deposit: `This transaction added ${amount} to your available balance.`,
+    withdrawal: `This transaction removed ${amount} from your ChessBet balance for withdrawal.`,
+    wager_lock: `Your ${amount} contest entry moved from available funds to reserved funds when the contest began.`,
+    wager_refund: `Your ${amount} contest entry was returned to your available balance.`,
+    payout: entry
+      ? `You won this contest and ${amount} was added to your available balance. The prize is funded by both players’ ${entry} contest entries; platform service fees are separate.`
+      : `You won this contest and ${amount} was added to your available balance. Platform service fees are separate from the prize.`,
+    service_fee_charge: `The separate ${amount} platform service fee was reserved when the contest began. It is not deducted from the winner’s prize.`,
+    service_fee_refund: `The ${amount} platform service fee was returned to your available balance.`,
+  };
+
+  return {
+    heading: "What this means",
+    text: explanations[tx.type] || tx.description || "This completed transaction has been reflected in your balance.",
+  };
 }
 
 function getMatchResult(match, userId) {
@@ -117,6 +184,18 @@ export default function TransactionHistory({
           const status = statusConfig[tx.status] || statusConfig.completed;
           const isFailed = tx.status === "failed";
           const needsReview = tx.status === "review_required";
+          const explanation = getTransactionExplanation(tx, match);
+          const transactionCreatedMs = serverTimestampMs(tx.created_date);
+          const transactionAgeMs = Date.now() - transactionCreatedMs;
+          const hasReportableContest = Boolean(tx.match_id && match);
+          const canReportContest =
+            hasReportableContest &&
+            Number.isFinite(transactionAgeMs) &&
+            transactionAgeMs >= -5 * 60 * 1000 &&
+            transactionAgeMs <= REPORT_WINDOW_MS;
+          const reportDeadline = Number.isFinite(transactionCreatedMs)
+            ? transactionCreatedMs + REPORT_WINDOW_MS
+            : null;
           const amountLabel = isFailed
             ? `Not applied · $${formatMoney(tx.amount)}`
             : needsReview
@@ -208,10 +287,30 @@ export default function TransactionHistory({
                     )}
                   </div>
 
-                  {tx.description && (
-                    <div className="mt-4 rounded-xl bg-white/[0.025] px-3 py-2.5">
-                      <p className="text-[10px] uppercase tracking-wider text-white/25">Details</p>
-                      <p className="mt-1 text-xs leading-relaxed text-white/55">{tx.description}</p>
+                  <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.025] px-3 py-2.5">
+                    <p className="text-[10px] uppercase tracking-wider text-white/25">{explanation.heading}</p>
+                    <p className="mt-1 text-xs leading-relaxed text-white/60">{explanation.text}</p>
+                  </div>
+
+                  {hasReportableContest && (
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.06] px-3 py-2.5">
+                      <div>
+                        <p className="text-xs font-medium text-white/65">Concern about this contest?</p>
+                        <p className="mt-0.5 text-[11px] text-white/30">
+                          {canReportContest
+                            ? `Reports from wallet history are available until ${moment(reportDeadline).format("MMM D [at] h:mm A")}.`
+                            : "The 24-hour reporting window for this transaction has closed."}
+                        </p>
+                      </div>
+                      {canReportContest && (
+                        <ReportContestButton
+                          matchId={tx.match_id}
+                          gameId={match?.game_id}
+                          transactionId={tx.id}
+                          label="Report this contest"
+                          className="rounded-lg border border-white/10 px-3 py-2 font-semibold !text-white/60 hover:bg-white/5 hover:!text-white/85"
+                        />
+                      )}
                     </div>
                   )}
 
