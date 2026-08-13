@@ -72,7 +72,7 @@ export default function LegalDocumentPage({ policyType }) {
   return (
     <div className="min-h-screen bg-[#0A0A0A] pb-16">
       <SEO
-        title={`${docMeta.label} | ChessBet`}
+        title={docMeta.seoTitle}
         description={docMeta.seoDescription}
         canonicalUrl={`${SITE_URL}${docMeta.route}`}
         structuredData={{
