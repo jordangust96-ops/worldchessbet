@@ -64,7 +64,7 @@ export default function JoinMatch() {
         // A host revisiting their own link, or an invited player who already
         // joined, belongs on Home where the active match is surfaced.
         if (data?.participant) {
-          navigate("/", { replace: true });
+          navigate("/play", { replace: true });
           return;
         }
 
@@ -102,7 +102,7 @@ export default function JoinMatch() {
       // The invitation token is checked again at acceptance so knowing a
       // private Match ID alone never grants access to its opponent slot.
       await base44.functions.invoke("acceptMatch", { matchId: match.id, inviteCode });
-      navigate("/", { replace: true });
+      navigate("/play", { replace: true });
     } catch (error) {
       const statusCode = error?.response?.status;
       if (statusCode === 400 || statusCode === 404 || statusCode === 409 || statusCode === 410) {
@@ -137,7 +137,7 @@ export default function JoinMatch() {
               {joinError || "This invitation is no longer available."}
             </p>
             <Button
-              onClick={() => navigate("/")}
+              onClick={() => navigate("/play")}
               className="gold-gradient text-black font-bold rounded-2xl h-11 px-6"
             >
               Return to Play
