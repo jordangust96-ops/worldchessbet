@@ -4,6 +4,7 @@ import { appParams } from '@/lib/app-params';
 import { createAxiosClient } from '@base44/sdk/dist/utils/axios-client';
 import { clearMfaVerified } from '@/lib/mfaSession';
 import { DEMO_MODE } from '@/lib/appConfig';
+import { analytics } from '@heycatch/sdk';
 
 const AuthContext = createContext();
 
@@ -103,6 +104,14 @@ export const AuthProvider = ({ children }) => {
       const currentUser = await base44.auth.me();
       setUser(currentUser);
       setIsAuthenticated(true);
+      analytics.setIdentity(
+        currentUser.id,
+        {
+          ...(currentUser.email ? { email: currentUser.email } : {}),
+          ...(currentUser.name ? { name: currentUser.name } : {}),
+        },
+        currentUser.created_date ? { signup_date: currentUser.created_date } : {},
+      );
       setIsLoadingAuth(false);
       setAuthChecked(true);
 
@@ -135,6 +144,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = (shouldRedirect = true) => {
+    analytics.resetIdentity();
     setUser(null);
     setIsAuthenticated(false);
     clearMfaVerified();
