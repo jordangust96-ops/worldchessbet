@@ -22,7 +22,7 @@ async function markSettlementAttempt(base44, transaction, match, game, status) {
     idempotency_key: transaction.idempotency_key ||
       settlementIdempotencyKey(match.id, game.id, transaction.type, transaction.user_id),
     description: duplicate
-      ? `${transaction.description || 'Settlement transaction'} — not applied; another settlement attempt completed this contest.`
+      ? `${transaction.description || 'Settlement transaction'} — not applied; another settlement attempt controls this contest.`
       : `${transaction.description || 'Settlement transaction'} — processing stopped and requires administrative review.`,
     schema_version: 1,
   });
