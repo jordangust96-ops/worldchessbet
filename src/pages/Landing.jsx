@@ -207,13 +207,13 @@ export default function Landing() {
           <div className="space-y-4">
             <Logo size="lg" className="justify-center" />
             <h1 className="text-white text-2xl sm:text-3xl font-extrabold leading-tight max-w-md mx-auto">
-              Competitive blitz and rapid chess — built for fair play.
+              Win head-to-head chess matches. Earn prizes for skill.
             </h1>
             <p className="text-white/70 text-lg font-semibold leading-snug max-w-sm mx-auto">
-              Head-to-head chess with server-authoritative moves, fair-play screening, and a human review path when something looks wrong.
+              Play competitive blitz and rapid chess in prize-based contests, with server-verified results, fair-play screening, and human review when something looks wrong.
             </p>
             <p className="text-white/50 text-sm leading-relaxed max-w-sm mx-auto">
-              Early Access for players who want clean, skill-first competition.
+              Early Access: prize-based competition, funding, withdrawals, and settlement are not yet live. Availability will depend on eligibility and location.
             </p>
           </div>
 
