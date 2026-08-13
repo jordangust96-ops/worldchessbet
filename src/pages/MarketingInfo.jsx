@@ -10,7 +10,7 @@ const PAGES = {
     title: "Chess Fair-Play Features — Verified Games & Human Review | ChessBet",
     description: "Explore ChessBet fair-play features: server-verified games, Stockfish screening, player reports, human review, and a clear appeals path.",
     heading: "Head-to-head chess, built around fair play",
-    intro: "Play blitz and rapid against real players. Your moves and result are server-verified, then screening and human review help protect the match.",
+    intro: "Play blitz, rapid, and classical against real players. Your moves and result are server-verified, then screening and human review help protect the match.",
     points: ["Server-verified games and synchronized clocks", "Stockfish screening for engine-detection signals", "A report, evidence review, dispute, and appeal path if you think you were cheated"],
   },
   "/pricing": {
