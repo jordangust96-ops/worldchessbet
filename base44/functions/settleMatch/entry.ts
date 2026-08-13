@@ -375,14 +375,17 @@ Deno.serve(async (req) => {
         });
       }
 
-      const walletTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
-        user_id: winnerId,
+      const walletTransaction = await createCanonicalSettlementTransaction(base44, {
+        match,
+        game,
+        userId: winnerId,
         type: 'payout',
         amount: pot,
-        match_id: match.id,
         description: 'Contest winnings payout — full combined entry amounts',
-        status: 'pending',
       });
+      if (!walletTransaction) {
+        return Response.json({ error: 'duplicate_settlement_attempt' }, { status: 409 });
+      }
       if (appliedReconciliation) {
         await base44.asServiceRole.entities.SettlementReconciliation.update(appliedReconciliation.id, {
           notes: `${appliedReconciliation.notes || ''}\nLatest stage: payout_created (${walletTransaction.id})`.trim(),
@@ -438,10 +441,18 @@ Deno.serve(async (req) => {
         });
       } catch (postingError) {
         const diagnostic = String(postingError?.message || 'unknown_posting_error').slice(0, 500);
+        const terminalStatus = await classifySettlementPostingFailure(
+          base44,
+          walletTransaction,
+          match,
+          game
+        );
         console.error(JSON.stringify({
           event: 'settlement_ledger_posting_failed',
           match_id: match.id,
           game_id: game.id,
+          wallet_transaction_id: walletTransaction.id,
+          terminal_status: terminalStatus,
           diagnostic,
         }));
         if (appliedReconciliation) {
