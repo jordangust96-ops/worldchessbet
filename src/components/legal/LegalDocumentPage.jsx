@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { base44 } from "@/api/base44Client";
@@ -39,6 +39,7 @@ export default function LegalDocumentPage({ policyType }) {
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [openSections, setOpenSections] = useState([]);
+  const { hash } = useLocation();
   const docMeta = LEGAL_DOCUMENT_TYPES[policyType];
 
   useEffect(() => {
@@ -58,6 +59,21 @@ export default function LegalDocumentPage({ policyType }) {
     () => (config ? parseSections(config.content_markdown, config.support_email) : []),
     [config]
   );
+
+  useEffect(() => {
+    if (loading || !hash) return undefined;
+
+    const targetId = decodeURIComponent(hash.slice(1));
+    if (sections.some((section) => section.id === targetId)) {
+      setOpenSections((current) => current.includes(targetId) ? current : [...current, targetId]);
+    }
+
+    const timer = window.setTimeout(() => {
+      document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 120);
+
+    return () => window.clearTimeout(timer);
+  }, [hash, loading, sections]);
 
   if (loading) {
     return (
@@ -102,6 +118,30 @@ export default function LegalDocumentPage({ policyType }) {
       </div>
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="px-5 pt-6 max-w-2xl mx-auto">
+        {policyType === "official_rules" && (
+          <section
+            id="eligibility"
+            aria-labelledby="eligibility-title"
+            className="mb-6 scroll-mt-28 rounded-2xl border border-[#C9A84C]/25 bg-[#C9A84C]/[0.07] p-5"
+          >
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#C9A84C]">Quick answer</p>
+            <h2 id="eligibility-title" className="mt-2 text-base font-bold text-white">Where can I play?</h2>
+            <p className="mt-2 text-sm leading-relaxed text-white/65">
+              Real-money play is not available anywhere during Early Access. Current balances are demo funds.
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-white/65">
+              Before cash-prize play launches, ChessBet will publish the supported U.S. locations here.
+              Access will require age, identity, and physical-location eligibility and will remain unavailable
+              anywhere applicable law or ChessBet rules do not permit it. A home address alone will not
+              establish eligibility; a player must be physically located in a supported location when
+              entering and playing.
+            </p>
+            <p className="mt-3 text-xs leading-relaxed text-white/40">
+              The detailed, versioned Official Rules below govern contest participation and settlement.
+            </p>
+          </section>
+        )}
+
         {config?.full_document_url && (
           <a
             href={config.full_document_url}
