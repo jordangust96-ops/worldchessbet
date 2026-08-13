@@ -210,7 +210,7 @@ export default function Landing() {
               Win at chess. Earn prizes.
             </h1>
             <p className="text-white/70 text-lg font-semibold leading-snug max-w-sm mx-auto">
-              Head-to-head blitz and rapid, protected by fair-play review.
+              Head-to-head real-money chess, protected by Stockfish.
             </p>
             <p className="text-white/50 text-sm leading-relaxed max-w-sm mx-auto">
               Early Access: prize contests are not yet live. Eligibility and location rules will apply.
