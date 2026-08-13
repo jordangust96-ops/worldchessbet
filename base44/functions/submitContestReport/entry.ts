@@ -30,8 +30,14 @@ Deno.serve(async (req) => {
     if (!VALID_CATEGORIES.includes(category)) {
       return Response.json({ error: 'Invalid report category' }, { status: 400 });
     }
-    if (!description || !description.trim()) {
+    if (!description || typeof description !== 'string' || !description.trim()) {
       return Response.json({ error: 'A description is required' }, { status: 400 });
+    }
+    if (description.length > 4000) {
+      return Response.json({ error: 'Description must be 4,000 characters or fewer' }, { status: 400 });
+    }
+    if (transactionId != null && typeof transactionId !== 'string') {
+      return Response.json({ error: 'Invalid transactionId' }, { status: 400 });
     }
 
     const match = await base44.asServiceRole.entities.Match.get(matchId);
