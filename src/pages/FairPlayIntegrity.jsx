@@ -91,8 +91,8 @@ export default function FairPlayIntegrity() {
   return (
     <div className="min-h-screen bg-[#0A0A0A] pb-16">
       <SEO
-        title="Chess Anti-Cheat & Human Fair-Play Review | ChessBet"
-        description="See how ChessBet protects cash-prize chess with server-verified games, Stockfish screening, player reports, evidence review, disputes, and appeals."
+        title="Chess Anti-Cheat & Fair Play — Human Review & Appeals | ChessBet"
+        description="Learn how ChessBet protects head-to-head chess with server-verified games, Stockfish screening, player reports, evidence review, and appeals."
         canonicalUrl={`${SITE_URL}/fair-play-integrity`}
         structuredData={{
           "@context": "https://schema.org",
