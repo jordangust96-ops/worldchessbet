@@ -6,23 +6,18 @@ import { UserPlus, Swords, Trophy, ShieldCheck } from "lucide-react";
 const STEPS = [
   {
     icon: UserPlus,
-    title: "Create Your Account",
-    description: "Sign up in seconds and step into a community built for serious chess players.",
+    title: "Join",
+    description: "Create your account.",
   },
   {
     icon: Swords,
-    title: "Host or Accept a Challenge",
-    description: "Set your contest amount and time control, or accept an open challenge from another player.",
+    title: "Choose a match",
+    description: "Pick the amount and time control.",
   },
   {
     icon: Trophy,
-    title: "Compete Head-to-Head",
-    description: "Play a real, server-verified chess match. The result is decided by skill — nothing else.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Verified Result & Settlement",
-    description: "When a contest ends decisively, the server-verified result triggers secure, recorded settlement.",
+    title: "Play to win",
+    description: "Skill decides the cash prize.",
   },
 ];
 
@@ -61,12 +56,12 @@ export default function HowItWorksSection() {
           className="text-center space-y-3"
         >
           <p className="text-2xl sm:text-3xl font-extrabold tracking-widest text-[#C9A84C] uppercase">
-            How It Works
+            Your next move pays
           </p>
         </motion.div>
 
         {/* Steps */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {STEPS.map(({ icon: Icon, title, description }, idx) => (
             <motion.div
               key={title}
@@ -97,42 +92,22 @@ export default function HowItWorksSection() {
             <div className="w-12 h-12 rounded-2xl bg-[#C9A84C]/10 flex items-center justify-center mx-auto">
               <ShieldCheck size={22} className="text-[#C9A84C]" />
             </div>
-            <h3 className="text-xl font-bold text-white">Fair Play Is Non-Negotiable</h3>
+            <h3 className="text-xl font-bold text-white">Built for fair play</h3>
             <p className="text-white/50 text-sm max-w-2xl mx-auto leading-relaxed">
-              ChessBet combines server-authoritative gameplay, automated post-game screening,
-              behavioral integrity signals, player reporting, and confidential human review to
-              protect every contest.
+              Verified games. Fair-play screening. Human review when needed.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
-            {[
-              {
-                title: "Server-Authoritative Play",
-                description: "Legal moves, game state, results, and chess clocks are validated and recorded by ChessBet's servers.",
-              },
-              {
-                title: "Stockfish Post-Game Screening",
-                description: "Completed contests are queued for engine analysis using move agreement, centipawn-loss, critical-position, and timing signals.",
-              },
-              {
-                title: "Behavioral Integrity Signals",
-                description: "Focus-loss events and unusual opponent, resignation, or timeout patterns can trigger closer review.",
-              },
-              {
-                title: "Confidential Human Review",
-                description: "Automated indicators, player reports, and dispute evidence are organized for admin review before any enforcement decision.",
-              },
-            ].map((item) => (
-              <div key={item.title} className="rounded-2xl border border-white/[0.06] bg-white/[0.025] p-4">
-                <p className="text-sm font-semibold text-white">{item.title}</p>
-                <p className="mt-1.5 text-xs leading-5 text-white/45">{item.description}</p>
-              </div>
+          <div className="flex flex-wrap justify-center gap-3 text-sm text-white/60">
+            {["Server-verified play", "Post-game screening", "Player reports", "Human review"].map((item) => (
+              <span key={item} className="rounded-full border border-white/[0.08] bg-white/[0.025] px-4 py-2">
+                {item}
+              </span>
             ))}
           </div>
 
           <p className="text-center text-xs text-white/35">
-            Automated screening identifies signals for review; it does not make an automatic finding of misconduct.
+            Automated screening flags signals for review. People make the calls.
           </p>
           <div className="text-center">
             <Link
