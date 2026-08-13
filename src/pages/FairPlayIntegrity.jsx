@@ -2,6 +2,8 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, ShieldCheck } from "lucide-react";
+import SEO from "@/components/seo/SEO";
+import { SITE_URL } from "@/lib/seoConfig";
 import {
   PROHIBITED_CATEGORIES,
   MONITORING_SOURCES,
@@ -37,6 +39,18 @@ function BulletList({ items }) {
 export default function FairPlayIntegrity() {
   return (
     <div className="min-h-screen bg-[#0A0A0A] pb-16">
+      <SEO
+        title="Chess Anti-Cheat & Human Fair-Play Review | ChessBet"
+        description="See how ChessBet protects cash-prize chess with server-verified games, Stockfish screening, player reports, evidence review, disputes, and appeals."
+        canonicalUrl={`${SITE_URL}/fair-play-integrity`}
+        structuredData={{
+          "@context": "https://schema.org",
+          "@type": "WebPage",
+          name: "ChessBet Fair Play & Integrity",
+          description: "ChessBet's integrity controls, human review process, reporting, disputes, and appeals for skill-based chess contests.",
+          url: `${SITE_URL}/fair-play-integrity`,
+        }}
+      />
       <div className="sticky top-0 z-10 bg-[#0A0A0A]/95 backdrop-blur border-b border-white/5 px-5 py-4">
         <Link to="/profile" className="inline-flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 mb-3">
           <ArrowLeft size={14} /> Back to Profile
