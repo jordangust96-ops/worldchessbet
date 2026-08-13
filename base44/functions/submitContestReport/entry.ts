@@ -2,6 +2,14 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 
 const VALID_CATEGORIES = ['fair_play', 'collusion', 'harassment', 'technical_issue', 'rules_violation', 'other'];
+const WALLET_REPORT_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+function serverTimestampMs(value) {
+  if (!value) return NaN;
+  const text = String(value);
+  const normalized = /Z$|[+-]\d{2}:?\d{2}$/.test(text) ? text : `${text}Z`;
+  return new Date(normalized).getTime();
+}
 
 // Formal Report Intake — player-facing entry point for the Contest Reporting
 // framework. Every submission is auto-assigned a permanent Case ID, snapshots
@@ -17,7 +25,7 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { matchId, gameId, category, subcategory, description } = await req.json();
+    const { matchId, gameId, transactionId, category, subcategory, description } = await req.json();
     if (!matchId) return Response.json({ error: 'matchId is required' }, { status: 400 });
     if (!VALID_CATEGORIES.includes(category)) {
       return Response.json({ error: 'Invalid report category' }, { status: 400 });
@@ -30,6 +38,29 @@ Deno.serve(async (req) => {
     if (!match) return Response.json({ error: 'Match not found' }, { status: 404 });
     if (match.player1_id !== user.id && match.player2_id !== user.id) {
       return Response.json({ error: 'You are not a player in this match' }, { status: 403 });
+    }
+
+    // Wallet-history reports carry the transaction they were opened from.
+    // Verify ownership and contest linkage, then enforce the cutoff here so a
+    // modified client cannot bypass the 24-hour reporting window. Existing
+    // live/end-game contest reports omit transactionId and keep their current behavior.
+    let sourceTransaction = null;
+    if (transactionId) {
+      sourceTransaction = await base44.asServiceRole.entities.WalletTransaction.get(transactionId).catch(() => null);
+      if (!sourceTransaction) {
+        return Response.json({ error: 'Wallet transaction not found' }, { status: 404 });
+      }
+      if (sourceTransaction.user_id !== user.id || sourceTransaction.match_id !== matchId) {
+        return Response.json({ error: 'This wallet transaction does not belong to you or this contest' }, { status: 403 });
+      }
+      const createdAtMs = serverTimestampMs(sourceTransaction.created_date);
+      const ageMs = Date.now() - createdAtMs;
+      if (!Number.isFinite(ageMs) || ageMs < -5 * 60 * 1000 || ageMs > WALLET_REPORT_WINDOW_MS) {
+        return Response.json(
+          { error: 'The 24-hour reporting window for this wallet transaction has closed.' },
+          { status: 409 }
+        );
+      }
     }
 
     const opponentId = match.player1_id === user.id ? match.player2_id : match.player1_id;
@@ -158,6 +189,8 @@ Deno.serve(async (req) => {
         evidence_id: evidence.id,
         wallet_transaction_ids: walletTransactionIds,
         ledger_entry_ids: ledgerEntryIds,
+        reporting_source: sourceTransaction ? 'wallet_transaction' : 'contest',
+        reporting_source_transaction_id: sourceTransaction?.id || '',
       },
     });
 
