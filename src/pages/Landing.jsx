@@ -204,7 +204,7 @@ export default function Landing() {
           <div className="space-y-4">
             <Logo size="lg" className="justify-center" />
             <h1 className="text-white text-3xl sm:text-4xl font-extrabold leading-tight max-w-md mx-auto">
-              Play chess. Win cash prizes.
+              Play chess. Win cash.
             </h1>
             <p className="text-white/70 text-lg font-semibold leading-snug max-w-sm mx-auto">
               Head-to-head, real-money chess, protected by Stockfish.
