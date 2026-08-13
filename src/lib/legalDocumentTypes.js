@@ -12,6 +12,7 @@ export const LEGAL_DOCUMENT_TYPES = {
     route: "/privacy-policy",
     adminRoute: "/admin/privacy-policy",
     icon: Shield,
+    seoTitle: "ChessBet Privacy | Identity, Payment & Account Data",
     seoDescription:
       "Learn how ChessBet collects, uses, and protects your personal data, including identity verification, payment details, and account activity information.",
   },
@@ -21,6 +22,7 @@ export const LEGAL_DOCUMENT_TYPES = {
     route: "/terms-of-service",
     adminRoute: "/admin/terms-of-service",
     icon: FileText,
+    seoTitle: "ChessBet Terms | Eligibility, Fees & Dispute Rules",
     seoDescription:
       "Review ChessBet's Terms of Service outlining account eligibility, wager rules, platform fees, dispute resolution, and your rights as a registered player.",
   },
@@ -30,6 +32,7 @@ export const LEGAL_DOCUMENT_TYPES = {
     route: "/official-rules",
     adminRoute: "/admin/official-rules",
     icon: Scroll,
+    seoTitle: "Cash Chess Rules | Entries, Prizes & Fair Play — ChessBet",
     seoDescription:
       "Read ChessBet's Official Rules governing skill-based chess contests, entry amounts, match settlement, fair play standards, and eligibility requirements.",
   },
