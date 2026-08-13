@@ -10,9 +10,9 @@ import SEO from "@/components/seo/SEO";
 import { SITE_URL } from "@/lib/seoConfig";
 
 const LANDING_URL = `${SITE_URL}/`;
-const SEO_TITLE = "Win at Chess. Earn Prizes. | ChessBet";
+const SEO_TITLE = "Competitive Online Chess | Integrity-First Early Access — ChessBet";
 const SEO_DESCRIPTION =
-  "Head-to-head blitz and rapid chess with fair-play screening. Join ChessBet Early Access; prize contests are not yet live.";
+  "Join ChessBet Early Access for head-to-head blitz and rapid chess with fair-play screening, clear rules, and human integrity review.";
 
 const HERO_FEATURES = [
   {
@@ -207,13 +207,13 @@ export default function Landing() {
           <div className="space-y-4">
             <Logo size="lg" className="justify-center" />
             <h1 className="text-white text-2xl sm:text-3xl font-extrabold leading-tight max-w-md mx-auto">
-              Win at chess. Earn prizes.
+              Win head-to-head chess matches. Earn prizes for skill.
             </h1>
             <p className="text-white/70 text-lg font-semibold leading-snug max-w-sm mx-auto">
-              Head-to-head real-money chess, protected by Stockfish.
+              Play competitive blitz and rapid chess in prize-based contests, with server-verified results, fair-play screening, and human review when something looks wrong.
             </p>
             <p className="text-white/50 text-sm leading-relaxed max-w-sm mx-auto">
-              Early Access: prize contests are not yet live. Eligibility and location rules will apply.
+              Early Access: prize-based competition, funding, withdrawals, and settlement are not yet live. Availability will depend on eligibility and location.
             </p>
           </div>
 
