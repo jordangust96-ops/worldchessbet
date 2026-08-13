@@ -294,30 +294,46 @@ Deno.serve(async (req) => {
       // Refund both players' escrowed Entry Amount AND their Platform Service
       // Fee — no winner, no loser, no Platform Revenue recognized.
       for (const playerId of [match.player1_id, match.player2_id].filter(Boolean)) {
-        const entryTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
-          user_id: playerId,
+        const entryTransaction = await createCanonicalSettlementTransaction(base44, {
+          match,
+          game,
+          userId: playerId,
           type: 'wager_refund',
           amount: wagerAmount,
-          match_id: match.id,
           description: 'Contest entry amount refunded — match ended in a draw',
-          status: 'pending',
         });
+        if (!entryTransaction) {
+          return Response.json({ error: 'duplicate_settlement_attempt' }, { status: 409 });
+        }
 
         // Double-entry: Debit Contest Reserve, Credit User Available Balance.
-        await postLedgerLegs(base44, {
-          groupId: crypto.randomUUID(),
-          matchId: match.id,
-          gameId: game.id,
-          walletTransactionId: entryTransaction.id,
-          actor: 'system',
-          triggerEvent: 'match_settlement_draw',
-          externalRefType: 'match',
-          externalRefId: match.id,
-          legs: [
-            { ledgerAccount: 'contest_clearing', debit: wagerAmount, credit: 0, transactionType: 'refund' },
-            { ledgerAccount: 'user_account', userId: playerId, debit: 0, credit: wagerAmount, heldDelta: -wagerAmount, transactionType: 'refund' },
-          ],
-        });
+        try {
+          await postLedgerLegs(base44, {
+            groupId: crypto.randomUUID(),
+            matchId: match.id,
+            gameId: game.id,
+            walletTransactionId: entryTransaction.id,
+            actor: 'system',
+            triggerEvent: 'match_settlement_draw',
+            externalRefType: 'match',
+            externalRefId: match.id,
+            legs: [
+              { ledgerAccount: 'contest_clearing', debit: wagerAmount, credit: 0, transactionType: 'refund' },
+              { ledgerAccount: 'user_account', userId: playerId, debit: 0, credit: wagerAmount, heldDelta: -wagerAmount, transactionType: 'refund' },
+            ],
+          });
+        } catch (postingError) {
+          const terminalStatus = await classifySettlementPostingFailure(base44, entryTransaction, match, game);
+          console.error(JSON.stringify({
+            event: 'settlement_refund_posting_failed',
+            match_id: match.id,
+            game_id: game.id,
+            wallet_transaction_id: entryTransaction.id,
+            terminal_status: terminalStatus,
+            diagnostic: String(postingError?.message || 'unknown_posting_error').slice(0, 500),
+          }));
+          return Response.json({ error: 'settlement_reconciliation_required' }, { status: 409 });
+        }
 
         const feeTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
           user_id: playerId,
