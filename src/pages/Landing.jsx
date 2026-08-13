@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
-import { Crown, Zap, Shield, CircleCheck } from "lucide-react";
+import { Crown, Zap, Shield, CircleCheck, WalletCards } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import NotifyAtLaunchModal from "@/components/NotifyAtLaunchModal";
 import HowItWorksSection from "@/components/landing/HowItWorksSection";
@@ -17,11 +17,19 @@ const SEO_DESCRIPTION =
 
 const HERO_FEATURES = [
   {
-    id: "choose-your-match",
+    id: "fund-your-wallet",
+    icon: WalletCards,
+    label: "Fund your\nwallet",
+    heading: "Add funds securely",
+    description: "Fund your ChessBet wallet before entering a cash challenge.",
+    points: ["Cash funding after Early Access", "Supported U.S. locations only", "Eligibility checked before funding"],
+  },
+  {
+    id: "create-your-challenge",
     icon: Zap,
-    label: "Choose a\nmatch",
-    heading: "Pick your challenge",
-    description: "Set the entry amount and time control before you play.",
+    label: "Create your\nchallenge",
+    heading: "Set the match terms",
+    description: "Choose the entry amount and time control, then invite an opponent.",
     points: ["Clear terms", "Head-to-head", "Blitz, rapid, or classical"],
   },
   {
@@ -274,7 +282,7 @@ export default function Landing() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.6, duration: 0.6 }}
-          className="grid grid-cols-3 gap-4 mt-16 max-w-sm w-full"
+          className="grid grid-cols-4 gap-3 mt-16 max-w-md w-full"
         >
           {HERO_FEATURES.map(({ id, icon: Icon, label }) => {
             const isExpanded = expandedFeature === id;
@@ -285,10 +293,10 @@ export default function Landing() {
                 onClick={() => setExpandedFeature(isExpanded ? null : id)}
                 aria-expanded={isExpanded}
                 aria-controls={`hero-feature-details-${id}`}
-                className="relative flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/[0.03] border border-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0A]"
+                className="relative flex min-w-0 flex-col items-center gap-2 rounded-2xl border border-white/5 bg-white/[0.03] px-2 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0A] sm:px-3"
               >
                 <Icon size={20} className="text-[#C9A84C]" aria-hidden="true" />
-                <span className="text-[11px] text-white/50 font-medium text-center whitespace-pre-line leading-tight">
+                <span className="text-[10px] text-white/50 font-medium text-center whitespace-pre-line leading-tight sm:text-[11px]">
                   {label}
                 </span>
               </button>
@@ -305,7 +313,7 @@ export default function Landing() {
               animate={{ opacity: 1, height: "auto", y: 0 }}
               exit={{ opacity: 0, height: 0, y: -6 }}
               transition={{ duration: 0.24, ease: "easeOut" }}
-              className="max-w-sm w-full overflow-hidden text-left"
+              className="max-w-md w-full overflow-hidden text-left"
               role="region"
               aria-live="polite"
             >
