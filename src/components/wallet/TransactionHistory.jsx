@@ -24,7 +24,8 @@ const typeConfig = {
 const statusConfig = {
   completed: { label: "Completed", className: "text-green-400 bg-green-500/10 border-green-500/20" },
   pending: { label: "Pending", className: "text-[#C9A84C] bg-[#C9A84C]/10 border-[#C9A84C]/20" },
-  failed: { label: "Failed", className: "text-red-400 bg-red-500/10 border-red-500/20" },
+  failed: { label: "Not applied", className: "text-white/45 bg-white/5 border-white/10" },
+  review_required: { label: "Review required", className: "text-orange-300 bg-orange-500/10 border-orange-500/20" },
 };
 
 const incomingTypes = ["deposit", "payout", "wager_refund", "service_fee_refund"];
@@ -114,6 +115,18 @@ export default function TransactionHistory({
           const timeControl = match?.display_name || titleCase(match?.time_control);
           const result = getMatchResult(match, userId);
           const status = statusConfig[tx.status] || statusConfig.completed;
+          const isFailed = tx.status === "failed";
+          const needsReview = tx.status === "review_required";
+          const amountLabel = isFailed
+            ? `Not applied · $${formatMoney(tx.amount)}`
+            : needsReview
+              ? `Review · $${formatMoney(tx.amount)}`
+              : `${isIncoming ? "+" : "-"}$${formatMoney(tx.amount)}`;
+          const amountClass = isFailed || needsReview
+            ? "text-white/45"
+            : isIncoming
+              ? "text-green-400"
+              : "text-red-400";
           const subtitleParts = match
             ? [
                 opponentName ? `vs. ${opponentName}` : "Contest transaction",
@@ -150,8 +163,8 @@ export default function TransactionHistory({
                 </div>
                 <div className="flex shrink-0 items-center gap-2.5">
                   <div className="text-right">
-                    <p className={`text-sm font-bold ${isIncoming ? "text-green-400" : "text-red-400"}`}>
-                      {isIncoming ? "+" : "-"}${formatMoney(tx.amount)}
+                    <p className={`text-sm font-bold ${amountClass}`}>
+                      {amountLabel}
                     </p>
                     <p className="mt-0.5 text-[10px] text-white/25">
                       {moment(tx.created_date).format("h:mm A")}
@@ -176,7 +189,10 @@ export default function TransactionHistory({
                   </div>
 
                   <div className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3">
-                    <DetailItem label="Transaction amount" value={`${isIncoming ? "+" : "-"}$${formatMoney(tx.amount)}`} />
+                    <DetailItem
+                      label={tx.status === "completed" ? "Transaction amount" : "Referenced amount"}
+                      value={amountLabel}
+                    />
                     {match && (
                       <>
                         <DetailItem label="Opponent" value={opponentName || "Opponent"} />
