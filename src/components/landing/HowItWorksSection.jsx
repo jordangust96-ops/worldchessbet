@@ -111,7 +111,7 @@ export default function HowItWorksSection() {
           </p>
           <div className="text-center">
             <Link
-              to="/fair-play-integrity"
+              to="/fair-play-integrity#fair-play-and-appeals"
               className="inline-block text-sm font-semibold text-[#C9A84C] hover:underline underline-offset-2"
             >
               Read our Fair Play & Integrity Policy
