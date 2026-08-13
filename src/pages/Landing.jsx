@@ -42,17 +42,29 @@ const HERO_FEATURES = [
   },
 ];
 
-const STRUCTURED_DATA = {
-  "@context": "https://schema.org",
-  "@type": "WebPage",
-  "@id": `${LANDING_URL}#webpage`,
-  url: LANDING_URL,
-  name: SEO_TITLE,
-  description: SEO_DESCRIPTION,
-  isPartOf: { "@id": `${SITE_URL}/#website` },
-  about: { "@id": `${SITE_URL}/#organization` },
-  inLanguage: "en-US",
-};
+const STRUCTURED_DATA = [
+  {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "@id": `${LANDING_URL}#webpage`,
+    url: LANDING_URL,
+    name: SEO_TITLE,
+    description: SEO_DESCRIPTION,
+    isPartOf: { "@id": `${SITE_URL}/#website` },
+    about: { "@id": `${SITE_URL}/#organization` },
+    inLanguage: "en-US",
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    name: "ChessBet skill-based chess competitions",
+    description: "Head-to-head blitz and rapid chess competitions with server-verified games, Stockfish screening, and a human review and appeals path.",
+    provider: { "@id": `${SITE_URL}/#organization` },
+    areaServed: "US",
+    audience: { "@type": "Audience", audienceType: "Blitz and rapid chess players" },
+    url: LANDING_URL,
+  },
+];
 
 function LandingAmbientGlow() {
   const reduceMotion = useReducedMotion();
@@ -205,13 +217,13 @@ export default function Landing() {
           <div className="space-y-4">
             <Logo size="lg" className="justify-center" />
             <h1 className="text-white text-3xl sm:text-4xl font-extrabold leading-tight max-w-md mx-auto">
-              Play chess. Win cash.
+              Play blitz and rapid chess for real cash — head-to-head, no bots, no luck.
             </h1>
             <p className="text-white/70 text-lg font-semibold leading-snug max-w-sm mx-auto">
-              Head-to-head, real-money chess, protected by Stockfish.
+              Stake your rating, win the pot, and get a human appeals path if you’re ever cheated.
             </p>
             <p className="text-white/50 text-sm leading-relaxed max-w-sm mx-auto">
-              Early Access is open. Cash-prize play is coming soon; eligibility and location rules apply.
+              Skill-based only. No luck, no randomness. Early Access is open; cash-prize play is coming soon.
             </p>
           </div>
 
@@ -225,11 +237,15 @@ export default function Landing() {
                 size="lg"
                 className="w-full gold-gradient text-black font-bold text-lg h-14 rounded-2xl hover:opacity-90 transition-opacity"
               >
-                Claim your founding spot
+                Join early access — 500 founding players
               </Button>
             </Link>
+            <p className="mt-3 text-xs leading-relaxed text-white/45">
+              Cash play is available in most US states when it launches — check eligibility before you fund your account in the{" "}
+              <Link to="/official-rules" className="font-semibold text-[#C9A84C] hover:underline underline-offset-4">Official Rules</Link>.
+            </p>
             <Link to="/fair-play-integrity" className="mt-4 inline-flex text-sm font-semibold text-[#C9A84C] hover:underline underline-offset-4">
-              How we protect fair play
+              See how fair play and appeals work
             </Link>
             <p className="text-white/30 text-xs mt-4">
               Already have an account?{" "}
