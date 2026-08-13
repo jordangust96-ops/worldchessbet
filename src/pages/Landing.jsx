@@ -13,7 +13,7 @@ import { SITE_URL } from "@/lib/seoConfig";
 const LANDING_URL = `${SITE_URL}/`;
 const SEO_TITLE = "Play Chess for Real Money — Head-to-Head Cash Contests | ChessBet";
 const SEO_DESCRIPTION =
-  "Play head-to-head blitz and rapid chess for real money on ChessBet, with server-verified games, Stockfish screening, and human fair-play review.";
+  "Play head-to-head blitz, rapid, and classical chess for real money on ChessBet, with server-verified games, Stockfish screening, and human fair-play review.";
 
 const HERO_FEATURES = [
   {
@@ -22,7 +22,7 @@ const HERO_FEATURES = [
     label: "Choose a\nmatch",
     heading: "Pick your challenge",
     description: "Set the entry amount and time control before you play.",
-    points: ["Clear terms", "Head-to-head", "Blitz or rapid"],
+    points: ["Clear terms", "Head-to-head", "Blitz, rapid, or classical"],
   },
   {
     id: "play-to-win",
@@ -59,7 +59,7 @@ const STRUCTURED_DATA = [
     "@type": "Product",
     "@id": `${LANDING_URL}#product`,
     name: "ChessBet head-to-head chess contests",
-    description: "Skill-based head-to-head blitz and rapid chess contests with server-verified games, Stockfish screening, human fair-play review, and an appeals path.",
+    description: "Skill-based head-to-head blitz, rapid, and classical chess contests with server-verified games, Stockfish screening, human fair-play review, and an appeals path.",
     category: "Skill-based online chess competition",
     brand: { "@id": `${SITE_URL}/#organization` },
     url: LANDING_URL,
@@ -69,11 +69,11 @@ const STRUCTURED_DATA = [
     "@type": "Service",
     "@id": `${LANDING_URL}#service`,
     name: "ChessBet skill-based chess competitions",
-    description: "Head-to-head blitz and rapid chess competitions with server-verified games, Stockfish screening, and a human review and appeals path.",
+    description: "Head-to-head blitz, rapid, and classical chess competitions with server-verified games, Stockfish screening, and a human review and appeals path.",
     provider: { "@id": `${SITE_URL}/#organization` },
     isRelatedTo: { "@id": `${LANDING_URL}#product` },
     areaServed: "US",
-    audience: { "@type": "Audience", audienceType: "Blitz and rapid chess players" },
+    audience: { "@type": "Audience", audienceType: "Blitz, rapid, and classical chess players" },
     url: LANDING_URL,
   },
 ];
