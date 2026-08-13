@@ -1,23 +1,23 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { UserPlus, Swords, Trophy, ShieldCheck } from "lucide-react";
+import { ShieldCheck, ScanSearch, Scale } from "lucide-react";
 
 const STEPS = [
   {
-    icon: UserPlus,
-    title: "Join",
-    description: "Create your account.",
+    icon: ShieldCheck,
+    title: "Server-verified games",
+    description: "Your moves, clock, and result are recorded by the server — no bots, real players.",
   },
   {
-    icon: Swords,
-    title: "Choose a match",
-    description: "Pick the amount and time control.",
+    icon: ScanSearch,
+    title: "Stockfish screening",
+    description: "Completed games are screened for engine-detection signals that need a closer look.",
   },
   {
-    icon: Trophy,
-    title: "Play to win",
-    description: "Skill decides the cash prize.",
+    icon: Scale,
+    title: "Human review + appeals",
+    description: "If you think you were cheated, report it. People review the evidence and appeals path.",
   },
 ];
 
@@ -56,7 +56,7 @@ export default function HowItWorksSection() {
           className="text-center space-y-3"
         >
           <p className="text-2xl sm:text-3xl font-extrabold tracking-widest text-[#C9A84C] uppercase">
-            Your next move pays
+            How we keep it fair
           </p>
         </motion.div>
 
@@ -92,9 +92,9 @@ export default function HowItWorksSection() {
             <div className="w-12 h-12 rounded-2xl bg-[#C9A84C]/10 flex items-center justify-center mx-auto">
               <ShieldCheck size={22} className="text-[#C9A84C]" />
             </div>
-            <h3 className="text-xl font-bold text-white">Built for fair play</h3>
+            <h3 className="text-xl font-bold text-white">Engine detection with a human appeals path</h3>
             <p className="text-white/50 text-sm max-w-2xl mx-auto leading-relaxed">
-              Verified games. Fair-play screening. Human review when needed.
+              We screen for evidence, not automatic verdicts. People review fair-play concerns and appeals.
             </p>
           </div>
 
