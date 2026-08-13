@@ -83,7 +83,8 @@ const AuthenticatedApp = () => {
     >
       <Routes>
       {/* Public routes */}
-      <Route path="/landing" element={<Landing />} />
+      <Route path="/" element={<Landing />} />
+      <Route path="/landing" element={<Navigate to="/" replace />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -119,7 +120,6 @@ const AuthenticatedApp = () => {
               <Route path="/admin/campaigns/early-access-500" element={<AdminEarlyAccessCampaign />} />
             </Route>
             <Route element={<AppLayout />}>
-              <Route path="/" element={<Home />} />
               <Route path="/wallet" element={<WalletPage />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/my-reports" element={<MyReports />} />
