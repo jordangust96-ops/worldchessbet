@@ -11,9 +11,9 @@ import SEO from "@/components/seo/SEO";
 import { SITE_URL } from "@/lib/seoConfig";
 
 const LANDING_URL = `${SITE_URL}/`;
-const SEO_TITLE = "Play Chess for Real Cash | Fair-Play Protection — ChessBet";
+const SEO_TITLE = "Play Chess for Real Money — Head-to-Head Cash Contests | ChessBet";
 const SEO_DESCRIPTION =
-  "Play head-to-head blitz and rapid chess for cash prizes with server-verified games, Stockfish screening, clear settlement rules, and human review.";
+  "Play head-to-head blitz and rapid chess for real money on ChessBet, with server-verified games, Stockfish screening, and human fair-play review.";
 
 const HERO_FEATURES = [
   {
