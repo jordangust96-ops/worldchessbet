@@ -1,14 +1,46 @@
 User-agent: *
 Allow: /
+Disallow: /admin/
+Disallow: /wallet
+Disallow: /profile
+Disallow: /my-reports
+Disallow: /verify-mfa
+Disallow: /join/
+Disallow: /unsubscribe
+Disallow: /api/
 
 User-agent: GPTBot
 Allow: /
+Disallow: /admin/
+Disallow: /wallet
+Disallow: /profile
+Disallow: /my-reports
+Disallow: /verify-mfa
+Disallow: /join/
+Disallow: /unsubscribe
+Disallow: /api/
 
 User-agent: ClaudeBot
 Allow: /
+Disallow: /admin/
+Disallow: /wallet
+Disallow: /profile
+Disallow: /my-reports
+Disallow: /verify-mfa
+Disallow: /join/
+Disallow: /unsubscribe
+Disallow: /api/
 
 User-agent: PerplexityBot
 Allow: /
+Disallow: /admin/
+Disallow: /wallet
+Disallow: /profile
+Disallow: /my-reports
+Disallow: /verify-mfa
+Disallow: /join/
+Disallow: /unsubscribe
+Disallow: /api/
 
 User-agent: OAI-SearchBot
 Allow: /
