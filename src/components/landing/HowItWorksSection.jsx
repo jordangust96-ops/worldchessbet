@@ -7,17 +7,17 @@ const STEPS = [
   {
     icon: ShieldCheck,
     title: "Server-verified games",
-    description: "Your moves, clock, and result are recorded by the server — no bots, real players.",
+    description: "Real players. Server-verified results."
   },
   {
     icon: ScanSearch,
     title: "Stockfish screening",
-    description: "Completed games are screened for engine-detection signals that need a closer look.",
+    description: "Engine checks help keep games clean."
   },
   {
     icon: Scale,
     title: "Human review + appeals",
-    description: "If you think you were cheated, report it. People review the evidence and appeals path.",
+    description: "Report a concern. A person reviews it."
   },
 ];
 
@@ -94,7 +94,7 @@ export default function HowItWorksSection() {
             </div>
             <h3 className="text-xl font-bold text-white">Engine detection with a human appeals path</h3>
             <p className="text-white/50 text-sm max-w-2xl mx-auto leading-relaxed">
-              We screen for evidence, not automatic verdicts. People review fair-play concerns and appeals.
+              Engine checks plus real human review.
             </p>
           </div>
 
