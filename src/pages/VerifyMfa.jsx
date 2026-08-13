@@ -62,7 +62,7 @@ export default function VerifyMfa() {
     try {
       const { data } = await base44.functions.invoke("verifyMfaOtp", { code });
       setMfaVerified(data?.session_token);
-      window.location.href = getPostAuthRedirect() || "/";
+      window.location.href = getPostAuthRedirect() || "/play";
     } catch (err) {
       const message = err?.response?.data?.message || "Invalid code. Please try again.";
       setError(message);
