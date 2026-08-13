@@ -28,8 +28,8 @@ export default function Blog() {
   return (
     <div className="min-h-screen bg-[#0A0A0A] px-5 py-10">
       <SEO
-        title="ChessBet Blog"
-        description="News, guides, and insights from ChessBet."
+        title="Cash Chess Strategy & Fair-Play Insights | ChessBet Blog"
+        description="Read ChessBet guides on head-to-head blitz and rapid chess, fair-play protection, contest rules, match strategy, and the path to cash-prize competition."
         canonicalUrl={`${SITE_URL}/blog`}
       />
       <div className="max-w-5xl mx-auto space-y-6">
