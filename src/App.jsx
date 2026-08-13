@@ -55,7 +55,7 @@ import AdminGuard from '@/components/AdminGuard';
 import PolicyAcceptanceGuard from '@/components/legal/PolicyAcceptanceGuard';
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+  const { isAuthenticated, isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
 
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
