@@ -110,7 +110,7 @@ export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletT
         initiating_actor_id: actorId || '',
         processed_at: new Date().toISOString(),
         integration_status: requiresExternalRail ? 'unrouted' : 'internal_complete',
-        idempotency_key: `ledger:${groupId}`,
+        idempotency_key: walletTransaction.idempotency_key || `ledger:${groupId}`,
         schema_version: 1,
       });
     } catch (error) {
