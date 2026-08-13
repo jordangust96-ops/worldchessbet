@@ -14,9 +14,9 @@ import {
   REPORTING_ITEMS,
 } from "@/lib/fairPlayPolicyContent";
 
-function Section({ title, children }) {
+function Section({ id, title, children }) {
   return (
-    <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-5 space-y-3">
+    <div id={id} className="rounded-2xl bg-white/[0.03] border border-white/5 p-5 space-y-3 scroll-mt-28">
       <h2 className="text-base font-bold text-white">{title}</h2>
       {children}
     </div>
@@ -66,6 +66,20 @@ export default function FairPlayIntegrity() {
       </div>
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="px-5 pt-6 max-w-2xl mx-auto space-y-4">
+        <Section id="fair-play-and-appeals" title="Quick answer: How fair play and appeals work">
+          <p className="text-sm text-white/60 leading-relaxed">
+            ChessBet validates moves, clocks, game state, and results on its servers. Completed contests
+            may then be screened with Stockfish and behavioral checks. Player reports can also supply
+            evidence for review.
+          </p>
+          <p className="text-sm text-white/60 leading-relaxed">
+            Automated signals never impose a penalty or change a result by themselves. A person reviews
+            the available game, technical, report, and account evidence before deciding. A user affected
+            by an enforcement decision may contact ChessBet Support, provide additional information, and
+            request reconsideration.
+          </p>
+        </Section>
+
         {/* 1. Purpose */}
         <Section title="1. Purpose">
           <p className="text-sm text-white/60 leading-relaxed">
@@ -131,7 +145,7 @@ export default function FairPlayIntegrity() {
         </Section>
 
         {/* 5. Integrity Monitoring */}
-        <Section title="5. Integrity Monitoring">
+        <Section id="how-cheating-is-caught" title="5. Integrity Monitoring">
           <p className="text-sm text-white/60 leading-relaxed">
             ChessBet combines server-authoritative gameplay controls, automated post-game screening,
             rule-based behavioral checks, player reporting, and manual administrative review.
@@ -187,7 +201,7 @@ export default function FairPlayIntegrity() {
         </Section>
 
         {/* 9. Appeals */}
-        <Section title="9. Appeals">
+        <Section id="appeals" title="9. Appeals">
           <p className="text-sm text-white/60 leading-relaxed">
             A user subject to an enforcement decision may:
           </p>
