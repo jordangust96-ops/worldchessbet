@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Loader2, CheckCircle2 } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import { REPORT_CATEGORIES } from "@/lib/disputeCaseLabels";
@@ -15,33 +15,44 @@ import {
 // Auto-attaches everything the platform already knows about the contest
 // (players, wager, time control, move history, outcome, ledger references)
 // server-side in submitContestReport — the user only describes the concern.
-export default function ReportContestModal({ open, onOpenChange, matchId, gameId }) {
+export default function ReportContestModal({ open, onOpenChange, matchId, gameId, transactionId }) {
   const [category, setCategory] = useState("fair_play");
   const [subcategory, setSubcategory] = useState("");
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [caseNumber, setCaseNumber] = useState(null);
+  const [error, setError] = useState("");
 
   const resetAndClose = () => {
     setCategory("fair_play");
     setSubcategory("");
     setDescription("");
     setCaseNumber(null);
+    setError("");
     onOpenChange(false);
   };
 
   const handleSubmit = async () => {
     if (!description.trim()) return;
+    setError("");
     setSubmitting(true);
     try {
       const { data } = await base44.functions.invoke("submitContestReport", {
         matchId,
         gameId,
+        transactionId,
         category,
         subcategory,
         description,
       });
       setCaseNumber(data?.caseNumber);
+    } catch (submitError) {
+      setError(
+        submitError?.response?.data?.error ||
+          submitError?.data?.error ||
+          submitError?.message ||
+          "We could not submit this report. Please try again."
+      );
     } finally {
       setSubmitting(false);
     }
@@ -118,10 +129,18 @@ export default function ReportContestModal({ open, onOpenChange, matchId, gameId
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={4}
+                  maxLength={4000}
                   placeholder="Describe what happened..."
                   className="w-full p-3 rounded-xl bg-white/[0.05] border border-white/10 text-white text-sm placeholder:text-white/20 focus:border-[#C9A84C]/50 focus:outline-none"
                 />
               </div>
+
+              {error && (
+                <div className="flex items-start gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2.5 text-xs leading-relaxed text-red-200">
+                  <AlertCircle size={14} className="mt-0.5 shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
             </div>
 
             <DialogFooter>
