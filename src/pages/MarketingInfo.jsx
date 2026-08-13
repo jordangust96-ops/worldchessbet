@@ -20,13 +20,6 @@ const PAGES = {
     intro: "Early Access uses demo funds. Cash-prize play, ACH funding, withdrawals, and settlement are not live yet.",
     points: ["Every contest will show the entry amount and platform service fee before you commit", "The winner of a decisive contest receives the combined contest entry amounts", "Check eligibility before funding an account when cash play launches"],
   },
-  "/about": {
-    title: "About ChessBet | Skill-Based Cash Chess",
-    description: "ChessBet is building a skill-based home for head-to-head blitz and rapid chess, with fair-play review and a documented appeals path.",
-    heading: "Why ChessBet exists",
-    intro: "ChessBet is being built for players who want their rating edge to matter, without luck, bots, or an unanswered cheating report.",
-    points: ["Skill-based, head-to-head chess", "Fair-play screening with human review", "Clear public rules before cash play launches"],
-  },
 };
 
 export default function MarketingInfo() {
@@ -55,7 +48,6 @@ export default function MarketingInfo() {
             {page.points.map((point) => <li key={point} className="flex gap-3"><span className="text-[#C9A84C]">•</span><span>{point}</span></li>)}
           </ul>
         </section>
-        {pathname === "/about" && <p className="mt-6 text-sm leading-relaxed text-white/45">Founder name, photo, operator entity, and profile links will be added here before cash-prize play is available.</p>}
       </div>
     </main>
   );
