@@ -7,18 +7,25 @@ import { SITE_URL } from "@/lib/seoConfig";
 
 const PAGES = {
   "/features": {
-    title: "Fair-Play Features for Cash Chess | ChessBet",
-    description: "See ChessBet's server-verified games, Stockfish screening, human review, and appeals path for head-to-head blitz and rapid chess.",
+    title: "Chess Fair-Play Features — Verified Games & Human Review | ChessBet",
+    description: "Explore ChessBet fair-play features: server-verified games, Stockfish screening, player reports, human review, and a clear appeals path.",
     heading: "Head-to-head chess, built around fair play",
     intro: "Play blitz and rapid against real players. Your moves and result are server-verified, then screening and human review help protect the match.",
     points: ["Server-verified games and synchronized clocks", "Stockfish screening for engine-detection signals", "A report, evidence review, dispute, and appeal path if you think you were cheated"],
   },
   "/pricing": {
-    title: "ChessBet Early Access & Cash-Play Fees | ChessBet",
-    description: "ChessBet Early Access is currently demo-only. Learn how clear contest terms and transparent platform fees will work before cash-prize play launches.",
+    title: "Chess Contest Fees & Early Access | ChessBet",
+    description: "Review ChessBet Early Access, transparent contest terms, and fixed platform fees before real-money chess contests, funding, and withdrawals launch.",
     heading: "Clear terms before you play",
     intro: "Early Access uses demo funds. Cash-prize play, ACH funding, withdrawals, and settlement are not live yet.",
     points: ["Every contest will show the entry amount and platform service fee before you commit", "The winner of a decisive contest receives the combined contest entry amounts", "Check eligibility before funding an account when cash play launches"],
+  },
+  "/about": {
+    title: "About ChessBet | Fair, Skill-Based Head-to-Head Chess",
+    description: "Learn about ChessBet, a skill-based head-to-head chess platform focused on clear contest terms, fair-play protection, and competitive players.",
+    heading: "Chess competition built around skill and fair play",
+    intro: "ChessBet is building a head-to-head chess platform where transparent contest terms and fair-play protections come first.",
+    points: ["Skill-based head-to-head chess for competitive players", "Server-verified games, screening signals, and human review", "Clear contest terms and a documented dispute and appeals path"],
   },
 };
 
