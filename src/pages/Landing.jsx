@@ -207,7 +207,7 @@ export default function Landing() {
               Play chess. Win cash prizes.
             </h1>
             <p className="text-white/70 text-lg font-semibold leading-snug max-w-sm mx-auto">
-              Head-to-head chess where skill decides the prize.
+              Head-to-head, real-money chess, protected by Stockfish.
             </p>
             <p className="text-white/50 text-sm leading-relaxed max-w-sm mx-auto">
               Early Access is open. Cash-prize play is coming soon; eligibility and location rules apply.
