@@ -5,14 +5,15 @@ import { Crown, Zap, Shield, CircleCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import NotifyAtLaunchModal from "@/components/NotifyAtLaunchModal";
 import HowItWorksSection from "@/components/landing/HowItWorksSection";
+import PlayerProtectionCallout from "@/components/landing/PlayerProtectionCallout";
 import Logo from "@/components/Logo";
 import SEO from "@/components/seo/SEO";
 import { SITE_URL } from "@/lib/seoConfig";
 
 const LANDING_URL = `${SITE_URL}/`;
-const SEO_TITLE = "Play Chess. Win Cash Prizes. — ChessBet";
+const SEO_TITLE = "Play Chess for Real Cash | Fair-Play Protection — ChessBet";
 const SEO_DESCRIPTION =
-  "ChessBet is head-to-head, skill-based chess where players compete to win cash prizes. Early Access is open now.";
+  "Play head-to-head blitz and rapid chess for cash prizes with server-verified games, Stockfish screening, clear settlement rules, and human review.";
 
 const HERO_FEATURES = [
   {
@@ -320,13 +321,7 @@ export default function Landing() {
         <HowItWorksSection />
       </div>
 
-      <section aria-label="Early Access details" className="relative z-10 mx-auto w-full max-w-3xl px-6 pb-14">
-        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-center text-xs text-white/45">
-          <span>Eligibility and location rules apply.</span>
-          <Link to="/official-rules" className="font-semibold text-[#C9A84C] hover:underline underline-offset-4">Official Rules</Link>
-          <Link to="/faq" className="font-semibold text-[#C9A84C] hover:underline underline-offset-4">FAQ</Link>
-        </div>
-      </section>
+      <PlayerProtectionCallout />
 
       {/* Footer */}
       <footer className="relative z-10 px-6 py-8 text-center border-t border-white/5">
