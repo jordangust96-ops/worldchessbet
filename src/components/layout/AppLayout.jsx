@@ -14,7 +14,7 @@ export default function AppLayout() {
   const hideNav = HIDE_NAV_PATHS.some(p => location.pathname.startsWith(p));
   // Home, Wallet, and Profile each render their own notice beneath their
   // header logo, so avoid a duplicate here.
-  const NOTICE_RENDERED_BY_PAGE = ["/", "/wallet", "/profile"];
+  const NOTICE_RENDERED_BY_PAGE = ["/play", "/wallet", "/profile"];
   const showHere = !NOTICE_RENDERED_BY_PAGE.includes(location.pathname);
 
   return (
