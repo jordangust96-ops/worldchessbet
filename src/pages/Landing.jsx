@@ -241,10 +241,10 @@ export default function Landing() {
               </Button>
             </Link>
             <p className="mt-3 text-xs leading-relaxed text-white/45">
-              Cash play is available in most US states when it launches — check eligibility before you fund your account in the{" "}
-              <Link to="/official-rules" className="font-semibold text-[#C9A84C] hover:underline underline-offset-4">Official Rules</Link>.
+              Cash play will be limited to supported U.S. locations when it launches — check eligibility before you fund your account in the{" "}
+              <Link to="/official-rules#eligibility" className="font-semibold text-[#C9A84C] hover:underline underline-offset-4">Official Rules</Link>.
             </p>
-            <Link to="/fair-play-integrity" className="mt-4 inline-flex text-sm font-semibold text-[#C9A84C] hover:underline underline-offset-4">
+            <Link to="/fair-play-integrity#fair-play-and-appeals" className="mt-4 inline-flex text-sm font-semibold text-[#C9A84C] hover:underline underline-offset-4">
               See how fair play and appeals work
             </Link>
             <p className="text-white/30 text-xs mt-4">
