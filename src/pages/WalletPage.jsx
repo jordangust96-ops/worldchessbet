@@ -227,7 +227,7 @@ export default function WalletPage() {
         animate={{ opacity: 1, y: 0 }}
         className="space-y-6"
       >
-        <Link to="/" className="inline-block">
+        <Link to="/play" className="inline-block">
           <Logo size="sm" />
         </Link>
         <DemoModeNotice />
