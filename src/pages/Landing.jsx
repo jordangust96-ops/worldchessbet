@@ -220,7 +220,7 @@ export default function Landing() {
               Play chess. Win real money.
             </h1>
             <p className="text-white/70 text-lg font-semibold leading-snug max-w-sm mx-auto">
-              Head-to-head blitz and rapid. Win the pot.
+              Blitz, Rapid, and Classical Chess protected by Stockfish.
             </p>
             <p className="text-white/50 text-sm leading-relaxed max-w-sm mx-auto">
               No luck. No bots. Fair-play review when you need it.
