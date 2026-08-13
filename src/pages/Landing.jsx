@@ -217,13 +217,13 @@ export default function Landing() {
           <div className="space-y-4">
             <Logo size="lg" className="justify-center" />
             <h1 className="text-white text-3xl sm:text-4xl font-extrabold leading-tight max-w-md mx-auto">
-              Play blitz and rapid chess for real cash — head-to-head, no bots, no luck.
+              Play chess. Win real money.
             </h1>
             <p className="text-white/70 text-lg font-semibold leading-snug max-w-sm mx-auto">
-              Stake your rating, win the pot, and get a human appeals path if you’re ever cheated.
+              Head-to-head blitz and rapid. Win the pot.
             </p>
             <p className="text-white/50 text-sm leading-relaxed max-w-sm mx-auto">
-              Skill-based only. No luck, no randomness. Early Access is open; cash-prize play is coming soon.
+              No luck. No bots. Fair-play review when you need it.
             </p>
           </div>
 
@@ -237,7 +237,7 @@ export default function Landing() {
                 size="lg"
                 className="w-full gold-gradient text-black font-bold text-lg h-14 rounded-2xl hover:opacity-90 transition-opacity"
               >
-                Join early access — 500 founding players
+                Join early access
               </Button>
             </Link>
             <p className="mt-3 text-xs leading-relaxed text-white/45">
@@ -344,7 +344,6 @@ export default function Landing() {
         <nav aria-label="ChessBet information" className="mb-4 flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs">
           <Link to="/features" className="text-white/45 hover:text-[#C9A84C]">Features</Link>
           <Link to="/pricing" className="text-white/45 hover:text-[#C9A84C]">Early Access</Link>
-          <Link to="/about" className="text-white/45 hover:text-[#C9A84C]">About</Link>
           <Link to="/fair-play-integrity" className="text-white/45 hover:text-[#C9A84C]">Fair Play & Integrity</Link>
           <Link to="/official-rules" className="text-white/45 hover:text-[#C9A84C]">Official Rules</Link>
           <Link to="/faq" className="text-white/45 hover:text-[#C9A84C]">FAQ</Link>
