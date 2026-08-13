@@ -4,19 +4,26 @@ import ReportContestModal from "@/components/disputes/ReportContestModal";
 
 // Small, unobtrusive entry point used from the Active Match HUD, Game
 // Summary, and Settlement screens.
-export default function ReportContestButton({ matchId, gameId, className = "" }) {
+export default function ReportContestButton({ matchId, gameId, transactionId, label = "Report Contest", className = "" }) {
   const [open, setOpen] = useState(false);
 
   return (
     <>
       <button
+        type="button"
         onClick={() => setOpen(true)}
         className={`inline-flex items-center gap-1.5 text-[11px] text-white/30 hover:text-white/60 transition-colors ${className}`}
       >
         <Flag size={12} />
-        Report Contest
+        {label}
       </button>
-      <ReportContestModal open={open} onOpenChange={setOpen} matchId={matchId} gameId={gameId} />
+      <ReportContestModal
+        open={open}
+        onOpenChange={setOpen}
+        matchId={matchId}
+        gameId={gameId}
+        transactionId={transactionId}
+      />
     </>
   );
 }
