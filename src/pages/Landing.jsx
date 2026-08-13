@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
-import { Crown, Zap, Shield, CircleCheck } from "lucide-react";
+import { Crown, Zap, Shield, CircleCheck, MapPin, Scale, SearchCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import NotifyAtLaunchModal from "@/components/NotifyAtLaunchModal";
 import HowItWorksSection from "@/components/landing/HowItWorksSection";
@@ -9,10 +9,10 @@ import Logo from "@/components/Logo";
 import SEO from "@/components/seo/SEO";
 import { SITE_URL } from "@/lib/seoConfig";
 
-const LANDING_URL = `${SITE_URL}/landing`;
-const SEO_TITLE = "ChessBet | Play Online Chess for Real Prizes";
+const LANDING_URL = `${SITE_URL}/`;
+const SEO_TITLE = "Competitive Online Chess | Integrity-First Early Access — ChessBet";
 const SEO_DESCRIPTION =
-  "Play skill-based, head-to-head online chess for real prizes with secure contest funds, verified results, and Stockfish-powered fair-play screening.";
+  "Join ChessBet Early Access for head-to-head blitz and rapid chess with fair-play screening, clear rules, and human integrity review.";
 
 const HERO_FEATURES = [
   {
@@ -207,13 +207,13 @@ export default function Landing() {
           <div className="space-y-4">
             <Logo size="lg" className="justify-center" />
             <h1 className="text-white text-2xl sm:text-3xl font-extrabold leading-tight max-w-md mx-auto">
-              Play Online Chess for Real Prizes
+              Competitive blitz and rapid chess — built for fair play.
             </h1>
-            <p className="text-white/70 text-xl font-semibold leading-snug max-w-sm mx-auto">
-              Challenge. Compete. Win.
+            <p className="text-white/70 text-lg font-semibold leading-snug max-w-sm mx-auto">
+              Head-to-head chess with server-authoritative moves, fair-play screening, and a human review path when something looks wrong.
             </p>
-            <p className="text-white/50 text-lg leading-relaxed max-w-sm mx-auto">
-              Real Chess. Real Stakes.
+            <p className="text-white/50 text-sm leading-relaxed max-w-sm mx-auto">
+              Early Access for players who want clean, skill-first competition.
             </p>
           </div>
 
@@ -227,8 +227,11 @@ export default function Landing() {
                 size="lg"
                 className="w-full gold-gradient text-black font-bold text-lg h-14 rounded-2xl hover:opacity-90 transition-opacity"
               >
-                Get Started
+                Claim your founding spot
               </Button>
+            </Link>
+            <Link to="/fair-play-integrity" className="mt-4 inline-flex text-sm font-semibold text-[#C9A84C] hover:underline underline-offset-4">
+              Read the Fair Play rules
             </Link>
             <p className="text-white/30 text-xs mt-4">
               Already have an account?{" "}
@@ -320,6 +323,38 @@ export default function Landing() {
       <div className="relative z-10">
         <HowItWorksSection />
       </div>
+
+      <section aria-labelledby="early-access-answers" className="relative z-10 mx-auto w-full max-w-5xl px-6 pb-14">
+        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 sm:p-8">
+          <div className="max-w-2xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#C9A84C]">Before you join</p>
+            <h2 id="early-access-answers" className="mt-2 text-2xl font-bold text-white">Clear rules, visible safeguards, and a path to review.</h2>
+            <p className="mt-3 text-sm leading-relaxed text-white/60">Early Access is intentionally limited while ChessBet validates the competitive experience and integrity process.</p>
+          </div>
+          <div className="mt-7 grid gap-4 md:grid-cols-3">
+            <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-5">
+              <MapPin className="text-[#C9A84C]" size={20} aria-hidden="true" />
+              <h3 className="mt-4 font-semibold text-white">Eligibility comes first</h3>
+              <p className="mt-2 text-sm leading-relaxed text-white/55">Participation depends on eligibility and location checks. Review the Official Rules before joining.</p>
+            </div>
+            <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-5">
+              <Scale className="text-[#C9A84C]" size={20} aria-hidden="true" />
+              <h3 className="mt-4 font-semibold text-white">Early Access is not live settlement</h3>
+              <p className="mt-2 text-sm leading-relaxed text-white/55">Funding, withdrawals, and real-money settlement are disabled during Early Access. Product status and rules are shown clearly.</p>
+            </div>
+            <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-5">
+              <SearchCheck className="text-[#C9A84C]" size={20} aria-hidden="true" />
+              <h3 className="mt-4 font-semibold text-white">Cheating has a review path</h3>
+              <p className="mt-2 text-sm leading-relaxed text-white/55">Fair-play signals support human review. Players can report concerns under the Fair Play Integrity process.</p>
+            </div>
+          </div>
+          <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+            <Link to="/official-rules" className="font-semibold text-[#C9A84C] hover:underline underline-offset-4">Read Official Rules</Link>
+            <Link to="/fair-play-integrity" className="font-semibold text-[#C9A84C] hover:underline underline-offset-4">How Fair Play Integrity works</Link>
+            <Link to="/faq" className="font-semibold text-[#C9A84C] hover:underline underline-offset-4">Read FAQs</Link>
+          </div>
+        </div>
+      </section>
 
       {/* Footer */}
       <footer className="relative z-10 px-6 py-8 text-center border-t border-white/5">
