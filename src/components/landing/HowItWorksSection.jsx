@@ -92,9 +92,9 @@ export default function HowItWorksSection() {
             <div className="w-12 h-12 rounded-2xl bg-[#C9A84C]/10 flex items-center justify-center mx-auto">
               <ShieldCheck size={22} className="text-[#C9A84C]" />
             </div>
-            <h3 className="text-xl font-bold text-white">Engine detection with a human appeals path</h3>
+            <h3 className="text-xl font-bold text-white">Signals are evidence—not verdicts</h3>
             <p className="text-white/50 text-sm max-w-2xl mx-auto leading-relaxed">
-              Engine checks plus real human review.
+              Stockfish can surface unusual patterns; reviewers consider the game record and player reports.
             </p>
           </div>
 
@@ -107,7 +107,7 @@ export default function HowItWorksSection() {
           </div>
 
           <p className="text-center text-xs text-white/35">
-            Automated screening flags signals for review. People make the calls.
+            Players can report concerns and appeal enforcement decisions.
           </p>
           <div className="text-center">
             <Link
