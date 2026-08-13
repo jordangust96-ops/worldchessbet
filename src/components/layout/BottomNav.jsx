@@ -4,7 +4,7 @@ import { Swords, Wallet, User } from "lucide-react";
 import { motion } from "framer-motion";
 
 const navItems = [
-  { icon: Swords, label: "Play", path: "/" },
+  { icon: Swords, label: "Play", path: "/play" },
   { icon: Wallet, label: "Wallet", path: "/wallet" },
   { icon: User, label: "Profile", path: "/profile" },
 ];
