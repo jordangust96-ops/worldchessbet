@@ -26,7 +26,7 @@ export default function Login() {
     try {
       await base44.auth.loginViaEmailPassword(email, password);
       base44.analytics.track({ eventName: "user_login", properties: { method: "email", user_type: "returning" } });
-      window.location.href = getPostAuthRedirect() || "/";
+      window.location.href = getPostAuthRedirect() || "/play";
     } catch (err) {
       setError(err.message || "Invalid email or password");
     } finally {
@@ -35,15 +35,15 @@ export default function Login() {
   };
 
   const handleGoogle = () => {
-    base44.auth.loginWithProvider("google", "/");
+    base44.auth.loginWithProvider("google", "/play");
   };
 
   const handleApple = () => {
-    base44.auth.loginWithProvider("apple", "/");
+    base44.auth.loginWithProvider("apple", "/play");
   };
 
   const handleFacebook = () => {
-    base44.auth.loginWithProvider("facebook", "/");
+    base44.auth.loginWithProvider("facebook", "/play");
   };
 
   return (
