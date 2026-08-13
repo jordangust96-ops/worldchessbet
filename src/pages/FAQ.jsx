@@ -12,6 +12,7 @@ import SEO from "@/components/seo/SEO";
 import { SITE_URL } from "@/lib/seoConfig";
 import { FAQ_SECTIONS, getFaqJsonLdEntities } from "@/lib/faqContent";
 import { useAuth } from "@/lib/AuthContext";
+import PlayerProtectionCallout from "@/components/landing/PlayerProtectionCallout";
 
 export default function FAQ() {
   const navigate = useNavigate();
@@ -26,8 +27,8 @@ export default function FAQ() {
   return (
     <div className="min-h-screen bg-[#0A0A0A] px-5 py-10">
       <SEO
-        title="Frequently Asked Questions | ChessBet"
-        description="Answers to common questions about ChessBet's real-money skill-based chess matches, account verification, wallet, payouts, match integrity, and security."
+        title="Chess for Cash FAQ | Eligibility, Payouts & Fair Play — ChessBet"
+        description="Get clear answers about ChessBet eligibility, ACH funding, cash-prize settlement, withdrawals, disputes, server-verified matches, and fair-play review."
         canonicalUrl={`${SITE_URL}/faq`}
         structuredData={structuredData}
       />
@@ -51,6 +52,8 @@ export default function FAQ() {
           <h1 className="text-2xl font-bold text-white">Frequently Asked Questions</h1>
           <p className="text-sm text-white/40">Everything you need to know about ChessBet</p>
         </div>
+
+        <PlayerProtectionCallout />
 
         <div className="space-y-6">
           {FAQ_SECTIONS.map((section) => (
