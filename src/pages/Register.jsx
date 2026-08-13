@@ -119,15 +119,15 @@ export default function Register() {
   };
 
   const handleGoogle = () => {
-    base44.auth.loginWithProvider("google", "/");
+    base44.auth.loginWithProvider("google", "/play");
   };
 
   const handleApple = () => {
-    base44.auth.loginWithProvider("apple", "/");
+    base44.auth.loginWithProvider("apple", "/play");
   };
 
   const handleFacebook = () => {
-    base44.auth.loginWithProvider("facebook", "/");
+    base44.auth.loginWithProvider("facebook", "/play");
   };
 
   if (showOtp) {
