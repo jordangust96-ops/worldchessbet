@@ -1,8 +1,14 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, ShieldCheck } from "lucide-react";
 import SEO from "@/components/seo/SEO";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { SITE_URL } from "@/lib/seoConfig";
 import {
   PROHIBITED_CATEGORIES,
@@ -14,12 +20,29 @@ import {
   REPORTING_ITEMS,
 } from "@/lib/fairPlayPolicyContent";
 
+function slugify(title) {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
 function Section({ id, title, children }) {
+  const sectionId = id || slugify(title);
+
   return (
-    <div id={id} className="rounded-2xl bg-white/[0.03] border border-white/5 p-5 space-y-3 scroll-mt-28">
-      <h2 className="text-base font-bold text-white">{title}</h2>
-      {children}
-    </div>
+    <AccordionItem
+      value={sectionId}
+      id={sectionId}
+      className="rounded-2xl bg-white/[0.03] border border-white/5 px-5 scroll-mt-28"
+    >
+      <AccordionTrigger className="text-left text-base font-bold text-white hover:no-underline">
+        {title}
+      </AccordionTrigger>
+      <AccordionContent>
+        <div className="space-y-3 pb-1">{children}</div>
+      </AccordionContent>
+    </AccordionItem>
   );
 }
 
@@ -37,6 +60,34 @@ function BulletList({ items }) {
 }
 
 export default function FairPlayIntegrity() {
+  const { hash } = useLocation();
+  const [openSections, setOpenSections] = useState([]);
+
+  useEffect(() => {
+    if (!hash) return undefined;
+
+    const rawId = hash.slice(1);
+    let targetId = rawId;
+    try {
+      targetId = decodeURIComponent(rawId);
+    } catch {
+      // Keep the raw hash when it is not valid encoded text.
+    }
+
+    setOpenSections((current) =>
+      current.includes(targetId) ? current : [...current, targetId]
+    );
+
+    const timer = window.setTimeout(() => {
+      document.getElementById(targetId)?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 120);
+
+    return () => window.clearTimeout(timer);
+  }, [hash]);
+
   return (
     <div className="min-h-screen bg-[#0A0A0A] pb-16">
       <SEO
@@ -66,7 +117,13 @@ export default function FairPlayIntegrity() {
       </div>
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="px-5 pt-6 max-w-2xl mx-auto space-y-4">
-        <Section id="fair-play-and-appeals" title="Quick answer: How fair play and appeals work">
+        <Accordion
+          type="multiple"
+          value={openSections}
+          onValueChange={setOpenSections}
+          className="space-y-3"
+        >
+          <Section id="fair-play-and-appeals" title="Quick answer: How fair play and appeals work">
           <p className="text-sm text-white/60 leading-relaxed">
             ChessBet validates moves, clocks, game state, and results on its servers. Completed contests
             may then be screened with Stockfish and behavioral checks. Player reports can also supply
@@ -262,7 +319,8 @@ export default function FairPlayIntegrity() {
             </Link>
             .
           </p>
-        </Section>
+          </Section>
+        </Accordion>
 
         <div className="rounded-2xl bg-[#C9A84C]/5 border border-[#C9A84C]/20 p-5 space-y-2">
           <p className="text-sm font-bold text-[#C9A84C]">Integrity First</p>
