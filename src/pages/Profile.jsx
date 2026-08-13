@@ -109,7 +109,7 @@ export default function Profile() {
   if (loadError) {
     return (
       <div className="min-h-screen px-5 pt-8">
-        <Link to="/" className="inline-block">
+        <Link to="/play" className="inline-block">
           <Logo size="sm" />
         </Link>
         <div className="mt-8 rounded-2xl bg-white/[0.03] border border-white/5 p-6 text-center">
@@ -132,7 +132,7 @@ export default function Profile() {
         animate={{ opacity: 1, y: 0 }}
         className="space-y-6">
 
-        <Link to="/" className="inline-block">
+        <Link to="/play" className="inline-block">
           <Logo size="sm" />
         </Link>
         <DemoModeNotice />
