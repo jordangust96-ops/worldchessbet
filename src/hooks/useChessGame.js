@@ -40,7 +40,30 @@ export function useChessGame(matchId, userId, active) {
   const renderedStatusRef = useRef(null);
   const [selectedSquare, setSelectedSquare] = useState(null);
   const [legalTargets, setLegalTargets] = useState([]);
+  const selectedSquareRef = useRef(null);
+  const legalTargetsRef = useRef([]);
+  const selectionInputRef = useRef(null);
   const { toast } = useToast();
+
+  const clearSelection = useCallback(() => {
+    selectedSquareRef.current = null;
+    legalTargetsRef.current = [];
+    selectionInputRef.current = null;
+    setSelectedSquare(null);
+    setLegalTargets([]);
+  }, []);
+
+  const selectSquare = useCallback((square, targets, inputMeta = {}) => {
+    selectedSquareRef.current = square;
+    legalTargetsRef.current = targets;
+    selectionInputRef.current = {
+      selectedAt: Date.now(),
+      pointerType: inputMeta.pointerType || "unknown",
+      repeatedSourceTaps: 0,
+    };
+    setSelectedSquare(square);
+    setLegalTargets(targets);
+  }, []);
 
   const loadGame = useCallback(async () => {
     if (!matchId || !userId) return;
@@ -195,7 +218,7 @@ export function useChessGame(matchId, userId, active) {
   // (handleSquareClick) — the single path that ever calls submitMove, so both
   // input methods run through identical validation/optimistic-update/rollback logic.
   const attemptMove = useCallback(
-    (sourceSquare, targetSquare) => {
+    (sourceSquare, targetSquare, inputMeta = {}) => {
       if (!game || game.status === "completed") return false;
 
       // Only the player whose turn it is may initiate a move. This keeps
@@ -226,8 +249,26 @@ export function useChessGame(matchId, userId, active) {
       // response still reflecting the pre-move position gets rejected by
       // applyLatest instead of briefly rendering over this optimistic move.
       renderedPlyRef.current = plyFromFen(preview.fen());
-      setSelectedSquare(null);
-      setLegalTargets([]);
+      clearSelection();
+
+      // Sanitized, aggregate-only input telemetry helps detect mobile
+      // interaction regressions without recording game IDs, squares, moves,
+      // player IDs, or any other gameplay content.
+      if (inputMeta.inputMode === "click") {
+        try {
+          base44.analytics.track({
+            eventName: "game_move_input_completed",
+            properties: {
+              input_mode: "click",
+              pointer_type: inputMeta.pointerType || "unknown",
+              selection_latency_ms: Math.max(0, Math.min(60000, Number(inputMeta.selectionLatencyMs) || 0)),
+              repeated_source_taps: Math.max(0, Math.min(10, Number(inputMeta.repeatedSourceTaps) || 0)),
+            },
+          });
+        } catch {
+          // Analytics must never interrupt a chess move.
+        }
+      }
 
       (async () => {
         try {
@@ -282,7 +323,7 @@ export function useChessGame(matchId, userId, active) {
 
       return true;
     },
-    [game, color, toast]
+    [game, color, toast, clearSelection]
   );
 
   const handleDrop = useCallback(
@@ -290,42 +331,54 @@ export function useChessGame(matchId, userId, active) {
     [attemptMove]
   );
 
-  // Click to Move: click a legal piece to select it (highlighting legal
-  // destinations), click a destination to complete the move, click the same
-  // piece or an empty/illegal square to clear the selection.
+  // Click to Move: tap a legal piece to select it and tap a highlighted
+  // destination to move. Repeated source taps intentionally keep the piece
+  // selected; this makes impatient/rage taps harmless instead of alternating
+  // the legal-move highlights on and off.
   const handleSquareClick = useCallback(
-    (square) => {
+    (square, inputMeta = {}) => {
       if (!game || game.status === "completed") return;
       const chess = chessRef.current;
       const turn = chess.turn();
       const playerColor = color === "white" ? "w" : "b";
 
-      // Ignore board clicks while waiting for the opponent and remove any
-      // stale highlight left over from a prior local interaction.
       if (turn !== playerColor) {
-        setSelectedSquare(null);
-        setLegalTargets([]);
+        clearSelection();
         return;
       }
 
-      if (selectedSquare) {
-        if (square === selectedSquare) {
-          setSelectedSquare(null);
-          setLegalTargets([]);
+      const currentSelected = selectedSquareRef.current;
+      const currentTargets = legalTargetsRef.current;
+
+      if (currentSelected) {
+        if (square === currentSelected) {
+          if (selectionInputRef.current) {
+            selectionInputRef.current.repeatedSourceTaps += 1;
+          }
           return;
         }
-        if (legalTargets.includes(square)) {
-          attemptMove(selectedSquare, square);
+
+        if (currentTargets.includes(square)) {
+          const selectionInput = selectionInputRef.current;
+          attemptMove(currentSelected, square, {
+            inputMode: "click",
+            pointerType: inputMeta.pointerType || selectionInput?.pointerType || "unknown",
+            selectionLatencyMs: selectionInput ? Date.now() - selectionInput.selectedAt : 0,
+            repeatedSourceTaps: selectionInput?.repeatedSourceTaps || 0,
+          });
           return;
         }
+
         const piece = chess.get(square);
         if (piece && piece.color === turn) {
           const moves = chess.moves({ square, verbose: true });
-          setSelectedSquare(moves.length > 0 ? square : null);
-          setLegalTargets(moves.map((m) => m.to));
+          if (moves.length > 0) {
+            selectSquare(square, moves.map((move) => move.to), inputMeta);
+          } else {
+            clearSelection();
+          }
         } else {
-          setSelectedSquare(null);
-          setLegalTargets([]);
+          clearSelection();
         }
         return;
       }
@@ -333,12 +386,12 @@ export function useChessGame(matchId, userId, active) {
       const piece = chess.get(square);
       if (piece && piece.color === turn) {
         const moves = chess.moves({ square, verbose: true });
-        if (moves.length === 0) return;
-        setSelectedSquare(square);
-        setLegalTargets(moves.map((m) => m.to));
+        if (moves.length > 0) {
+          selectSquare(square, moves.map((move) => move.to), inputMeta);
+        }
       }
     },
-    [game, color, selectedSquare, legalTargets, attemptMove]
+    [game, color, attemptMove, clearSelection, selectSquare]
   );
 
   return {
