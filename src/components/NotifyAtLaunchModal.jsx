@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { base44 } from "@/api/base44Client";
+import { trackGoogleAnalyticsEvent } from "@/lib/googleAnalytics";
 
 export default function NotifyAtLaunchModal({ open, onOpenChange }) {
   const [email, setEmail] = useState("");
@@ -44,6 +45,7 @@ export default function NotifyAtLaunchModal({ open, onOpenChange }) {
         username: username || undefined,
         submitted_at: new Date().toISOString(),
       });
+      trackGoogleAnalyticsEvent("generate_lead", { lead_source: "launch_notification" });
       setSubmitted(true);
     } finally {
       setIsSubmitting(false);
