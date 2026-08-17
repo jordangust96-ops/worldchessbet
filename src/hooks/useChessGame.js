@@ -254,15 +254,17 @@ export function useChessGame(matchId, userId, active) {
       // player IDs, or any other gameplay content.
       if (inputMeta.inputMode === "click") {
         try {
-          base44.analytics.track({
-            eventName: "game_move_input_completed",
-            properties: {
-              input_mode: "click",
-              pointer_type: inputMeta.pointerType || "unknown",
-              selection_latency_ms: Math.max(0, Math.min(60000, Number(inputMeta.selectionLatencyMs) || 0)),
-              repeated_source_taps: Math.max(0, Math.min(10, Number(inputMeta.repeatedSourceTaps) || 0)),
-            },
-          });
+          Promise.resolve(
+            base44.analytics.track({
+              eventName: "game_move_input_completed",
+              properties: {
+                input_mode: "click",
+                pointer_type: inputMeta.pointerType || "unknown",
+                selection_latency_ms: Math.max(0, Math.min(60000, Number(inputMeta.selectionLatencyMs) || 0)),
+                repeated_source_taps: Math.max(0, Math.min(10, Number(inputMeta.repeatedSourceTaps) || 0)),
+              },
+            })
+          ).catch(() => {});
         } catch {
           // Analytics must never interrupt a chess move.
         }
