@@ -1,14 +1,17 @@
-import React, { useEffect, useState } from "react";
+import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
 import { Crown, Zap, Shield, CircleCheck, WalletCards } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import NotifyAtLaunchModal from "@/components/NotifyAtLaunchModal";
-import HowItWorksSection from "@/components/landing/HowItWorksSection";
-import PlayerProtectionCallout from "@/components/landing/PlayerProtectionCallout";
 import Logo from "@/components/Logo";
 import SEO from "@/components/seo/SEO";
 import { SITE_URL } from "@/lib/seoConfig";
+
+// Noncritical sections and the form dialog load only when a visitor is near
+// them or explicitly opens them, keeping their UI/SDK code off the first paint.
+const NotifyAtLaunchModal = lazy(() => import("@/components/NotifyAtLaunchModal"));
+const HowItWorksSection = lazy(() => import("@/components/landing/HowItWorksSection"));
+const PlayerProtectionCallout = lazy(() => import("@/components/landing/PlayerProtectionCallout"));
 
 const LANDING_URL = `${SITE_URL}/`;
 const SEO_TITLE = "Play Chess for Real Money — Head-to-Head Cash Contests | ChessBet";
@@ -85,6 +88,40 @@ const STRUCTURED_DATA = [
     url: LANDING_URL,
   },
 ];
+
+function DeferredLandingSection({ children, minHeight, className = "" }) {
+  const containerRef = useRef(null);
+  const [shouldRender, setShouldRender] = useState(false);
+
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element || typeof IntersectionObserver === "undefined") {
+      setShouldRender(true);
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        setShouldRender(true);
+        observer.disconnect();
+      },
+      { rootMargin: "400px 0px", threshold: 0.01 }
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={containerRef}
+      className={className}
+      style={shouldRender ? undefined : { minHeight }}
+    >
+      {shouldRender ? <Suspense fallback={null}>{children}</Suspense> : null}
+    </div>
+  );
+}
 
 function LandingAmbientGlow() {
   const reduceMotion = useReducedMotion();
@@ -353,11 +390,13 @@ export default function Landing() {
         </p>
       </div>
 
-      <div className="relative z-10">
+      <DeferredLandingSection minHeight="520px" className="relative z-10">
         <HowItWorksSection />
-      </div>
+      </DeferredLandingSection>
 
-      <PlayerProtectionCallout />
+      <DeferredLandingSection minHeight="340px">
+        <PlayerProtectionCallout />
+      </DeferredLandingSection>
 
       {/* Footer */}
       <footer className="relative z-10 px-6 py-8 text-center border-t border-white/5">
@@ -374,7 +413,11 @@ export default function Landing() {
         </p>
       </footer>
 
-      <NotifyAtLaunchModal open={notifyModalOpen} onOpenChange={setNotifyModalOpen} />
+      {notifyModalOpen && (
+        <Suspense fallback={null}>
+          <NotifyAtLaunchModal open={notifyModalOpen} onOpenChange={setNotifyModalOpen} />
+        </Suspense>
+      )}
     </div>
   );
 }
