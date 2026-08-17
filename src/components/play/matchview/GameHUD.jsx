@@ -41,6 +41,7 @@ export default function GameHUD({
   userId,
   movementMode,
   onMovementModeChange,
+  touchOnlyInput,
   soundEnabled,
   onSoundEnabledChange,
 }) {
@@ -287,7 +288,11 @@ export default function GameHUD({
         </div>
         <div className="space-y-1.5">
           <p className="text-[10px] uppercase tracking-widest text-white/30 px-1">Movement Mode</p>
-          <MovementModeToggle mode={movementMode} onChange={onMovementModeChange} />
+          <MovementModeToggle
+            mode={movementMode}
+            onChange={onMovementModeChange}
+            touchOnlyInput={touchOnlyInput}
+          />
         </div>
       </div>
 
