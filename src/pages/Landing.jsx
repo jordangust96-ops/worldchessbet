@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
+import React, { lazy, Suspense, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Crown, Zap, Shield, CircleCheck, WalletCards } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,9 +6,10 @@ import Logo from "@/components/Logo";
 import SEO from "@/components/seo/SEO";
 import { SITE_URL } from "@/lib/seoConfig";
 
+import HowItWorksSection from "@/components/landing/HowItWorksSection";
+import PlayerProtectionCallout from "@/components/landing/PlayerProtectionCallout";
+
 const NotifyAtLaunchModal = lazy(() => import("@/components/NotifyAtLaunchModal"));
-const HowItWorksSection = lazy(() => import("@/components/landing/HowItWorksSection"));
-const PlayerProtectionCallout = lazy(() => import("@/components/landing/PlayerProtectionCallout"));
 
 const LANDING_URL = `${SITE_URL}/`;
 const SEO_TITLE = "Play Chess for Real Money — Head-to-Head Cash Contests | ChessBet";
@@ -86,40 +87,6 @@ const STRUCTURED_DATA = [
   },
 ];
 
-function DeferredLandingSection({ children, minHeight, className = "" }) {
-  const containerRef = useRef(null);
-  const [shouldRender, setShouldRender] = useState(false);
-
-  useEffect(() => {
-    const element = containerRef.current;
-    if (!element || typeof IntersectionObserver === "undefined") {
-      setShouldRender(true);
-      return undefined;
-    }
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting) return;
-        setShouldRender(true);
-        observer.disconnect();
-      },
-      { rootMargin: "100px 0px", threshold: 0.01 }
-    );
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
-
-  return (
-    <div
-      ref={containerRef}
-      className={className}
-      style={shouldRender ? undefined : { minHeight }}
-    >
-      {shouldRender ? <Suspense fallback={null}>{children}</Suspense> : null}
-    </div>
-  );
-}
-
 function LandingAmbientGlow() {
   const [pulse, setPulse] = useState(null);
 
@@ -161,7 +128,7 @@ export default function Landing() {
   const ActiveFeatureIcon = activeFeature?.icon;
 
   return (
-    <div className="relative isolate min-h-screen overflow-x-hidden bg-[#0A0A0A] flex flex-col">
+    <div className="relative isolate min-h-screen min-h-[100svh] overflow-x-hidden bg-[#0A0A0A] flex flex-col">
       <SEO
         title={SEO_TITLE}
         description={SEO_DESCRIPTION}
@@ -284,13 +251,8 @@ export default function Landing() {
           </p>
         </section>
 
-        <DeferredLandingSection minHeight="520px">
-          <HowItWorksSection />
-        </DeferredLandingSection>
-
-        <DeferredLandingSection minHeight="340px">
-          <PlayerProtectionCallout />
-        </DeferredLandingSection>
+        <HowItWorksSection />
+        <PlayerProtectionCallout />
       </main>
 
       <footer className="relative z-10 px-6 py-8 text-center border-t border-white/5">
