@@ -6,7 +6,7 @@ import PresenceHeartbeat from "@/components/PresenceHeartbeat";
 import AdminActionAlert from "@/components/admin/AdminActionAlert";
 import { useAuth } from "@/lib/AuthContext";
 
-const HIDE_NAV_PATHS = ["/landing", "/login", "/register", "/forgot-password", "/reset-password"];
+const HIDE_NAV_PATHS = ["/login", "/register", "/forgot-password", "/reset-password"];
 
 export default function AppLayout() {
   const { user } = useAuth();
