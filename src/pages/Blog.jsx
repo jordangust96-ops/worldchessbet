@@ -18,7 +18,10 @@ export default function Blog() {
 
     const script = document.createElement("script");
     script.id = SORO_SCRIPT_ID;
-    script.src = SORO_EMBED_URL;
+    // Soro caches each embed URL for up to an hour. Rotate the query key every
+    // five minutes so a recently published article is picked up promptly.
+    const embedCacheWindow = Math.floor(Date.now() / (5 * 60 * 1000));
+    script.src = `${SORO_EMBED_URL}?v=${embedCacheWindow}`;
     script.defer = true;
     document.body.appendChild(script);
 
