@@ -2,7 +2,6 @@ import { useLocation } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import SEO from '@/components/seo/SEO';
-import { SITE_URL } from '@/lib/seoConfig';
 
 export default function PageNotFound() {
     const location = useLocation();
@@ -25,7 +24,6 @@ export default function PageNotFound() {
         <SEO
             title="Page Not Found | ChessBet"
             description="This ChessBet page is unavailable. Visit the ChessBet homepage for current Early Access information."
-            canonicalUrl={`${SITE_URL}/`}
             noindex
         />
         <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50">
