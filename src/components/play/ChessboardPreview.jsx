@@ -115,7 +115,48 @@ export default function ChessboardPreview({
 }) {
   const style = STATE_STYLES[state] || STATE_STYLES.marketplace;
   const containerRef = useRef(null);
+  const pointerStartRef = useRef(null);
   const size = useSize(containerRef);
+
+  const squareFromTarget = (target) =>
+    typeof target?.closest === "function"
+      ? target.closest("[data-square]")?.getAttribute("data-square") || null
+      : null;
+
+  // Handle tap-to-move directly with Pointer Events. Waiting for a synthesized
+  // click is unreliable on some mobile browsers, especially around draggable
+  // piece elements. A small movement allowance accommodates normal finger
+  // wobble without turning a swipe into a chess move.
+  const handlePointerDownCapture = (event) => {
+    if (!onSquareClick || !event.isPrimary || event.button !== 0) return;
+    pointerStartRef.current = {
+      pointerId: event.pointerId,
+      square: squareFromTarget(event.target),
+      x: event.clientX,
+      y: event.clientY,
+      startedAt: Date.now(),
+      pointerType: event.pointerType || "unknown",
+    };
+  };
+
+  const handlePointerUpCapture = (event) => {
+    const start = pointerStartRef.current;
+    pointerStartRef.current = null;
+    if (!onSquareClick || !start || start.pointerId !== event.pointerId) return;
+
+    const square = squareFromTarget(event.target);
+    const distance = Math.hypot(event.clientX - start.x, event.clientY - start.y);
+    if (!square || square !== start.square || distance > 18) return;
+
+    onSquareClick(square, {
+      pointerType: event.pointerType || start.pointerType || "unknown",
+      tapDurationMs: Math.max(0, Date.now() - start.startedAt),
+    });
+  };
+
+  const handlePointerCancelCapture = () => {
+    pointerStartRef.current = null;
+  };
 
   // Click to Move highlighting — selected square gets a gold ring, legal
   // destinations get a soft gold dot. Empty when Drag & Drop mode is active.
@@ -189,13 +230,25 @@ export default function ChessboardPreview({
       <div
         ref={containerRef}
         className="w-full h-full relative"
-        style={state === "marketplace" ? { filter: "blur(3px)" } : undefined}
+        onPointerDownCapture={handlePointerDownCapture}
+        onPointerUpCapture={handlePointerUpCapture}
+        onPointerCancelCapture={handlePointerCancelCapture}
+        style={{
+          ...(state === "marketplace" ? { filter: "blur(3px)" } : {}),
+          ...(onSquareClick
+            ? {
+                touchAction: "none",
+                userSelect: "none",
+                WebkitUserSelect: "none",
+                WebkitTapHighlightColor: "transparent",
+              }
+            : {}),
+        }}
       >
         {size?.width ? (
           <Chessboard
             position={fen || START_FEN}
             onPieceDrop={onPieceDrop}
-            onSquareClick={onSquareClick}
             customSquareStyles={customSquareStyles}
             boardOrientation={boardOrientation}
             arePiecesDraggable={arePiecesDraggable}
