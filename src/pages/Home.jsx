@@ -9,6 +9,7 @@ import DemoModeNotice from "@/components/DemoModeNotice";
 import RestrictedModeBanner from "@/components/RestrictedModeBanner";
 import { useChessGame } from "@/hooks/useChessGame";
 import { useSize } from "@/hooks/use-size";
+import { useTouchOnlyInput } from "@/hooks/use-touch-only-input";
 import { trackPixelEvent } from "@/lib/metaPixel";
 import {
   getMoveSoundCue,
@@ -41,7 +42,9 @@ export default function Home() {
   const gameActive =
     boardState === "in_progress" || boardState === "finalizing" || boardState === "settlement";
   const isLive = boardState === "in_progress";
-  const [movementMode, setMovementMode] = useState("drag");
+  const touchOnlyInput = useTouchOnlyInput();
+  const touchOnlyInputRef = useRef(touchOnlyInput);
+  const [movementMode, setMovementMode] = useState(() => (touchOnlyInput ? "click" : "drag"));
   const [soundEnabled, setSoundEnabled] = useState(getStoredSoundPreference);
   const soundEnabledRef = useRef(soundEnabled);
   const boardAreaRef = useRef(null);
@@ -55,9 +58,20 @@ export default function Home() {
     useChessGame(myMatchId, user?.id, gameActive);
 
   const handleMovementModeChange = (mode) => {
+    // Touch-first phones and tablets are tap-only. Do not persist this
+    // device-specific override, so a desktop can retain Drag & Drop.
+    if (touchOnlyInputRef.current) {
+      setMovementMode("click");
+      return;
+    }
     setMovementMode(mode);
     base44.auth.updateMe({ movement_mode: mode });
   };
+
+  useEffect(() => {
+    touchOnlyInputRef.current = touchOnlyInput;
+    if (touchOnlyInput) setMovementMode("click");
+  }, [touchOnlyInput]);
 
   useEffect(() => {
     soundEnabledRef.current = soundEnabled;
@@ -301,7 +315,9 @@ export default function Home() {
     const load = async () => {
       const me = await base44.auth.me();
       setUser(me);
-      setMovementMode(me.movement_mode === "click" ? "click" : "drag");
+      setMovementMode(
+        touchOnlyInputRef.current ? "click" : me.movement_mode === "click" ? "click" : "drag"
+      );
       const soundsOn = me.sound_enabled == null ? getStoredSoundPreference() : me.sound_enabled !== false;
       soundEnabledRef.current = soundsOn;
       setSoundEnabled(soundsOn);
@@ -388,12 +404,12 @@ export default function Home() {
           <ChessboardPreview
             state={boardState}
             fen={gameActive ? fen : undefined}
-            onPieceDrop={isLive && movementMode === "drag" ? handleDrop : undefined}
-            onSquareClick={isLive && movementMode === "click" ? handleSquareClick : undefined}
-            selectedSquare={isLive && movementMode === "click" ? selectedSquare : null}
-            legalTargets={isLive && movementMode === "click" ? legalTargets : []}
+            onPieceDrop={isLive && !touchOnlyInput && movementMode === "drag" ? handleDrop : undefined}
+            onSquareClick={isLive && (touchOnlyInput || movementMode === "click") ? handleSquareClick : undefined}
+            selectedSquare={isLive && (touchOnlyInput || movementMode === "click") ? selectedSquare : null}
+            legalTargets={isLive && (touchOnlyInput || movementMode === "click") ? legalTargets : []}
             boardOrientation={orientation}
-            arePiecesDraggable={isLive && movementMode === "drag"}
+            arePiecesDraggable={isLive && !touchOnlyInput && movementMode === "drag"}
           />
         </motion.div>
 
@@ -431,6 +447,7 @@ export default function Home() {
               onRefresh={handleRefreshActiveMatch}
               movementMode={movementMode}
               onMovementModeChange={handleMovementModeChange}
+              touchOnlyInput={touchOnlyInput}
               soundEnabled={soundEnabled}
               onSoundEnabledChange={handleSoundEnabledChange}
             />
