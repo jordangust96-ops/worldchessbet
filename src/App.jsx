@@ -4,13 +4,14 @@ import { HelmetProvider } from 'react-helmet-async'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
-import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
-import UserNotRegisteredError from '@/components/UserNotRegisteredError';
+import { appParams } from '@/lib/app-params';
 import ScrollToTop from './components/ScrollToTop';
 import GoogleAnalyticsTracker from '@/components/GoogleAnalyticsTracker';
 import MetaPixelTracker from '@/components/MetaPixelTracker';
-import ProtectedRoute from '@/components/ProtectedRoute';
+const PageNotFound = lazy(() => import('./lib/PageNotFound'));
+const UserNotRegisteredError = lazy(() => import('@/components/UserNotRegisteredError'));
+const ProtectedRoute = lazy(() => import('@/components/ProtectedRoute'));
 
 // Keep the public landing page in the initial bundle. Other screens load only
 // when visited so marketing visitors do not download account, gameplay, wallet,
@@ -48,14 +49,24 @@ const AdminUserFinancials = lazy(() => import('@/pages/AdminUserFinancials'));
 const AdminEarlyAccessCampaign = lazy(() => import('@/pages/AdminEarlyAccessCampaign'));
 const AdminActionCenter = lazy(() => import('@/pages/AdminActionCenter'));
 
-// Layout
-import AppLayout from '@/components/layout/AppLayout';
-import MfaGuard from '@/components/MfaGuard';
-import AdminGuard from '@/components/AdminGuard';
-import PolicyAcceptanceGuard from '@/components/legal/PolicyAcceptanceGuard';
+// Account-only layouts and guards stay out of the anonymous landing bundle.
+const AppLayout = lazy(() => import('@/components/layout/AppLayout'));
+const MfaGuard = lazy(() => import('@/components/MfaGuard'));
+const AdminGuard = lazy(() => import('@/components/AdminGuard'));
+const PolicyAcceptanceGuard = lazy(() => import('@/components/legal/PolicyAcceptanceGuard'));
 
 const AuthenticatedApp = () => {
   const { isAuthenticated, isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+
+  const canRenderAnonymousLandingImmediately =
+    !appParams.token && window.location.pathname === "/";
+
+  // Public visitors do not need to wait for the Base44 settings/auth request
+  // before seeing the marketing page. The background check still completes;
+  // authenticated sessions retain the existing gated redirect to /play.
+  if ((isLoadingPublicSettings || isLoadingAuth) && canRenderAnonymousLandingImmediately) {
+    return <Landing />;
+  }
 
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
