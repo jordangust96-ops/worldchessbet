@@ -125,6 +125,9 @@ function DeferredLandingSection({ children, minHeight, className = "" }) {
 
 function LandingAmbientGlow() {
   const reduceMotion = useReducedMotion();
+  const limitSecondaryAmbientMotion =
+    reduceMotion ||
+    (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches);
   const [pulse, setPulse] = useState(null);
   const { scrollYProgress } = useScroll();
   const scrollDrift = useTransform(scrollYProgress, [0, 1], ["-3%", "3%"]);
@@ -188,10 +191,10 @@ function LandingAmbientGlow() {
             ...perimeterMask,
             background:
               "radial-gradient(ellipse 38% 46% at 2% 18%, rgba(225,193,101,0.105), transparent 72%), radial-gradient(ellipse 42% 48% at 98% 68%, rgba(201,168,76,0.09), transparent 74%), radial-gradient(ellipse 34% 34% at 28% 100%, rgba(201,168,76,0.055), transparent 76%)",
-            willChange: reduceMotion ? "auto" : "transform, opacity",
+            willChange: limitSecondaryAmbientMotion ? "auto" : "transform, opacity",
           }}
           animate={
-            reduceMotion
+            limitSecondaryAmbientMotion
               ? { opacity: 0.52 }
               : {
                   x: ["-3%", "3.5%", "-1.5%", "-3%"],
@@ -201,7 +204,7 @@ function LandingAmbientGlow() {
                 }
           }
           transition={
-            reduceMotion
+            limitSecondaryAmbientMotion
               ? { duration: 0 }
               : { duration: 24, repeat: Infinity, ease: "easeInOut" }
           }
