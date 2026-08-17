@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 
-// Sends a page_view event to GA4 on every route change, since gtag.js's
-// initial pageview only fires once on the first load of this SPA.
+// Sends the initial and subsequent SPA page_view events. The lightweight
+// gtag queue exists immediately; the network library loads after first paint.
 export default function GoogleAnalyticsTracker() {
   const { pathname, search } = useLocation();
 
