@@ -16,7 +16,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 // when visited so marketing visitors do not download account, gameplay, wallet,
 // and admin code before seeing the homepage.
 import Landing from '@/pages/Landing';
-const MarketingInfo = lazy(() => import('@/pages/MarketingInfo'));
+const AboutChessBet = lazy(() => import('@/pages/AboutChessBet'));
 
 const Login = lazy(() => import('@/pages/Login'));
 const Register = lazy(() => import('@/pages/Register'));
@@ -85,9 +85,9 @@ const AuthenticatedApp = () => {
       <Routes>
       {/* Public routes */}
       <Route path="/" element={isAuthenticated ? <Navigate to="/play" replace /> : <Landing />} />
-      <Route path="/features" element={<MarketingInfo />} />
-      <Route path="/pricing" element={<MarketingInfo />} />
-      <Route path="/about" element={<MarketingInfo />} />
+      <Route path="/features" element={<Navigate to="/about#features" replace />} />
+      <Route path="/pricing" element={<Navigate to="/about#early-access-and-fees" replace />} />
+      <Route path="/about" element={<AboutChessBet />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
