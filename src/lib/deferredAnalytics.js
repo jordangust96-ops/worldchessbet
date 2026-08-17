@@ -1,6 +1,7 @@
 const GA_MEASUREMENT_ID = "G-JLHMN26FS2";
 const META_PIXEL_ID = "1729629144899462";
-const DEFER_AFTER_LOAD_MS = 3000;
+const PASSIVE_LOAD_DELAY_MS = 15000;
+const INTERACTION_LOAD_DELAY_MS = 1500;
 
 function prepareGoogleAnalyticsQueue() {
   window.dataLayer = window.dataLayer || [];
@@ -58,9 +59,9 @@ export function scheduleDeferredAnalytics() {
     if (loaded) return;
     loaded = true;
     if (timerId) window.clearTimeout(timerId);
-    window.removeEventListener("load", schedule);
-    window.removeEventListener("pointerdown", load);
-    window.removeEventListener("keydown", load);
+    window.removeEventListener("load", schedulePassiveLoad);
+    window.removeEventListener("pointerdown", scheduleAfterInteraction);
+    window.removeEventListener("keydown", scheduleAfterInteraction);
 
     loadScript(
       "chessbet-ga4",
@@ -83,15 +84,21 @@ export function scheduleDeferredAnalytics() {
       });
   };
 
-  const schedule = () => {
-    timerId = window.setTimeout(load, DEFER_AFTER_LOAD_MS);
+  const schedulePassiveLoad = () => {
+    timerId = window.setTimeout(load, PASSIVE_LOAD_DELAY_MS);
   };
 
-  if (document.readyState === "complete") schedule();
-  else window.addEventListener("load", schedule, { once: true });
+  const scheduleAfterInteraction = () => {
+    if (loaded) return;
+    if (timerId) window.clearTimeout(timerId);
+    timerId = window.setTimeout(load, INTERACTION_LOAD_DELAY_MS);
+  };
 
-  // An engaged visitor should have tracking available promptly; passive
-  // visitors keep all third-party downloads off the critical rendering path.
-  window.addEventListener("pointerdown", load, { once: true, passive: true });
-  window.addEventListener("keydown", load, { once: true });
+  if (document.readyState === "complete") schedulePassiveLoad();
+  else window.addEventListener("load", schedulePassiveLoad, { once: true });
+
+  // Preserve measurement for engaged visitors without making their first tap
+  // compete with analytics, pixels, or session replay on the main thread.
+  window.addEventListener("pointerdown", scheduleAfterInteraction, { once: true, passive: true });
+  window.addEventListener("keydown", scheduleAfterInteraction, { once: true });
 }
