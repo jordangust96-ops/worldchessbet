@@ -62,13 +62,13 @@ const AuthenticatedApp = () => {
     !appParams.token && window.location.pathname === "/";
 
   // Public visitors do not need to wait for the Base44 settings/auth request
-  // before seeing the marketing page. The background check still completes;
-  // authenticated sessions retain the existing gated redirect to /play.
-  if ((isLoadingPublicSettings || isLoadingAuth) && canRenderAnonymousLandingImmediately) {
-    return <Landing />;
-  }
-
-  if (isLoadingPublicSettings || isLoadingAuth) {
+  // before seeing the marketing page. They fall through to the normal Routes
+  // tree so Landing stays mounted when that background check completes.
+  // Authenticated sessions retain the existing gated redirect to /play.
+  if (
+    (isLoadingPublicSettings || isLoadingAuth) &&
+    !canRenderAnonymousLandingImmediately
+  ) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-[#0A0A0A]">
         <div className="w-8 h-8 border-4 border-white/10 border-t-[#C9A84C] rounded-full animate-spin"></div>
