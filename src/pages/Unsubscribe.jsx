@@ -28,7 +28,7 @@ export default function Unsubscribe() {
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center px-6 text-center">
-      <Link to="/landing" className="mb-8">
+      <Link to="/" className="mb-8">
         <Logo size="md" />
       </Link>
       <div className="max-w-sm space-y-4">
