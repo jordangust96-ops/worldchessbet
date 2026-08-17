@@ -94,12 +94,11 @@ export function useChessGame(matchId, userId, active) {
       renderedPlyRef.current = 0;
       renderedUpdatedAtRef.current = 0;
       renderedStatusRef.current = null;
-      setSelectedSquare(null);
-      setLegalTargets([]);
+      clearSelection();
       return;
     }
     loadGame();
-  }, [active, loadGame]);
+  }, [active, loadGame, clearSelection]);
 
   // Server-authoritative presence heartbeat, for disconnect/reconnect
   // detection only. Never affects clocks, moves, or outcomes â€” see
@@ -169,8 +168,7 @@ export function useChessGame(matchId, userId, active) {
       // random. A genuine position change (opponent move, reconnect to a newer
       // position, or server correction) or game completion still clears it.
       if (positionChanged || gameEnded) {
-        setSelectedSquare(null);
-        setLegalTargets([]);
+        clearSelection();
       }
     };
 
@@ -212,7 +210,7 @@ export function useChessGame(matchId, userId, active) {
       window.removeEventListener("focus", recoverLatest);
       window.removeEventListener("online", recoverLatest);
     };
-  }, [active, game?.id]);
+  }, [active, game?.id, clearSelection]);
 
   // Shared core used by both Drag & Drop (handleDrop) and Click to Move
   // (handleSquareClick) — the single path that ever calls submitMove, so both
