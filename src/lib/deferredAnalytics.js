@@ -58,6 +58,7 @@ export function scheduleDeferredAnalytics() {
     if (loaded) return;
     loaded = true;
     if (timerId) window.clearTimeout(timerId);
+    window.removeEventListener("load", schedule);
     window.removeEventListener("pointerdown", load);
     window.removeEventListener("keydown", load);
 
