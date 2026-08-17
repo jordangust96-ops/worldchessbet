@@ -6,11 +6,11 @@ import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { appParams } from '@/lib/app-params';
+import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import ScrollToTop from './components/ScrollToTop';
 import GoogleAnalyticsTracker from '@/components/GoogleAnalyticsTracker';
 import MetaPixelTracker from '@/components/MetaPixelTracker';
 const PageNotFound = lazy(() => import('./lib/PageNotFound'));
-const UserNotRegisteredError = lazy(() => import('@/components/UserNotRegisteredError'));
 const ProtectedRoute = lazy(() => import('@/components/ProtectedRoute'));
 
 // Keep the public landing page in the initial bundle. Other screens load only
