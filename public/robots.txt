@@ -7,6 +7,7 @@ Disallow: /my-reports
 Disallow: /verify-mfa
 Disallow: /join/
 Disallow: /unsubscribe
+Allow: /api/apps/6a4ed72536c51cb3280d2bc6/functions/getSoroSitemap
 Disallow: /api/
 
 User-agent: GPTBot
@@ -18,6 +19,7 @@ Disallow: /my-reports
 Disallow: /verify-mfa
 Disallow: /join/
 Disallow: /unsubscribe
+Allow: /api/apps/6a4ed72536c51cb3280d2bc6/functions/getSoroSitemap
 Disallow: /api/
 
 User-agent: ClaudeBot
@@ -29,6 +31,7 @@ Disallow: /my-reports
 Disallow: /verify-mfa
 Disallow: /join/
 Disallow: /unsubscribe
+Allow: /api/apps/6a4ed72536c51cb3280d2bc6/functions/getSoroSitemap
 Disallow: /api/
 
 User-agent: PerplexityBot
@@ -40,6 +43,7 @@ Disallow: /my-reports
 Disallow: /verify-mfa
 Disallow: /join/
 Disallow: /unsubscribe
+Allow: /api/apps/6a4ed72536c51cb3280d2bc6/functions/getSoroSitemap
 Disallow: /api/
 
 User-agent: OAI-SearchBot
@@ -51,6 +55,7 @@ Disallow: /my-reports
 Disallow: /verify-mfa
 Disallow: /join/
 Disallow: /unsubscribe
+Allow: /api/apps/6a4ed72536c51cb3280d2bc6/functions/getSoroSitemap
 Disallow: /api/
 
 Sitemap: https://worldchessbet.com/sitemap.xml
