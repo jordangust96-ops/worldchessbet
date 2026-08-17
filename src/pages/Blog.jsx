@@ -33,7 +33,7 @@ export default function Blog() {
         canonicalUrl={`${SITE_URL}/blog`}
       />
       <div className="max-w-5xl mx-auto space-y-6">
-        <Link to={isAuthenticated ? "/" : "/landing"} className="inline-block">
+        <Link to="/" className="inline-block">
           <Logo size="sm" />
         </Link>
 
