@@ -15,6 +15,7 @@ import { POLICY_TYPE_ORDER } from "@/lib/legalDocumentTypes";
 import { trackPixelEvent } from "@/lib/metaPixel";
 import SEO from "@/components/seo/SEO";
 import { SITE_URL } from "@/lib/seoConfig";
+import { clearPendingOAuthLogin, rememberOAuthLogin, trackGoogleAnalyticsEvent } from "@/lib/googleAnalytics";
 
 function RegisterSEO() {
   return (
@@ -96,6 +97,9 @@ export default function Register() {
         // Non-fatal: acceptance recording should not block account access.
       }
       trackPixelEvent("Registration Completed");
+      clearPendingOAuthLogin();
+      trackGoogleAnalyticsEvent("sign_up", { method: "email" });
+      trackGoogleAnalyticsEvent("login", { method: "email" });
       base44.analytics.track({ eventName: "user_login", properties: { method: "email", user_type: "new" } });
       window.location.href = "/verify-mfa";
     } catch (err) {
@@ -119,14 +123,17 @@ export default function Register() {
   };
 
   const handleGoogle = () => {
+    rememberOAuthLogin("google");
     base44.auth.loginWithProvider("google", "/play");
   };
 
   const handleApple = () => {
+    rememberOAuthLogin("apple");
     base44.auth.loginWithProvider("apple", "/play");
   };
 
   const handleFacebook = () => {
+    rememberOAuthLogin("facebook");
     base44.auth.loginWithProvider("facebook", "/play");
   };
 
