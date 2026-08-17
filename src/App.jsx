@@ -85,7 +85,6 @@ const AuthenticatedApp = () => {
       <Routes>
       {/* Public routes */}
       <Route path="/" element={isAuthenticated ? <Navigate to="/play" replace /> : <Landing />} />
-      <Route path="/landing" element={<Navigate to="/" replace />} />
       <Route path="/features" element={<MarketingInfo />} />
       <Route path="/pricing" element={<MarketingInfo />} />
       <Route path="/about" element={<MarketingInfo />} />
