@@ -119,3 +119,81 @@
 #soro-blog a:hover {
   color: #FFF3BE !important;
 }
+
+/* Landing ambience is CSS-driven so the mobile homepage does not need a
+   JavaScript animation runtime before it can paint. */
+.landing-ambient-primary,
+.landing-ambient-secondary,
+.landing-ambient-pulse {
+  -webkit-mask-image: radial-gradient(ellipse 78% 76% at 50% 45%, transparent 0%, transparent 56%, rgba(0, 0, 0, 0.3) 74%, #000 94%);
+  mask-image: radial-gradient(ellipse 78% 76% at 50% 45%, transparent 0%, transparent 56%, rgba(0, 0, 0, 0.3) 74%, #000 94%);
+}
+
+.landing-ambient-primary {
+  background: conic-gradient(from 25deg at 50% 50%, transparent 0deg, rgba(225, 193, 101, 0.085) 38deg, transparent 82deg, transparent 164deg, rgba(201, 168, 76, 0.055) 214deg, transparent 266deg, transparent 360deg);
+  animation: landing-gold-orbit 32s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.landing-ambient-secondary {
+  background:
+    radial-gradient(ellipse 38% 46% at 2% 18%, rgba(225, 193, 101, 0.105), transparent 72%),
+    radial-gradient(ellipse 42% 48% at 98% 68%, rgba(201, 168, 76, 0.09), transparent 74%),
+    radial-gradient(ellipse 34% 34% at 28% 100%, rgba(201, 168, 76, 0.055), transparent 76%);
+  animation: landing-gold-drift 24s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.landing-ambient-shade {
+  background: radial-gradient(ellipse 76% 78% at 50% 45%, rgba(10, 10, 10, 0.985) 0%, rgba(10, 10, 10, 0.94) 58%, rgba(10, 10, 10, 0.55) 76%, transparent 94%);
+}
+
+.landing-ambient-pulse {
+  background: radial-gradient(circle at var(--pulse-x) var(--pulse-y), rgba(225, 193, 101, 0.18) 0%, rgba(201, 168, 76, 0.07) 18%, transparent 46%);
+  animation: landing-gold-pulse 1.3s ease-out both;
+}
+
+.landing-feature-details {
+  animation: landing-details-in 180ms ease-out both;
+}
+
+@keyframes landing-gold-orbit {
+  0%, 100% { opacity: 0.32; transform: rotate(-7deg) scale(0.985); }
+  50% { opacity: 0.5; transform: rotate(14deg) scale(1.055); }
+}
+
+@keyframes landing-gold-drift {
+  0%, 100% { opacity: 0.4; transform: translate(-3%, -2%) scale(0.985); }
+  38% { opacity: 0.6; transform: translate(3.5%, 3%) scale(1.045); }
+  72% { opacity: 0.46; transform: translate(-1.5%, 1%) scale(0.99); }
+}
+
+@keyframes landing-gold-pulse {
+  0% { opacity: 0; transform: scale(0.97); }
+  35% { opacity: 0.5; }
+  100% { opacity: 0; transform: scale(1.07); }
+}
+
+@keyframes landing-details-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 767px) {
+  .landing-ambient-primary {
+    animation-duration: 38s;
+  }
+
+  .landing-ambient-secondary {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-ambient-primary,
+  .landing-ambient-secondary,
+  .landing-ambient-pulse,
+  .landing-feature-details {
+    animation: none;
+  }
+}
