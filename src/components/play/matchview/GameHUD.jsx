@@ -222,7 +222,51 @@ export default function GameHUD({
           </div>
         )}
         <OpponentConnectionBanner disconnectedAt={opponentDisconnectedAt} />
-        <div className="grid grid-cols-2 gap-2.5">
+        {/* Mobile prioritizes the live clocks above all match metadata. These
+            values come from the same server-authoritative useChessClock hook
+            used by the full player cards below. */}
+        <div className="grid grid-cols-2 gap-2.5 lg:hidden">
+          {["w", "b"].map((colorKey) => {
+            const isClockActive = activeColor === colorKey;
+            const colorLabel = colorKey === "w" ? "White" : "Black";
+            const ownerLabel = myColor === colorKey ? "You" : "Opponent";
+            const clockMs = colorKey === "w" ? displayMs.w : displayMs.b;
+            return (
+              <div
+                key={colorKey}
+                className={`rounded-2xl border p-3.5 transition-colors ${
+                  isClockActive
+                    ? "bg-[#C9A84C]/10 border-[#C9A84C]/40 shadow-[0_0_16px_rgba(201,168,76,0.12)]"
+                    : "bg-white/[0.03] border-white/[0.06]"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <p
+                    className={`text-[10px] font-bold uppercase tracking-widest ${
+                      isClockActive ? "text-[#C9A84C]" : "text-white/40"
+                    }`}
+                  >
+                    {colorLabel}
+                  </p>
+                  <span className="text-[9px] uppercase tracking-wider text-white/35">{ownerLabel}</span>
+                </div>
+                <p
+                  className={`font-mono text-2xl font-bold tabular-nums leading-none ${
+                    isClockActive ? "text-[#E8C85A]" : "text-white/75"
+                  }`}
+                  role="timer"
+                  aria-label={`${colorLabel} clock, ${formatClock(clockMs)}`}
+                >
+                  {formatClock(clockMs)}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Desktop retains the compact contest summary because both clocks are
+            already visible beside the player names above the fold. */}
+        <div className="hidden lg:grid grid-cols-2 gap-2.5">
           <div className="rounded-2xl bg-[#C9A84C]/5 border border-[#C9A84C]/20 p-3">
             <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]/60 mb-0.5">Entry Amount</p>
             <p className="text-base font-bold text-[#C9A84C]">${match.wager_amount.toFixed(2)}</p>
