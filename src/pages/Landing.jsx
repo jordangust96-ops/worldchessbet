@@ -1,14 +1,11 @@
 import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { AnimatePresence, motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
 import { Crown, Zap, Shield, CircleCheck, WalletCards } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Logo from "@/components/Logo";
 import SEO from "@/components/seo/SEO";
 import { SITE_URL } from "@/lib/seoConfig";
 
-// Noncritical sections and the form dialog load only when a visitor is near
-// them or explicitly opens them, keeping their UI/SDK code off the first paint.
 const NotifyAtLaunchModal = lazy(() => import("@/components/NotifyAtLaunchModal"));
 const HowItWorksSection = lazy(() => import("@/components/landing/HowItWorksSection"));
 const PlayerProtectionCallout = lazy(() => import("@/components/landing/PlayerProtectionCallout"));
@@ -106,7 +103,7 @@ function DeferredLandingSection({ children, minHeight, className = "" }) {
         setShouldRender(true);
         observer.disconnect();
       },
-      { rootMargin: "400px 0px", threshold: 0.01 }
+      { rootMargin: "100px 0px", threshold: 0.01 }
     );
     observer.observe(element);
     return () => observer.disconnect();
@@ -124,117 +121,35 @@ function DeferredLandingSection({ children, minHeight, className = "" }) {
 }
 
 function LandingAmbientGlow() {
-  const reduceMotion = useReducedMotion();
-  const limitSecondaryAmbientMotion =
-    reduceMotion ||
-    (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches);
   const [pulse, setPulse] = useState(null);
-  const { scrollYProgress } = useScroll();
-  const scrollDrift = useTransform(scrollYProgress, [0, 1], ["-3%", "3%"]);
-  const perimeterMask = {
-    WebkitMaskImage:
-      "radial-gradient(ellipse 78% 76% at 50% 45%, transparent 0%, transparent 56%, rgba(0,0,0,0.3) 74%, black 94%)",
-    maskImage:
-      "radial-gradient(ellipse 78% 76% at 50% 45%, transparent 0%, transparent 56%, rgba(0,0,0,0.3) 74%, black 94%)",
-  };
 
   useEffect(() => {
-    if (reduceMotion) return undefined;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const mobile = window.matchMedia("(max-width: 767px)").matches;
+    if (reduceMotion || mobile) return undefined;
 
     const handleClick = (event) => {
-      // Ignore keyboard-generated clicks, which do not have a meaningful
-      // viewport coordinate for the ambient droplet.
       if (event.detail === 0) return;
       setPulse({ id: Date.now(), x: event.clientX, y: event.clientY });
     };
 
     window.addEventListener("click", handleClick, { passive: true });
     return () => window.removeEventListener("click", handleClick);
-  }, [reduceMotion]);
+  }, []);
 
   return (
-    <div
-      className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
-      aria-hidden="true"
-    >
-      <motion.div
-        className="absolute inset-0"
-        style={{ y: reduceMotion ? 0 : scrollDrift }}
-      >
-        <motion.div
-          className="absolute -inset-[32%]"
-          style={{
-            ...perimeterMask,
-            background:
-              "conic-gradient(from 25deg at 50% 50%, transparent 0deg, rgba(225,193,101,0.085) 38deg, transparent 82deg, transparent 164deg, rgba(201,168,76,0.055) 214deg, transparent 266deg, transparent 360deg)",
-            willChange: reduceMotion ? "auto" : "transform, opacity",
-          }}
-          animate={
-            reduceMotion
-              ? { opacity: 0.42, rotate: -7 }
-              : {
-                  rotate: [-7, 14, -7],
-                  scale: [0.985, 1.055, 0.985],
-                  opacity: [0.32, 0.5, 0.32],
-                }
-          }
-          transition={
-            reduceMotion
-              ? { duration: 0 }
-              : { duration: 32, repeat: Infinity, ease: "easeInOut" }
-          }
-        />
-
-        <motion.div
-          className="absolute -inset-[12%]"
-          style={{
-            ...perimeterMask,
-            background:
-              "radial-gradient(ellipse 38% 46% at 2% 18%, rgba(225,193,101,0.105), transparent 72%), radial-gradient(ellipse 42% 48% at 98% 68%, rgba(201,168,76,0.09), transparent 74%), radial-gradient(ellipse 34% 34% at 28% 100%, rgba(201,168,76,0.055), transparent 76%)",
-            willChange: limitSecondaryAmbientMotion ? "auto" : "transform, opacity",
-          }}
-          animate={
-            limitSecondaryAmbientMotion
-              ? { opacity: 0.52 }
-              : {
-                  x: ["-3%", "3.5%", "-1.5%", "-3%"],
-                  y: ["-2%", "3%", "1%", "-2%"],
-                  scale: [0.985, 1.045, 0.99, 0.985],
-                  opacity: [0.4, 0.6, 0.46, 0.4],
-                }
-          }
-          transition={
-            limitSecondaryAmbientMotion
-              ? { duration: 0 }
-              : { duration: 24, repeat: Infinity, ease: "easeInOut" }
-          }
-        />
-      </motion.div>
-
+    <div className="landing-ambient pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden="true">
+      <div className="landing-ambient-primary absolute -inset-[32%]" />
+      <div className="landing-ambient-secondary absolute -inset-[12%]" />
       {pulse && (
-        <motion.div
+        <div
           key={pulse.id}
-          className="absolute inset-0"
-          style={{
-            ...perimeterMask,
-            background: `radial-gradient(circle at ${pulse.x}px ${pulse.y}px, rgba(225,193,101,0.18) 0%, rgba(201,168,76,0.07) 18%, transparent 46%)`,
-            transformOrigin: `${pulse.x}px ${pulse.y}px`,
-            willChange: "transform, opacity",
-          }}
-          initial={{ opacity: 0, scale: 0.97 }}
-          animate={{ opacity: [0, 0.5, 0], scale: [0.97, 1.025, 1.07] }}
-          transition={{ duration: 1.3, ease: "easeOut" }}
-          onAnimationComplete={() => setPulse(null)}
+          className="landing-ambient-pulse absolute inset-0"
+          style={{ "--pulse-x": `${pulse.x}px`, "--pulse-y": `${pulse.y}px` }}
+          onAnimationEnd={() => setPulse(null)}
         />
       )}
-
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(ellipse 76% 78% at 50% 45%, rgba(10,10,10,0.985) 0%, rgba(10,10,10,0.94) 58%, rgba(10,10,10,0.55) 76%, transparent 94%)",
-        }}
-      />
+      <div className="landing-ambient-shade absolute inset-0" />
     </div>
   );
 }
@@ -256,7 +171,6 @@ export default function Landing() {
       />
       <LandingAmbientGlow />
 
-      {/* Header */}
       <header className="relative z-10 flex items-center justify-between px-6 py-5">
         <Logo size="md" />
         <Link to="/login">
@@ -266,94 +180,72 @@ export default function Landing() {
         </Link>
       </header>
 
-      {/* Hero */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="space-y-8 max-w-md"
-        >
-          <div className="space-y-4">
-            <Logo size="lg" className="justify-center" />
-            <h1 className="text-white text-3xl sm:text-4xl font-extrabold leading-tight max-w-md mx-auto">
-              Play chess. Win cash.
-            </h1>
-            <p className="text-white/70 text-lg font-semibold leading-snug max-w-sm mx-auto">
-              Blitz, Rapid, and Classical Chess protected by Stockfish.
-            </p>
-            <p className="text-white/50 text-sm leading-relaxed max-w-sm mx-auto">
-              No luck. No bots. Fair-play review when you need it.
-            </p>
+      <main className="relative z-10 flex flex-1 flex-col">
+        <section className="flex flex-1 flex-col items-center justify-center px-6 text-center">
+          <div className="space-y-8 max-w-md">
+            <div className="space-y-4">
+              <Logo size="lg" className="justify-center" />
+              <h1 className="text-white text-3xl sm:text-4xl font-extrabold leading-tight max-w-md mx-auto">
+                Play chess. Win cash.
+              </h1>
+              <p className="text-white/70 text-lg font-semibold leading-snug max-w-sm mx-auto">
+                Blitz, Rapid, and Classical Chess protected by Stockfish.
+              </p>
+              <p className="text-white/60 text-sm leading-relaxed max-w-sm mx-auto">
+                No luck. No bots. Fair-play review when you need it.
+              </p>
+            </div>
+
+            <div>
+              <Link to="/register">
+                <Button
+                  size="lg"
+                  className="w-full gold-gradient text-black font-bold text-lg h-14 rounded-2xl hover:opacity-90 transition-opacity"
+                >
+                  Join early access
+                </Button>
+              </Link>
+              <p className="mt-3 text-xs leading-relaxed text-white/60">
+                Cash play will be limited to supported U.S. locations when it launches — check eligibility before you fund your account in the{" "}
+                <Link to="/official-rules#eligibility" className="font-semibold text-[#C9A84C] hover:underline underline-offset-4">Official Rules</Link>.
+              </p>
+              <Link to="/fair-play-integrity#fair-play-and-appeals" className="mt-4 inline-flex text-sm font-semibold text-[#C9A84C] hover:underline underline-offset-4">
+                See how fair play and appeals work
+              </Link>
+              <p className="text-white/50 text-xs mt-4">
+                Already have an account?{" "}
+                <Link to="/login" className="text-[#C9A84C] hover:underline">
+                  Sign in
+                </Link>
+              </p>
+            </div>
           </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.5 }}
-          >
-            <Link to="/register">
-              <Button
-                size="lg"
-                className="w-full gold-gradient text-black font-bold text-lg h-14 rounded-2xl hover:opacity-90 transition-opacity"
-              >
-                Join early access
-              </Button>
-            </Link>
-            <p className="mt-3 text-xs leading-relaxed text-white/45">
-              Cash play will be limited to supported U.S. locations when it launches — check eligibility before you fund your account in the{" "}
-              <Link to="/official-rules#eligibility" className="font-semibold text-[#C9A84C] hover:underline underline-offset-4">Official Rules</Link>.
-            </p>
-            <Link to="/fair-play-integrity#fair-play-and-appeals" className="mt-4 inline-flex text-sm font-semibold text-[#C9A84C] hover:underline underline-offset-4">
-              See how fair play and appeals work
-            </Link>
-            <p className="text-white/30 text-xs mt-4">
-              Already have an account?{" "}
-              <Link to="/login" className="text-[#C9A84C] hover:underline">
-                Sign in
-              </Link>
-            </p>
-          </motion.div>
+          <div className="grid grid-cols-4 gap-3 mt-16 max-w-md w-full">
+            {HERO_FEATURES.map(({ id, icon: Icon, label }) => {
+              const isExpanded = expandedFeature === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setExpandedFeature(isExpanded ? null : id)}
+                  aria-expanded={isExpanded}
+                  aria-controls={`hero-feature-details-${id}`}
+                  className="relative flex min-w-0 flex-col items-center gap-2 rounded-2xl border border-white/5 bg-white/[0.03] px-2 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0A] sm:px-3"
+                >
+                  <Icon size={20} className="text-[#C9A84C]" aria-hidden="true" />
+                  <span className="text-[10px] text-white/60 font-medium text-center whitespace-pre-line leading-tight sm:text-[11px]">
+                    {label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
 
-        </motion.div>
-
-        {/* Features */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6, duration: 0.6 }}
-          className="grid grid-cols-4 gap-3 mt-16 max-w-md w-full"
-        >
-          {HERO_FEATURES.map(({ id, icon: Icon, label }) => {
-            const isExpanded = expandedFeature === id;
-            return (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setExpandedFeature(isExpanded ? null : id)}
-                aria-expanded={isExpanded}
-                aria-controls={`hero-feature-details-${id}`}
-                className="relative flex min-w-0 flex-col items-center gap-2 rounded-2xl border border-white/5 bg-white/[0.03] px-2 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0A] sm:px-3"
-              >
-                <Icon size={20} className="text-[#C9A84C]" aria-hidden="true" />
-                <span className="text-[10px] text-white/50 font-medium text-center whitespace-pre-line leading-tight sm:text-[11px]">
-                  {label}
-                </span>
-              </button>
-            );
-          })}
-        </motion.div>
-
-        <AnimatePresence initial={false} mode="wait">
           {activeFeature && ActiveFeatureIcon && (
-            <motion.div
+            <div
               id={`hero-feature-details-${activeFeature.id}`}
-              key={activeFeature.id}
-              initial={{ opacity: 0, height: 0, y: -6 }}
-              animate={{ opacity: 1, height: "auto", y: 0 }}
-              exit={{ opacity: 0, height: 0, y: -6 }}
-              transition={{ duration: 0.24, ease: "easeOut" }}
-              className="max-w-md w-full overflow-hidden text-left"
+              className="landing-feature-details max-w-md w-full overflow-hidden text-left"
               role="region"
               aria-live="polite"
             >
@@ -364,56 +256,53 @@ export default function Landing() {
                   </div>
                   <div>
                     <h2 className="text-sm font-semibold text-white">{activeFeature.heading}</h2>
-                    <p className="mt-1.5 text-xs leading-relaxed text-white/50">
+                    <p className="mt-1.5 text-xs leading-relaxed text-white/60">
                       {activeFeature.description}
                     </p>
                   </div>
                 </div>
                 <div className="mt-4 grid gap-2 border-t border-white/[0.06] pt-4">
                   {activeFeature.points.map((point) => (
-                    <div key={point} className="flex items-center gap-2 text-[11px] text-white/55">
+                    <div key={point} className="flex items-center gap-2 text-[11px] text-white/60">
                       <CircleCheck size={13} className="shrink-0 text-[#C9A84C]/80" aria-hidden="true" />
                       <span>{point}</span>
                     </div>
                   ))}
                 </div>
               </div>
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
 
-        <p className="text-white/35 text-xs mt-8 max-w-sm">
-          Cash-prize play launches after Early Access.{" "}
-          <button
-            onClick={() => setNotifyModalOpen(true)}
-            className="text-[#C9A84C] font-semibold hover:underline underline-offset-2"
-          >
-            Get notified.
-          </button>
-        </p>
-      </div>
+          <p className="text-white/55 text-xs mt-8 max-w-sm">
+            Cash-prize play launches after Early Access.{" "}
+            <button
+              onClick={() => setNotifyModalOpen(true)}
+              className="text-[#C9A84C] font-semibold hover:underline underline-offset-2"
+            >
+              Get notified.
+            </button>
+          </p>
+        </section>
 
-      <DeferredLandingSection minHeight="520px" className="relative z-10">
-        <HowItWorksSection />
-      </DeferredLandingSection>
+        <DeferredLandingSection minHeight="520px">
+          <HowItWorksSection />
+        </DeferredLandingSection>
 
-      <DeferredLandingSection minHeight="340px">
-        <PlayerProtectionCallout />
-      </DeferredLandingSection>
+        <DeferredLandingSection minHeight="340px">
+          <PlayerProtectionCallout />
+        </DeferredLandingSection>
+      </main>
 
-      {/* Footer */}
       <footer className="relative z-10 px-6 py-8 text-center border-t border-white/5">
         <nav aria-label="ChessBet information" className="mb-4 flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs">
-          <Link to="/blog" className="text-white/45 hover:text-[#C9A84C]">Blog</Link>
-          <Link to="/fair-play-integrity" className="text-white/45 hover:text-[#C9A84C]">Fair Play & Integrity</Link>
-          <Link to="/official-rules" className="text-white/45 hover:text-[#C9A84C]">Official Rules</Link>
-          <Link to="/faq" className="text-white/45 hover:text-[#C9A84C]">FAQ</Link>
-          <Link to="/terms-of-service" className="text-white/45 hover:text-[#C9A84C]">Terms</Link>
-          <Link to="/privacy-policy" className="text-white/45 hover:text-[#C9A84C]">Privacy</Link>
+          <Link to="/blog" className="text-white/55 hover:text-[#C9A84C]">Blog</Link>
+          <Link to="/fair-play-integrity" className="text-white/55 hover:text-[#C9A84C]">Fair Play & Integrity</Link>
+          <Link to="/official-rules" className="text-white/55 hover:text-[#C9A84C]">Official Rules</Link>
+          <Link to="/faq" className="text-white/55 hover:text-[#C9A84C]">FAQ</Link>
+          <Link to="/terms-of-service" className="text-white/55 hover:text-[#C9A84C]">Terms</Link>
+          <Link to="/privacy-policy" className="text-white/55 hover:text-[#C9A84C]">Privacy</Link>
         </nav>
-        <p className="text-white/20 text-xs">
-          © 2026 ChessBet. All rights reserved.
-        </p>
+        <p className="text-white/45 text-xs">© 2026 ChessBet. All rights reserved.</p>
       </footer>
 
       {notifyModalOpen && (
