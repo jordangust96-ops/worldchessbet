@@ -1,4 +1,4 @@
-// Thin wrapper around the Meta Pixel (fbq) global installed in index.html.
+// Thin wrapper around the Meta Pixel (fbq) queue installed before React mounts.
 // Every call is guarded so a missing/blocked pixel (ad blockers, consent
 // declined) never throws or breaks the calling flow.
 
