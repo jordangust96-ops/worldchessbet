@@ -2,6 +2,7 @@ const GA_MEASUREMENT_ID = "G-JLHMN26FS2";
 const META_PIXEL_ID = "1729629144899462";
 const PASSIVE_LOAD_DELAY_MS = 15000;
 const INTERACTION_LOAD_DELAY_MS = 1500;
+const SESSION_REPLAY_DELAY_MS = 10000;
 
 function prepareGoogleAnalyticsQueue() {
   window.dataLayer = window.dataLayer || [];
@@ -72,16 +73,21 @@ export function scheduleDeferredAnalytics() {
       "https://connect.facebook.net/en_US/fbevents.js"
     );
 
-    import("@heycatch/sdk")
-      .then(({ analytics }) =>
-        analytics.init({
-          projectKey: "hck_pk_Q3LEgDjnK_AjVkiSmzmd6bQl0SEtDlNr",
-          install: { framework: "vite-react", agent: "other" },
-        })
-      )
-      .catch(() => {
-        // Analytics must never delay or break the visitor experience.
-      });
+    // Session replay is the most CPU-intensive telemetry dependency. Start it
+    // well after conversion pixels so it cannot interrupt navigation or the
+    // first meaningful interaction on a low-end mobile device.
+    window.setTimeout(() => {
+      import("@heycatch/sdk")
+        .then(({ analytics }) =>
+          analytics.init({
+            projectKey: "hck_pk_Q3LEgDjnK_AjVkiSmzmd6bQl0SEtDlNr",
+            install: { framework: "vite-react", agent: "other" },
+          })
+        )
+        .catch(() => {
+          // Telemetry must never delay or break the visitor experience.
+        });
+    }, SESSION_REPLAY_DELAY_MS);
   };
 
   const schedulePassiveLoad = () => {
