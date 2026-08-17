@@ -128,7 +128,10 @@ export default function Landing() {
   const ActiveFeatureIcon = activeFeature?.icon;
 
   return (
-    <div className="relative isolate min-h-screen min-h-[100svh] overflow-x-hidden bg-[#0A0A0A] flex flex-col">
+    <div
+      className="relative isolate min-h-screen overflow-x-hidden bg-[#0A0A0A] flex flex-col"
+      style={{ minHeight: "100svh" }}
+    >
       <SEO
         title={SEO_TITLE}
         description={SEO_DESCRIPTION}
