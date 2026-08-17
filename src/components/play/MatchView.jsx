@@ -22,6 +22,7 @@ export default function MatchView({
   onRefresh,
   movementMode,
   onMovementModeChange,
+  touchOnlyInput,
   soundEnabled,
   onSoundEnabledChange,
 }) {
@@ -95,6 +96,7 @@ export default function MatchView({
             game={game}
             movementMode={movementMode}
             onMovementModeChange={onMovementModeChange}
+            touchOnlyInput={touchOnlyInput}
             soundEnabled={soundEnabled}
             onSoundEnabledChange={onSoundEnabledChange}
           />
