@@ -287,7 +287,9 @@ export default function GameHUD({
           <SoundToggle enabled={soundEnabled} onChange={onSoundEnabledChange} compact />
         </div>
         <div className="space-y-1.5">
-          <p className="text-[10px] uppercase tracking-widest text-white/30 px-1">Movement Mode</p>
+          <p className="text-[10px] uppercase tracking-widest text-white/30 px-1">
+            {touchOnlyInput ? "How to Move" : "Movement Mode"}
+          </p>
           <MovementModeToggle
             mode={movementMode}
             onChange={onMovementModeChange}
