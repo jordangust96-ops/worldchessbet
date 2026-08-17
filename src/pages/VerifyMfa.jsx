@@ -6,6 +6,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import AuthLayout from "@/components/AuthLayout";
 import { setMfaVerified, clearMfaVerified } from "@/lib/mfaSession";
 import { getPostAuthRedirect } from "@/lib/postAuthRedirect";
+import SEO from "@/components/seo/SEO";
 
 function formatTime(seconds) {
   const m = Math.floor(seconds / 60);
@@ -84,6 +85,12 @@ export default function VerifyMfa() {
   };
 
   return (
+    <>
+    <SEO
+      title="Verify Your Identity | ChessBet"
+      description="Complete account verification for ChessBet."
+      noindex
+    />
     <AuthLayout icon={ShieldCheck} title="Verify Your Identity" subtitle="Enter the 6-digit code we sent to your email">
       {error && (
         <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">{error}</div>
@@ -138,5 +145,6 @@ export default function VerifyMfa() {
         </button>
       </p>
     </AuthLayout>
+    </>
   );
 }
