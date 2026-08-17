@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import Logo from "@/components/Logo";
 import { base44 } from "@/api/base44Client";
+import SEO from "@/components/seo/SEO";
 
 export default function Unsubscribe() {
   const [status, setStatus] = useState("loading"); // loading | success | error
@@ -27,6 +28,12 @@ export default function Unsubscribe() {
   }, []);
 
   return (
+    <>
+    <SEO
+      title="Email Preferences | ChessBet"
+      description="Manage ChessBet email preferences."
+      noindex
+    />
     <div className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center px-6 text-center">
       <Link to="/" className="mb-8">
         <Logo size="md" />
@@ -55,5 +62,6 @@ export default function Unsubscribe() {
         )}
       </div>
     </div>
+    </>
   );
 }
