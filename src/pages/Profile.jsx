@@ -95,7 +95,7 @@ export default function Profile() {
 
   const handleLogout = () => {
     clearMfaVerified();
-    base44.auth.logout("/landing");
+    base44.auth.logout("/");
   };
 
   if (loading) {
