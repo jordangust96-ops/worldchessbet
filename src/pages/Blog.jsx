@@ -4,14 +4,12 @@ import { Link, useNavigate } from "react-router-dom";
 import Logo from "@/components/Logo";
 import SEO from "@/components/seo/SEO";
 import { SITE_URL } from "@/lib/seoConfig";
-import { useAuth } from "@/lib/AuthContext";
 
 const SORO_SCRIPT_ID = "soro-blog-widget";
 const SORO_EMBED_URL = "https://app.trysoro.com/api/embed/1ff2aa86-7de2-4a37-b949-e27846ab155b";
 
 export default function Blog() {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     if (document.getElementById(SORO_SCRIPT_ID)) return undefined;
