@@ -2,7 +2,7 @@
   "name": "ChessBet",
   "short_name": "ChessBet",
   "description": "Skill-based, head-to-head online chess contests for real prizes.",
-  "start_url": "/landing",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#0A0A0A",
