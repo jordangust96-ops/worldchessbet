@@ -105,7 +105,7 @@ const AuthenticatedApp = () => {
       <Route path="/join/:inviteCode" element={<JoinMatch />} />
 
       {/* Protected routes */}
-      <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/landing" replace />} />}>
+      <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/" replace />} />}>
         <Route path="/verify-mfa" element={<VerifyMfa />} />
         <Route element={<MfaGuard />}>
           <Route element={<PolicyAcceptanceGuard />}>
