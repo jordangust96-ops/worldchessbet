@@ -4,6 +4,7 @@ import { appParams } from '@/lib/app-params';
 import { createAxiosClient } from '@base44/sdk/dist/utils/axios-client';
 import { clearMfaVerified } from '@/lib/mfaSession';
 import { DEMO_MODE } from '@/lib/appConfig';
+import { trackCompletedOAuthLogin } from '@/lib/googleAnalytics';
 
 const AuthContext = createContext();
 
@@ -105,6 +106,7 @@ export const AuthProvider = ({ children }) => {
       setIsAuthenticated(true);
       setIsLoadingAuth(false);
       setAuthChecked(true);
+      trackCompletedOAuthLogin();
 
       // Fire-and-forget: send the one-time Welcome Email for brand-new accounts.
       // The function itself is idempotent (checks welcome_email_sent), so this
