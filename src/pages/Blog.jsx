@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { Helmet } from "react-helmet-async";
 import { ChevronLeft } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import Logo from "@/components/Logo";
@@ -11,7 +12,11 @@ const SORO_EMBED_URL = "https://app.trysoro.com/api/embed/1ff2aa86-7de2-4a37-b94
 export default function Blog() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const isSoroArticle = searchParams.has("post");
+  const articleSlug = searchParams.get("post")?.trim();
+  const isSoroArticle = Boolean(articleSlug);
+  const articleCanonicalUrl = isSoroArticle
+    ? `${SITE_URL}/blog?post=${encodeURIComponent(articleSlug)}`
+    : null;
 
   useEffect(() => {
     if (document.getElementById(SORO_SCRIPT_ID)) return undefined;
@@ -30,7 +35,12 @@ export default function Blog() {
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] px-5 py-10">
-      {!isSoroArticle && (
+      {isSoroArticle ? (
+        <Helmet>
+          <link rel="canonical" href={articleCanonicalUrl} />
+          <meta property="og:url" content={articleCanonicalUrl} />
+        </Helmet>
+      ) : (
         <SEO
           title="Cash Chess Strategy & Fair-Play Insights | ChessBet Blog"
           description="Read ChessBet guides on head-to-head blitz, rapid, and classical chess, fair-play protection, contest rules, match strategy, and the path to cash-prize competition."
