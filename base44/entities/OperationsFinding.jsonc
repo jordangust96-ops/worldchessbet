@@ -1,0 +1,160 @@
+{
+  "name": "OperationsFinding",
+  "type": "object",
+  "properties": {
+    "finding_key": {
+      "type": "string",
+      "maxLength": 128,
+      "description": "Stable dedup key, e.g. 'ledger-imbalance-2026-08-25' or 'match-<id>-stuck'. One open finding per key."
+    },
+    "brief_id": {
+      "type": "string",
+      "description": "ID of the DailyOperationsBrief that produced this finding, if any."
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "match_health",
+        "settlement_ledger",
+        "fair_play",
+        "dispute",
+        "production_anomaly",
+        "account_enforcement",
+        "compliance",
+        "other"
+      ],
+      "description": "Operational category of the finding."
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "default": "medium"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "open",
+        "under_review",
+        "human_approval_required",
+        "resolved",
+        "dismissed"
+      ],
+      "default": "open",
+      "description": "'open'/'under_review' for autonomous investigations; 'human_approval_required' for any prohibited or approval-required action; 'resolved'/'dismissed' are set only by a human administrator."
+    },
+    "authority_level": {
+      "type": "string",
+      "enum": [
+        "autonomous",
+        "reversible_annotation",
+        "human_approval_required"
+      ],
+      "description": "Which rung of the chessbet_operations authority ladder this finding sits on."
+    },
+    "title": {
+      "type": "string",
+      "maxLength": 200
+    },
+    "summary": {
+      "type": "string",
+      "maxLength": 4000,
+      "description": "Neutral, investigation-style summary of what was observed."
+    },
+    "evidence": {
+      "type": "string",
+      "maxLength": 8000,
+      "description": "Supporting evidence: record IDs, timestamps, counts, ledger figures. Never credentials or PII."
+    },
+    "recommended_next_step": {
+      "type": "string",
+      "maxLength": 2000,
+      "description": "Recommended next step for the human reviewer. A recommendation only \u2014 never an autonomous irreversible action."
+    },
+    "is_approval_required": {
+      "type": "boolean",
+      "default": false,
+      "description": "True when this finding documents a prohibited or approval-required action that a human must approve before anything is executed."
+    },
+    "related_entity_type": {
+      "type": "string",
+      "enum": [
+        "match",
+        "game",
+        "wallet",
+        "wallet_transaction",
+        "ledger_entry",
+        "contest_record",
+        "dispute_case",
+        "integrity_flag",
+        "fair_play_analysis",
+        "settlement_reconciliation",
+        "integration_event",
+        "integration_reference",
+        "user",
+        "other"
+      ]
+    },
+    "related_entity_id": {
+      "type": "string"
+    },
+    "match_id": {
+      "type": "string"
+    },
+    "game_id": {
+      "type": "string"
+    },
+    "resolution": {
+      "type": "string",
+      "maxLength": 4000,
+      "description": "Administrator resolution notes. Set only by a human administrator, never by the agent."
+    },
+    "resolved_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "resolved_by_admin_id": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional description"
+    }
+  },
+  "required": [
+    "finding_key",
+    "category",
+    "priority",
+    "status",
+    "authority_level",
+    "title",
+    "summary"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

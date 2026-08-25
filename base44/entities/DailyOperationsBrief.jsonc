@@ -1,0 +1,116 @@
+{
+  "name": "DailyOperationsBrief",
+  "type": "object",
+  "properties": {
+    "brief_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Business day (America/Detroit) this brief covers."
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "run_mode": {
+      "type": "string",
+      "enum": [
+        "live",
+        "dry_run"
+      ],
+      "default": "live",
+      "description": "'live' for the configured scheduled run; 'dry_run' when triggered for testing. Either way, the brief only ever writes DailyOperationsBrief and OperationsFinding."
+    },
+    "material_exceptions_found": {
+      "type": "boolean",
+      "default": false,
+      "description": "False when the brief is 'No material exceptions found.'"
+    },
+    "headline": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "One-line summary, e.g. 'No material exceptions found' or '2 critical approvals required'."
+    },
+    "summary_markdown": {
+      "type": "string",
+      "maxLength": 20000,
+      "description": "Full briefing: critical approvals, high-priority investigations, money/ledger exceptions, fair-play/dispute cases awaiting review, production anomalies, resolved/new low-risk items."
+    },
+    "critical_approval_count": {
+      "type": "number",
+      "default": 0
+    },
+    "high_priority_investigation_count": {
+      "type": "number",
+      "default": 0
+    },
+    "money_ledger_exception_count": {
+      "type": "number",
+      "default": 0
+    },
+    "fair_play_dispute_awaiting_review_count": {
+      "type": "number",
+      "default": 0
+    },
+    "production_anomaly_count": {
+      "type": "number",
+      "default": 0
+    },
+    "resolved_low_risk_count": {
+      "type": "number",
+      "default": 0
+    },
+    "new_low_risk_count": {
+      "type": "number",
+      "default": 0
+    },
+    "ledger_balanced": {
+      "type": "boolean",
+      "default": true
+    },
+    "ledger_diff": {
+      "type": "number",
+      "default": 0
+    },
+    "finding_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "IDs of OperationsFinding records produced or reused with this brief."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional description"
+    }
+  },
+  "required": [
+    "brief_date",
+    "generated_at",
+    "material_exceptions_found",
+    "headline",
+    "run_mode"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
