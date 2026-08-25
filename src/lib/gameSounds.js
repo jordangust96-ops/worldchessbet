@@ -48,30 +48,30 @@ function scheduleCue(context, cue) {
       { frequency: 659.25, start: 0.12, duration: 0.3, volume: 0.032, type: "sine" },
     ],
     move_self: [
-      { frequency: 260, duration: 0.075, volume: 0.025, type: "triangle" },
-      { frequency: 390, start: 0.018, duration: 0.065, volume: 0.015, type: "sine" },
+      { frequency: 260, duration: 0.075, volume: 0.11, type: "triangle" },
+      { frequency: 390, start: 0.018, duration: 0.065, volume: 0.07, type: "sine" },
     ],
     move_opponent: [
-      { frequency: 220, duration: 0.08, volume: 0.024, type: "triangle" },
-      { frequency: 330, start: 0.018, duration: 0.07, volume: 0.014, type: "sine" },
+      { frequency: 220, duration: 0.08, volume: 0.105, type: "triangle" },
+      { frequency: 330, start: 0.018, duration: 0.07, volume: 0.065, type: "sine" },
     ],
     capture_self: [
-      { frequency: 190, duration: 0.1, volume: 0.032, type: "triangle" },
-      { frequency: 285, start: 0.012, duration: 0.09, volume: 0.019, type: "sine" },
+      { frequency: 190, duration: 0.1, volume: 0.14, type: "triangle" },
+      { frequency: 285, start: 0.012, duration: 0.09, volume: 0.085, type: "sine" },
     ],
     capture_opponent: [
-      { frequency: 165, duration: 0.105, volume: 0.03, type: "triangle" },
-      { frequency: 247.5, start: 0.012, duration: 0.095, volume: 0.018, type: "sine" },
+      { frequency: 165, duration: 0.105, volume: 0.13, type: "triangle" },
+      { frequency: 247.5, start: 0.012, duration: 0.095, volume: 0.078, type: "sine" },
     ],
     castle_self: [
-      { frequency: 246.94, duration: 0.09, volume: 0.024, type: "triangle" },
-      { frequency: 329.63, start: 0.075, duration: 0.11, volume: 0.025, type: "triangle" },
-      { frequency: 493.88, start: 0.13, duration: 0.2, volume: 0.014, type: "sine" },
+      { frequency: 246.94, duration: 0.09, volume: 0.105, type: "triangle" },
+      { frequency: 329.63, start: 0.075, duration: 0.11, volume: 0.11, type: "triangle" },
+      { frequency: 493.88, start: 0.13, duration: 0.2, volume: 0.06, type: "sine" },
     ],
     castle_opponent: [
-      { frequency: 220, duration: 0.09, volume: 0.023, type: "triangle" },
-      { frequency: 293.66, start: 0.075, duration: 0.11, volume: 0.024, type: "triangle" },
-      { frequency: 440, start: 0.13, duration: 0.2, volume: 0.013, type: "sine" },
+      { frequency: 220, duration: 0.09, volume: 0.1, type: "triangle" },
+      { frequency: 293.66, start: 0.075, duration: 0.11, volume: 0.105, type: "triangle" },
+      { frequency: 440, start: 0.13, duration: 0.2, volume: 0.055, type: "sine" },
     ],
     victory: [
       { frequency: 523.25, duration: 0.34, volume: 0.028, type: "sine" },
@@ -124,9 +124,19 @@ export function primeGameAudio() {
 
 export function installGameAudioUnlock() {
   if (typeof window === "undefined") return () => {};
-  const unlock = () => primeGameAudio();
-  window.addEventListener("pointerdown", unlock, { once: true, passive: true });
-  window.addEventListener("keydown", unlock, { once: true });
+  // The AudioContext can be suspended by the browser at any time (mobile Safari
+  // does this routinely between gestures). A one-shot unlock only resumes once;
+  // if the context is later suspended, every playGameSound call silently bails
+  // and the user hears nothing. Resume on every gesture instead — resume() on
+  // an already-running context is a cheap no-op.
+  const unlock = () => {
+    const context = getAudioContext();
+    if (context?.state === "suspended") {
+      context.resume().catch(() => {});
+    }
+  };
+  window.addEventListener("pointerdown", unlock, { passive: true });
+  window.addEventListener("keydown", unlock, { passive: true });
   return () => {
     window.removeEventListener("pointerdown", unlock);
     window.removeEventListener("keydown", unlock);
@@ -140,7 +150,9 @@ export async function playGameSound(cue, enabled = true) {
 
   try {
     if (context.state === "suspended") await context.resume();
-    if (context.state !== "running") return false;
+    // Schedule the cue even when the context is still resuming. A resumed/suspended
+    // context does not advance currentTime, so the oscillators will fire the moment
+    // a user gesture completes the resume — instead of dropping the sound entirely.
     scheduleCue(context, cue);
     return true;
   } catch {
