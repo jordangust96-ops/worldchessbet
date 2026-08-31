@@ -83,7 +83,7 @@ assert.throws(() => seamlessBaseUrl('staging'), /SEAMLESS_ACH_ENV/, 'bad env thr
   ok(d.sender === 'U', 'deposit sender = provider user id');
   ok(d.amount === '25.00', 'deposit amount formatted');
   ok(d.label === 'lbl-1', 'deposit label carried');
-  assert.throws(() => buildDepositBody({ providerUserId: 'U', amount: 1, label: 'l' }), /Invalid amount/); // amount check happens first? actually formatAmount inside
+  assert.throws(() => buildDepositBody({ providerUserId: 'U', amount: 1, label: 'l' }), /account holder name/, 'Seamless requires a sender name');
   assert.throws(() => buildDepositBody({ amount: 25, label: 'l' }), /provider user id/, 'deposit missing sender throws');
   assert.throws(() => buildDepositBody({ providerUserId: 'U', amount: 25 }), /label/, 'deposit missing label throws');
 
@@ -91,7 +91,8 @@ assert.throws(() => seamlessBaseUrl('staging'), /SEAMLESS_ACH_ENV/, 'bad env thr
   ok(w.recipient === 'U', 'withdrawal recipient = provider user id');
   ok(w.account === 'SRC-9', 'withdrawal account = verified source_id');
   ok(w.amount === '30.00', 'withdrawal amount formatted');
-  assert.throws(() => buildWithdrawalBody({ providerUserId: 'U', amount: 30, label: 'l' }), /source_id/, 'withdrawal missing sourceId throws');
+  assert.throws(() => buildWithdrawalBody({ providerUserId: 'U', amount: 30, label: 'l' }), /account holder name/, 'Seamless requires a recipient name');
+  assert.throws(() => buildWithdrawalBody({ providerUserId: 'U', name: 'Jane', amount: 30, label: 'l' }), /source_id/, 'withdrawal missing sourceId throws');
   assert.throws(() => buildWithdrawalBody({ amount: 30, label: 'l', sourceId: 'S' }), /provider user id/, 'withdrawal missing recipient throws');
 }
 
@@ -108,9 +109,9 @@ ok(constantTimeEqual('a', 'b') === false, 'single char differ rejects');
   const k2 = webhookIdempotencyKey({ eventId: 'evt_123', providerRef: 'Y', eventType: 'other', status: 'Failed', timestamp: 'ts2' });
   ok(k1 === k2, 'event_id dominates -> same key (dedupe by event_id)');
   const k3 = webhookIdempotencyKey({ eventId: '', providerRef: 'chk_1', eventType: 'transaction.status', status: 'Processed', timestamp: 't1' });
-  const k4 = webhookIdempotencyKey({ eventId: '', providerRef: 'chk_1', eventType: 'transaction.status', status: 'Processed', timestamp: 't1' });
+  const k4 = webhookIdempotencyKey({ eventId: '', providerRef: 'chk_1', eventType: 'transaction.status', status: 'Processed', timestamp: 'retry-timestamp' });
   const k5 = webhookIdempotencyKey({ eventId: '', providerRef: 'chk_1', eventType: 'transaction.status', status: 'Failed', timestamp: 't1' });
-  ok(k3 === k4, 'no event_id -> stable hash for identical inputs');
+  ok(k3 === k4, 'no event_id -> re-timestamped delivery still deduplicates');
   ok(k3 !== k5, 'different status -> different hash (no false dedupe)');
   ok(k3.startsWith('seamless:'), 'idempotency key namespaced');
 }
