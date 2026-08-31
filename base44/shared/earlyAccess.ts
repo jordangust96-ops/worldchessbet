@@ -3,8 +3,8 @@
 // compliance bypass across the backend.
 //
 // While true, this flag causes every paid-flow compliance gate on the
-// platform — identity verification (Plaid), geolocation enforcement
-// (MaxMind), bank account linking, and Finix payment processing — to be
+// platform — identity verification (Socure), geolocation enforcement
+// (MaxMind), bank account linking, and payment processing — to be
 // bypassed, so the app behaves as a fully playable beta WITHOUT removing or
 // altering any underlying production integration code. Paid geolocation
 // lookups are skipped entirely in this mode, except for an explicit admin-only
