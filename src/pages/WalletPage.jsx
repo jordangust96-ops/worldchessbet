@@ -9,6 +9,7 @@ import DemoModeNotice from "@/components/DemoModeNotice";
 import RestrictedModeBanner from "@/components/RestrictedModeBanner";
 import TransactionHistory from "@/components/wallet/TransactionHistory";
 import SeamlessFundingPanel from "@/components/wallet/SeamlessFundingPanel";
+import SocureIdentityVerificationPanel from "@/components/wallet/SocureIdentityVerificationPanel";
 
 const TX_PAGE_SIZE = 20;
 const MATCH_HISTORY_PAGE_SIZE = 500;
@@ -40,6 +41,7 @@ export default function WalletPage() {
   const [loading, setLoading] = useState(true);
   const [withdrawalHold, setWithdrawalHold] = useState(false);
   const [accountState, setAccountState] = useState("verified");
+  const [identityStatus, setIdentityStatus] = useState("not_started");
 
   useEffect(() => {
     loadData();
@@ -122,6 +124,7 @@ export default function WalletPage() {
     setUserId(me.id);
     setWithdrawalHold(!!me.withdrawal_hold);
     setAccountState(me.account_state || "verified");
+    setIdentityStatus(me.identity_verification_status || "not_started");
     // The wallet is always created by the backend (grantEarlyAccessFunds, as
     // the service role) so there is exactly one per user. Never create a
     // wallet from the client — that previously produced a duplicate wallet
@@ -210,6 +213,8 @@ export default function WalletPage() {
             </div>
           </div>
         </div>
+
+        <SocureIdentityVerificationPanel status={identityStatus} />
 
         <SeamlessFundingPanel
           wallet={wallet}
