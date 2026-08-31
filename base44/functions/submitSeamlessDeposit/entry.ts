@@ -90,10 +90,18 @@ Deno.serve(async (req) => {
       schema_version: 1,
     });
 
+    const accountHolderName = String(user.full_name || user.name || '').trim();
+    if (!accountHolderName) {
+      await base44.asServiceRole.entities.WalletTransaction.update(pending.id, {
+        status: 'failed', integration_status: 'failed', description: 'Seamless ACH funding requires an account holder name.',
+      });
+      return Response.json({ error: 'A verified account holder name is required before funding.' }, { status: 400 });
+    }
+
     const label = `chessbet-deposit-${pending.id}`;
     const body = buildDepositBody({
       providerUserId: profile.provider_user_id,
-      name: user.full_name || user.email,
+      name: accountHolderName,
       amount: value,
       description: 'Fund wallet',
       label,
