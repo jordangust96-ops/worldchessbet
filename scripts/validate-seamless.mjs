@@ -155,6 +155,7 @@ for (const f of earlyAccessGateFiles) {
   const src = await read(f);
   ok(src.includes('EARLY_ACCESS_MODE'), `${f} imports/uses EARLY_ACCESS_MODE`);
   ok(/EARLY_ACCESS_MODE\)/.test(src) && /enabled:\s*false/.test(src), `${f} returns disabled while Early Access is on`);
+  ok(src.includes('isSocureIdentityVerified'), `${f} retains the production Socure eligibility predicate`);
 }
 
 const webhookSrc = await read('base44/functions/seamlessAchWebhook/entry.ts');
@@ -163,6 +164,8 @@ ok(webhookSrc.includes('verifySeamlessWebhookAuth'), 'webhook delegates auth to 
 ok(webhookSrc.includes("status: 401"), 'webhook rejects unauthorized with 401 (non-2xx -> retry)');
 ok(webhookSrc.includes('applyWebhookEvent'), 'webhook routes via the money state machine');
 ok(webhookSrc.includes('postLedgerLegs'), 'webhook posts through the authoritative ledger helper');
+ok(webhookSrc.includes('claimWebhookEvent'), 'webhook atomically claims the event before financial mutation');
+ok(webhookSrc.includes('pickAmount(body)'), 'unmatched callbacks use only a defined optional amount');
 ok(!/console\.log.*authorization/i.test(webhookSrc), 'webhook never logs Authorization');
 
 // No live Seamless network call should occur in tests; assert the pure module
