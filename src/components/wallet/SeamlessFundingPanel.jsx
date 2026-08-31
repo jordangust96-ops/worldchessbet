@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Plus, ArrowUpRight, Loader2, CheckCircle2, Clock, AlertTriangle,
   XCircle, Link2, RefreshCw,
@@ -85,6 +85,7 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
   const [error, setError] = useState("");
   const [amount, setAmount] = useState("");
   const [direction, setDirection] = useState("deposit");
+  const withdrawalRequestKey = useRef("");
 
   const load = useCallback(async () => {
     try {
@@ -134,8 +135,14 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
     setError(""); setBusy(direction);
     try {
       const fn = direction === "deposit" ? "submitSeamlessDeposit" : "submitSeamlessWithdrawal";
-      const { data } = await base44.functions.invoke(fn, { amount: v });
+      const payload = { amount: v };
+      if (direction === "withdrawal") {
+        withdrawalRequestKey.current ||= crypto.randomUUID();
+        payload.idempotencyKey = withdrawalRequestKey.current;
+      }
+      const { data } = await base44.functions.invoke(fn, payload);
       if (!data?.enabled) throw new Error(data?.reason || "Bank transfers are unavailable right now.");
+      if (direction === "withdrawal") withdrawalRequestKey.current = "";
       setAmount("");
       await load();
       if (onRefresh) onRefresh();
