@@ -1,0 +1,110 @@
+{
+  "name": "SeamlessOperation",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "operation_type": {
+      "type": "string",
+      "enum": [
+        "withdrawal",
+        "webhook"
+      ]
+    },
+    "idempotency_key": {
+      "type": "string",
+      "maxLength": 255,
+      "rls": {
+        "read": false,
+        "write": false
+      }
+    },
+    "provider_reference_id": {
+      "type": "string",
+      "rls": {
+        "read": false,
+        "write": false
+      }
+    },
+    "wallet_transaction_id": {
+      "type": "string"
+    },
+    "amount": {
+      "type": "number"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "new",
+        "reserved",
+        "submitting",
+        "submitted",
+        "uncertain",
+        "processing",
+        "completed",
+        "failed",
+        "released",
+        "reversed",
+        "retryable"
+      ],
+      "default": "new"
+    },
+    "reservation_ledger_group_id": {
+      "type": "string",
+      "rls": {
+        "read": false,
+        "write": false
+      }
+    },
+    "settlement_ledger_group_id": {
+      "type": "string",
+      "rls": {
+        "read": false,
+        "write": false
+      }
+    },
+    "attempts": {
+      "type": "integer",
+      "default": 0
+    },
+    "last_error_code": {
+      "type": "string",
+      "maxLength": 128,
+      "rls": {
+        "read": false,
+        "write": false
+      }
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "operation_type",
+    "status",
+    "created_at"
+  ],
+  "rls": {
+    "create": false,
+    "read": {
+      "$or": [
+        {
+          "data.user_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": false,
+    "delete": false
+  }
+}
