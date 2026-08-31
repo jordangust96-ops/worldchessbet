@@ -29,7 +29,9 @@
           "call": "invoke_backend_function",
           "with": {
             "function_name": "processJurisdictionApprovalNotifications",
-            "args": {}
+            "args": {
+              "run_token": "__JURISDICTION_PROCESSOR_RUN_TOKEN__"
+            }
           },
           "then": "end",
           "x-base44": {
@@ -40,6 +42,6 @@
       }
     ]
   },
-  "description": "Daily 9:30 AM America/Detroit sweep that emails jurisdiction-interest waitlist members only when their selected location is now explicitly approved by the central server jurisdiction policy. Calls the processor only; never calls MaxMind.",
+  "description": "Daily 9:30 AM America/Detroit sweep that emails jurisdiction-interest waitlist members only when their selected location is now explicitly approved by the central server jurisdiction policy. Calls the processor only; never calls MaxMind. Passes the shared run_token so the processor can authorize the scheduled invocation.",
   "name": "Jurisdiction Approval Notifications"
 }

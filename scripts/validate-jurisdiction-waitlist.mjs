@@ -160,8 +160,8 @@ ok(/status:\s*'processing'/.test(processSrc) && /processing_claimed_at/.test(pro
 ok(/SendEmail/.test(processSrc), 'processor calls SendEmail (launch notice only)');
 ok(/status:\s*'notified'/.test(processSrc) && /notified_at/.test(processSrc), 'processor marks notified after success');
 ok(/status:\s*'failed'/.test(processSrc) && /last_failed_at/.test(processSrc) && /last_error/.test(processSrc), 'processor records safe failure state');
-// Manual admin or scheduled (no session); logged-in non-admin forbidden.
-ok(/user\.role\s*!==\s*'admin'/.test(processSrc), 'processor rejects logged-in non-admin');
+// Admin OR exact run_token match; a logged-in non-admin with no/invalid token is forbidden.
+ok(/user\.role\s*===\s*'admin'/.test(processSrc), 'processor grants only an authenticated admin (token path is separate)');
 
 // ---------------------------------------------------------------------------
 // 9. Branded template + CTA (static)
@@ -244,5 +244,33 @@ ok(mfaIdx < policyIdx, 'MfaGuard still precedes PolicyAcceptanceGuard');
 // ---------------------------------------------------------------------------
 const thisSrc = await read('scripts/validate-jurisdiction-waitlist.mjs');
 ok(!/core\.SendEmail|base44\.auth\.me|base44\.entities\.[A-Za-z]+\.(create|update|filter|list)/.test(thisSrc.replace(/read\(.*?\)/g, '')), 'test file performs no SendEmail / auth.me / live entity calls');
+
+// ---------------------------------------------------------------------------
+// 15. Processor auth gate: admin-or-run_token only, authorization-first (static)
+//     No-session + no/invalid token -> 403 BEFORE any service-role read/write/email.
+//     The compare is constant-time and the token is never logged or returned.
+//     The workflow passes a nonempty run_token arg; we assert length only and
+//     never print it.
+// ---------------------------------------------------------------------------
+ok(/import\s*\{\s*secrets\s*\}\s*from\s*['"]base44:runtime['"]/.test(processSrc), 'processor imports secrets from base44:runtime');
+ok(/secrets\.get\(\s*['"]JURISDICTION_PROCESSOR_RUN_TOKEN['"]\s*\)/.test(processSrc), 'processor reads the JURISDICTION_PROCESSOR_RUN_TOKEN secret');
+ok(/await\s+req\.json\(\)/.test(processSrc), 'processor parses the request body as JSON safely');
+ok(/run_token/.test(processSrc), 'processor reads run_token from the parsed body');
+ok(/status:\s*403/.test(processSrc) && /Forbidden/.test(processSrc), 'unauthorized callers receive 403 Forbidden');
+{
+  const authGateIdx = processSrc.indexOf('Forbidden');
+  const firstSvcIdx = processSrc.search(/svc\.\w+\.(filter|create|update|list|get)|asServiceRole\.integrations/);
+  ok(authGateIdx !== -1 && firstSvcIdx !== -1 && authGateIdx < firstSvcIdx, 'authorization gate precedes every service-role read/write/email');
+}
+ok(/ea\.length\s*!==\s*eb\.length/.test(processSrc), 'compare rejects length mismatch before comparing bytes');
+ok(/for\s*\(\s*let\s+\w+\s*=\s*0\s*;\s*\w+\s*<\s*ea\.length\s*;\s*\w+\+\+\)/.test(processSrc), 'compare iterates all bytes (constant-time, no early exit)');
+ok(/\|=\s*\w+\s*\^\s*\w+/.test(processSrc), 'compare XORs each byte pair (no early exit)');
+ok(!/console\.\w+\([^)]*token/i.test(processSrc), 'processor never logs the token');
+ok(!/return[^;]*expectedToken/.test(processSrc) && !/JSON\.stringify\([^)]*token/i.test(processSrc), 'processor never returns/serializes the token');
+{
+  const wfArgs = workflow.definition.do[0].process_notifications.with.args || {};
+  ok(typeof wfArgs.run_token === 'string' && wfArgs.run_token.length === 64, 'workflow passes a 64-char hex run_token arg');
+}
+ok(!/console\.(log|error|info)\([^)]*run_token/.test(thisSrc), 'test file never logs the run_token value');
 
 console.log(`jurisdiction-waitlist: ${pass} assertions passed (no network, no email).`);

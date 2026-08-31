@@ -1,10 +1,20 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { secrets } from 'base44:runtime';
 import { buildChessBetEmailHtml } from '../../shared/emailTemplate.ts';
 import { isLocationApproved } from '../../shared/jurisdictionRegions.js';
 
 // Processes the jurisdiction interest waitlist: sends a launch notification to
 // a pending preference only when its selected location is now explicitly
 // allowed by the central server jurisdiction policy (isLocationApproved).
+//
+// Authorization (enforced BEFORE any service-role read, write, or email):
+//   - (a) an authenticated admin user, OR
+//   - (b) an exact, timing-safe match of args.run_token against the
+//         JURISDICTION_PROCESSOR_RUN_TOKEN server secret (the scheduled
+//         workflow passes this token in its args).
+//   - Everyone else — including a no-session request with no/invalid token —
+//     receives 403 Forbidden and NO service-role work runs. The token is never
+//     logged or returned in any response.
 //
 // State machine (at-most-once send):
 //   - selects ONLY rows where status === 'pending' && is_active === true
@@ -14,29 +24,57 @@ import { isLocationApproved } from '../../shared/jurisdictionRegions.js';
 //   - on send success: status -> 'notified', notified_at (terminal)
 //   - on send failure: status -> 'failed', last_failed_at, last_error (safe)
 //
-// Bounded batch (MAX_BATCH). Callable by a scheduled workflow (no session) or
-// an admin manual invocation; a logged-in non-admin is rejected. Reuses the
-// shared branded email template, from_name "ChessBet", and a clear Play ChessBet
-// CTA. Never calls MaxMind. Schedule only this processor; never schedule MaxMind.
+// Bounded batch (MAX_BATCH). Reuses the shared branded email template,
+// from_name "ChessBet", and a clear Play ChessBet CTA. Never calls MaxMind.
 
 const MAX_BATCH = 50;
+
+// Fixed-length, constant-time string comparison. Avoids early-exit timing
+// leakage on the token compare; length mismatch returns false immediately
+// (token lengths are not secret). No external dependency.
+function timingSafeStringEqual(a, b) {
+  const enc = new TextEncoder();
+  const ea = enc.encode(String(a));
+  const eb = enc.encode(String(b));
+  if (ea.length !== eb.length) return false;
+  let diff = 0;
+  for (let i = 0; i < ea.length; i++) diff |= ea[i] ^ eb[i];
+  return diff === 0;
+}
 
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const svc = base44.asServiceRole.entities;
 
-    // Manual admin invocation allowed; scheduled workflow runs without a
-    // session (mirrors generateDailyOperationsBrief). A logged-in non-admin
-    // is forbidden.
+    // --- Authorization (precedes any service-role read/write/email) ---
+    let body = {};
     try {
-      const user = await base44.auth.me();
-      if (user && user.role !== 'admin') {
-        return Response.json({ error: 'Forbidden' }, { status: 403 });
-      }
+      const parsed = await req.json();
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) body = parsed;
     } catch {
-      // No user session (scheduled workflow) — allowed.
+      body = {};
     }
+    const presentedToken = typeof body.run_token === 'string' ? body.run_token : '';
+    const expectedToken = secrets.get('JURISDICTION_PROCESSOR_RUN_TOKEN') || '';
+
+    let authorized = false;
+    if (expectedToken && presentedToken) {
+      authorized = timingSafeStringEqual(presentedToken, expectedToken);
+    }
+    if (!authorized) {
+      try {
+        const user = await base44.auth.me();
+        if (user && user.role === 'admin') authorized = true;
+      } catch {
+        // No resolvable session, or a non-admin session: stays unauthorized.
+      }
+    }
+    if (!authorized) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // --- Authorized. Service-role work happens only below this point. ---
+    const svc = base44.asServiceRole.entities;
 
     const appUrl = (Deno.env.get('APP_URL') || '').replace(/\/$/, '');
     if (!appUrl) {
