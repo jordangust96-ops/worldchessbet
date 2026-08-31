@@ -30,7 +30,7 @@
           "with": {
             "function_name": "processJurisdictionApprovalNotifications",
             "args": {
-              "run_token": "__JURISDICTION_PROCESSOR_RUN_TOKEN__"
+              "run_token": "2f42ceaa7567fdbc502bcf25fb05e38eda56bc83c24b963aecbedb728bf0e054"
             }
           },
           "then": "end",
