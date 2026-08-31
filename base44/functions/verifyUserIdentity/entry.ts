@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 import { requireAdminMfa } from '../../shared/mfa.ts';
+import { EARLY_ACCESS_MODE } from '../../shared/earlyAccess.ts';
 
 // Admin-only: completes identity verification for a user. Each individual may
 // hold only one Account — the submitted ID number is hashed and checked
@@ -11,6 +12,11 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     const admin = await base44.auth.me();
     const body = await req.json();
+    // The legacy hash-based approval path remains available only for Early
+    // Access operations. It must never create a production verification result.
+    if (!EARLY_ACCESS_MODE) {
+      return Response.json({ error: 'Socure identity verification is authoritative in production.' }, { status: 409 });
+    }
     const mfaError = await requireAdminMfa(base44, admin, body?.mfaSessionToken, req.headers.get('user-agent') || '');
     if (mfaError) return mfaError;
 
