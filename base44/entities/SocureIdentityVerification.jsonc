@@ -1,0 +1,106 @@
+{
+  "name": "SocureIdentityVerification",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "request_id": {
+      "type": "string"
+    },
+    "provider_evaluation_id": {
+      "type": "string"
+    },
+    "workflow": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "not_started",
+        "pending",
+        "verified",
+        "rejected",
+        "review_required",
+        "failed",
+        "expired"
+      ],
+      "default": "not_started"
+    },
+    "provider_decision": {
+      "type": "string",
+      "enum": [
+        "ACCEPT",
+        "REJECT",
+        "REVIEW",
+        "UNKNOWN"
+      ],
+      "default": "UNKNOWN"
+    },
+    "hosted_redirect_uri": {
+      "type": "string",
+      "rls": {
+        "read": false,
+        "write": false
+      }
+    },
+    "webhook_event_id": {
+      "type": "string",
+      "rls": {
+        "read": false,
+        "write": false
+      }
+    },
+    "requested_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "failure_code": {
+      "type": "string",
+      "maxLength": 128
+    },
+    "reason_codes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000
+    }
+  },
+  "required": [
+    "user_id",
+    "request_id",
+    "workflow",
+    "status",
+    "provider_decision",
+    "requested_at"
+  ],
+  "rls": {
+    "create": false,
+    "read": {
+      "$or": [
+        {
+          "data.user_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": false,
+    "delete": false
+  }
+}
