@@ -1,5 +1,10 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { EARLY_ACCESS_MODE } from '../../shared/earlyAccess.ts';
+import {
+  isGeoipEnforcementEnabled,
+  canAdminForceLiveCheck,
+  isReusableVerification,
+} from '../../shared/jurisdictionGates.js';
 
 // ============================================================================
 // Centralized jurisdiction abstraction for ChessBet's paid platform.
@@ -23,7 +28,9 @@ const APPROVED_STATES = ['AR', 'CO', 'GA', 'IA', 'KS', 'ND', 'TX', 'VA', 'WI', '
 // is disabled, ordinary app flows return an approved bypass without calling
 // MaxMind or writing a verification event. This prevents paid provider usage
 // during pre-launch testing. An administrator may explicitly request one live
-// lookup with forceLiveCheck=true for a controlled integration test.
+// lookup with forceLiveCheck=true, but only when the separate
+// MAXMIND_ADMIN_FORCE_LIVE_CHECKS server gate is also enabled, for a controlled
+// integration test.
 //
 // When enforcement is enabled, fresh checks occur only at meaningful paid
 // boundaries: account funding, contest creation/joining, and final entry
@@ -32,13 +39,23 @@ const APPROVED_STATES = ['AR', 'CO', 'GA', 'IA', 'KS', 'ND', 'TX', 'VA', 'WI', '
 // trusted edge IP is unchanged, avoiding duplicate calls during one match
 // preparation flow without trusting a stale location.
 // ============================================================================
-const ENABLE_GEOLOCATION_ENFORCEMENT = !EARLY_ACCESS_MODE;
+// Server-only provider gate. Normal GeoIP enforcement requires BOTH explicit
+// provider enablement (MAXMIND_GEOIP_ENABLED) AND Early Access Mode disabled.
+// Setting MAXMIND_GEOIP_ENABLED=true now, while Early Access is still on,
+// therefore does NOT cause any paid MaxMind lookup. At launch both conditions
+// become true and a provider outage / missing configuration fails closed
+// (verification_failed), which blocks the paid action.
+const MAXMIND_GEOIP_ENABLED = Deno.env.get('MAXMIND_GEOIP_ENABLED') === 'true';
+// Separate server-only gate for admin-initiated live lookups. Defaults false
+// (env unset), so an administrator cannot trigger a paid MaxMind call unless
+// this is also explicitly enabled — required in addition to admin role.
+const MAXMIND_ADMIN_FORCE_LIVE_CHECKS = Deno.env.get('MAXMIND_ADMIN_FORCE_LIVE_CHECKS') === 'true';
+const ENABLE_GEOLOCATION_ENFORCEMENT = isGeoipEnforcementEnabled(MAXMIND_GEOIP_ENABLED, EARLY_ACCESS_MODE);
 
 // Modular provider abstraction: today this calls MaxMind. A future provider
 // (e.g. GeoComply) can replace or supplement this function's internals
 // without any caller of getCurrentJurisdiction ever needing to change.
 const PROVIDER = 'MaxMind';
-const VERIFICATION_CACHE_TTL_MS = 15 * 60 * 1000;
 
 const UNKNOWN_MESSAGE =
   'We could not verify your current location. Please disable any VPN, proxy, or location-masking software and try again.';
@@ -157,17 +174,12 @@ async function getReusableVerification(base44, userId, ip) {
     1
   );
   const latest = logs[0];
-  if (!latest || latest.ip_address !== ip) return null;
-
-  const verifiedAtMs = Date.parse(latest.verified_at || latest.created_date || '');
-  if (!Number.isFinite(verifiedAtMs) || Date.now() - verifiedAtMs > VERIFICATION_CACHE_TTL_MS) return null;
+  // Delegates the same-IP / TTL / resolvable-decision check to the pure,
+  // no-network predicate in base44/shared/jurisdictionGates.js so it stays in
+  // sync with the deterministic test and never broadens its reuse window.
+  if (!isReusableVerification(latest, ip, Date.now())) return null;
 
   const computedStatus = latest.pre_bypass_verification_result || latest.verification_result;
-  const isReusableDecision =
-    ['approved', 'blocked'].includes(computedStatus) ||
-    (computedStatus === 'verification_failed' && latest.vpn_or_proxy_detected);
-  if (!isReusableDecision) return null;
-
   return {
     status: computedStatus,
     reason: latest.pre_bypass_reason || '',
@@ -215,7 +227,8 @@ Deno.serve(async (req) => {
     // trusted as the primary source for a jurisdiction decision.
     const ip = req.headers.get('cf-connecting-ip') || '';
     const deviceIdentifier = req.headers.get('user-agent') || '';
-    const liveCheckForcedByAdmin = forceLiveCheck && user.role === 'admin';
+    const liveCheckForcedByAdmin =
+      forceLiveCheck && user.role === 'admin' && canAdminForceLiveCheck(MAXMIND_ADMIN_FORCE_LIVE_CHECKS);
 
     // While the launch gate is disabled, ordinary traffic must not consume a
     // paid lookup. Admins can still perform an explicit, auditable live test.
