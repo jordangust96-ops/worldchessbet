@@ -31,8 +31,10 @@
       "type": "string",
       "enum": [
         "pending",
+        "processing",
         "completed",
         "failed",
+        "reversed",
         "review_required"
       ],
       "default": "completed"
@@ -102,7 +104,10 @@
         "internal_complete",
         "unrouted",
         "pending",
+        "reserved",
+        "submitting",
         "submitted",
+        "uncertain",
         "settled",
         "failed",
         "reversed"
