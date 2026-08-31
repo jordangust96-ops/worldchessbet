@@ -61,6 +61,7 @@ export async function seamlessRequest(method, path, payload) {
       'Authorization': `Bearer ${secret}`,
     },
     body: payload ? JSON.stringify(payload) : undefined,
+    signal: AbortSignal.timeout(12_000),
   });
   const text = await response.text();
   let data;
