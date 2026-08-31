@@ -16,7 +16,7 @@ assert.equal(isSocureIdentityVerified({ ...verifiedSocureUser, identity_verifica
 assert.equal(isSocureIdentityVerified({ ...verifiedSocureUser, identity_verification_status: 'rejected', account_state: 'provisional' }), false, 'rejected is not eligible');
 assert.equal(isSocureIdentityVerified({ ...verifiedSocureUser, account_state: 'provisional' }), false, 'account state is required');
 
-const [contest, wager, seamlessDeposit, plaidTransfer, legacyVerify, starter, webhook, userEntity, verificationEntity, earlyAccess] =
+const [contest, wager, seamlessDeposit, plaidTransfer, legacyVerify, starter, webhook, userEntity, verificationEntity, earlyAccess, seamlessCustomer, seamlessLink, seamlessWithdrawal, plaidLink, plaidExchange] =
   await Promise.all([
     readFile(new URL('../base44/functions/runContestEligibility/entry.ts', import.meta.url), 'utf8'),
     readFile(new URL('../base44/functions/lockWager/entry.ts', import.meta.url), 'utf8'),
@@ -28,6 +28,11 @@ const [contest, wager, seamlessDeposit, plaidTransfer, legacyVerify, starter, we
     readFile(new URL('../base44/entities/User.jsonc', import.meta.url), 'utf8'),
     readFile(new URL('../base44/entities/SocureIdentityVerification.jsonc', import.meta.url), 'utf8'),
     readFile(new URL('../base44/shared/earlyAccess.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../base44/functions/ensureSeamlessCustomer/entry.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../base44/functions/createSeamlessBankLinkUrl/entry.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../base44/functions/submitSeamlessWithdrawal/entry.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../base44/functions/createPlaidLinkToken/entry.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../base44/functions/exchangePlaidPublicToken/entry.ts', import.meta.url), 'utf8'),
   ]);
 
 assert.match(earlyAccess, /export const EARLY_ACCESS_MODE = true/, 'Early Access remains enabled');
@@ -36,6 +41,15 @@ for (const [name, source] of [['contest', contest], ['wager', wager]]) {
 }
 for (const [name, source] of [['seamless deposit', seamlessDeposit], ['Plaid transfer', plaidTransfer]]) {
   assert.match(source, /!isSocureIdentityVerified\(user\)/, `${name} requires a verified Socure identity result`);
+}
+for (const [name, source] of [
+  ['Seamless customer', seamlessCustomer],
+  ['Seamless bank link', seamlessLink],
+  ['Seamless withdrawal', seamlessWithdrawal],
+  ['Plaid link', plaidLink],
+  ['Plaid exchange', plaidExchange],
+]) {
+  assert.match(source, /isSocureIdentityVerified\(user\)/, `${name} cannot treat a legacy account state as identity verification`);
 }
 assert.match(legacyVerify, /if\s*\(!EARLY_ACCESS_MODE\)/, 'legacy admin verification cannot promote production users');
 assert.match(starter, /status:\s*'expired'/, 'expired pending hosted sessions are recorded');
