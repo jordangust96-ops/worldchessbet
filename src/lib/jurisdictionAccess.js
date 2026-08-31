@@ -7,7 +7,7 @@
 // authoritative server-side whitelist in getCurrentJurisdiction) rather than
 // redefining a list anywhere else.
 
-import { APPROVED_STATES } from "@/lib/jurisdictionConfig";
+import { APPROVED_STATES } from "./jurisdictionConfig.js";
 
 // Top-level anonymizer/proxy boolean fields that may appear on a
 // getCurrentJurisdiction response. `vpnDetected` is the aggregate the server
