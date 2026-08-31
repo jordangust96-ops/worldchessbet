@@ -16,7 +16,7 @@ assert.equal(isSocureIdentityVerified({ ...verifiedSocureUser, identity_verifica
 assert.equal(isSocureIdentityVerified({ ...verifiedSocureUser, identity_verification_status: 'rejected', account_state: 'provisional' }), false, 'rejected is not eligible');
 assert.equal(isSocureIdentityVerified({ ...verifiedSocureUser, account_state: 'provisional' }), false, 'account state is required');
 
-const [contest, wager, seamlessDeposit, plaidTransfer, legacyVerify, starter, webhook, userEntity, verificationEntity] =
+const [contest, wager, seamlessDeposit, plaidTransfer, legacyVerify, starter, webhook, userEntity, verificationEntity, earlyAccess] =
   await Promise.all([
     readFile(new URL('../base44/functions/runContestEligibility/entry.ts', import.meta.url), 'utf8'),
     readFile(new URL('../base44/functions/lockWager/entry.ts', import.meta.url), 'utf8'),
@@ -27,8 +27,10 @@ const [contest, wager, seamlessDeposit, plaidTransfer, legacyVerify, starter, we
     readFile(new URL('../base44/functions/socureIdentityWebhook/entry.ts', import.meta.url), 'utf8'),
     readFile(new URL('../base44/entities/User.jsonc', import.meta.url), 'utf8'),
     readFile(new URL('../base44/entities/SocureIdentityVerification.jsonc', import.meta.url), 'utf8'),
+    readFile(new URL('../base44/shared/earlyAccess.ts', import.meta.url), 'utf8'),
   ]);
 
+assert.match(earlyAccess, /export const EARLY_ACCESS_MODE = true/, 'Early Access remains enabled');
 for (const [name, source] of [['contest', contest], ['wager', wager]]) {
   assert.match(source, /!EARLY_ACCESS_MODE\s*&&\s*!isSocureIdentityVerified\(user\)/, `${name} has a production Socure gate with the Early Access bypass retained`);
 }
