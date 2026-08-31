@@ -9,14 +9,15 @@
 // verification. Preserved unchanged from the original in-function constant.
 export const VERIFICATION_CACHE_TTL_MS = 15 * 60 * 1000;
 
-// Normal GeoIP enforcement requires BOTH explicit provider enablement
-// (MAXMIND_GEOIP_ENABLED === 'true') AND Early Access Mode disabled. Setting
-// MAXMIND_GEOIP_ENABLED=true now, while Early Access is still on, therefore
-// does NOT cause any paid MaxMind lookup. At launch both conditions become true
-// and a provider outage / missing configuration fails closed
-// (verification_failed), which blocks the paid action.
-export function isGeoipEnforcementEnabled(maxmindGeoipEnabled, earlyAccessMode) {
-  return !!maxmindGeoipEnabled && !earlyAccessMode;
+// GeoIP enforcement is controlled solely by MAXMIND_GEOIP_ENABLED.
+// EARLY_ACCESS_MODE no longer disables MaxMind — location enforcement is
+// activated independently of the Early Access money gates, which still block
+// real deposits/withdrawals/settlement. When MAXMIND_GEOIP_ENABLED is true,
+// fresh lookups run at the app-access and paid-action boundaries; a provider
+// outage / missing configuration fails closed (verification_failed), which
+// blocks the action.
+export function isGeoipEnforcementEnabled(maxmindGeoipEnabled) {
+  return Boolean(maxmindGeoipEnabled);
 }
 
 // Admin-initiated live lookups require, in addition to admin authorization
@@ -28,17 +29,28 @@ export function canAdminForceLiveCheck(maxmindAdminForceLiveChecks) {
 }
 
 // Pure predicate: can a prior JurisdictionVerificationLog record be reused for
-// the same user + IP within the TTL window? Only resolvable decisions are
-// reused (approved / blocked, or verification_failed when a VPN/proxy was
-// detected). No network, no DB. Mirrors the original in-function reuse logic
-// exactly so the cache behavior is preserved bit-for-bit.
-export function isReusableVerification(latest, ip, now, ttlMs) {
-  if (!latest || latest.ip_address !== ip) return false;
+// the same user + exact same IP within the TTL window? Returns true only when
+// ALL of the following hold: the record exists; record.user_id equals the
+// requested user id; record.ip_address exactly equals the requested IP;
+// record.provider is exactly "MaxMind"; record.geolocation_enforcement_enabled
+// is true; record.enforcement_bypassed is not true; record.verification_result
+// is "approved" or "blocked"; record.verified_at is a valid date no older than
+// the supplied TTL and not in the future. So bypassed/disabled/providerless,
+// stale, future, wrong-user/IP, and verification_failed/unknown records are
+// never reusable — the earlier activation-test bypass cannot be reused once
+// enforcement is active.
+export function isReusableVerification(latest, ip, now, ttlMs, userId) {
+  if (!latest) return false;
+  if (latest.user_id !== userId) return false;
+  if (latest.ip_address !== ip) return false;
+  if (latest.provider !== 'MaxMind') return false;
+  if (latest.geolocation_enforcement_enabled !== true) return false;
+  if (latest.enforcement_bypassed === true) return false;
+  const result = latest.verification_result;
+  if (result !== 'approved' && result !== 'blocked') return false;
+  const verifiedAtMs = Date.parse(latest.verified_at);
+  if (!Number.isFinite(verifiedAtMs)) return false;
   const windowMs = ttlMs == null ? VERIFICATION_CACHE_TTL_MS : ttlMs;
-  const verifiedAtMs = Date.parse(latest.verified_at || latest.created_date || '');
-  if (!Number.isFinite(verifiedAtMs) || now - verifiedAtMs > windowMs) return false;
-  const computedStatus = latest.pre_bypass_verification_result || latest.verification_result;
-  if (['approved', 'blocked'].includes(computedStatus)) return true;
-  if (computedStatus === 'verification_failed' && !!latest.vpn_or_proxy_detected) return true;
-  return false;
+  if (now - verifiedAtMs > windowMs || now - verifiedAtMs < 0) return false;
+  return true;
 }
