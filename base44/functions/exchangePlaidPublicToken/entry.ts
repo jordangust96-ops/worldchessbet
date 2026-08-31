@@ -1,12 +1,13 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { EARLY_ACCESS_MODE } from '../../shared/earlyAccess.ts';
+import { isSocureIdentityVerified } from '../../shared/identityEligibility.js';
 import { plaid } from '../../shared/plaid.ts';
 
 Deno.serve(async (req) => {
  try {
   if (EARLY_ACCESS_MODE) return Response.json({ enabled: false, reason: 'Bank linking is unavailable during Early Access.' });
   const base44=createClientFromRequest(req); const user=await base44.auth.me();
-  if (!user || user.account_state !== 'verified') return Response.json({error:'Verified account required'},{status:403});
+  if (!user || !isSocureIdentityVerified(user)) return Response.json({error:'Verified account required'},{status:403});
   const { public_token, account_id, account_name, account_mask }=await req.json();
   if (!public_token || !account_id) return Response.json({error:'Bank account selection is required'},{status:400});
   const exchanged=await plaid('/item/public_token/exchange',{public_token});
