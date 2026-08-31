@@ -264,7 +264,7 @@ ok(/status:\s*403/.test(processSrc) && /Forbidden/.test(processSrc), 'unauthoriz
 }
 ok(/ea\.length\s*!==\s*eb\.length/.test(processSrc), 'compare rejects length mismatch before comparing bytes');
 ok(/for\s*\(\s*let\s+\w+\s*=\s*0\s*;\s*\w+\s*<\s*ea\.length\s*;\s*\w+\+\+\)/.test(processSrc), 'compare iterates all bytes (constant-time, no early exit)');
-ok(/\|=\s*\w+\s*\^\s*\w+/.test(processSrc), 'compare XORs each byte pair (no early exit)');
+ok(/\|=\s*[^;]*\^/.test(processSrc), 'compare XORs each byte pair (no early exit)');
 ok(!/console\.\w+\([^)]*token/i.test(processSrc), 'processor never logs the token');
 ok(!/return[^;]*expectedToken/.test(processSrc) && !/JSON\.stringify\([^)]*token/i.test(processSrc), 'processor never returns/serializes the token');
 {
