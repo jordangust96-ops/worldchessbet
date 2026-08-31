@@ -5,179 +5,228 @@ import {
   seamlessConfig, seamlessRequest, seamlessBaseUrl, buildWithdrawalBody,
   PATH_CHECK_SEND, SEAMLESS_PROVIDER_KEY,
 } from '../../shared/seamlessAch.ts';
+import { postLedgerLegs } from '../../shared/ledger.ts';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
+import {
+  acquireUserWalletLock, releaseUserWalletLock, claimWithdrawalOperation, saveWithdrawalOperation,
+} from '../../shared/seamlessAtomicStore.ts';
 
 const MAX_AMOUNT = 10000;
+const IDEMPOTENCY_KEY = /^[A-Za-z0-9._:-]{16,128}$/;
 
-// Submits a Seamless ACH withdrawal (check/send) to the user's PRIMARY verified
-// funding source. Re-fetches the authoritative wallet and verifies
-// available_balance >= amount immediately before submitting to prevent
-// over-withdrawal. Provider acceptance creates ONLY a pending
-// WalletTransaction — displayed balances are NEVER debited merely because the
-// API accepted the request. Final settlement/debit is posted exactly once on a
-// Processed webhook (seamlessAchWebhook); failures are reversed there too.
-//
-// NOTE (launch-blocker, see report): held-balance reservation so concurrent
-// withdrawals cannot overspend is intentionally NOT posted here, because the
-// existing authoritative postLedgerLegs helper marks a WalletTransaction
-// 'completed' when it posts. A correct reservation requires a dedicated
-// hold-ledger pattern to be validated against the ledger invariant before it
-// is safe. Until Early Access is turned off, no real withdrawal can be
-// submitted, so this is dormant. The authoritative available-balance guard
-// below is the current overspend fence.
+async function hasLedgerGroup(base44, groupId) {
+  return (await base44.asServiceRole.entities.LedgerEntry.filter({ ledger_group_id: groupId }, '-created_date', 1)).length > 0;
+}
+
+async function upsertOperationAudit(base44, fields) {
+  const existing = (await base44.asServiceRole.entities.SeamlessOperation.filter(
+    { operation_type: 'withdrawal', idempotency_key: fields.idempotency_key }, '-created_date', 1
+  ))[0];
+  if (existing) return base44.asServiceRole.entities.SeamlessOperation.update(existing.id, { ...fields, updated_at: new Date().toISOString() });
+  return base44.asServiceRole.entities.SeamlessOperation.create({ ...fields, operation_type: 'withdrawal', created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+}
+
+async function reserveWithdrawal(base44, tx, amount) {
+  const groupId = `seamless:withdrawal:reserve:${tx.id}`;
+  if (!await hasLedgerGroup(base44, groupId)) {
+    await postLedgerLegs(base44, {
+      groupId,
+      walletTransactionId: tx.id,
+      actor: 'system',
+      triggerEvent: 'withdrawal_reservation',
+      externalRefType: 'provider_payout',
+      externalRefId: tx.id,
+      legs: [
+        { ledgerAccount: 'user_account', userId: tx.user_id, debit: amount, credit: 0, heldDelta: amount, transactionType: 'withdrawal' },
+        { ledgerAccount: 'withdrawal_reserve', debit: 0, credit: amount, transactionType: 'withdrawal' },
+      ],
+    });
+  }
+  await base44.asServiceRole.entities.WalletTransaction.update(tx.id, {
+    status: 'pending', integration_status: 'reserved', ledger_group_id: groupId,
+    source_event: 'seamless_withdrawal_reservation', processed_at: '',
+  });
+  return groupId;
+}
+
+async function releaseWithdrawalReservation(base44, tx, amount, reason) {
+  const groupId = `seamless:withdrawal:release:${tx.id}`;
+  if (!await hasLedgerGroup(base44, groupId)) {
+    await postLedgerLegs(base44, {
+      groupId,
+      walletTransactionId: tx.id,
+      actor: 'system',
+      triggerEvent: 'withdrawal_reservation_release',
+      externalRefType: 'provider_payout',
+      externalRefId: tx.id,
+      legs: [
+        { ledgerAccount: 'withdrawal_reserve', debit: amount, credit: 0, transactionType: 'reversal' },
+        { ledgerAccount: 'user_account', userId: tx.user_id, debit: 0, credit: amount, heldDelta: -amount, transactionType: 'reversal' },
+      ],
+    });
+  }
+  await base44.asServiceRole.entities.WalletTransaction.update(tx.id, {
+    status: 'failed', integration_status: 'failed', source_event: 'seamless_withdrawal_rejected',
+    description: `Seamless ACH withdrawal rejected: ${reason}`, processed_at: new Date().toISOString(),
+  });
+  return groupId;
+}
+
+// Reserves available funds before the provider call. The Upstash atomic lock is
+// keyed by user, so concurrent Base44 function instances cannot both create a
+// withdrawal reservation. The request idempotency key is durable for 90 days.
 Deno.serve(async (req) => {
-  try {
-    if (EARLY_ACCESS_MODE) {
-      return Response.json({
-        enabled: false,
-        reason: 'Withdrawals are unavailable during Early Access.',
-      });
-    }
-    seamlessConfig(); // fail closed
+  if (EARLY_ACCESS_MODE) {
+    return Response.json({ enabled: false, reason: 'Withdrawals are unavailable during Early Access.' });
+  }
 
+  let lockOwner = '';
+  let userId = '';
+  try {
+    seamlessConfig(); // fail closed before any provider mutation
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-
-    const { amount } = await req.json();
-    const value = Number(amount);
-    if (!Number.isFinite(value) || value <= 0 || value > MAX_AMOUNT) {
-      return Response.json({ error: 'Invalid withdrawal amount' }, { status: 400 });
-    }
-    // Withdrawals never require a jurisdiction check — a user may always
-    // retrieve funds that are already theirs.
+    userId = user.id;
     if (!isSocureIdentityVerified(user) || user.withdrawal_hold) {
       return Response.json({ error: 'Your account is not eligible for bank transfers' }, { status: 403 });
     }
 
-    const profile = (
-      await base44.asServiceRole.entities.SeamlessPaymentProfile.filter({ user_id: user.id })
-    )[0];
-    if (!profile || !profile.provider_user_id) {
+    const { amount, idempotencyKey } = await req.json();
+    const value = Number(amount);
+    if (!Number.isFinite(value) || value <= 0 || value > MAX_AMOUNT) {
+      return Response.json({ error: 'Invalid withdrawal amount' }, { status: 400 });
+    }
+    if (!IDEMPOTENCY_KEY.test(String(idempotencyKey || ''))) {
+      return Response.json({ error: 'A valid withdrawal idempotency key is required' }, { status: 400 });
+    }
+
+    lockOwner = crypto.randomUUID();
+    if (!await acquireUserWalletLock(user.id, lockOwner)) {
+      return Response.json({ error: 'withdrawal_in_progress', retryable: true }, { status: 409 });
+    }
+
+    let operation = await claimWithdrawalOperation(user.id, idempotencyKey, value);
+    if (!operation || Number(operation.amount) !== value) {
+      return Response.json({ error: 'Invalid withdrawal idempotency key reuse' }, { status: 409 });
+    }
+
+    if (operation.state === 'submitted') {
+      return Response.json({ enabled: true, transaction_id: operation.wallet_transaction_id, provider_reference_id: operation.provider_reference_id || '', status: 'pending', deduplicated: true });
+    }
+    if (operation.state === 'submitting' || operation.state === 'uncertain') {
+      return Response.json({ enabled: true, transaction_id: operation.wallet_transaction_id || '', status: 'uncertain', deduplicated: true, reconciliation_required: true });
+    }
+    if (operation.state === 'failed' || operation.state === 'released') {
+      return Response.json({ error: 'This withdrawal request was rejected. Start a new request with a new idempotency key.' }, { status: 409 });
+    }
+
+    const profile = (await base44.asServiceRole.entities.SeamlessPaymentProfile.filter({ user_id: user.id }))[0];
+    if (!profile?.provider_user_id) {
       return Response.json({ error: 'No Seamless customer profile', action: 'ensure_customer' }, { status: 400 });
     }
-
-    const bank = (
-      await base44.asServiceRole.entities.SeamlessBankAccount.filter({
-        user_id: user.id, status: 'verified',
-      })
-    ).find((b) => !!(b.source_id && b.is_primary)) ||
+    const bank = (await base44.asServiceRole.entities.SeamlessBankAccount.filter({ user_id: user.id, status: 'verified' }))
+      .find((item) => item.source_id && item.is_primary) ||
       (await base44.asServiceRole.entities.SeamlessBankAccount.filter({ user_id: user.id, status: 'verified' }))[0];
-    if (!bank) {
-      return Response.json({ error: 'Link and verify a bank account first', action: 'bank_link_required' }, { status: 400 });
+    if (!bank?.source_id) return Response.json({ error: 'Link and verify a bank account first', action: 'bank_link_required' }, { status: 400 });
+
+    const accountHolderName = String(user.full_name || user.name || '').trim();
+    if (!accountHolderName) return Response.json({ error: 'A verified account holder name is required before withdrawal.' }, { status: 400 });
+
+    let tx = operation.wallet_transaction_id
+      ? await base44.asServiceRole.entities.WalletTransaction.get(operation.wallet_transaction_id)
+      : null;
+    if (!tx) {
+      const wallet = (await base44.asServiceRole.entities.Wallet.filter({ user_id: user.id }))[0];
+      if (!wallet || Number(wallet.available_balance || 0) < value) {
+        return Response.json({ error: 'Insufficient available balance' }, { status: 400 });
+      }
+      tx = await base44.asServiceRole.entities.WalletTransaction.create({
+        user_id: user.id, type: 'withdrawal', amount: value,
+        description: 'Seamless ACH withdrawal reservation pending',
+        status: 'pending', integration_status: 'pending', currency: 'USD', direction: 'reserve',
+        source_event: 'seamless_withdrawal_request', initiating_actor: 'user', initiating_actor_id: user.id,
+        idempotency_key: idempotencyKey, correlation_id: '', schema_version: 1,
+      });
+      operation = await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, wallet_transaction_id: tx.id, state: 'new' });
     }
 
-    // Authoritative available-balance guard immediately before submission.
-    const wallet = (await base44.asServiceRole.entities.Wallet.filter({ user_id: user.id }))[0];
-    if (!wallet || (wallet.available_balance || 0) < value) {
-      return Response.json({ error: 'Insufficient available balance' }, { status: 400 });
+    const reservationGroupId = await reserveWithdrawal(base44, tx, value);
+    operation = await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, wallet_transaction_id: tx.id, reservation_ledger_group_id: reservationGroupId, state: 'reserved' });
+    await upsertOperationAudit(base44, {
+      user_id: user.id, idempotency_key: idempotencyKey, wallet_transaction_id: tx.id, amount: value,
+      status: 'reserved', reservation_ledger_group_id: reservationGroupId, attempts: 1,
+    });
+
+    const label = `chessbet-withdrawal-${tx.id}`;
+    // Persist the client-known label before the provider request. If the network
+    // outcome is unknown, it supports manual/provider reconciliation without a
+    // second payout request.
+    const existingLabelRef = (await base44.asServiceRole.entities.IntegrationReference.filter({ external_reference_id: label }, '-created_date', 1))[0];
+    if (!existingLabelRef) {
+      await base44.asServiceRole.entities.IntegrationReference.create({
+        provider_key: SEAMLESS_PROVIDER_KEY, reference_type: 'payout', external_reference_id: label,
+        internal_entity_type: 'wallet_transaction', internal_entity_id: tx.id, correlation_id: tx.id,
+        idempotency_key: idempotencyKey, user_id: user.id, wallet_transaction_id: tx.id,
+        status: 'submitting', effective_at: new Date().toISOString(),
+        metadata_json: JSON.stringify({ provider: SEAMLESS_PROVIDER_KEY, direction: 'withdrawal', label, source_id: bank.source_id }),
+      });
     }
 
-    const pending = await base44.asServiceRole.entities.WalletTransaction.create({
-      user_id: user.id,
-      type: 'withdrawal',
-      amount: value,
-      description: 'Seamless ACH withdrawal pending',
-      status: 'pending',
-      integration_status: 'pending',
-      currency: 'USD',
-      direction: 'debit',
-      source_event: 'seamless_withdrawal',
-      initiating_actor: 'user',
-      initiating_actor_id: user.id,
-      idempotency_key: `seamless:withdrawal:${user.id}:${crypto.randomUUID()}`,
-      correlation_id: '',
-      schema_version: 1,
-    });
+    operation = await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, wallet_transaction_id: tx.id, reservation_ledger_group_id: reservationGroupId, state: 'submitting', label });
+    await base44.asServiceRole.entities.WalletTransaction.update(tx.id, { integration_status: 'submitting', source_event: 'seamless_withdrawal_submitting' });
+    await upsertOperationAudit(base44, { user_id: user.id, idempotency_key: idempotencyKey, wallet_transaction_id: tx.id, amount: value, status: 'submitting', reservation_ledger_group_id: reservationGroupId, attempts: 1 });
 
-    const label = `chessbet-withdrawal-${pending.id}`;
-    const body = buildWithdrawalBody({
-      providerUserId: profile.provider_user_id,
-      name: user.full_name || user.email,
-      amount: value,
-      description: 'Withdrawal',
-      label,
-      sourceId: bank.source_id,
-    });
-
-    let providerRef = '';
+    let data;
     try {
-      const data = await seamlessRequest('POST', PATH_CHECK_SEND, body);
-      providerRef = data?.check_id || data?.check?.id || data?.id || data?.check?.check_id || '';
-      if (!providerRef) throw new Error('Seamless did not return a transaction id');
+      data = await seamlessRequest('POST', PATH_CHECK_SEND, buildWithdrawalBody({
+        providerUserId: profile.provider_user_id, name: accountHolderName, amount: value,
+        description: 'Withdrawal', label, sourceId: bank.source_id,
+      }));
     } catch (error) {
-      await base44.asServiceRole.entities.WalletTransaction.update(pending.id, {
-        integration_status: 'failed',
-        description: `Seamless ACH withdrawal rejected: ${error?.message || 'unknown'}`,
-      });
-      await recordIntegrationEvent(base44, {
-        eventType: 'financial.seamless_withdrawal_rejected',
-        aggregateType: 'wallet_transaction',
-        aggregateId: pending.id,
-        correlationId: pending.id,
-        idempotencyKey: pending.idempotency_key,
-        actorType: 'user',
-        actorId: user.id,
-        userId: user.id,
-        walletTransactionId: pending.id,
-        status: 'failed',
-        amount: value,
-        result: 'rejected',
-        eventData: { provider: SEAMLESS_PROVIDER_KEY, error: error?.message || 'unknown' },
-      });
-      return Response.json(
-        { error: error?.message || 'Withdrawal submission failed', transaction_id: pending.id },
-        { status: 400 }
-      );
+      const status = Number(error?.status || 0);
+      if (status >= 400 && status < 500) {
+        const releaseGroupId = await releaseWithdrawalReservation(base44, tx, value, 'provider_rejected');
+        await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, state: 'failed', release_ledger_group_id: releaseGroupId });
+        await upsertOperationAudit(base44, { user_id: user.id, idempotency_key: idempotencyKey, wallet_transaction_id: tx.id, amount: value, status: 'released', reservation_ledger_group_id: reservationGroupId, attempts: 1, last_error_code: 'provider_rejected' });
+        return Response.json({ error: 'Withdrawal submission failed', transaction_id: tx.id }, { status: 400 });
+      }
+      await base44.asServiceRole.entities.WalletTransaction.update(tx.id, { integration_status: 'uncertain', source_event: 'seamless_withdrawal_uncertain' });
+      await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, state: 'uncertain', reconciliation_required: true });
+      await upsertOperationAudit(base44, { user_id: user.id, idempotency_key: idempotencyKey, wallet_transaction_id: tx.id, amount: value, status: 'uncertain', reservation_ledger_group_id: reservationGroupId, attempts: 1, last_error_code: 'provider_outcome_unknown' });
+      return Response.json({ enabled: true, transaction_id: tx.id, status: 'uncertain', reconciliation_required: true }, { status: 202 });
     }
 
-    await base44.asServiceRole.entities.WalletTransaction.update(pending.id, {
-      integration_status: 'submitted',
-      idempotency_key: `seamless:withdrawal:${pending.id}`,
-    });
+    const providerRef = data?.check_id || data?.check?.id || data?.id || data?.check?.check_id || '';
+    if (!providerRef) {
+      await base44.asServiceRole.entities.WalletTransaction.update(tx.id, { integration_status: 'uncertain', source_event: 'seamless_withdrawal_uncertain' });
+      await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, state: 'uncertain', reconciliation_required: true });
+      return Response.json({ enabled: true, transaction_id: tx.id, status: 'uncertain', reconciliation_required: true }, { status: 202 });
+    }
 
     await base44.asServiceRole.entities.IntegrationReference.create({
-      provider_key: SEAMLESS_PROVIDER_KEY,
-      reference_type: 'payout',
-      external_reference_id: providerRef,
-      internal_entity_type: 'wallet_transaction',
-      internal_entity_id: pending.id,
-      correlation_id: pending.id,
-      idempotency_key: `seamless:withdrawal:${pending.id}`,
-      user_id: user.id,
-      wallet_transaction_id: pending.id,
-      status: 'submitted',
-      effective_at: new Date().toISOString(),
-      metadata_json: JSON.stringify({
-        provider: SEAMLESS_PROVIDER_KEY, direction: 'withdrawal', amount: value, label,
-        source_id: bank.source_id,
-        endpoint: `${seamlessBaseUrl((Deno.env.get('SEAMLESS_ACH_ENV') || '').trim())}${PATH_CHECK_SEND}`,
-      }),
+      provider_key: SEAMLESS_PROVIDER_KEY, reference_type: 'payout', external_reference_id: providerRef,
+      internal_entity_type: 'wallet_transaction', internal_entity_id: tx.id, correlation_id: tx.id,
+      idempotency_key: idempotencyKey, user_id: user.id, wallet_transaction_id: tx.id,
+      status: 'submitted', effective_at: new Date().toISOString(),
+      metadata_json: JSON.stringify({ provider: SEAMLESS_PROVIDER_KEY, direction: 'withdrawal', label, source_id: bank.source_id,
+        endpoint: `${seamlessBaseUrl((Deno.env.get('SEAMLESS_ACH_ENV') || '').trim())}${PATH_CHECK_SEND}` }),
     });
-
+    await base44.asServiceRole.entities.WalletTransaction.update(tx.id, { integration_status: 'submitted', direction: 'reserve', source_event: 'seamless_withdrawal_submitted' });
+    await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, state: 'submitted', provider_reference_id: providerRef });
+    await upsertOperationAudit(base44, { user_id: user.id, idempotency_key: idempotencyKey, provider_reference_id: providerRef, wallet_transaction_id: tx.id, amount: value, status: 'submitted', reservation_ledger_group_id: reservationGroupId, attempts: 1 });
     await recordIntegrationEvent(base44, {
-      eventType: 'financial.seamless_withdrawal_submitted',
-      aggregateType: 'wallet_transaction',
-      aggregateId: pending.id,
-      correlationId: pending.id,
-      idempotencyKey: `seamless:withdrawal:${pending.id}`,
-      actorType: 'user',
-      actorId: user.id,
-      userId: user.id,
-      walletTransactionId: pending.id,
-      status: 'pending',
-      amount: value,
-      result: providerRef,
-      eventData: { provider: SEAMLESS_PROVIDER_KEY, provider_ref: providerRef, label, source_id: bank.source_id },
+      eventType: 'financial.seamless_withdrawal_submitted', aggregateType: 'wallet_transaction', aggregateId: tx.id,
+      correlationId: tx.id, idempotencyKey: `seamless:withdrawal:submitted:${tx.id}`, actorType: 'user', actorId: user.id,
+      userId: user.id, walletTransactionId: tx.id, status: 'pending', amount: value, result: providerRef,
+      eventData: { provider: SEAMLESS_PROVIDER_KEY, provider_ref: providerRef, label },
     });
-
-    return Response.json({
-      enabled: true,
-      transaction_id: pending.id,
-      provider_reference_id: providerRef,
-      status: 'pending',
-    });
-  } catch (error) {
-    return Response.json({ error: error?.message || 'Unable to submit withdrawal' }, { status: 500 });
+    return Response.json({ enabled: true, transaction_id: tx.id, provider_reference_id: providerRef, status: 'pending' });
+  } catch {
+    return Response.json({ error: 'Unable to submit withdrawal' }, { status: 503 });
+  } finally {
+    if (userId && lockOwner) {
+      try { await releaseUserWalletLock(userId, lockOwner); } catch { /* TTL safely releases an unavailable store lock. */ }
+    }
   }
 });
