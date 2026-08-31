@@ -75,10 +75,11 @@ export function buildCreateCustomerBody({ firstName, lastName, email, phone }) {
 // Deposit: POST /ach-debit with sender = provider user id.
 export function buildDepositBody({ providerUserId, name, amount, description, label }) {
   if (!providerUserId) throw new Error('provider user id required');
+  if (!String(name || '').trim()) throw new Error('account holder name required');
   if (!label) throw new Error('stable label required');
   return {
     sender: providerUserId,
-    name: name || '',
+    name: String(name).trim(),
     amount: formatAmount(amount),
     description: description || 'Fund wallet',
     label,
@@ -88,11 +89,12 @@ export function buildDepositBody({ providerUserId, name, amount, description, la
 // Withdrawal: POST /check/send with recipient = provider user id, account = verified source_id.
 export function buildWithdrawalBody({ providerUserId, name, amount, description, label, sourceId }) {
   if (!providerUserId) throw new Error('provider user id required');
+  if (!String(name || '').trim()) throw new Error('account holder name required');
   if (!sourceId) throw new Error('verified source_id required');
   if (!label) throw new Error('stable label required');
   return {
     recipient: providerUserId,
-    name: name || '',
+    name: String(name).trim(),
     amount: formatAmount(amount),
     description: description || 'Withdrawal',
     label,
