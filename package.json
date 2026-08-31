@@ -12,7 +12,8 @@
     "preview": "vite preview",
     "test:integration": "node scripts/validate-integration-contract.mjs",
     "test:seamless": "node scripts/validate-seamless.mjs",
-    "test:jurisdiction": "node scripts/validate-jurisdiction-gates.mjs"
+    "test:jurisdiction": "node scripts/validate-jurisdiction-gates.mjs",
+    "test:waitlist": "node scripts/validate-jurisdiction-waitlist.mjs"
   },
   "dependencies": {
     "@base44/sdk": "^0.8.44",

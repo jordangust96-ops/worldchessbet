@@ -31,6 +31,8 @@ const REASON_UNAVAILABLE =
   "ChessBet is not currently available in your location. Paid contests are offered only in approved U.S. jurisdictions.";
 const REASON_UNVERIFIED =
   "We could not verify your current location. Please disable any VPN, proxy, or location-masking software and try again.";
+const REASON_BLOCKED =
+  "Unfortunately, real-money play is not currently available in your location. ChessBet has not yet enabled real-money play in your state or country under its current launch requirements.";
 
 // Returns { allowed, reason }.
 //
@@ -46,38 +48,53 @@ const REASON_UNVERIFIED =
 // Every other case (missing, disabled, unknown, blocked, verification_failed,
 // non-US, unapproved state, VPN/proxy/anonymizer) returns allowed:false with a
 // safe user-facing reason and no raw IP/provider diagnostics.
+// Returns { allowed, reason, promptEligible }.
+//
+// allowed is true ONLY when enforcement is on, status is approved/approved,
+// country is US, state is in APPROVED_STATES, and no anonymizer signal is set.
+//
+// promptEligible is true ONLY when the jurisdiction response POSITIVELY
+// determined the user is outside the approved jurisdictions — i.e. the server
+// returned status "blocked" with enforcement on and no anonymizer. The server
+// emits "blocked" only when a real country+state were detected (never for
+// VPN/proxy/anonymizer, which map to verification_failed, or unknown/missing
+// location, which map to unknown). Users in this state may be invited to opt in
+// to the jurisdiction interest waitlist. Every other blocked case (disabled
+// enforcement, unknown, verification_failed, VPN/proxy, missing location) is
+// NEVER prompted — those remain available:false with promptEligible:false.
 export function evaluateJurisdictionAccess(response) {
   if (!response || typeof response !== "object") {
-    return { allowed: false, reason: REASON_UNVERIFIED };
+    return { allowed: false, reason: REASON_UNVERIFIED, promptEligible: false };
   }
 
   if (response.enforcementEnabled !== true) {
-    return { allowed: false, reason: REASON_UNAVAILABLE };
+    return { allowed: false, reason: REASON_UNAVAILABLE, promptEligible: false };
   }
 
-  if (response.status !== "approved" || response.approved !== true) {
-    // unknown / blocked / verification_failed / error all fail closed.
-    return {
-      allowed: false,
-      reason: REASON_UNVERIFIED,
-    };
-  }
-
-  if (response.country !== "US") {
-    return { allowed: false, reason: REASON_UNAVAILABLE };
-  }
-
-  if (!APPROVED_STATES.includes(response.state)) {
-    return { allowed: false, reason: REASON_UNAVAILABLE };
-  }
-
+  // Anonymizer/proxy/VPN signals are never allowed and never prompt, even if a
+  // real location was detected.
   for (const key of ANONYMIZER_SIGNALS) {
     if (response[key] === true) {
-      return { allowed: false, reason: REASON_UNVERIFIED };
+      return { allowed: false, reason: REASON_UNVERIFIED, promptEligible: false };
     }
   }
 
-  return { allowed: true, reason: "" };
+  if (
+    response.status === "approved" &&
+    response.approved === true &&
+    response.country === "US" &&
+    APPROVED_STATES.includes(response.state)
+  ) {
+    return { allowed: true, reason: "", promptEligible: false };
+  }
+
+  // Positively determined outside the approved jurisdictions.
+  if (response.status === "blocked") {
+    return { allowed: false, reason: REASON_BLOCKED, promptEligible: true };
+  }
+
+  // unknown / verification_failed / non-US / approved-but-unapproved-state edge.
+  return { allowed: false, reason: REASON_UNAVAILABLE, promptEligible: false };
 }
 
 // Module-scoped Map of in-flight jurisdiction-check promises, keyed by the

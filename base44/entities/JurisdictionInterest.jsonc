@@ -1,0 +1,135 @@
+{
+  "name": "JurisdictionInterest",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "Authenticated ChessBet user id who opted in to be notified. Derived from auth; never client-supplied."
+    },
+    "email": {
+      "type": "string",
+      "description": "Authenticated user email at opt-in, denormalized for admin aggregate and launch delivery. Never authored by the client."
+    },
+    "selected_country_code": {
+      "type": "string",
+      "maxLength": 2,
+      "description": "Normalized ISO 3166-1 alpha-2 country code, uppercase."
+    },
+    "selected_country_name": {
+      "type": "string",
+      "description": "ISO country name snapshot at opt-in."
+    },
+    "selected_region_code": {
+      "type": "string",
+      "maxLength": 3,
+      "description": "Normalized region/subdivision code (USPS 2-letter for U.S. states), uppercase, when applicable."
+    },
+    "selected_region_name": {
+      "type": "string",
+      "description": "Region name snapshot at opt-in, when applicable."
+    },
+    "consent_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp the user consented to be notified."
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "jurisdiction_guard"
+      ],
+      "default": "jurisdiction_guard",
+      "description": "Origin of the opt-in."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "processing",
+        "notified",
+        "failed"
+      ],
+      "default": "pending",
+      "description": "Delivery state machine. pending=awaiting location approval; processing=claimed for send; notified=sent; failed=last send attempt errored (admin review)."
+    },
+    "processing_claimed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp the row was claimed for processing."
+    },
+    "notified_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp the launch notification email was sent."
+    },
+    "last_failed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of the most recent send failure."
+    },
+    "attempts": {
+      "type": "number",
+      "default": 0,
+      "minimum": 0,
+      "description": "Number of send attempts."
+    },
+    "last_error": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Sanitized last send error; never secrets, IPs, or provider diagnostics."
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "One active preference per user; superseded preferences are flipped false by the upsert."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional description."
+    }
+  },
+  "required": [
+    "user_id",
+    "email",
+    "selected_country_code",
+    "selected_country_name",
+    "consent_at",
+    "source",
+    "status"
+  ],
+  "rls": {
+    "create": {
+      "data.user_id": "{{user.id}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "data.user_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.user_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import moment from "moment";
 import { Globe2 } from "lucide-react";
+import { base44 } from "@/api/base44Client";
 
 const STATUS_STYLES = {
   approved: "bg-green-500/10 text-green-400 border-green-500/20",
@@ -15,6 +16,78 @@ function StatusBadge({ status }) {
     <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border ${style}`}>
       {(status || "unknown").replace("_", " ")}
     </span>
+  );
+}
+
+function JurisdictionDemandSection() {
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    base44.functions
+      .invoke("getJurisdictionDemandSummary", {})
+      .then((res) => {
+        if (!mounted) return;
+        setSummary(res?.data ?? res ?? null);
+      })
+      .catch(() => { if (mounted) setSummary(null); })
+      .finally(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4">
+        <p className="text-xs text-white/30">Loading interest demand…</p>
+      </div>
+    );
+  }
+
+  if (!summary || !summary.total) {
+    return (
+      <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Globe2 size={15} className="text-[#C9A84C]" />
+          <h2 className="text-sm font-bold text-white/80">Interest by Location</h2>
+        </div>
+        <p className="text-xs text-white/30">No opted-in demand recorded yet.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <Globe2 size={15} className="text-[#C9A84C]" />
+        <h2 className="text-sm font-bold text-white/80">Interest by Location</h2>
+        <span className="ml-auto text-[10px] text-white/30">{summary.total} opted in</span>
+      </div>
+
+      <p className="text-[10px] uppercase tracking-widest text-white/30 mb-2">By Country</p>
+      <div className="space-y-1.5 mb-3">
+        {summary.by_country.slice(0, 6).map((c) => (
+          <div key={c.country_code} className="flex items-center justify-between text-xs">
+            <span className="text-white/70">{c.country_name || c.country_code}</span>
+            <span className="text-white/50">{c.count}</span>
+          </div>
+        ))}
+      </div>
+
+      {summary.by_region && summary.by_region.length > 0 && (
+        <>
+          <p className="text-[10px] uppercase tracking-widest text-white/30 mb-2">By U.S. State</p>
+          <div className="space-y-1.5">
+            {summary.by_region.slice(0, 6).map((r) => (
+              <div key={r.region_code} className="flex items-center justify-between text-xs">
+                <span className="text-white/70">{r.region_name || r.region_code}</span>
+                <span className="text-white/50">{r.count}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -103,6 +176,8 @@ export default function JurisdictionPanel({ targetUser, logs }) {
           ))
         )}
       </div>
+
+      <JurisdictionDemandSection />
     </div>
   );
 }

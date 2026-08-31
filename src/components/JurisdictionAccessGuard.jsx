@@ -5,7 +5,9 @@ import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
 import { evaluateJurisdictionAccess, getJurisdictionCheck } from "@/lib/jurisdictionAccess";
 import { APPROVED_STATES } from "@/lib/jurisdictionConfig";
+import { getRegionName } from "@/lib/jurisdictionRegions";
 import { Button } from "@/components/ui/button";
+import JurisdictionWaitlistOptIn from "@/components/jurisdiction/JurisdictionWaitlistOptIn";
 
 // Layout guard that gates every protected product/admin page behind a single
 // authenticated MaxMind access check. Called once per authenticated user id
@@ -13,8 +15,10 @@ import { Button } from "@/components/ui/button";
 // No retry, timer, focus/visibility/navigation listener, or local/session
 // storage. Never logs raw response, IP, or provider diagnostics.
 
-const DEFAULT_REASON =
-  "ChessBet is not currently available in your location. Paid contests are offered only in approved U.S. jurisdictions.";
+const BLOCKED_COPY =
+  "Unfortunately, real-money play is not currently available in your location. ChessBet has not yet enabled real-money play in your state or country under its current launch requirements.";
+const OPT_IN_QUESTION =
+  "We’re continually working to expand access. Would you like us to email you when ChessBet becomes available in your selected location?";
 
 function PendingScreen() {
   return (
@@ -25,8 +29,22 @@ function PendingScreen() {
   );
 }
 
-function UnavailableScreen({ reason, onSignOut }) {
-  const message = reason || DEFAULT_REASON;
+function ApprovedJurisdictionsCard() {
+  return (
+    <div className="w-full rounded-2xl border border-border bg-card/60 p-4">
+      <div className="mb-2 flex items-center justify-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        <MapPin className="h-3.5 w-3.5 text-primary" />
+        Approved jurisdictions
+      </div>
+      <p className="font-body text-sm text-foreground">
+        Currently approved in the United States: {APPROVED_STATES.map((s) => getRegionName(s) || s).join(", ")}.
+      </p>
+    </div>
+  );
+}
+
+function UnavailableScreen({ reason, promptEligible, userEmail, onSignOut }) {
+  const message = reason || BLOCKED_COPY;
   return (
     <div className="fixed inset-0 overflow-y-auto bg-background">
       <div className="mx-auto flex min-h-full max-w-md flex-col items-center justify-center gap-6 px-6 py-16 text-center">
@@ -43,15 +61,14 @@ function UnavailableScreen({ reason, onSignOut }) {
           </p>
         </div>
 
-        <div className="w-full rounded-2xl border border-border bg-card/60 p-4">
-          <div className="mb-2 flex items-center justify-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            <MapPin className="h-3.5 w-3.5 text-primary" />
-            Approved jurisdictions
-          </div>
-          <p className="font-body text-sm text-foreground">
-            {APPROVED_STATES.join(", ")}
-          </p>
-        </div>
+        <ApprovedJurisdictionsCard />
+
+        {promptEligible && (
+          <>
+            <p className="font-body text-sm text-foreground">{OPT_IN_QUESTION}</p>
+            <JurisdictionWaitlistOptIn userEmail={userEmail} />
+          </>
+        )}
 
         <Button onClick={onSignOut} variant="default" className="w-full">
           <LogOut className="h-4 w-4" />
@@ -78,7 +95,7 @@ function UnavailableScreen({ reason, onSignOut }) {
 
 export default function JurisdictionAccessGuard() {
   const { user, logout } = useAuth();
-  // null while the check is pending; { allowed, reason } once settled.
+  // null while the check is pending; { allowed, reason, promptEligible } once settled.
   const [decision, setDecision] = useState(null);
   // Tracks the user id we have already initiated a check for, so re-renders
   // (and StrictMode double-mount) never trigger a second provider call.
@@ -98,7 +115,7 @@ export default function JurisdictionAccessGuard() {
     const userId = user?.id;
     if (!userId) {
       // No authenticated user id — fail closed immediately.
-      if (mountedRef.current) setDecision({ allowed: false, reason: "" });
+      if (mountedRef.current) setDecision({ allowed: false, reason: "", promptEligible: false });
       return;
     }
     if (initiatedFor.current === userId) return; // already initiated for this user
@@ -117,13 +134,20 @@ export default function JurisdictionAccessGuard() {
       .catch(() => {
         if (!mountedRef.current) return;
         // Any rejection or thrown error fails closed; no diagnostic logging.
-        setDecision({ allowed: false, reason: "" });
+        setDecision({ allowed: false, reason: "", promptEligible: false });
       });
   }, [user]);
 
   if (!decision) return <PendingScreen />;
   if (!decision.allowed) {
-    return <UnavailableScreen reason={decision.reason} onSignOut={() => logout()} />;
+    return (
+      <UnavailableScreen
+        reason={decision.reason}
+        promptEligible={decision.promptEligible}
+        userEmail={user?.email}
+        onSignOut={() => logout()}
+      />
+    );
   }
   return <Outlet />;
 }

@@ -4,6 +4,7 @@ import {
   canAdminForceLiveCheck,
   isReusableVerification,
 } from '../../shared/jurisdictionGates.js';
+import { isLocationApproved } from '../../shared/jurisdictionRegions.js';
 
 // ============================================================================
 // Centralized jurisdiction abstraction for ChessBet's paid platform.
@@ -18,8 +19,6 @@ import {
 // footprint. Adding a jurisdiction later requires updating ONLY this array —
 // no other business logic changes.
 // ============================================================================
-const APPROVED_STATES = ['AR', 'CO', 'GA', 'IA', 'KS', 'ND', 'TX', 'VA', 'WI', 'WY'];
-
 // ============================================================================
 // Geolocation enforcement is controlled solely by MAXMIND_GEOIP_ENABLED (see
 // base44/shared/jurisdictionGates.js). EARLY_ACCESS_MODE no longer participates
@@ -285,7 +284,7 @@ Deno.serve(async (req) => {
           } else if (!country || !state) {
             status = 'unknown';
             reason = UNKNOWN_MESSAGE;
-          } else if (country === 'US' && APPROVED_STATES.includes(state)) {
+          } else if (isLocationApproved(country, state)) {
             status = 'approved';
           } else {
             status = 'blocked';
