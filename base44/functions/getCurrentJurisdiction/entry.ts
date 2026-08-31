@@ -1,5 +1,4 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
-import { EARLY_ACCESS_MODE } from '../../shared/earlyAccess.ts';
 import {
   isGeoipEnforcementEnabled,
   canAdminForceLiveCheck,
@@ -22,35 +21,35 @@ import {
 const APPROVED_STATES = ['AR', 'CO', 'GA', 'IA', 'KS', 'ND', 'TX', 'VA', 'WI', 'WY'];
 
 // ============================================================================
-// REQUIRED BEFORE PUBLIC LAUNCH: set EARLY_ACCESS_MODE=false.
+// Geolocation enforcement is controlled solely by MAXMIND_GEOIP_ENABLED (see
+// base44/shared/jurisdictionGates.js). EARLY_ACCESS_MODE no longer participates
+// in the jurisdiction decision: with MAXMIND_GEOIP_ENABLED=true, enforcement
+// is always on and Early Access never bypasses it.
 //
-// This flag is the sole gate for jurisdiction enforcement. While enforcement
-// is disabled, ordinary app flows return an approved bypass without calling
-// MaxMind or writing a verification event. This prevents paid provider usage
-// during pre-launch testing. An administrator may explicitly request one live
-// lookup with forceLiveCheck=true, but only when the separate
-// MAXMIND_ADMIN_FORCE_LIVE_CHECKS server gate is also enabled, for a controlled
-// integration test.
+// When enforcement is disabled (MAXMIND_GEOIP_ENABLED false), ordinary app
+// flows return an approved bypass without calling MaxMind, preventing paid
+// provider usage pre-launch. An administrator may still explicitly request one
+// live lookup with forceLiveCheck=true, but only when the separate
+// MAXMIND_ADMIN_FORCE_LIVE_CHECKS server gate is also enabled, for a
+// controlled integration test.
 //
-// When enforcement is enabled, fresh checks occur only at meaningful paid
+// When enforcement is enabled, fresh checks occur at meaningful paid
 // boundaries: account funding, contest creation/joining, and final entry
-// reservation. Withdrawals and ordinary login/navigation are never location
-// gated. Successful approved/blocked results may be reused briefly when the
-// trusted edge IP is unchanged, avoiding duplicate calls during one match
+// reservation. Successful approved/blocked results may be reused briefly when
+// the trusted edge IP is unchanged, avoiding duplicate calls during one match
 // preparation flow without trusting a stale location.
 // ============================================================================
-// Server-only provider gate. Normal GeoIP enforcement requires BOTH explicit
-// provider enablement (MAXMIND_GEOIP_ENABLED) AND Early Access Mode disabled.
-// Setting MAXMIND_GEOIP_ENABLED=true now, while Early Access is still on,
-// therefore does NOT cause any paid MaxMind lookup. At launch both conditions
-// become true and a provider outage / missing configuration fails closed
-// (verification_failed), which blocks the paid action.
+// Server-only provider gate. Geolocation enforcement is controlled solely by
+// MAXMIND_GEOIP_ENABLED; EARLY_ACCESS_MODE is no longer consulted here. With
+// MAXMIND_GEOIP_ENABLED=true, fresh MaxMind lookups run and a provider outage
+// / missing configuration fails closed (verification_failed), which blocks the
+// paid action. With it false, the approved bypass below is retained.
 const MAXMIND_GEOIP_ENABLED = Deno.env.get('MAXMIND_GEOIP_ENABLED') === 'true';
 // Separate server-only gate for admin-initiated live lookups. Defaults false
 // (env unset), so an administrator cannot trigger a paid MaxMind call unless
 // this is also explicitly enabled — required in addition to admin role.
 const MAXMIND_ADMIN_FORCE_LIVE_CHECKS = Deno.env.get('MAXMIND_ADMIN_FORCE_LIVE_CHECKS') === 'true';
-const ENABLE_GEOLOCATION_ENFORCEMENT = isGeoipEnforcementEnabled(MAXMIND_GEOIP_ENABLED, EARLY_ACCESS_MODE);
+const ENABLE_GEOLOCATION_ENFORCEMENT = isGeoipEnforcementEnabled(MAXMIND_GEOIP_ENABLED);
 
 // Modular provider abstraction: today this calls MaxMind. A future provider
 // (e.g. GeoComply) can replace or supplement this function's internals
@@ -177,7 +176,7 @@ async function getReusableVerification(base44, userId, ip) {
   // Delegates the same-IP / TTL / resolvable-decision check to the pure,
   // no-network predicate in base44/shared/jurisdictionGates.js so it stays in
   // sync with the deterministic test and never broadens its reuse window.
-  if (!isReusableVerification(latest, ip, Date.now())) return null;
+  if (!isReusableVerification(latest, ip, Date.now(), undefined, userId)) return null;
 
   const computedStatus = latest.pre_bypass_verification_result || latest.verification_result;
   return {
@@ -230,8 +229,9 @@ Deno.serve(async (req) => {
     const liveCheckForcedByAdmin =
       forceLiveCheck && user.role === 'admin' && canAdminForceLiveCheck(MAXMIND_ADMIN_FORCE_LIVE_CHECKS);
 
-    // While the launch gate is disabled, ordinary traffic must not consume a
-    // paid lookup. Admins can still perform an explicit, auditable live test.
+    // While geolocation enforcement is disabled (MAXMIND_GEOIP_ENABLED=false),
+    // ordinary traffic must not consume a paid lookup. Admins can still perform
+    // an explicit, auditable live test.
     if (!ENABLE_GEOLOCATION_ENFORCEMENT && !liveCheckForcedByAdmin) {
       return Response.json({
         status: 'approved',
@@ -301,11 +301,12 @@ Deno.serve(async (req) => {
     const wouldBeReason = reason;
     let enforcementBypassed = false;
 
-    // REQUIRED BEFORE PUBLIC LAUNCH: set EARLY_ACCESS_MODE=false.
     // The one and only bypass branch in the app — overrides a non-approved
-    // result so it never blocks/restricts a flow while enforcement is
-    // disabled. The original result computed above is untouched in
-    // wouldBeStatus/wouldBeReason and is written to the audit log below.
+    // result so it never blocks/restricts a flow while geolocation enforcement
+    // is disabled (MAXMIND_GEOIP_ENABLED=false). With MAXMIND_GEOIP_ENABLED=true
+    // this never fires and Early Access never bypasses enforcement. The
+    // original result computed above is untouched in wouldBeStatus/wouldBeReason
+    // and is written to the audit log below.
     if (!ENABLE_GEOLOCATION_ENFORCEMENT && status !== 'approved') {
       enforcementBypassed = true;
       status = 'approved';
