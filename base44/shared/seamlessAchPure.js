@@ -118,10 +118,12 @@ export function constantTimeEqual(a, b) {
 }
 
 // Stable webhook idempotency key. Uses the provider event_id when present;
-// otherwise a stable FNV-1a hash of (provider ref + event type + status + ts).
+// otherwise a stable FNV-1a hash of (provider ref + event type + status).
+// Timestamp is deliberately excluded: delivery retries may be re-timestamped,
+// while a different lifecycle status must remain a distinct event.
 export function webhookIdempotencyKey({ eventId, providerRef, eventType, status, timestamp }) {
   if (eventId) return `seamless:${eventId}`;
-  const raw = `${providerRef || ''}|${eventType || ''}|${status || ''}|${timestamp || ''}`;
+  const raw = `${providerRef || ''}|${eventType || ''}|${status || ''}`;
   let h = 0x811c9dc5 >>> 0;
   for (let i = 0; i < raw.length; i++) {
     h ^= raw.charCodeAt(i);
