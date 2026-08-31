@@ -9,6 +9,7 @@
         "platform_revenue",
         "suspense",
         "settlement",
+        "withdrawal_reserve",
         "settlement_reconciliation_adjustment"
       ],
       "description": "One record per system-wide internal ledger account"
