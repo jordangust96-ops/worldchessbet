@@ -13,12 +13,15 @@
     },
     "identity_verification_status": {
       "type": "string",
-      "description": "One-time identity/age/eligibility verification status, triggered on first wallet funding attempt. Future integration: Plaid.",
+      "description": "Authoritative server-maintained Socure identity-verification state.",
       "enum": [
         "not_started",
         "pending",
         "verified",
-        "failed"
+        "rejected",
+        "review_required",
+        "failed",
+        "expired"
       ],
       "default": "not_started",
       "rls": {
@@ -31,6 +34,23 @@
       "description": "Timestamp when identity verification was successfully completed. Once set, the user should not be re-verified unless required by future policy.",
       "rls": {
         "write": false
+      }
+    },
+    "identity_verification_provider": {
+      "type": "string",
+      "rls": {
+        "write": false
+      }
+    },
+    "identity_provider_reference": {
+      "type": "string",
+      "rls": {
+        "write": false,
+        "read": {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
       }
     },
     "verified_id_hash": {
