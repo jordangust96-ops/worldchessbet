@@ -1,0 +1,56 @@
+{
+  "name": "SeamlessPaymentProfile",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "ChessBet user this provider profile belongs to. Exactly one profile per user."
+    },
+    "provider_user_id": {
+      "type": "string",
+      "description": "Seamless ACH customer user_id returned by POST /user."
+    },
+    "provider_key": {
+      "type": "string",
+      "default": "seamless_ach",
+      "description": "Provider identifier; matches IntegrationReference.provider_key."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "created",
+        "error"
+      ],
+      "default": "created"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional description"
+    }
+  },
+  "required": [
+    "user_id",
+    "provider_user_id"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "data.user_id": "{{user.id}}"
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": false
+  }
+}

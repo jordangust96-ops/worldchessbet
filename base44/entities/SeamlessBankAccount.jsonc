@@ -1,0 +1,81 @@
+{
+  "name": "SeamlessBankAccount",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "ChessBet user who owns this funding source."
+    },
+    "source_id": {
+      "type": "string",
+      "description": "Seamless funding source id. Usable for debits/credits only once status is 'verified'."
+    },
+    "profile_id": {
+      "type": "string",
+      "description": "ChessBet SeamlessPaymentProfile id this source belongs to."
+    },
+    "provider_user_id": {
+      "type": "string",
+      "description": "Denormalized Seamless customer user_id for webhook correlation."
+    },
+    "account_name": {
+      "type": "string",
+      "description": "Account label from Seamless, if provided."
+    },
+    "account_mask": {
+      "type": "string",
+      "description": "Last 4 / masked account number from Seamless."
+    },
+    "is_primary": {
+      "type": "boolean",
+      "default": false
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "added",
+        "pending_verification",
+        "verified",
+        "verification_failed",
+        "verification_expired",
+        "deleted",
+        "error"
+      ],
+      "default": "added",
+      "description": "Funding-source lifecycle. 'verified' is set ONLY by a funding-source.verified webhook \u2014 never by the browser callback."
+    },
+    "added_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "verified_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional description"
+    }
+  },
+  "required": [
+    "user_id",
+    "source_id"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "data.user_id": "{{user.id}}"
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": false
+  }
+}
