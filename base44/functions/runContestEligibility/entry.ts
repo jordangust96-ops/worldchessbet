@@ -9,7 +9,7 @@ import { isSocureIdentityVerified } from '../../shared/identityEligibility.js';
 // of this validation logic anywhere else.
 //
 // Checks run in a fixed, cost-aware order:
-//   1. Identity Verification (account_state === 'verified')
+//   1. Identity Verification (authoritative Socure server result)
 //   2. Participation Restrictions (admin-applied withdrawal_hold)
 //   3. Available Balance Check (>= entryAmount)
 //   4. Jurisdiction Check (fresh or same-IP short-cache, server-side)
