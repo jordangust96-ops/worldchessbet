@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { EARLY_ACCESS_MODE } from '../../shared/earlyAccess.ts';
+import { isSocureIdentityVerified } from '../../shared/identityEligibility.js';
 import {
   seamlessConfig, seamlessRequest, seamlessBaseUrl, buildWithdrawalBody,
   PATH_CHECK_SEND, SEAMLESS_PROVIDER_KEY,
@@ -45,7 +46,7 @@ Deno.serve(async (req) => {
     }
     // Withdrawals never require a jurisdiction check — a user may always
     // retrieve funds that are already theirs.
-    if (user.account_state !== 'verified' || user.withdrawal_hold) {
+    if (!isSocureIdentityVerified(user) || user.withdrawal_hold) {
       return Response.json({ error: 'Your account is not eligible for bank transfers' }, { status: 403 });
     }
 
