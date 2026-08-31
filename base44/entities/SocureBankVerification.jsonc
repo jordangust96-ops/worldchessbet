@@ -1,0 +1,148 @@
+{
+  "name": "SocureBankVerification",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "ChessBet user whose already-verified funding source was screened."
+    },
+    "source_id": {
+      "type": "string",
+      "description": "Hosted Seamless funding-source ID; no routing or full account number is stored."
+    },
+    "request_key": {
+      "type": "string",
+      "maxLength": 255,
+      "description": "Server-generated idempotency key derived from the funding source and one-way account fingerprint.",
+      "rls": {
+        "read": false,
+        "write": false
+      }
+    },
+    "account_fingerprint": {
+      "type": "string",
+      "maxLength": 128,
+      "description": "One-way SHA-256 fingerprint of routing and account input; raw bank details are never persisted.",
+      "rls": {
+        "read": false,
+        "write": false
+      }
+    },
+    "workflow": {
+      "type": "string",
+      "maxLength": 128,
+      "description": "RiskOS workflow used for this evaluation."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "processing",
+        "completed",
+        "manual_review_required",
+        "failed",
+        "unknown_outcome",
+        "duplicate_suppressed"
+      ],
+      "default": "processing",
+      "description": "Provider-screening lifecycle. Any non-ACCEPT decision and any uncertain transport outcome require a human review; no automated enforcement occurs."
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "ACCEPT",
+        "REVIEW",
+        "REJECT",
+        "UNKNOWN"
+      ],
+      "default": "UNKNOWN",
+      "description": "Top-level RiskOS decision stored as evidence only; it never directly changes account, wallet, or transfer state."
+    },
+    "evaluation_id": {
+      "type": "string",
+      "maxLength": 255,
+      "description": "Opaque Socure evaluation ID for authorized support correlation."
+    },
+    "reference_id": {
+      "type": "string",
+      "maxLength": 255,
+      "description": "Opaque Socure Account Intelligence reference ID, if returned."
+    },
+    "availability_score": {
+      "type": "number",
+      "description": "Socure Account Intelligence availability signal, when returned."
+    },
+    "ownership_score": {
+      "type": "number",
+      "description": "Socure Account Intelligence ownership signal, when returned."
+    },
+    "account_status": {
+      "type": "string",
+      "enum": [
+        "OPEN",
+        "CLOSED",
+        "PENDING",
+        "INVALID",
+        "UNKNOWN"
+      ],
+      "default": "UNKNOWN",
+      "description": "Provider-reported account state, retained for human review only."
+    },
+    "reason_codes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Provider reason codes, limited to a short sanitized list."
+    },
+    "requested_by_admin_id": {
+      "type": "string",
+      "description": "Administrator who explicitly initiated the paid screening after MFA."
+    },
+    "requested_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "error_code": {
+      "type": "string",
+      "maxLength": 128,
+      "description": "Sanitized local error category only; no provider payload or PII is saved."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000
+    }
+  },
+  "required": [
+    "user_id",
+    "source_id",
+    "request_key",
+    "account_fingerprint",
+    "workflow",
+    "status",
+    "decision",
+    "requested_by_admin_id",
+    "requested_at"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": false
+  }
+}
