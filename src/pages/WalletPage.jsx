@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { ArrowUpRight, Loader2, Plus } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import Logo from "@/components/Logo";
 import DemoModeNotice from "@/components/DemoModeNotice";
 import RestrictedModeBanner from "@/components/RestrictedModeBanner";
 import TransactionHistory from "@/components/wallet/TransactionHistory";
-import { trackPixelEvent } from "@/lib/metaPixel";
+import SeamlessFundingPanel from "@/components/wallet/SeamlessFundingPanel";
 
 const TX_PAGE_SIZE = 20;
 const MATCH_HISTORY_PAGE_SIZE = 500;
@@ -38,11 +38,6 @@ export default function WalletPage() {
   const [matchDetailsById, setMatchDetailsById] = useState({});
   const [stats, setStats] = useState({ won: 0, lost: 0, wagered: 0 });
   const [loading, setLoading] = useState(true);
-  const [depositAmount, setDepositAmount] = useState("");
-  const [showDeposit, setShowDeposit] = useState(false);
-  const [transferDirection, setTransferDirection] = useState("deposit");
-  const [isProcessingDeposit, setIsProcessingDeposit] = useState(false);
-  const [depositError, setDepositError] = useState("");
   const [withdrawalHold, setWithdrawalHold] = useState(false);
   const [accountState, setAccountState] = useState("verified");
 
@@ -170,47 +165,6 @@ export default function WalletPage() {
     setLoading(false);
   };
 
-  // Plaid Link is loaded only for a user-initiated funding or withdrawal action.
-  const openPlaidLink = (token, onSuccess) => new Promise((resolve, reject) => {
-    const open = () => window.Plaid.create({ token, onSuccess, onExit: (error) => error ? reject(error) : resolve() }).open();
-    if (window.Plaid) return open();
-    const script = document.createElement("script");
-    script.src = "https://cdn.plaid.com/link/v2/stable/link-initialize.js";
-    script.onload = open;
-    script.onerror = () => reject(new Error("Unable to load secure bank linking."));
-    document.head.appendChild(script);
-  });
-
-  // The server creates the Link token, exchanges the one-time public token,
-  // and submits the ACH transfer. The client never receives an access token.
-  const confirmDeposit = async () => {
-    const requestedAmount = parseFloat(depositAmount);
-    if (!requestedAmount || requestedAmount <= 0 || !wallet) return;
-
-    setIsProcessingDeposit(true);
-    setDepositError("");
-    try {
-      trackPixelEvent("Deposit Initiated", { value: requestedAmount, currency: "USD" });
-      const { data: link } = await base44.functions.invoke("createPlaidLinkToken", {});
-      if (!link?.enabled) throw new Error(link?.reason || "Bank transfers are not available right now.");
-      await openPlaidLink(link.link_token, async (publicToken, metadata) => {
-        const account = metadata?.accounts?.[0];
-        if (!account?.id) throw new Error("Please select a checking or savings account.");
-        const { data: exchange } = await base44.functions.invoke("exchangePlaidPublicToken", {
-          public_token: publicToken, account_id: account.id, account_name: account.name, account_mask: account.mask,
-        });
-        if (!exchange?.success) throw new Error(exchange?.error || "Unable to save the bank account.");
-        const { data: transfer } = await base44.functions.invoke("createPlaidTransfer", { amount: requestedAmount, direction: transferDirection });
-        if (!transfer?.success) throw new Error(transfer?.error || "Unable to submit the bank transfer.");
-        if (transferDirection === "deposit") trackPixelEvent("Deposit Initiated", { value: requestedAmount, currency: "USD" });
-        setDepositAmount(""); setShowDeposit(false); loadData();
-      });
-    } catch (error) {
-      setDepositError(error?.message || "Unable to start the bank transfer.");
-    } finally {
-      setIsProcessingDeposit(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -257,70 +211,12 @@ export default function WalletPage() {
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-2 gap-3">
-          <Button
-            onClick={() => { setTransferDirection("deposit"); setShowDeposit(!showDeposit); }}
-            className="h-12 rounded-2xl gold-gradient text-black font-bold hover:opacity-90 disabled:opacity-30"
-          >
-            <Plus size={16} className="mr-2" /> Fund Account
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => { setTransferDirection("withdrawal"); setShowDeposit(true); }}
-            disabled={withdrawalHold || accountState !== "verified"}
-            className="h-12 rounded-2xl border-white/10 text-white/70 font-bold hover:bg-white/5 disabled:opacity-40"
-          >
-            <ArrowUpRight size={16} className="mr-2" /> Withdraw Funds
-          </Button>
-        </div>
-        {withdrawalHold && (
-          <p className="text-xs text-red-400/80 text-center -mt-2">
-            Withdrawals are temporarily on hold while we complete a routine account review.
-          </p>
-        )}
-        {!withdrawalHold && accountState === "provisional" && (
-          <p className="text-xs text-white/40 text-center -mt-2">
-            Complete identity verification to unlock deposits and withdrawals.
-          </p>
-        )}
-        {!withdrawalHold && accountState === "suspended" && (
-          <p className="text-xs text-red-400/80 text-center -mt-2">
-            Your account is currently suspended. Deposits and withdrawals are unavailable.
-          </p>
-        )}
-        {!withdrawalHold && accountState === "closed" && (
-          <p className="text-xs text-red-400/80 text-center -mt-2">
-            This account is closed. Deposits and withdrawals are unavailable.
-          </p>
-        )}
-
-        {/* Deposit Input */}
-        {showDeposit && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            className="rounded-2xl bg-white/[0.03] border border-white/5 p-4 space-y-3"
-          >
-            <input
-              type="number"
-              value={depositAmount}
-              onChange={(e) => setDepositAmount(e.target.value)}
-              placeholder={transferDirection === "deposit" ? "Amount to fund" : "Amount to withdraw"}
-              className="w-full h-12 px-4 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder:text-white/20 text-sm focus:border-[#C9A84C]/50 focus:outline-none"
-            />
-            <Button
-              onClick={confirmDeposit}
-              disabled={!depositAmount || parseFloat(depositAmount) <= 0 || isProcessingDeposit}
-              className="w-full h-12 rounded-xl gold-gradient text-black font-bold hover:opacity-90 disabled:opacity-30"
-            >
-              {isProcessingDeposit ? "Connecting securely..." : transferDirection === "deposit" ? "Connect bank & fund" : "Connect bank & withdraw"}
-            </Button>
-            {depositError && (
-              <p className="text-xs text-red-400 text-center">{depositError}</p>
-            )}
-          </motion.div>
-        )}
+        <SeamlessFundingPanel
+          wallet={wallet}
+          accountState={accountState}
+          withdrawalHold={withdrawalHold}
+          onRefresh={loadData}
+        />
 
         {/* Transactions */}
         <div>

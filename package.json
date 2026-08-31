@@ -10,7 +10,8 @@
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc -p ./jsconfig.json",
     "preview": "vite preview",
-    "test:integration": "node scripts/validate-integration-contract.mjs"
+    "test:integration": "node scripts/validate-integration-contract.mjs",
+    "test:seamless": "node scripts/validate-seamless.mjs"
   },
   "dependencies": {
     "@base44/sdk": "^0.8.44",
