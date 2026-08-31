@@ -44,6 +44,7 @@ const AppLayout = lazy(() => import("@/components/layout/AppLayout"));
 const MfaGuard = lazy(() => import("@/components/MfaGuard"));
 const AdminGuard = lazy(() => import("@/components/AdminGuard"));
 const PolicyAcceptanceGuard = lazy(() => import("@/components/legal/PolicyAcceptanceGuard"));
+const JurisdictionAccessGuard = lazy(() => import("@/components/JurisdictionAccessGuard"));
 
 function LoadingScreen() {
   return (
@@ -95,28 +96,30 @@ function RoutedApplication() {
         <Route path="/join/:inviteCode" element={<JoinMatch />} />
 
         <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/" replace />} />}>
-          <Route path="/verify-mfa" element={<VerifyMfa />} />
-          <Route element={<MfaGuard />}>
-            <Route element={<PolicyAcceptanceGuard />}>
-              <Route element={<AdminGuard />}>
-                <Route path="/admin/privacy-policy" element={<PrivacyPolicyAdmin />} />
-                <Route path="/admin/terms-of-service" element={<TermsOfServiceAdmin />} />
-                <Route path="/admin/official-rules" element={<OfficialRulesAdmin />} />
-                <Route path="/admin/actions" element={<AdminActionCenter />} />
-                <Route path="/admin/integrity" element={<IntegrityReviewQueue />} />
-                <Route path="/admin/integrity/:userId" element={<AdminUserIntegrity />} />
-                <Route path="/admin/game-settings" element={<AdminGameSettings />} />
-                <Route path="/admin/disputes" element={<DisputeCaseQueue />} />
-                <Route path="/admin/disputes/:caseId" element={<AdminDisputeCase />} />
-                <Route path="/admin/site-activity" element={<AdminSiteActivity />} />
-                <Route path="/admin/user-financials" element={<AdminUserFinancials />} />
-                <Route path="/admin/campaigns/early-access-500" element={<AdminEarlyAccessCampaign />} />
-              </Route>
-              <Route element={<AppLayout />}>
-                <Route path="/play" element={<Home />} />
-                <Route path="/wallet" element={<WalletPage />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/my-reports" element={<MyReports />} />
+          <Route element={<JurisdictionAccessGuard />}>
+            <Route path="/verify-mfa" element={<VerifyMfa />} />
+            <Route element={<MfaGuard />}>
+              <Route element={<PolicyAcceptanceGuard />}>
+                <Route element={<AdminGuard />}>
+                  <Route path="/admin/privacy-policy" element={<PrivacyPolicyAdmin />} />
+                  <Route path="/admin/terms-of-service" element={<TermsOfServiceAdmin />} />
+                  <Route path="/admin/official-rules" element={<OfficialRulesAdmin />} />
+                  <Route path="/admin/actions" element={<AdminActionCenter />} />
+                  <Route path="/admin/integrity" element={<IntegrityReviewQueue />} />
+                  <Route path="/admin/integrity/:userId" element={<AdminUserIntegrity />} />
+                  <Route path="/admin/game-settings" element={<AdminGameSettings />} />
+                  <Route path="/admin/disputes" element={<DisputeCaseQueue />} />
+                  <Route path="/admin/disputes/:caseId" element={<AdminDisputeCase />} />
+                  <Route path="/admin/site-activity" element={<AdminSiteActivity />} />
+                  <Route path="/admin/user-financials" element={<AdminUserFinancials />} />
+                  <Route path="/admin/campaigns/early-access-500" element={<AdminEarlyAccessCampaign />} />
+                </Route>
+                <Route element={<AppLayout />}>
+                  <Route path="/play" element={<Home />} />
+                  <Route path="/wallet" element={<WalletPage />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/my-reports" element={<MyReports />} />
+                </Route>
               </Route>
             </Route>
           </Route>
