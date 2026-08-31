@@ -85,7 +85,7 @@ assert.throws(() => seamlessBaseUrl('staging'), /SEAMLESS_ACH_ENV/, 'bad env thr
   ok(d.label === 'lbl-1', 'deposit label carried');
   assert.throws(() => buildDepositBody({ providerUserId: 'U', amount: 1, label: 'l' }), /account holder name/, 'Seamless requires a sender name');
   assert.throws(() => buildDepositBody({ amount: 25, label: 'l' }), /provider user id/, 'deposit missing sender throws');
-  assert.throws(() => buildDepositBody({ providerUserId: 'U', amount: 25 }), /label/, 'deposit missing label throws');
+  assert.throws(() => buildDepositBody({ providerUserId: 'U', name: 'Jane', amount: 25 }), /label/, 'deposit missing label throws');
 
   const w = buildWithdrawalBody({ providerUserId: 'U', name: 'Jane', amount: 30, description: 'WD', label: 'lbl-2', sourceId: 'SRC-9' });
   ok(w.recipient === 'U', 'withdrawal recipient = provider user id');
