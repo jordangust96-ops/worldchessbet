@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { EARLY_ACCESS_MODE } from '../../shared/earlyAccess.ts';
+import { isSocureIdentityVerified } from '../../shared/identityEligibility.js';
 import {
   seamlessConfig, seamlessRequest, buildCreateCustomerBody,
   PATH_CREATE_CUSTOMER, SEAMLESS_PROVIDER_KEY,
@@ -26,7 +27,7 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    if (user.account_state !== 'verified' || user.withdrawal_hold) {
+    if (!isSocureIdentityVerified(user) || user.withdrawal_hold) {
       return Response.json({ error: 'Verified account required for bank linking' }, { status: 403 });
     }
 
