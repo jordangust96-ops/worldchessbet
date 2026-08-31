@@ -72,7 +72,8 @@ export function buildCreateCustomerBody({ firstName, lastName, email, phone }) {
   return body;
 }
 
-// Deposit: POST /ach-debit with sender = provider user id.
+// Deposit: POST /ach-debit with sender = provider user id. Seamless v2
+// requires a non-empty sender name, so this fails before any provider request.
 export function buildDepositBody({ providerUserId, name, amount, description, label }) {
   if (!providerUserId) throw new Error('provider user id required');
   if (!String(name || '').trim()) throw new Error('account holder name required');
@@ -87,6 +88,7 @@ export function buildDepositBody({ providerUserId, name, amount, description, la
 }
 
 // Withdrawal: POST /check/send with recipient = provider user id, account = verified source_id.
+// Seamless v2 requires a non-empty recipient name.
 export function buildWithdrawalBody({ providerUserId, name, amount, description, label, sourceId }) {
   if (!providerUserId) throw new Error('provider user id required');
   if (!String(name || '').trim()) throw new Error('account holder name required');
