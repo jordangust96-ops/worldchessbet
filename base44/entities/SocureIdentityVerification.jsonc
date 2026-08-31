@@ -6,13 +6,25 @@
       "type": "string"
     },
     "request_id": {
-      "type": "string"
+      "type": "string",
+      "rls": {
+        "read": false,
+        "write": false
+      }
     },
     "provider_evaluation_id": {
-      "type": "string"
+      "type": "string",
+      "rls": {
+        "read": false,
+        "write": false
+      }
     },
     "workflow": {
-      "type": "string"
+      "type": "string",
+      "rls": {
+        "read": false,
+        "write": false
+      }
     },
     "status": {
       "type": "string",
@@ -65,12 +77,20 @@
     },
     "failure_code": {
       "type": "string",
-      "maxLength": 128
+      "maxLength": 128,
+      "rls": {
+        "read": false,
+        "write": false
+      }
     },
     "reason_codes": {
       "type": "array",
       "items": {
         "type": "string"
+      },
+      "rls": {
+        "read": false,
+        "write": false
       }
     },
     "description": {
