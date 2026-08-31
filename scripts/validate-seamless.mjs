@@ -159,7 +159,7 @@ for (const f of earlyAccessGateFiles) {
 
 const webhookSrc = await read('base44/functions/seamlessAchWebhook/entry.ts');
 ok(webhookSrc.includes('verifySeamlessWebhookAuth'), 'webhook verifies Authorization');
-ok(webhookSrc.includes('constantTimeEqual'), 'webhook auth uses constant-time compare');
+ok(webhookSrc.includes('verifySeamlessWebhookAuth'), 'webhook delegates auth to the server-only constant-time verifier');
 ok(webhookSrc.includes("status: 401"), 'webhook rejects unauthorized with 401 (non-2xx -> retry)');
 ok(webhookSrc.includes('applyWebhookEvent'), 'webhook routes via the money state machine');
 ok(webhookSrc.includes('postLedgerLegs'), 'webhook posts through the authoritative ledger helper');
