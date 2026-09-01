@@ -33,8 +33,7 @@ export async function awardFoundingPlayerBadge(base44, targetUser, appUrl) {
   const bodyHtml = `
     <p>Hi ${firstName},</p>
     <p>We wanted to personally recognize you as one of ChessBet's first 250 players &mdash; a <strong>Founding Player</strong>.</p>
-    <p>Founding Player status is our way of saying thank you for joining us early and helping shape ChessBet ahead of our real-money launch. You'll now see a subtle Founding Player badge on your profile.</p>
-    <p>As a reminder: the $500 Early Access balance in your wallet is sandbox play money &mdash; it isn't withdrawable, and your balance will reset to $0 when real-money contests launch. You're welcome to add real funds to your wallet at any time in the meantime, with no restriction on the amount.</p>
+    <p>Founding Player status is our way of saying thank you for being among ChessBet's first players and helping shape the platform. You'll now see a subtle Founding Player badge on your profile.</p>
     <p>Thanks for being part of ChessBet from the beginning.</p>
     <p>&mdash; The ChessBet Team</p>
   `;
