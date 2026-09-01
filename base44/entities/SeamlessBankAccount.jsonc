@@ -30,6 +30,25 @@
       "type": "boolean",
       "default": false
     },
+    "rtp_eligible": {
+      "type": "boolean",
+      "default": false,
+      "description": "Provider-confirmed recipient-bank RTP eligibility. False/unknown never enables RTP."
+    },
+    "rtp_eligibility_source": {
+      "type": "string",
+      "enum": [
+        "provider_webhook",
+        "provider_api",
+        "provider_support",
+        "unknown"
+      ],
+      "default": "unknown"
+    },
+    "rtp_eligibility_checked_at": {
+      "type": "string",
+      "format": "date-time"
+    },
     "status": {
       "type": "string",
       "enum": [
