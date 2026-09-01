@@ -14,6 +14,5 @@ export async function ensureUserWallet(base44, userId) {
     total_won: 0,
     total_deposited: 0,
     total_withdrawn: 0,
-    early_access_credited: false,
   });
 }
