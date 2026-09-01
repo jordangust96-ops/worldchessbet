@@ -194,7 +194,7 @@ export function applyFundingSourceEvent(current, event) {
     }
   }
 
-  if (!incomingAt && currentStatus) {
+  if (currentStatus && !currentAt) {
     if (['funding-source.added', 'funding-source.pending-verification'].includes(eventType) &&
         ['verified', 'verification_failed', 'verification_expired', 'deleted'].includes(currentStatus)) {
       return { action: 'ignore', status: currentStatus, providerEventAt: currentAt, reason: 'non_downgrade' };
