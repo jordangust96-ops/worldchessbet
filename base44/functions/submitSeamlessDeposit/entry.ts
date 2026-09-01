@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { seamlessDepositsEnabled } from '../../shared/seamlessFundingConfig.ts';
 import { isSocureIdentityVerified } from '../../shared/identityEligibility.js';
+import { legalNameFromUser } from '../../shared/legalName.ts';
 import { isSocureBankVerificationAccepted, latestSocureBankVerification } from '../../shared/socureBankEligibility.js';
 import {
   seamlessConfig, seamlessRequest, seamlessBaseUrl, buildDepositBody,
@@ -127,7 +128,7 @@ Deno.serve(async (req) => {
       operation = await saveDepositOperation(user.id, idempotencyKey, { ...operation, wallet_transaction_id: pending.id, state: 'new' });
     }
 
-    const accountHolderName = String(user.full_name || user.name || '').trim();
+    const accountHolderName = legalNameFromUser(user);
     if (!accountHolderName) {
       await base44.asServiceRole.entities.WalletTransaction.update(pending.id, {
         status: 'failed', integration_status: 'failed', description: 'Seamless ACH funding requires an account holder name.',
@@ -154,7 +155,7 @@ Deno.serve(async (req) => {
     await base44.asServiceRole.entities.WalletTransaction.update(pending.id, { integration_status: 'submitting', source_event: 'seamless_deposit_submitting' });
 
     const body = buildDepositBody({
-      providerUserId: profile.provider_user_id, name: accountHolderName, amount: value,
+      providerUserId: profile.provider_user_id, name: accountHolderName.fullName, amount: value,
       description: 'Fund wallet', label,
     });
 
