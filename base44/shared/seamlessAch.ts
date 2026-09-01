@@ -89,6 +89,10 @@ export function verifySeamlessWebhookAuth(authHeader) {
   if (!secret) return false; // fail closed when unconfigured
   const header = String(authHeader || '').trim();
   if (!header) return false;
+  // Seamless's live endpoint test currently sends the secret directly in
+  // Authorization (without a scheme). Support that documented provider form
+  // alongside Bearer and Basic while retaining constant-time comparison.
+  if (constantTimeEqual(header, secret)) return true;
   const lower = header.toLowerCase();
   try {
     if (lower.startsWith('bearer ')) {
