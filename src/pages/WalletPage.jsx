@@ -39,7 +39,8 @@ export default function WalletPage() {
   const [loading, setLoading] = useState(true);
   const [withdrawalHold, setWithdrawalHold] = useState(false);
   const [accountState, setAccountState] = useState("verified");
-  const [identityStatus, setIdentityStatus] = useState("not_started");`n  const [fullName, setFullName] = useState("");
+  const [identityStatus, setIdentityStatus] = useState("not_started");
+  const [fullName, setFullName] = useState("");
 
   useEffect(() => {
     loadData();
@@ -212,7 +213,11 @@ export default function WalletPage() {
           </div>
         </div>
 
-        <SocureIdentityVerificationPanel`n          status={identityStatus}`n          fullName={fullName}`n          onNameSaved={setFullName}`n        />
+        <SocureIdentityVerificationPanel
+          status={identityStatus}
+          fullName={fullName}
+          onNameSaved={setFullName}
+        />
 
         <SeamlessFundingPanel
           wallet={wallet}
