@@ -1,5 +1,4 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
-import { EARLY_ACCESS_MODE } from '../../shared/earlyAccess.ts';
 import { requireAdminMfa } from '../../shared/mfa.ts';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 import {
@@ -67,11 +66,8 @@ Deno.serve(async (req) => {
     const mfaError = await requireAdminMfa(base44, admin, body?.mfaSessionToken, req.headers.get('user-agent') || '');
     if (mfaError) return mfaError;
 
-    // No Socure network request is possible in Early Access or while the
-    // separate server-only switch is unset/false.
-    if (EARLY_ACCESS_MODE) {
-      return Response.json({ enabled: false, reason: 'Socure screening is unavailable during Early Access.' });
-    }
+    // No Socure network request is possible while the separate server-only
+    // switch is unset or false.
     const config = socureConfig();
     if (!config.enabled) {
       return Response.json({ enabled: false, reason: 'Socure screening is not enabled.' });
