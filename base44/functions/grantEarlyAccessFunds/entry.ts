@@ -1,26 +1,16 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
-import { ensureEarlyAccessFunds } from '../../shared/earlyAccessFunding.ts';
+import { createClientFromRequest } from 'npm:@base44/sdk';
+import { ensureUserWallet } from '../../shared/walletProvisioning.ts';
 
-// PRE-LAUNCH TESTING ONLY. While EARLY_ACCESS_MODE is true (see
-// base44/shared/earlyAccess.ts), this function grants every user a one-time
-// $500 bonus balance so they can host/accept challenges and exercise the
-// full platform flow without a real deposit. The credit is posted through
-// the same double-entry Internal Ledger as a real deposit (Debit Settlement,
-// Credit User Available Balance) and recorded as a normal WalletTransaction,
-// so it shows up in the user's transaction history exactly like a deposit
-// would. Each wallet is only ever credited once (early_access_credited).
-//
-// Once EARLY_ACCESS_MODE is switched to false before public launch, this
-// function becomes a no-op that only ensures a Wallet record exists — no
-// further bonus balance is ever granted.
+// Legacy compatibility endpoint. It provisions only a zero-balance wallet and
+// never creates a transaction, ledger entry, or promotional credit.
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-
-    return Response.json(await ensureEarlyAccessFunds(base44, user.id));
+    const wallet = await ensureUserWallet(base44, user.id);
+    return Response.json({ wallet });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ error: error?.message || 'Unable to provision wallet' }, { status: 500 });
   }
 });
