@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
-import { EARLY_ACCESS_MODE } from '../../shared/earlyAccess.ts';
+import { seamlessDepositsEnabled } from '../../shared/seamlessFundingConfig.ts';
 import { isSocureIdentityVerified } from '../../shared/identityEligibility.js';
 import {
   seamlessConfig, seamlessRequest, seamlessBaseUrl, buildDepositBody,
@@ -15,15 +15,15 @@ const IDEMPOTENCY_KEY = /^[A-Za-z0-9._:-]{16,128}$/;
 // Provider acceptance creates ONLY a pending WalletTransaction — displayed
 // wallet balances are NEVER credited merely because the API accepted the
 // request. The ledger is posted exactly once when a Processed webhook later
-// confirms settlement (seamlessAchWebhook). Fails closed on Early Access or
-// missing configuration.
+// confirms settlement (seamlessAchWebhook). Fails closed when deposits are
+// disabled or provider configuration is missing.
 Deno.serve(async (req) => {
   try {
-    if (EARLY_ACCESS_MODE) {
+    if (!seamlessDepositsEnabled()) {
       return Response.json({
         enabled: false,
-        reason: 'Deposits are unavailable during Early Access.',
-      });
+        reason: 'Account funding is not available yet.',
+      }, { status: 409 });
     }
     seamlessConfig(); // fail closed
 
