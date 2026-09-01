@@ -16,8 +16,6 @@ export default function SocureIdentityVerificationPanel({ status = "not_started"
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  // The server retains the authoritative Early Access switch. Hiding this
-  // launch-only control keeps the existing demo experience unchanged.
 
   if (status === "verified") {
     return (

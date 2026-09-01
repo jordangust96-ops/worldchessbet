@@ -10,9 +10,7 @@
 export const VERIFICATION_CACHE_TTL_MS = 15 * 60 * 1000;
 
 // GeoIP enforcement is controlled solely by MAXMIND_GEOIP_ENABLED.
-// EARLY_ACCESS_MODE no longer disables MaxMind — location enforcement is
-// activated independently of the Early Access money gates, which still block
-// real deposits/withdrawals/settlement. When MAXMIND_GEOIP_ENABLED is true,
+// financial actions. When MAXMIND_GEOIP_ENABLED is true,
 // fresh lookups run at the app-access and paid-action boundaries; a provider
 // outage / missing configuration fails closed (verification_failed), which
 // blocks the action.

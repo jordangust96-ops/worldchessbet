@@ -110,7 +110,7 @@ export default function JurisdictionPanel({ targetUser, logs }) {
       {latestLog && !latestLog.geolocation_enforcement_enabled && (
         <div className="mb-4 rounded-xl bg-yellow-500/5 border border-yellow-500/20 p-3">
           <p className="text-xs text-yellow-400/80">
-            Geolocation enforcement is currently disabled platform-wide (pre-launch). This user's status reads
+            Geolocation enforcement is currently disabled platform-wide. This user's status reads
             "approved" regardless of location.
             {latestLog.enforcement_bypassed && (
               <> Most recent actual computed result: <strong className="uppercase">{latestLog.pre_bypass_verification_result}</strong>.</>

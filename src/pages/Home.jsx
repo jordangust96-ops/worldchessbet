@@ -322,7 +322,6 @@ export default function Home() {
       storeSoundPreference(soundsOn);
       // Provision a single zero-balance wallet through the service-role backend.
       // This never creates promotional funds or posts ledger entries.
-      // it shows in the user's transaction history) — see
       const { data } = await base44.functions.invoke("ensureWallet", {});
       setWallet(data.wallet);
     };

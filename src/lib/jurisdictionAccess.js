@@ -68,7 +68,7 @@ export function evaluateJurisdictionAccess(response) {
   }
 
   // Platform administrators are allowed through regardless of detected
-  // location during pre-launch. The server (getCurrentJurisdiction) sets
+  // location before a protected action. The server (getCurrentJurisdiction) sets
   // adminBypass and skips MaxMind for any user whose role is "admin".
   if (response.adminBypass === true) {
     return { allowed: true, reason: "", promptEligible: false };

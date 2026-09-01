@@ -2,7 +2,7 @@ import { recordIntegrationEvent } from './integrationEvents.ts';
 
 // Shared Internal Ledger posting helper, used by every backend function that
 // moves money (deposits, withdrawals, contest entries/settlements, account
-// closure, Early Access bonus credits, etc.). Posts a balanced set of Ledger
+// closure, promotional credits, etc.). Posts a balanced set of Ledger
 // entries and updates the derived Wallet / SystemLedgerAccount balances.
 export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletTransactionId, actor, actorId, triggerEvent, externalRefType, externalRefId, legs }) {
   const correlationId = matchId || walletTransactionId || groupId;

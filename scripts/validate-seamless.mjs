@@ -2,7 +2,7 @@
 // Runs under plain Node (`node scripts/validate-seamless.mjs`) and makes NO
 // requests to Seamless. It exercises the pure helpers in
 // base44/shared/seamlessAchPure.js end-to-end, and statically asserts the
-// Early-Access / webhook-auth guards exist in the backend function sources
+// deposit-switch / webhook-auth guards exist in the backend function sources
 // (matching the style of the existing validate-integration-contract.mjs).
 
 import assert from 'node:assert/strict';
