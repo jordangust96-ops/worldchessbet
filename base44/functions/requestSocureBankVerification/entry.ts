@@ -146,7 +146,7 @@ Deno.serve(async (req) => {
         completed_at: new Date().toISOString(),
         error_code: 'duplicate_suppressed',
       });
-      return Response.json({ enabled: true, charged: false, already_requested: true, verification: canonical });
+      return Response.json({ enabled: true, charged: false, already_requested: true, verification: publicVerification(canonical) });
     }
 
     const response = await evaluateSocureBankAccount({
