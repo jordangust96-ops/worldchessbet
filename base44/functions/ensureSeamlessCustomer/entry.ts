@@ -1,5 +1,4 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
-import { EARLY_ACCESS_MODE } from '../../shared/earlyAccess.ts';
 import { isSocureIdentityVerified } from '../../shared/identityEligibility.js';
 import {
   seamlessConfig, seamlessRequest, buildCreateCustomerBody,
@@ -10,16 +9,9 @@ import {
 // user. If a SeamlessPaymentProfile already exists for this user, its
 // provider_user_id is returned without a second provider call. Otherwise a
 // POST /user is made and the returned user_id is persisted in a user-scoped
-// profile. Fails closed on Early Access or missing/invalid configuration.
+// profile. Fails closed on missing or invalid provider configuration.
 Deno.serve(async (req) => {
   try {
-    if (EARLY_ACCESS_MODE) {
-      return Response.json({
-        enabled: false,
-        reason: 'Bank linking is unavailable during Early Access.',
-      });
-    }
-
     // Resolve config up front so the function fails closed if secrets are
     // missing/invalid — before any entity work.
     const cfg = seamlessConfig();
