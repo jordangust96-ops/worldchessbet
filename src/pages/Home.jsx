@@ -5,12 +5,10 @@ import Logo from "@/components/Logo";
 import ChessboardPreview from "@/components/play/ChessboardPreview";
 import MatchCenter from "@/components/play/MatchCenter";
 import MatchView from "@/components/play/MatchView";
-import DemoModeNotice from "@/components/DemoModeNotice";
 import RestrictedModeBanner from "@/components/RestrictedModeBanner";
 import { useChessGame } from "@/hooks/useChessGame";
 import { useSize } from "@/hooks/use-size";
 import { useTouchOnlyInput } from "@/hooks/use-touch-only-input";
-import { trackPixelEvent } from "@/lib/metaPixel";
 import {
   getMoveSoundCue,
   getStoredSoundPreference,
@@ -325,14 +323,10 @@ export default function Home() {
       // Ensures a Wallet exists and, while Early Access Mode is on, grants the
       // one-time $500 bonus balance (recorded as a real WalletTransaction so
       // it shows in the user's transaction history) — see
-      // base44/functions/grantEarlyAccessFunds and base44/shared/earlyAccess.ts.
-      const { data } = await base44.functions.invoke("grantEarlyAccessFunds", {});
+      // base44/functions/ensureWallet and base44/shared/earlyAccess.ts.
+      const { data } = await base44.functions.invoke("ensureWallet", {});
       setWallet(data.wallet);
       // Event tracking for monitoring $500 Early Access credit promotion usage.
-      if (data.newly_credited) {
-        base44.analytics.track({ eventName: "early_access_credit_granted", properties: { amount: 500 } });
-        trackPixelEvent("Early Access Credit Granted", { value: 500, currency: "USD" });
-      }
     };
     load();
   }, []);
@@ -385,7 +379,6 @@ export default function Home() {
             </p>
           </div>
         </div>
-        <DemoModeNotice />
         <div className="mt-3">
           <RestrictedModeBanner />
         </div>
