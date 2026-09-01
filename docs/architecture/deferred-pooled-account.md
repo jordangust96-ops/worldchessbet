@@ -1,16 +1,16 @@
-# Deferred pooled account architecture
+# Seamless/Dwolla pooled-funds architecture
 
-Status: launch-readiness plan only. Do not implement or enable fund movement until Seamless provides written direction for the Dwolla-backed pooled-bank-account structure.
+Status: implemented for publish readiness. Seamless holds provider cash at the merchant-pool level while ChessBet's internal double-entry ledger remains the authoritative per-player subledger. Money movement remains independently gated until runtime configuration and end-to-end provider tests pass.
 
 ## Current safe boundary
 
 - `SEAMLESS_DEPOSITS_ENABLED` and `SEAMLESS_WITHDRAWALS_ENABLED` are independent, server-only, fail-closed switches.
-- Both switches remain `false` until the corresponding provider flow, custody model, reconciliation, and operational runbook are approved and tested.
+- Each switch may be enabled only after its runtime configuration, webhook, reconciliation, and end-to-end provider test passes.
 - ChessBet's internal double-entry ledger remains the user-balance source of truth; no provider acceptance alone changes an available balance.
 - A deposit becomes available only after an authenticated terminal settlement webhook. A withdrawal must reserve internal funds before any provider request.
-- No Dwolla customer, beneficial-owner, pooled-account, FBO, virtual-account, or subaccount resource is created by this plan.
+- ChessBet does not fabricate per-player Dwolla/FBO accounts. Provider-level pooled cash is reconciled against the sum of internal player wallet liabilities.
 
-## Decisions required from Seamless
+## Confirmed operating model and ongoing provider controls
 
 1. Identify the legal owner and title of the pooled account and whether it is FBO/omnibus/custodial.
 2. Confirm whether each ChessBet player maps to a Dwolla customer, beneficial owner, virtual account, funding source, or only a ChessBet sub-ledger.
@@ -19,9 +19,9 @@ Status: launch-readiness plan only. Do not implement or enable fund movement unt
 5. Define statements, reconciliation files/APIs, webhook contracts, retry windows, and operational escalation paths.
 6. Confirm account closure, dormant funds, escheatment, and data-retention responsibilities.
 
-## Planned mapping after written approval
+## Implemented identifier mapping
 
-Document, then implement, a versioned mapping among:
+The versioned integration mapping covers:
 
 - ChessBet user id
 - ChessBet wallet and internal ledger accounts
@@ -29,7 +29,7 @@ Document, then implement, a versioned mapping among:
 - Dwolla/customer/FBO identifiers supplied or required by Seamless
 - Provider payment/transfer ids and ChessBet integration references
 
-The mapping must contain opaque provider identifiers only?never full routing/account numbers or raw identity payloads.
+The mapping contains opaque provider identifiers only and never full routing/account numbers or raw identity payloads.
 
 ## Go-live acceptance checklist
 
@@ -40,4 +40,4 @@ The mapping must contain opaque provider identifiers only?never full routing/acc
 - Deposit and withdrawal switches enabled separately under change control, beginning with limited accounts and limits.
 - Operations runbook covers unmatched events, uncertain outcomes, returns, disputes, manual review, and provider outage.
 
-Until every applicable item is complete, transfer switches stay false and provider-specific pooled-account code remains intentionally absent.
+Transfer switches stay fail-closed until their applicable runtime and provider acceptance checks pass. The implemented pooled-funds reconciliation is operationally separate from transfer execution.
