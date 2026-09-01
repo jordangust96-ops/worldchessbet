@@ -95,7 +95,7 @@ const lifecycleSources = {
   'contest.settled': 'base44/functions/settleMatch/entry.ts',
   'dispute.opened': 'base44/functions/submitContestReport/entry.ts',
   'account.closed': 'base44/functions/closeAccount/entry.ts',
-  'identity.verified': 'base44/functions/verifyUserIdentity/entry.ts',
+  'identity.socure_result_received': 'base44/functions/socureIdentityWebhook/entry.ts',
 };
 
 for (const [eventType, sourcePath] of Object.entries(lifecycleSources)) {
