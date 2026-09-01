@@ -1,26 +1,15 @@
 // ============================================================================
-// EARLY ACCESS MODE — the single point of control for every pre-launch
-// compliance bypass across the backend.
+// EARLY ACCESS MODE — retained only as a controlled, explicit testing switch.
 //
-// While true, this flag causes every paid-flow compliance gate on the
-// platform — identity verification (Socure), geolocation enforcement
-// (MaxMind), bank account linking, and payment processing — to be
-// bypassed, so the app behaves as a fully playable beta WITHOUT removing or
-// altering any underlying production integration code. Paid geolocation
-// lookups are skipped entirely in this mode, except for an explicit admin-only
-// forced integration test; other integrations follow their own safe bypass.
-//
-// MUST be switched to false before public production launch. Doing so
-// restores full enforcement everywhere with no other code changes required,
-// because every gate in the app funnels through this single flag.
-//
-// Keep in sync with the frontend equivalent: src/lib/appConfig.js (DEMO_MODE).
+// Production-like sandbox behavior requires this to remain false. Every
+// production eligibility and money-movement path must then enforce its own
+// server-side provider checks. Do not enable it to work around missing
+// provider configuration.
+// Keep in sync with src/lib/appConfig.js (DEMO_MODE).
 // ============================================================================
-export const EARLY_ACCESS_MODE = true;
+export const EARLY_ACCESS_MODE = false;
 
-// Starting demo balance (USD) granted to a brand-new wallet while Early
-// Access Mode is enabled, so users can exercise the full contest flow
-// (hosting, joining, settling matches) without a real deposit / Finix
-// payment. Ignored once EARLY_ACCESS_MODE is false.
-// Keep in sync with src/lib/appConfig.js (EARLY_ACCESS_STARTING_BALANCE).
+// Historical Early Access campaign amount. It is inert while
+// EARLY_ACCESS_MODE is false and remains here only to preserve historical
+// ledger interpretation and an explicit rollback path.
 export const EARLY_ACCESS_STARTING_BALANCE = 500;
