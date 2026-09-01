@@ -10,7 +10,7 @@ import { base44 } from "@/api/base44Client";
 // withdraw UI on the Wallet page. All real-money provider calls are gated
 // server-side by EARLY_ACCESS_MODE and by verified-account checks; this UI
 // only surfaces the resulting states (verified / pending / failed bank and
-// payment). It never trusts the Seamless browser callback as verification —
+// payment). It never trusts the Seamless browser callback as verification ?
 // only the funding-source.verified webhook persists a verified source_id.
 
 const BANK_STATUS = {
@@ -42,7 +42,7 @@ function BankRow({ bank }) {
         <div className="min-w-0">
           <p className="text-sm text-white/90 truncate">
             {bank.account_name || "Bank account"}
-            {bank.account_mask ? ` ••••${bank.account_mask}` : ""}
+            {bank.account_mask ? ` ????${bank.account_mask}` : ""}
           </p>
           {bank.is_primary && (
             <span className="text-[10px] uppercase tracking-wider text-[#C9A84C]">Primary</span>
@@ -70,7 +70,7 @@ function TxRow({ tx }) {
       </div>
       <div className="flex items-center gap-2 shrink-0">
         <span className={isDeposit ? "text-emerald-400" : "text-white/70"}>
-          {isDeposit ? "+" : "−"}${Number(tx.amount || 0).toFixed(2)}
+          {isDeposit ? "+" : "?"}${Number(tx.amount || 0).toFixed(2)}
         </span>
         <span className={`text-xs ${s.color}`}>{s.label}</span>
       </div>
@@ -129,10 +129,10 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
       const { data: link } = await base44.functions.invoke("createSeamlessBankLinkUrl", {});
       if (!link?.enabled) throw new Error(link?.reason || "Could not start bank linking.");
       // Redirect to Seamless hosted bank authorization. The browser callback is
-      // NOT verification — the funding-source.verified webhook is authoritative.
+      // NOT verification ? the funding-source.verified webhook is authoritative.
       window.location.href = link.url;
-    } catch (e) {
-      setError(e?.message || "Unable to start bank linking.");
+    } catch {
+      setError("We couldn't start the secure bank connection. Please try again or contact support.");
     } finally {
       setBusy("");
     }
@@ -156,8 +156,8 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
       if (data?.status !== "uncertain") setAmount("");
       await load();
       if (onRefresh) onRefresh();
-    } catch (e) {
-      setError(e?.message || "Unable to submit the transfer.");
+    } catch {
+      setError("We couldn't submit that request. Please try again or contact support.");
     } finally {
       setBusy("");
     }
@@ -219,54 +219,87 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
         </p>
       )}
 
-      {/* Quick actions */}
-      <div className="grid grid-cols-2 gap-3">
-        <Button
-          onClick={() => setDirection("deposit")}
-          className={`h-12 rounded-2xl font-bold disabled:opacity-30 ${
-            direction === "deposit"
-              ? "gold-gradient text-black"
-              : "bg-white/[0.05] text-white/70 border border-white/10"
-          }`}
-          disabled={ineligible}
-        >
-          <Plus size={16} className="mr-2" /> Fund Account
-        </Button>
-        <Button
-          onClick={() => setDirection("withdrawal")}
-          disabled={ineligible || (wallet && (wallet.available_balance || 0) <= 0)}
-          className={`h-12 rounded-2xl font-bold disabled:opacity-30 ${
-            direction === "withdrawal"
-              ? "gold-gradient text-black"
-              : "bg-white/[0.05] text-white/70 border border-white/10"
-          }`}
-        >
-          <ArrowUpRight size={16} className="mr-2" /> Withdraw Funds
-        </Button>
-      </div>
-
-      {/* Bank accounts */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <h4 className="text-xs uppercase tracking-widest text-white/40">Bank Accounts</h4>
+      {/* Step 2: provider-persisted bank state is authoritative. */}
+      <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4 space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]">Step 2</p>
+            <h4 className="text-sm font-semibold text-white mt-1">Connect a bank</h4>
+            <p className="text-xs text-white/45 mt-1">
+              {!identityVerified
+                ? "Verify your identity before connecting a bank account."
+                : verifiedBank
+                  ? "Your bank account is connected and verified."
+                  : attentionBank
+                    ? "Your bank connection needs attention. Reconnect to try again."
+                    : pendingBank
+                      ? "We're confirming your bank connection. This status updates automatically."
+                      : bankLinkCancelled
+                        ? "Bank connection was cancelled. You can try again when ready."
+                        : bankLinkReturned
+                          ? "We're waiting for confirmation from your bank connection."
+                          : "Securely connect the bank account you'll use with ChessBet."}
+            </p>
+          </div>
           <Button
             variant="ghost"
             size="sm"
             onClick={linkBank}
             disabled={busy === "linking" || ineligible}
-            className="text-xs text-[#C9A84C] hover:text-[#E8D48B] h-7 px-2 disabled:opacity-30"
+            className="text-xs text-[#C9A84C] hover:text-[#E8D48B] h-8 px-2 disabled:opacity-30 shrink-0"
           >
             {busy === "linking" ? <Loader2 size={14} className="animate-spin" /> : <Link2 size={14} />}
-            <span className="ml-1">{busy === "linking" ? "Connecting…" : "Link bank"}</span>
+            <span className="ml-1">{busy === "linking" ? "Connecting?" : state?.banks?.length ? "Reconnect" : "Connect bank"}</span>
           </Button>
         </div>
         {state?.banks?.length ? (
-          state.banks.map((b) => <BankRow key={b.id} bank={b} />)
+          <div className="space-y-2">
+            {state.banks.map((b) => <BankRow key={b.id} bank={b} />)}
+          </div>
         ) : (
-          <p className="text-xs text-white/30 text-center py-3">
-            No bank accounts linked yet.
-          </p>
+          <p className="text-xs text-white/30 text-center py-2">No confirmed bank connection yet.</p>
         )}
+      </div>
+
+      {/* Step 3: existing server-side transfer gates remain authoritative. */}
+      <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4 space-y-3">
+        <div>
+          <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]">Step 3</p>
+          <h4 className="text-sm font-semibold text-white mt-1">Fund account</h4>
+          <p className="text-xs text-white/45 mt-1">
+            {earlyAccess
+              ? "Account funding is not available yet."
+              : !identityVerified
+                ? "Complete identity verification first."
+                : !verifiedBank
+                  ? "Connect and verify a bank before funding your account."
+                  : "Your identity and bank connection are ready."}
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Button
+            onClick={() => setDirection("deposit")}
+            className={`h-12 rounded-2xl font-bold disabled:opacity-30 ${
+              direction === "deposit"
+                ? "gold-gradient text-black"
+                : "bg-white/[0.05] text-white/70 border border-white/10"
+            }`}
+            disabled={ineligible || !verifiedBank}
+          >
+            <Plus size={16} className="mr-2" /> Fund Account
+          </Button>
+          <Button
+            onClick={() => setDirection("withdrawal")}
+            disabled={ineligible || !verifiedBank || (wallet && (wallet.available_balance || 0) <= 0)}
+            className={`h-12 rounded-2xl font-bold disabled:opacity-30 ${
+              direction === "withdrawal"
+                ? "gold-gradient text-black"
+                : "bg-white/[0.05] text-white/70 border border-white/10"
+            }`}
+          >
+            <ArrowUpRight size={16} className="mr-2" /> Withdraw Funds
+          </Button>
+        </div>
       </div>
 
       {/* Amount input + submit (deposit/withdraw share one form) */}
@@ -286,7 +319,7 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
           className="w-full h-12 rounded-xl gold-gradient text-black font-bold hover:opacity-90 disabled:opacity-30"
         >
           {busy ? (
-            <><Loader2 size={16} className="animate-spin mr-2" /> Submitting…</>
+            <><Loader2 size={16} className="animate-spin mr-2" /> Submitting?</>
           ) : verifiedBank ? (
             direction === "deposit" ? "Fund via Seamless ACH" : "Withdraw via Seamless ACH"
           ) : (
