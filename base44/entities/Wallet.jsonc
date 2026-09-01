@@ -45,7 +45,7 @@
     "early_access_credited": {
       "type": "boolean",
       "default": false,
-      "description": "Set once this wallet has received its one-time Early Access bonus balance (see base44/shared/earlyAccess.ts). Prevents crediting the same wallet more than once, and is ignored once Early Access Mode ends."
+      "description": "Legacy historical marker retained for compatibility with existing wallet records. No active code writes or reads this field."
     },
     "description": {
       "type": "string",
