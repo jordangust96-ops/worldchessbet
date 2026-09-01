@@ -11,6 +11,7 @@ import { readFile } from 'node:fs/promises';
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
 const pure = await import('../base44/shared/seamlessAchPure.js');
+const { reconcileSeamlessMerchantBalance } = await import('../base44/shared/seamlessMerchantBalancePure.js');
 const {
   formatAmount,
   mapTransactionStatus,
@@ -19,6 +20,9 @@ const {
   buildCreateCustomerBody,
   buildDepositBody,
   buildWithdrawalBody,
+  buildMerchantBalanceTransferBody,
+  PATH_BALANCE_FROM_ACCOUNT,
+  PATH_BALANCE_TO_ACCOUNT,
   constantTimeEqual,
   webhookIdempotencyKey,
   applyWebhookEvent,
@@ -98,6 +102,52 @@ assert.throws(() => seamlessBaseUrl('staging'), /SEAMLESS_ACH_ENV/, 'bad env thr
   assert.throws(() => buildWithdrawalBody({ providerUserId: 'U', amount: 30, label: 'l' }), /account holder name/, 'Seamless requires a recipient name');
   assert.throws(() => buildWithdrawalBody({ providerUserId: 'U', name: 'Jane', amount: 30, label: 'l' }), /source_id/, 'withdrawal missing sourceId throws');
   assert.throws(() => buildWithdrawalBody({ amount: 30, label: 'l', sourceId: 'S' }), /provider user id/, 'withdrawal missing recipient throws');
+
+  const rtp = buildWithdrawalBody({ providerUserId: 'U', name: 'Jane', amount: 30, label: 'lbl-rtp', sourceId: 'SRC-9', transferSpeed: 'rtp' });
+  ok(rtp.transfer_speed === 'rtp', 'RTP is explicit in an eligible payout request');
+  ok(!('transfer_speed' in w), 'standard payout leaves provider speed at the existing default');
+  assert.throws(() => buildWithdrawalBody({ providerUserId: 'U', name: 'Jane', amount: 30, label: 'l', sourceId: 'S', transferSpeed: 'same_day' }), /unsupported transfer speed/, 'unproven speed is rejected');
+
+  ok(PATH_BALANCE_FROM_ACCOUNT === '/funding-source/add/balance/from-account', 'merchant balance top-up path is modeled');
+  ok(PATH_BALANCE_TO_ACCOUNT === '/funding-source/add/balance/to-account', 'merchant balance sweep path is modeled');
+  const balanceTransfer = buildMerchantBalanceTransferBody({ sourceId: 'MERCHANT-SRC', amount: 125 });
+  ok(balanceTransfer.source_id === 'MERCHANT-SRC' && balanceTransfer.amount === '125.00', 'merchant balance transfer body uses merchant source_id');
+}
+
+// ---------------- Merchant pooled-balance reconciliation ----------------
+{
+  const covered = reconcileSeamlessMerchantBalance({
+    providerAvailableBalance: 1200,
+    providerPendingBalance: 100,
+    playerAvailableLiability: 700,
+    playerHeldLiability: 300,
+    pendingDepositAmount: 50,
+    reservedWithdrawalAmount: 75,
+    uncertainWithdrawalAmount: 25,
+    snapshotAsOf: '2026-09-01T12:00:00.000Z',
+    calculatedAt: '2026-09-01T13:00:00.000Z',
+  });
+  ok(covered.player_ledger_liability === 1000, 'player liability remains an internal-ledger sum');
+  ok(covered.settled_coverage_variance === 200 && covered.status === 'covered', 'merchant pool coverage is calculated separately');
+  ok(covered.pending_deposit_amount === 50, 'pending deposits are reported without crediting player liabilities');
+
+  const shortfall = reconcileSeamlessMerchantBalance({
+    providerAvailableBalance: 900,
+    playerAvailableLiability: 700,
+    playerHeldLiability: 300,
+    snapshotAsOf: '2026-09-01T12:00:00.000Z',
+    calculatedAt: '2026-09-01T13:00:00.000Z',
+  });
+  ok(shortfall.settled_coverage_variance === -100 && shortfall.status === 'shortfall', 'merchant pool shortfall fails visibly');
+
+  const stale = reconcileSeamlessMerchantBalance({
+    providerAvailableBalance: 1000,
+    playerAvailableLiability: 1000,
+    playerHeldLiability: 0,
+    snapshotAsOf: '2026-08-30T00:00:00.000Z',
+    calculatedAt: '2026-09-01T13:00:00.000Z',
+  });
+  ok(stale.status === 'stale_snapshot', 'stale provider balance cannot appear current');
 }
 
 // ---------------- Constant-time secret compare (webhook auth) ----------------
@@ -236,6 +286,12 @@ ok(depositSrc.includes('seamlessDepositsEnabled()'), 'deposit requires the dedic
 ok(depositSrc.indexOf('if (!seamlessDepositsEnabled())') < depositSrc.indexOf('await claimDepositOperation'), 'deposit switch precedes durable mutation');
 ok(depositSrc.indexOf('if (!seamlessDepositsEnabled())') < depositSrc.indexOf('data = await seamlessRequest'), 'deposit switch precedes provider request');
 ok(depositSrc.includes('isSocureIdentityVerified'), 'deposit retains Socure eligibility');
+const withdrawalSrc = await read('base44/functions/submitSeamlessWithdrawal/entry.ts');
+ok(withdrawalSrc.includes('seamlessWithdrawalsEnabled()'), 'withdrawal requires its dedicated server-side switch');
+ok(withdrawalSrc.indexOf('if (!seamlessWithdrawalsEnabled())') < withdrawalSrc.indexOf('await claimWithdrawalOperation'), 'withdrawal switch precedes durable financial mutation');
+ok(withdrawalSrc.includes("bank.rtp_eligible === true ? 'rtp'"), 'RTP requires provider-confirmed bank eligibility');
+ok(withdrawalSrc.includes('seamlessRtpPayoutsEnabled()'), 'RTP requires its independent server-side switch');
+ok(!withdrawalSrc.includes("transferSpeed: 'rtp'"), 'withdrawal never hard-codes RTP for every payout');
 for (const f of ['base44/functions/ensureSeamlessCustomer/entry.ts', 'base44/functions/createSeamlessBankLinkUrl/entry.ts', 'base44/functions/submitSeamlessWithdrawal/entry.ts']) {
   const src = await read(f);
   ok(src.includes('isSocureIdentityVerified'), f + ' retains Socure eligibility');
@@ -257,6 +313,15 @@ ok(webhookSrc.includes('profiles.length === 1'), 'ambiguous provider customer ow
 ok(webhookSrc.includes('awaiting_source_id'), 'source-less pending event waits without guessing a bank');
 ok(webhookSrc.includes('source_profile_mismatch'), 'cross-profile source mismatch fails closed and audits');
 ok(!webhookSrc.includes("'funding-source.made-primary': 'verified'"), 'made-primary cannot mark a bank verified');
+ok(webhookSrc.includes("typeof value === 'boolean'"), 'RTP eligibility accepts only an explicit provider boolean');
+
+const snapshotSchema = JSON.parse(await read('base44/entities/seamless-merchant-balance-snapshot.jsonc'));
+const reconciliationSchema = JSON.parse(await read('base44/entities/seamless-pooled-funds-reconciliation.jsonc'));
+ok(snapshotSchema.rls.update === false && snapshotSchema.rls.delete === false, 'merchant balance snapshots are immutable');
+ok(reconciliationSchema.rls.update === false && reconciliationSchema.rls.delete === false, 'pooled reconciliations are immutable');
+const reconciliationSrc = await read('base44/functions/record-seamless-merchant-balance-snapshot/entry.ts');
+ok(reconciliationSrc.includes('requireAdminMfa'), 'merchant balance snapshots require administrator MFA');
+ok(!reconciliationSrc.includes('seamlessRequest('), 'reconciliation cannot move provider money');
 
 const walletStateSrc = await read('base44/functions/getSeamlessWalletState/entry.ts');
 ok(walletStateSrc.includes('identity_verified: isSocureIdentityVerified(user)'), 'wallet state uses full server identity predicate');
