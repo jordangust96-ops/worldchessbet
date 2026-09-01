@@ -44,7 +44,9 @@ for (const s of ['Pending', 'Processing', 'Hold', 'Refund Pending']) {
 for (const s of ['Failed', 'Declined', 'Voided', 'Unpaid', 'Expired', 'Refund Failed']) {
   ok(mapTransactionStatus(s) === 'failed', `${s} -> failed`);
 }
-ok(mapTransactionStatus('Refunded') === 'reversed', 'Refunded -> reversed');
+for (const s of ['Refunded', 'Returned', 'Return', 'Reversed']) {
+  ok(mapTransactionStatus(s) === 'reversed', `${s} -> reversed`);
+}
 ok(mapTransactionStatus('SomethingWeird') === 'pending', 'unknown -> pending (never settled)');
 
 // ---------------- Base URL / env ----------------
@@ -138,6 +140,8 @@ ok(JSON.stringify(applyWebhookEvent({ status: 'completed' }, { status: 'Refunded
   'Refunded after Processed -> reverse');
 ok(JSON.stringify(applyWebhookEvent({ status: 'pending' }, { status: 'Refunded' })) === JSON.stringify({ action: 'fail', status: 'reversed' }),
   'Refunded while pending -> fail/reverse (nothing to reverse)');
+ok(JSON.stringify(applyWebhookEvent({ status: 'completed' }, { status: 'Returned' })) === JSON.stringify({ action: 'reverse', status: 'reversed' }),
+  'Returned after Processed -> reverse');
 // Out-of-order: stale Pending after completion must NOT downgrade state.
 ok(applyWebhookEvent({ status: 'completed' }, { status: 'Pending' }).action === 'ignore',
   'out-of-order Pending after completed -> ignore (no downgrade)');
