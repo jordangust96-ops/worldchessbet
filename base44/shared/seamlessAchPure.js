@@ -33,7 +33,7 @@ export function mapTransactionStatus(raw) {
     s === 'failed' || s === 'declined' || s === 'voided' || s === 'unpaid' ||
     s === 'expired' || s === 'refund_failed'
   ) return STATUS_FAILED;
-  if (s === 'refunded') return STATUS_REVERSED;
+  if (s === 'refunded' || s === 'returned' || s === 'return' || s === 'reversed') return STATUS_REVERSED;
   return STATUS_PENDING;
 }
 
