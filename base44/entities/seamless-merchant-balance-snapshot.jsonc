@@ -1,0 +1,88 @@
+{
+  "name": "SeamlessMerchantBalanceSnapshot",
+  "type": "object",
+  "properties": {
+    "provider_key": {
+      "type": "string",
+      "default": "seamless_ach"
+    },
+    "available_balance": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Settled merchant-level Seamless ACH Balance available for payouts. Never a player balance."
+    },
+    "pending_balance": {
+      "type": "number",
+      "minimum": 0,
+      "default": 0
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "USD"
+      ],
+      "default": "USD"
+    },
+    "as_of": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "seamless_dashboard",
+        "seamless_api",
+        "seamless_support",
+        "manual_admin"
+      ]
+    },
+    "provider_reference_id": {
+      "type": "string",
+      "maxLength": 255
+    },
+    "idempotency_key": {
+      "type": "string",
+      "maxLength": 255,
+      "rls": {
+        "read": false,
+        "write": false
+      }
+    },
+    "captured_by": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string",
+      "maxLength": 2000
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "provider_key",
+    "available_balance",
+    "pending_balance",
+    "currency",
+    "as_of",
+    "source",
+    "idempotency_key",
+    "captured_by",
+    "created_at"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": false,
+    "delete": false
+  }
+}
