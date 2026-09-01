@@ -1,7 +1,6 @@
 import React from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import BottomNav from "./BottomNav";
-import DemoModeNotice from "@/components/DemoModeNotice";
 import PresenceHeartbeat from "@/components/PresenceHeartbeat";
 import AdminActionAlert from "@/components/admin/AdminActionAlert";
 import { useAuth } from "@/lib/AuthContext";
@@ -24,7 +23,6 @@ export default function AppLayout() {
         {!hideNav && user?.role === "admin" && <AdminActionAlert />}
         {showHere && (
           <div className="px-5 pt-6">
-            <DemoModeNotice />
           </div>
         )}
         <Outlet />
