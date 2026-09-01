@@ -1,6 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 import { awardFoundingPlayerBadge, FOUNDING_PLAYER_CAP } from '../../shared/foundingPlayer.ts';
-import { ensureEarlyAccessFunds } from '../../shared/earlyAccessFunding.ts';
+import { ensureUserWallet } from '../../shared/walletProvisioning.ts';
 
 // Invoked by the FoundingPlayerOnSignup workflow whenever a new User record
 // is created. Awards the Founding Player badge to the new user as long as
@@ -14,11 +14,11 @@ export default async function(req) {
     const targetUser = await base44.asServiceRole.entities.User.get(userId);
     if (!targetUser) return Response.json({ error: 'User not found' }, { status: 404 });
 
-    // Signup is the authoritative grant point. Page-level calls remain as a
-    // recovery path, but a user no longer has to visit Play or Wallet first.
-    const funding = await ensureEarlyAccessFunds(base44, targetUser.id);
+    // Signup is the authoritative wallet-provisioning point. Page-level calls
+    // remain a recovery path if this workflow is delayed.
+    const wallet = await ensureUserWallet(base44, targetUser.id);
     if (targetUser.founding_player) {
-      return Response.json({ awarded: false, alreadyAwarded: true, funding });
+      return Response.json({ awarded: false, alreadyAwarded: true, wallet });
     }
 
     const currentFounders = await base44.asServiceRole.entities.User.filter({ founding_player: true });
@@ -28,7 +28,7 @@ export default async function(req) {
 
     const appUrl = (Deno.env.get('APP_URL') || '').replace(/\/$/, '');
     const result = await awardFoundingPlayerBadge(base44, targetUser, appUrl);
-    return Response.json({ ...result, funding });
+    return Response.json({ ...result, wallet });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
