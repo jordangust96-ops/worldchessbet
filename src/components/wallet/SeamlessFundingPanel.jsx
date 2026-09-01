@@ -198,22 +198,22 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
       )}
 
       {/* Account-state notices (preserved from the prior UX) */}
-      {!earlyAccess && withdrawalHold && (
+      {!earlyAccess && effectiveWithdrawalHold && (
         <p className="text-xs text-red-400/80 text-center">
           Withdrawals are temporarily on hold while we complete a routine account review.
         </p>
       )}
-      {!earlyAccess && !withdrawalHold && notVerified && accountState === "provisional" && (
+      {!earlyAccess && !effectiveWithdrawalHold && notVerified && effectiveAccountState === "provisional" && (
         <p className="text-xs text-white/40 text-center">
           Complete identity verification to unlock deposits and withdrawals.
         </p>
       )}
-      {!earlyAccess && !withdrawalHold && accountState === "suspended" && (
+      {!earlyAccess && !effectiveWithdrawalHold && effectiveAccountState === "suspended" && (
         <p className="text-xs text-red-400/80 text-center">
           Your account is currently suspended. Deposits and withdrawals are unavailable.
         </p>
       )}
-      {!earlyAccess && !withdrawalHold && accountState === "closed" && (
+      {!earlyAccess && !effectiveWithdrawalHold && effectiveAccountState === "closed" && (
         <p className="text-xs text-red-400/80 text-center">
           This account is closed. Deposits and withdrawals are unavailable.
         </p>
