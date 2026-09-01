@@ -46,8 +46,8 @@ Deno.serve(async (req) => {
       env: cfg.env,
       publicKey: cfg.publicKey,
       providerUserId: profile.provider_user_id,
-      successUrl: walletPath,
-      cancelUrl: walletPath,
+      successUrl: `${walletPath}?bank_link_return=1`,
+      cancelUrl: `${walletPath}?bank_link_cancelled=1`,
     });
 
     return Response.json({ enabled: true, url, env: cfg.env });
