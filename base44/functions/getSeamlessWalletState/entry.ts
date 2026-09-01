@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
-import { EARLY_ACCESS_MODE } from '../../shared/earlyAccess.ts';
+import { seamlessDepositsEnabled } from '../../shared/seamlessFundingConfig.ts';
 import { isSocureIdentityVerified } from '../../shared/identityEligibility.js';
 
 // Read-only view of the authenticated user's Seamless funding state for the
@@ -7,14 +7,14 @@ import { isSocureIdentityVerified } from '../../shared/identityEligibility.js';
 // SeamlessBankAccount, recent pending Seamless WalletTransactions) — it does
 // NOT call the Seamless API. (No provider transaction readback endpoint is
 // proven in the current Seamless ACH v2 references; that gap is flagged as a
-// launch blocker in the build report.) Fails closed on Early Access.
+// launch blocker in the build report.)
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const earlyAccess = !!EARLY_ACCESS_MODE;
+    const depositsEnabled = seamlessDepositsEnabled();
 
     const profile = (
       await base44.asServiceRole.entities.SeamlessPaymentProfile.filter({ user_id: user.id })
@@ -37,8 +37,8 @@ Deno.serve(async (req) => {
       .slice(0, 10);
 
     return Response.json({
-      early_access: earlyAccess,
-      enabled: !earlyAccess,
+      enabled: true,
+      deposits_enabled: depositsEnabled,
       identity_verified: isSocureIdentityVerified(user),
       identity_status: user.identity_verification_status || 'not_started',
       account_state: user.account_state || 'provisional',
