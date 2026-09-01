@@ -37,7 +37,6 @@ const AdminDisputeCase = lazy(() => import("@/pages/AdminDisputeCase"));
 const MyReports = lazy(() => import("@/pages/MyReports"));
 const AdminSiteActivity = lazy(() => import("@/pages/AdminSiteActivity"));
 const AdminUserFinancials = lazy(() => import("@/pages/AdminUserFinancials"));
-const AdminEarlyAccessCampaign = lazy(() => import("@/pages/AdminEarlyAccessCampaign"));
 const AdminActionCenter = lazy(() => import("@/pages/AdminActionCenter"));
 
 const AppLayout = lazy(() => import("@/components/layout/AppLayout"));
@@ -80,7 +79,7 @@ function RoutedApplication() {
       <Routes>
         <Route path="/" element={isAuthenticated ? <Navigate to="/play" replace /> : <Landing />} />
         <Route path="/features" element={<Navigate to="/about#features" replace />} />
-        <Route path="/pricing" element={<Navigate to="/about#early-access-and-fees" replace />} />
+        <Route path="/pricing" element={<Navigate to="/about#fees-and-eligibility" replace />} />
         <Route path="/about" element={<AboutChessBet />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
@@ -112,7 +111,6 @@ function RoutedApplication() {
                   <Route path="/admin/disputes/:caseId" element={<AdminDisputeCase />} />
                   <Route path="/admin/site-activity" element={<AdminSiteActivity />} />
                   <Route path="/admin/user-financials" element={<AdminUserFinancials />} />
-                  <Route path="/admin/campaigns/early-access-500" element={<AdminEarlyAccessCampaign />} />
                 </Route>
                 <Route element={<AppLayout />}>
                   <Route path="/play" element={<Home />} />
