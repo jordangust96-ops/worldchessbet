@@ -31,6 +31,16 @@ class AtomicModel {
       return { ...op };
     });
   }
+  async depositRequest(key, outcome = 'submitted') {
+    return this.atomic(() => {
+      const existing = this.operations.get(`deposit:${key}`);
+      if (existing) return { ...existing, duplicate: true };
+      const op = { state: outcome };
+      this.operations.set(`deposit:${key}`, op);
+      if (outcome === 'submitted') this.payouts++;
+      return { ...op };
+    });
+  }
   async webhook(eventKey, txId, status, amount, type) {
     return this.atomic(() => {
       if (this.events.has(eventKey)) return 'duplicate';
@@ -80,6 +90,18 @@ const uncertainRetry = await uncertain.withdraw('uncertain', 75);
 assert.equal(uncertainRetry.state, 'uncertain', 'timeout retry remains uncertain and does not resubmit');
 assert.equal(uncertain.payouts, 0, 'uncertain submission never blindly creates a second payout');
 
+const depositRequest = new AtomicModel(100);
+const [depositFirst, depositDuplicate] = await Promise.all([
+  depositRequest.depositRequest('dep-request-1'),
+  depositRequest.depositRequest('dep-request-1'),
+]);
+assert.equal([depositFirst, depositDuplicate].filter((x) => x.state === 'submitted').length, 2, 'duplicate deposit request returns the original submitted operation');
+assert.equal(depositRequest.payouts, 1, 'same deposit key creates one ACH debit');
+const inDoubtDeposit = new AtomicModel(100);
+await inDoubtDeposit.depositRequest('dep-uncertain', 'uncertain');
+assert.equal((await inDoubtDeposit.depositRequest('dep-uncertain')).state, 'uncertain', 'in-doubt deposit retry does not resubmit');
+assert.equal(inDoubtDeposit.payouts, 0, 'in-doubt deposit never blindly creates another ACH debit');
+
 const deposit = new AtomicModel(100);
 await Promise.all([
   deposit.webhook('evt-processed', 'dep-1', 'Processed', 25, 'deposit'),
@@ -110,11 +132,14 @@ await Promise.all([
 ]);
 assert.deepEqual([settledWithdrawal.available, settledWithdrawal.held, settledWithdrawal.reserve, settledWithdrawal.settlement], [100, 0, 0, 0], 'returned withdrawal restores funds exactly once');
 
-const [withdrawalSrc, webhookSrc, storeSrc] = await Promise.all([
+const [depositSrc, withdrawalSrc, webhookSrc, storeSrc] = await Promise.all([
+  readFile(new URL('../base44/functions/submitSeamlessDeposit/entry.ts', import.meta.url), 'utf8'),
   readFile(new URL('../base44/functions/submitSeamlessWithdrawal/entry.ts', import.meta.url), 'utf8'),
   readFile(new URL('../base44/functions/seamlessAchWebhook/entry.ts', import.meta.url), 'utf8'),
   readFile(new URL('../base44/shared/seamlessAtomicStore.ts', import.meta.url), 'utf8'),
 ]);
+assert.match(depositSrc, /claimDepositOperation/, 'deposit claims a durable request operation before external debit');
+assert.match(depositSrc, /integration_status: 'uncertain'/, 'unknown deposit outcome is retained without resubmission');
 assert.match(withdrawalSrc, /acquireUserWalletLock/, 'withdrawal obtains a durable per-user lock before reservation');
 assert.match(withdrawalSrc, /withdrawal_reserve/, 'withdrawal posts a reserve before provider submission');
 assert.match(withdrawalSrc, /integration_status: 'uncertain'/, 'unknown provider outcome is retained without resubmission');
