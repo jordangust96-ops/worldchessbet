@@ -120,49 +120,60 @@ Deno.serve(async (req) => {
       await base44.asServiceRole.entities.WalletTransaction.update(pending.id, {
         status: 'failed', integration_status: 'failed', description: 'Seamless ACH funding requires an account holder name.',
       });
+      await saveDepositOperation(user.id, idempotencyKey, { ...operation, wallet_transaction_id: pending.id, state: 'failed', last_error_code: 'account_holder_name_required' });
       return Response.json({ error: 'A verified account holder name is required before funding.' }, { status: 400 });
     }
 
     const label = `chessbet-deposit-${pending.id}`;
+    // Save a label reference before the provider call. It lets a callback for
+    // an in-doubt request be reconciled without treating the browser retry as
+    // permission to submit a second ACH debit.
+    const existingLabelRef = (await base44.asServiceRole.entities.IntegrationReference.filter({ external_reference_id: label }, '-created_date', 1))[0];
+    if (!existingLabelRef) {
+      await base44.asServiceRole.entities.IntegrationReference.create({
+        provider_key: SEAMLESS_PROVIDER_KEY, reference_type: 'payment', external_reference_id: label,
+        internal_entity_type: 'wallet_transaction', internal_entity_id: pending.id, correlation_id: pending.id,
+        idempotency_key: idempotencyKey, user_id: user.id, wallet_transaction_id: pending.id,
+        status: 'submitting', effective_at: new Date().toISOString(),
+        metadata_json: JSON.stringify({ provider: SEAMLESS_PROVIDER_KEY, direction: 'deposit', label }),
+      });
+    }
+    operation = await saveDepositOperation(user.id, idempotencyKey, { ...operation, wallet_transaction_id: pending.id, label, state: 'submitting' });
+    await base44.asServiceRole.entities.WalletTransaction.update(pending.id, { integration_status: 'submitting', source_event: 'seamless_deposit_submitting' });
+
     const body = buildDepositBody({
-      providerUserId: profile.provider_user_id,
-      name: accountHolderName,
-      amount: value,
-      description: 'Fund wallet',
-      label,
+      providerUserId: profile.provider_user_id, name: accountHolderName, amount: value,
+      description: 'Fund wallet', label,
     });
 
-    let providerRef = '';
+    let data;
     try {
-      const data = await seamlessRequest('POST', PATH_ACH_DEBIT, body);
-      providerRef = data?.check_id || data?.check?.id || data?.id || data?.check?.check_id || '';
-      if (!providerRef) throw new Error('Seamless did not return a transaction id');
+      data = await seamlessRequest('POST', PATH_ACH_DEBIT, body);
     } catch (error) {
-      // Provider rejected the request — keep the transaction as a failed
-      // pending record (NO ledger posting) so it never credits the wallet.
-      await base44.asServiceRole.entities.WalletTransaction.update(pending.id, {
-        integration_status: 'failed',
-        description: `Seamless ACH funding rejected: ${error?.message || 'unknown'}`,
-      });
-      await recordIntegrationEvent(base44, {
-        eventType: 'financial.seamless_deposit_rejected',
-        aggregateType: 'wallet_transaction',
-        aggregateId: pending.id,
-        correlationId: pending.id,
-        idempotencyKey: pending.idempotency_key,
-        actorType: 'user',
-        actorId: user.id,
-        userId: user.id,
-        walletTransactionId: pending.id,
-        status: 'failed',
-        amount: value,
-        result: 'rejected',
-        eventData: { provider: SEAMLESS_PROVIDER_KEY, error: error?.message || 'unknown' },
-      });
-      return Response.json(
-        { error: error?.message || 'Deposit submission failed', transaction_id: pending.id },
-        { status: 400 }
-      );
+      const status = Number(error?.status || 0);
+      if (status >= 400 && status < 500) {
+        await base44.asServiceRole.entities.WalletTransaction.update(pending.id, {
+          status: 'failed', integration_status: 'failed', description: `Seamless ACH funding rejected: ${error?.message || 'unknown'}`,
+        });
+        await saveDepositOperation(user.id, idempotencyKey, { ...operation, wallet_transaction_id: pending.id, label, state: 'failed', last_error_code: 'provider_rejected' });
+        await recordIntegrationEvent(base44, {
+          eventType: 'financial.seamless_deposit_rejected', aggregateType: 'wallet_transaction', aggregateId: pending.id,
+          correlationId: pending.id, idempotencyKey, actorType: 'user', actorId: user.id, userId: user.id,
+          walletTransactionId: pending.id, status: 'failed', amount: value, result: 'rejected',
+          eventData: { provider: SEAMLESS_PROVIDER_KEY, error: error?.message || 'unknown' },
+        });
+        return Response.json({ error: 'Deposit submission failed', transaction_id: pending.id }, { status: 400 });
+      }
+      await base44.asServiceRole.entities.WalletTransaction.update(pending.id, { integration_status: 'uncertain', source_event: 'seamless_deposit_uncertain' });
+      await saveDepositOperation(user.id, idempotencyKey, { ...operation, wallet_transaction_id: pending.id, label, state: 'uncertain', reconciliation_required: true, last_error_code: 'provider_outcome_unknown' });
+      return Response.json({ enabled: true, transaction_id: pending.id, status: 'uncertain', reconciliation_required: true }, { status: 202 });
+    }
+
+    const providerRef = data?.check_id || data?.check?.id || data?.id || data?.check?.check_id || '';
+    if (!providerRef) {
+      await base44.asServiceRole.entities.WalletTransaction.update(pending.id, { integration_status: 'uncertain', source_event: 'seamless_deposit_uncertain' });
+      await saveDepositOperation(user.id, idempotencyKey, { ...operation, wallet_transaction_id: pending.id, label, state: 'uncertain', reconciliation_required: true, last_error_code: 'missing_provider_reference' });
+      return Response.json({ enabled: true, transaction_id: pending.id, status: 'uncertain', reconciliation_required: true }, { status: 202 });
     }
 
     // Submission accepted: mark the durable record as submitted to the provider.
