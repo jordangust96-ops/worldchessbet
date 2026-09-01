@@ -1,49 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
-import { postLedgerLegs } from '../../shared/ledger.ts';
-import { EARLY_ACCESS_MODE } from '../../shared/earlyAccess.ts';
 
-// Reusable, generic marketing/promotional email sender for admins. Pass a
-// unique campaignKey (so re-running never double-sends or double-tops-up),
-// a subject, and htmlBody. Optionally pass ensureMinBalance to top up any
-// recipient's wallet up to that floor (non-withdrawable demo credit, posted
-// through the same double-entry Internal Ledger as a real deposit) before
-// emailing them. Closed accounts (account_state === 'closed') are always
-// excluded from the audience.
-const TOP_UP_DESCRIPTION = 'Early Access balance top-up — pre-launch testing credit';
-
-async function ensureMinimumBalance(base44, userId, minBalance) {
-  let wallet = (await base44.asServiceRole.entities.Wallet.filter({ user_id: userId }))[0];
-  if (!wallet) {
-    wallet = await base44.asServiceRole.entities.Wallet.create({
-      user_id: userId, balance: 0, available_balance: 0, held_balance: 0, total_balance: 0,
-      total_wagered: 0, total_won: 0, total_deposited: 0, total_withdrawn: 0, early_access_credited: false,
-    });
-  }
-
-  const shortfall = minBalance - (wallet.available_balance || 0);
-  if (shortfall <= 0) return false;
-
-  const walletTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
-    user_id: userId, type: 'deposit', amount: shortfall, description: TOP_UP_DESCRIPTION,
-  });
-
-  await postLedgerLegs(base44, {
-    groupId: crypto.randomUUID(),
-    walletTransactionId: walletTransaction.id,
-    actor: 'system',
-    triggerEvent: 'early_access_top_up',
-    legs: [
-      { ledgerAccount: 'settlement', debit: shortfall, credit: 0, transactionType: 'deposit' },
-      { ledgerAccount: 'user_account', userId, debit: 0, credit: shortfall, transactionType: 'deposit', totalDepositedDelta: shortfall },
-    ],
-  });
-
-  if (!wallet.early_access_credited) {
-    await base44.asServiceRole.entities.Wallet.update(wallet.id, { early_access_credited: true });
-  }
-  return true;
-}
-
+// Reusable marketing email sender for admins. Wallet adjustments are not a
+// supported campaign feature; campaign delivery is email-only and idempotent.
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -54,14 +12,13 @@ Deno.serve(async (req) => {
     if (!campaignKey || !subject || !htmlBody) {
       return Response.json({ error: 'campaignKey, subject, and htmlBody are required' }, { status: 400 });
     }
-    if (typeof ensureMinBalance === 'number' && !EARLY_ACCESS_MODE) {
-      return Response.json({ error: 'Promotional wallet top-ups are unavailable in production-mode testing.' }, { status: 409 });
+    if (ensureMinBalance !== undefined) {
+      return Response.json({ error: 'Promotional wallet adjustments are not supported.' }, { status: 409 });
     }
 
     const users = await base44.asServiceRole.entities.User.list();
     const audience = users.filter((u) => u.account_state !== 'closed' && u.email);
-
-    const stats = { total: audience.length, toppedUp: 0, sent: 0, skipped: 0, failed: 0 };
+    const stats = { total: audience.length, sent: 0, skipped: 0, failed: 0 };
     const loginUrl = Deno.env.get('APP_URL') || `https://${Deno.env.get('BASE44_APP_ID')}.base44.app/login`;
 
     for (const user of audience) {
@@ -70,11 +27,6 @@ Deno.serve(async (req) => {
       if (prior?.status === 'success' || prior?.status === 'sending') {
         stats.skipped++;
         continue;
-      }
-
-      if (typeof ensureMinBalance === 'number') {
-        const toppedUp = await ensureMinimumBalance(base44, user.id, ensureMinBalance);
-        if (toppedUp) stats.toppedUp++;
       }
 
       const delivery = prior || await base44.asServiceRole.entities.CampaignDelivery.create({
