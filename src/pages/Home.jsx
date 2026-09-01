@@ -320,13 +320,11 @@ export default function Home() {
       soundEnabledRef.current = soundsOn;
       setSoundEnabled(soundsOn);
       storeSoundPreference(soundsOn);
-      // Ensures a Wallet exists and, while Early Access Mode is on, grants the
-      // one-time $500 bonus balance (recorded as a real WalletTransaction so
+      // Provision a single zero-balance wallet through the service-role backend.
+      // This never creates promotional funds or posts ledger entries.
       // it shows in the user's transaction history) — see
-      // base44/functions/ensureWallet and base44/shared/earlyAccess.ts.
       const { data } = await base44.functions.invoke("ensureWallet", {});
       setWallet(data.wallet);
-      // Event tracking for monitoring $500 Early Access credit promotion usage.
     };
     load();
   }, []);
