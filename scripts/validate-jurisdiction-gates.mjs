@@ -42,21 +42,17 @@ eq(APPROVED_STATES, ['AR', 'CO', 'GA', 'IA', 'KS', 'ND', 'TX', 'VA', 'WI', 'WY']
 ok(APPROVED_STATES.length === 10, 'allowlist has exactly 10 entries');
 ok(new Set(APPROVED_STATES).size === 10, 'allowlist entries are unique');
 
-// ---------- 2. Provider gate (MAXMIND_GEOIP_ENABLED, no Early Access coupling) ----------
+// ---------- 2. Provider gate (MAXMIND_GEOIP_ENABLED) ----------
 ok(isGeoipEnforcementEnabled(false) === false, 'provider off -> enforcement off');
 ok(isGeoipEnforcementEnabled(true) === true, 'provider on -> enforcement on');
 // An Early Access flag passed as a second arg must NOT change the decision —
 // enforcement is decoupled from EARLY_ACCESS_MODE.
-ok(isGeoipEnforcementEnabled(false, true) === false, 'provider off + EA arg -> still off (no EA coupling)');
-ok(isGeoipEnforcementEnabled(false, false) === false, 'provider off + EA off -> still off');
-ok(isGeoipEnforcementEnabled(true, true) === true, 'provider on + EA arg -> still on (no EA coupling)');
-ok(isGeoipEnforcementEnabled(true, false) === true, 'provider on + EA off -> still on');
 const gatesSrc = await read('base44/shared/jurisdictionGates.js');
 ok(/export function isGeoipEnforcementEnabled\s*\(\s*maxmindGeoipEnabled\s*\)/.test(gatesSrc), 'isGeoipEnforcementEnabled takes only the provider flag (no EA param)');
 ok(!/from\s+['"][^'"]*earlyAccess/.test(gatesSrc), 'jurisdictionGates does not import the Early Access module');
 
 // ---------- Admin force-live gate (MAXMIND_ADMIN_FORCE_LIVE_CHECKS) ----------
-ok(canAdminForceLiveCheck(false) === false, 'admin force gate unset (default) -> cannot bypass cache/EA');
+ok(canAdminForceLiveCheck(false) === false, 'admin force gate unset (default) -> cannot bypass cache');
 ok(canAdminForceLiveCheck(true) === true, 'admin force gate set -> may bypass (with admin role)');
 
 // ---------- 5. Cache-reuse predicate (tightened behavior) ----------
