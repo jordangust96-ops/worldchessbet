@@ -39,7 +39,7 @@ export default function WalletPage() {
   const [loading, setLoading] = useState(true);
   const [withdrawalHold, setWithdrawalHold] = useState(false);
   const [accountState, setAccountState] = useState("verified");
-  const [identityStatus, setIdentityStatus] = useState("not_started");
+  const [identityStatus, setIdentityStatus] = useState("not_started");`n  const [fullName, setFullName] = useState("");
 
   useEffect(() => {
     loadData();
@@ -123,6 +123,7 @@ export default function WalletPage() {
     setWithdrawalHold(!!me.withdrawal_hold);
     setAccountState(me.account_state || "verified");
     setIdentityStatus(me.identity_verification_status || "not_started");
+    setFullName(me.full_name || me.name || "");
     // The wallet is always created by the backend (ensureWallet, as
     // the service role) so there is exactly one per user. Never create a
     // wallet from the client — that previously produced a duplicate wallet
@@ -211,7 +212,7 @@ export default function WalletPage() {
           </div>
         </div>
 
-        <SocureIdentityVerificationPanel status={identityStatus} />
+        <SocureIdentityVerificationPanel`n          status={identityStatus}`n          fullName={fullName}`n          onNameSaved={setFullName}`n        />
 
         <SeamlessFundingPanel
           wallet={wallet}
