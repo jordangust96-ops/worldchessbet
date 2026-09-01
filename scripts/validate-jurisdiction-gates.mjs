@@ -154,7 +154,19 @@ ok(entrySrc.includes('MAXMIND_ADMIN_FORCE_LIVE_CHECKS'), 'entry.ts reads MAXMIND
 ok(/liveCheckForcedByAdmin\s*=\s*forceLiveCheck\s*&&\s*user\.role\s*===\s*'admin'\s*&&\s*canAdminForceLiveCheck/.test(entrySrc), 'admin force-live requires admin role AND the server-only gate');
 ok(entrySrc.includes('providerConfigurationUnavailable'), 'disabled or missing MaxMind configuration has an explicit fail-closed path');
 ok(/providerConfigurationUnavailable\)\s*\{\s*status\s*=\s*'verification_failed'/.test(entrySrc), 'disabled or missing MaxMind configuration -> verification_failed');
-ok(!/status:\s*'approved'[\s\S]{0,400}verificationSkipped:\s*true/.test(entrySrc), 'no disabled-provider approved bypass remains');
+// The only approved + verificationSkipped:true path permitted is the
+// explicit role-gated admin bypass: a block guarded by user.role === 'admin'
+// that emits adminBypass: true so administrators can access every page for
+// testing/maintenance regardless of location. A disabled/missing provider
+// must never yield an approved bypass (its fail-closed path is asserted above).
+const vSkippedIdxs = [...entrySrc.matchAll(/verificationSkipped:\s*true/g)].map((m) => m.index);
+ok(
+  vSkippedIdxs.every((i) => {
+    const win = entrySrc.slice(Math.max(0, i - 700), i + 300);
+    return win.includes('adminBypass: true') && win.includes("user.role === 'admin'");
+  }),
+  'verificationSkipped:true only appears inside the role-gated admin bypass (no disabled-provider approved bypass remains)'
+);
 ok(/!lookup\.ok/.test(entrySrc) && /status\s*=\s*'verification_failed'/.test(entrySrc), 'provider lookup failure -> verification_failed (fail-closed preserved)');
 ok(!entrySrc.includes('VERIFICATION_CACHE_TTL_MS = 15'), 'TTL constant moved to the pure shared module (no duplicate)');
 

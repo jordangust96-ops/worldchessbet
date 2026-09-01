@@ -213,6 +213,43 @@ Deno.serve(async (req) => {
       // No body provided — defaults above are fine.
     }
 
+    // Platform administrators bypass geolocation enforcement entirely so they
+    // can access every page and exercise every feature for testing and site
+    // maintenance regardless of where they connect from. No MaxMind lookup is
+    // performed and no JurisdictionVerificationLog is written (there is no
+    // provider event to audit). This is the single authoritative admin bypass:
+    // every downstream consumer — the client JurisdictionAccessGuard,
+    // runContestEligibility, submitSeamlessDeposit, and lockWager — reads the
+    // approved status returned here, so admins are never blocked by a
+    // location check. It does not waive Socure identity verification, MFA,
+    // balance, bank verification, ledger safeguards, or the
+    // SEAMLESS_DEPOSITS_ENABLED funding gate.
+    if (user.role === 'admin') {
+      const now = new Date().toISOString();
+      await base44.asServiceRole.entities.User.update(user.id, {
+        jurisdiction_status: 'approved',
+        current_jurisdiction_state: '',
+        current_jurisdiction_country: '',
+        jurisdiction_last_verified_at: now,
+        jurisdiction_verification_provider: PROVIDER,
+        jurisdiction_vpn_detected: false,
+      });
+      return Response.json({
+        status: 'approved',
+        approved: true,
+        state: '',
+        country: '',
+        vpnDetected: false,
+        reason: '',
+        provider: PROVIDER,
+        enforcementEnabled: ENABLE_GEOLOCATION_ENFORCEMENT,
+        verificationSkipped: true,
+        adminBypass: true,
+        cached: false,
+        verifiedAt: now,
+      });
+    }
+
     // cf-connecting-ip is set by Cloudflare's edge and cannot be spoofed by
     // the client; x-forwarded-for is client-influenceable and must never be
     // trusted as the primary source for a jurisdiction decision.

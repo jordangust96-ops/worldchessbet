@@ -15,7 +15,8 @@
     "test:ledger": "node scripts/validate-ledger-integrity.mjs",
     "test:jurisdiction": "node scripts/validate-jurisdiction-gates.mjs",
     "test:waitlist": "node scripts/validate-jurisdiction-waitlist.mjs",
-    "test:socure": "node scripts/validate-socure-identity.mjs",`n    "test:launch": "node scripts/validate-launch-readiness.mjs"
+    "test:socure": "node scripts/validate-socure-identity.mjs",
+    "test:launch": "node scripts/validate-launch-readiness.mjs"
   },
   "dependencies": {
     "@base44/sdk": "^0.8.44",
