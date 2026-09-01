@@ -230,18 +230,15 @@ ok(applyWebhookEvent({ status: 'completed' }, { status: 'Pending' }).action === 
 ok(applyWebhookEvent({ status: 'failed' }, { status: 'Processed' }).action === 'ignore',
   'out-of-order Processed after failed -> ignore (no resurrection)');
 
-// ---------------- Static guards: Early Access blocking + webhook auth ----------------
-const earlyAccessGateFiles = [
-  'base44/functions/ensureSeamlessCustomer/entry.ts',
-  'base44/functions/createSeamlessBankLinkUrl/entry.ts',
-  'base44/functions/submitSeamlessDeposit/entry.ts',
-  'base44/functions/submitSeamlessWithdrawal/entry.ts',
-];
-for (const f of earlyAccessGateFiles) {
+// ---------------- Static guards: deposit-only switch + webhook auth ----------------
+const depositSrc = await read('base44/functions/submitSeamlessDeposit/entry.ts');
+ok(depositSrc.includes('seamlessDepositsEnabled()'), 'deposit requires the dedicated server-side switch');
+ok(depositSrc.indexOf('seamlessDepositsEnabled()') < depositSrc.indexOf('claimDepositOperation'), 'deposit switch precedes durable mutation');
+ok(depositSrc.indexOf('seamlessDepositsEnabled()') < depositSrc.indexOf('seamlessRequest'), 'deposit switch precedes provider request');
+ok(depositSrc.includes('isSocureIdentityVerified'), 'deposit retains Socure eligibility');
+for (const f of ['base44/functions/ensureSeamlessCustomer/entry.ts', 'base44/functions/createSeamlessBankLinkUrl/entry.ts', 'base44/functions/submitSeamlessWithdrawal/entry.ts']) {
   const src = await read(f);
-  ok(src.includes('EARLY_ACCESS_MODE'), `${f} imports/uses EARLY_ACCESS_MODE`);
-  ok(/EARLY_ACCESS_MODE\)/.test(src) && /enabled:\s*false/.test(src), `${f} returns disabled while Early Access is on`);
-  ok(src.includes('isSocureIdentityVerified'), `${f} retains the production Socure eligibility predicate`);
+  ok(src.includes('isSocureIdentityVerified'), f + ' retains Socure eligibility');
 }
 
 const webhookSrc = await read('base44/functions/seamlessAchWebhook/entry.ts');
