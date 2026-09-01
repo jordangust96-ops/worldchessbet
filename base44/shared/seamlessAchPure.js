@@ -171,10 +171,11 @@ export function applyFundingSourceEvent(current, event) {
   const eventType = String(event?.eventType || '');
   const currentStatus = current?.status || '';
   const incomingStatus = FUNDING_SOURCE_EVENT_STATUS[eventType] || '';
+  const metadataEvent = ['funding-source.updated', 'funding-source.made-primary', 'funding-source.made-billing'].includes(eventType);
   const incomingAt = normalizeProviderEventTime(event?.timestamp);
   const currentAt = normalizeProviderEventTime(current?.provider_event_at);
 
-  if (!incomingStatus) {
+  if (!incomingStatus && !metadataEvent) {
     return { action: 'ignore', status: currentStatus || 'added', providerEventAt: currentAt, reason: 'unsupported_event' };
   }
 
@@ -185,7 +186,7 @@ export function applyFundingSourceEvent(current, event) {
       return { action: 'ignore', status: currentStatus, providerEventAt: currentAt, reason: 'stale_event' };
     }
     if (
-      incomingMs === currentMs &&
+      incomingMs === currentMs && incomingStatus &&
       (FUNDING_SOURCE_STATUS_PRIORITY[incomingStatus] || 0) <=
         (FUNDING_SOURCE_STATUS_PRIORITY[currentStatus] || 0)
     ) {
@@ -201,6 +202,15 @@ export function applyFundingSourceEvent(current, event) {
     if (eventType === 'funding-source.verified' && currentStatus === 'deleted') {
       return { action: 'ignore', status: currentStatus, providerEventAt: currentAt, reason: 'non_resurrection' };
     }
+  }
+
+  if (metadataEvent) {
+    return {
+      action: 'metadata',
+      status: currentStatus || 'added',
+      providerEventAt: incomingAt || currentAt,
+      reason: 'accepted',
+    };
   }
 
   return {
