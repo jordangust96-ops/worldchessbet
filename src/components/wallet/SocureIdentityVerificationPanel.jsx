@@ -26,8 +26,9 @@ export default function SocureIdentityVerificationPanel({ status = "not_started"
       <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.05] p-4 flex items-center gap-3">
         <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
         <div>
-          <p className="text-sm font-medium text-emerald-200">Identity verified</p>
-          <p className="text-xs text-emerald-200/60 mt-0.5">Your account is eligible for the identity-verification requirement.</p>
+          <p className="text-[10px] uppercase tracking-widest text-emerald-300/70">Step 1</p>
+          <p className="text-sm font-medium text-emerald-200 mt-0.5">Identity verified</p>
+          <p className="text-xs text-emerald-200/60 mt-0.5">You can continue to bank connection.</p>
         </div>
       </div>
     );
@@ -58,7 +59,8 @@ export default function SocureIdentityVerificationPanel({ status = "not_started"
           <ShieldCheck size={18} className="text-[#C9A84C]" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-white">Identity verification</p>
+          <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]">Step 1</p>
+          <p className="text-sm font-medium text-white mt-0.5">Verify your identity</p>
           <p className="text-xs text-white/50 mt-1">{COPY[status] || COPY.not_started}</p>
         </div>
       </div>
