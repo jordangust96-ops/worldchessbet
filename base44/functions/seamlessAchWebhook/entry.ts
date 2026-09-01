@@ -1,14 +1,16 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import {
   verifySeamlessWebhookAuth, webhookIdempotencyKey, mapTransactionStatus,
-  applyWebhookEvent, SEAMLESS_PROVIDER_KEY,
+  applyWebhookEvent, applyFundingSourceEvent, normalizeProviderEventTime,
+  SEAMLESS_PROVIDER_KEY,
 } from '../../shared/seamlessAch.ts';
 import { postLedgerLegs } from '../../shared/ledger.ts';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 import { claimWebhookEvent, finishWebhookEvent } from '../../shared/seamlessAtomicStore.ts';
 
 function pickCheckId(body) { return body?.check?.id || body?.check?.check_id || body?.check_id || body?.id || ''; }
-function pickSourceId(body) { return body?.source?.id || body?.source_id || body?.funding_source?.id || body?.fundingSourceId || ''; }
+function pickSourceId(body) { return body?.source?.id || body?.source_id || body?.funding_source?.id || body?.funding_source_id || body?.fundingSourceId || ''; }
+function pickCustomerId(body) { return body?.customer_id || body?.user_id || body?.user?.id || body?.customer?.id || ''; }
 function pickLabel(body) { return body?.check?.label || body?.label || body?.transaction?.label || ''; }
 function pickEventType(body) { return body?.event || body?.event_type || body?.type || ''; }
 function pickEventId(body) { return body?.event_id || body?.webhook_id || ''; }
@@ -65,30 +67,176 @@ Deno.serve(async (req) => {
   }
 });
 
-async function handleFundingSource(base44, body, eventType, idemKey) {
-  const statusMap = {
-    'funding-source.added': 'added', 'funding-source.updated': 'added',
-    'funding-source.pending-verification': 'pending_verification', 'funding-source.verified': 'verified',
-    'funding-source.verification-failed': 'verification_failed', 'funding-source.verification-expired': 'verification_expired',
-    'funding-source.deleted': 'deleted', 'funding-source.made-primary': 'verified',
-  };
-  const sourceId = pickSourceId(body) || pickCheckId(body);
-  const providerUserId = body?.user_id || body?.user?.id || '';
-  let bank = sourceId ? (await base44.asServiceRole.entities.SeamlessBankAccount.filter({ source_id: sourceId }))[0] : null;
-  if (!bank && providerUserId) bank = (await base44.asServiceRole.entities.SeamlessBankAccount.filter({ provider_user_id: providerUserId }))[0];
-  if (bank) {
-    const updates = { status: statusMap[eventType] || 'added' };
-    if (updates.status === 'verified') updates.verified_at = new Date().toISOString();
-    if (eventType === 'funding-source.made-primary') updates.is_primary = true;
-    await base44.asServiceRole.entities.SeamlessBankAccount.update(bank.id, updates);
-  }
+const FUNDING_SOURCE_EVENTS = new Set([
+  'funding-source.added',
+  'funding-source.updated',
+  'funding-source.pending-verification',
+  'funding-source.verified',
+  'funding-source.verification-failed',
+  'funding-source.verification-expired',
+  'funding-source.deleted',
+  'funding-source.made-primary',
+  'funding-source.made-billing',
+]);
+
+function safeLastFour(body) {
+  const candidate =
+    body?.last_four ?? body?.account_mask ?? body?.source?.last_four ??
+    body?.funding_source?.last_four ?? '';
+  const digits = String(candidate).replace(/\D/g, '');
+  return digits.length >= 4 ? digits.slice(-4) : '';
+}
+
+function safeAccountName(body) {
+  const candidate =
+    body?.institution?.name ?? body?.bank_name ?? body?.source?.bank_name ??
+    body?.funding_source?.bank_name ?? body?.source?.nickname ?? '';
+  return String(candidate || '').trim().slice(0, 160);
+}
+
+async function auditFundingSource(base44, {
+  eventType, idemKey, sourceId, providerUserId, bank, profile, status, result, reason,
+}) {
   await recordIntegrationEvent(base44, {
-    eventType: `seamless.${eventType}`, aggregateType: 'wallet', aggregateId: bank?.user_id || providerUserId || sourceId || idemKey,
-    correlationId: sourceId || providerUserId || idemKey, idempotencyKey: `audit:${idemKey}`, actorType: 'system',
-    userId: bank?.user_id || '', status: statusMap[eventType] || 'added',
-    eventData: { source_id: sourceId, provider_user_id: providerUserId, bank_id: bank?.id || '' },
+    eventType: `seamless.${eventType || 'funding-source.unknown'}`,
+    aggregateType: 'wallet',
+    aggregateId: bank?.user_id || profile?.user_id || providerUserId || sourceId || idemKey,
+    correlationId: sourceId || providerUserId || idemKey,
+    idempotencyKey: `audit:${idemKey}`,
+    actorType: 'system',
+    userId: bank?.user_id || profile?.user_id || '',
+    status,
+    result,
+    eventData: {
+      provider: SEAMLESS_PROVIDER_KEY,
+      source_id: sourceId,
+      provider_user_id: providerUserId,
+      bank_id: bank?.id || '',
+      profile_id: profile?.id || '',
+      reason,
+    },
   });
-  return { received: true, applied: true };
+}
+
+async function handleFundingSource(base44, body, eventType, idemKey) {
+  const sourceId = pickSourceId(body);
+  const providerUserId = pickCustomerId(body);
+  const eventId = pickEventId(body);
+  const eventTime = body?.timestamp || body?.occurred_at || '';
+
+  if (!FUNDING_SOURCE_EVENTS.has(eventType)) {
+    await auditFundingSource(base44, {
+      eventType, idemKey, sourceId, providerUserId,
+      status: 'ignored', result: 'unsupported_event', reason: 'unsupported_event',
+    });
+    return { received: true, applied: false, ignored: true };
+  }
+
+  const profiles = providerUserId
+    ? await base44.asServiceRole.entities.SeamlessPaymentProfile.filter(
+        { provider_user_id: providerUserId }, '-created_date', 2
+      )
+    : [];
+  const profile = profiles.length === 1 && profiles[0].provider_key === SEAMLESS_PROVIDER_KEY
+    ? profiles[0]
+    : null;
+
+  if (!profile) {
+    await auditFundingSource(base44, {
+      eventType, idemKey, sourceId, providerUserId,
+      status: 'unmatched', result: 'ownership_unmatched',
+      reason: providerUserId ? (profiles.length > 1 ? 'ambiguous_customer' : 'unknown_customer') : 'missing_customer_id',
+    });
+    return { received: true, applied: false, unmatched: true };
+  }
+
+  // Pending-verification callbacks may intentionally omit source_id. A
+  // provider customer alone is not enough to select one of multiple banks, so
+  // retain the audit signal and wait for a later identified source event.
+  if (!sourceId) {
+    await auditFundingSource(base44, {
+      eventType, idemKey, sourceId, providerUserId, profile,
+      status: 'pending', result: 'awaiting_source_id', reason: 'missing_source_id',
+    });
+    return { received: true, applied: false, awaiting_source_id: true };
+  }
+
+  const banks = await base44.asServiceRole.entities.SeamlessBankAccount.filter(
+    { source_id: sourceId }, '-created_date', 2
+  );
+  if (banks.length > 1) {
+    await auditFundingSource(base44, {
+      eventType, idemKey, sourceId, providerUserId, profile,
+      status: 'unmatched', result: 'duplicate_source_records', reason: 'ambiguous_source',
+    });
+    return { received: true, applied: false, unmatched: true };
+  }
+
+  let bank = banks[0] || null;
+  if (bank && (
+    bank.user_id !== profile.user_id ||
+    bank.profile_id !== profile.id ||
+    bank.provider_user_id !== providerUserId
+  )) {
+    await auditFundingSource(base44, {
+      eventType, idemKey, sourceId, providerUserId, bank, profile,
+      status: 'unmatched', result: 'ownership_conflict', reason: 'source_profile_mismatch',
+    });
+    return { received: true, applied: false, unmatched: true };
+  }
+
+  const decision = applyFundingSourceEvent(bank, { eventType, timestamp: eventTime });
+  const accountName = safeAccountName(body);
+  const accountMask = safeLastFour(body);
+  const providerEventAt = normalizeProviderEventTime(eventTime);
+  const now = new Date().toISOString();
+
+  if (!bank) {
+    const initialStatus = decision.status || 'added';
+    bank = await base44.asServiceRole.entities.SeamlessBankAccount.create({
+      user_id: profile.user_id,
+      source_id: sourceId,
+      profile_id: profile.id,
+      provider_user_id: providerUserId,
+      account_name: accountName,
+      account_mask: accountMask,
+      is_primary: eventType === 'funding-source.made-primary',
+      status: initialStatus,
+      added_at: providerEventAt || now,
+      verified_at: initialStatus === 'verified' ? (providerEventAt || now) : '',
+      provider_event_at: providerEventAt || '',
+      last_provider_event_id: eventId || '',
+    });
+  } else if (decision.action === 'apply' || eventType === 'funding-source.updated' ||
+             eventType === 'funding-source.made-primary' || eventType === 'funding-source.made-billing') {
+    const updates = {};
+    if (decision.action === 'apply') {
+      updates.status = decision.status;
+      if (providerEventAt) updates.provider_event_at = providerEventAt;
+      if (eventId) updates.last_provider_event_id = eventId;
+      if (decision.status === 'verified') updates.verified_at = providerEventAt || now;
+      if (['verification_failed', 'verification_expired', 'deleted'].includes(decision.status)) {
+        updates.is_primary = false;
+      }
+    }
+    if (accountName) updates.account_name = accountName;
+    if (accountMask) updates.account_mask = accountMask;
+    if (eventType === 'funding-source.made-primary') updates.is_primary = true;
+    if (Object.keys(updates).length > 0) {
+      bank = await base44.asServiceRole.entities.SeamlessBankAccount.update(bank.id, updates);
+    }
+  }
+
+  await auditFundingSource(base44, {
+    eventType, idemKey, sourceId, providerUserId, bank, profile,
+    status: bank.status, result: decision.action, reason: decision.reason,
+  });
+  return {
+    received: true,
+    applied: decision.action === 'apply' || !banks[0],
+    bank_status: bank.status,
+    stale: decision.reason === 'stale_event',
+  };
 }
 
 async function findReference(base44, providerRef, label) {
