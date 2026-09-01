@@ -96,7 +96,11 @@
     },
     "requested_by_admin_id": {
       "type": "string",
-      "description": "Administrator who explicitly initiated the paid screening after MFA."
+      "description": "Legacy administrator initiator, retained for prior audit records."
+    },
+    "requested_by_user_id": {
+      "type": "string",
+      "description": "Authenticated user who initiated screening for their own verified funding source."
     },
     "requested_at": {
       "type": "string",
@@ -124,7 +128,6 @@
     "workflow",
     "status",
     "decision",
-    "requested_by_admin_id",
     "requested_at"
   ],
   "rls": {
