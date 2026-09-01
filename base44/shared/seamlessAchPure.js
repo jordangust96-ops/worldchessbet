@@ -134,6 +134,83 @@ export function webhookIdempotencyKey({ eventId, providerRef, eventType, status,
   return `seamless:${h.toString(16)}`;
 }
 
+export const FUNDING_SOURCE_EVENT_STATUS = Object.freeze({
+  'funding-source.added': 'added',
+  'funding-source.pending-verification': 'pending_verification',
+  'funding-source.verified': 'verified',
+  'funding-source.verification-failed': 'verification_failed',
+  'funding-source.verification-expired': 'verification_expired',
+  'funding-source.deleted': 'deleted',
+});
+
+const FUNDING_SOURCE_STATUS_PRIORITY = Object.freeze({
+  added: 10,
+  pending_verification: 20,
+  verified: 30,
+  verification_failed: 40,
+  verification_expired: 50,
+  deleted: 60,
+  error: 70,
+});
+
+export function normalizeProviderEventTime(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(raw);
+  const normalized = raw.includes('T') ? raw : raw.replace(' ', 'T');
+  const millis = Date.parse(hasTimezone ? normalized : `${normalized}Z`);
+  return Number.isFinite(millis) ? new Date(millis).toISOString() : '';
+}
+
+// Pure funding-source lifecycle reducer. Provider timestamps decide ordering
+// when available. At equal timestamps, the more restrictive/advanced state
+// wins. Without a provider timestamp, additive events cannot downgrade an
+// already verified or unavailable source, while explicit unavailable events
+// still fail closed.
+export function applyFundingSourceEvent(current, event) {
+  const eventType = String(event?.eventType || '');
+  const currentStatus = current?.status || '';
+  const incomingStatus = FUNDING_SOURCE_EVENT_STATUS[eventType] || '';
+  const incomingAt = normalizeProviderEventTime(event?.timestamp);
+  const currentAt = normalizeProviderEventTime(current?.provider_event_at);
+
+  if (!incomingStatus) {
+    return { action: 'ignore', status: currentStatus || 'added', providerEventAt: currentAt, reason: 'unsupported_event' };
+  }
+
+  if (incomingAt && currentAt) {
+    const incomingMs = Date.parse(incomingAt);
+    const currentMs = Date.parse(currentAt);
+    if (incomingMs < currentMs) {
+      return { action: 'ignore', status: currentStatus, providerEventAt: currentAt, reason: 'stale_event' };
+    }
+    if (
+      incomingMs === currentMs &&
+      (FUNDING_SOURCE_STATUS_PRIORITY[incomingStatus] || 0) <=
+        (FUNDING_SOURCE_STATUS_PRIORITY[currentStatus] || 0)
+    ) {
+      return { action: 'ignore', status: currentStatus, providerEventAt: currentAt, reason: 'stale_event' };
+    }
+  }
+
+  if (!incomingAt && currentStatus) {
+    if (['funding-source.added', 'funding-source.pending-verification'].includes(eventType) &&
+        ['verified', 'verification_failed', 'verification_expired', 'deleted'].includes(currentStatus)) {
+      return { action: 'ignore', status: currentStatus, providerEventAt: currentAt, reason: 'non_downgrade' };
+    }
+    if (eventType === 'funding-source.verified' && currentStatus === 'deleted') {
+      return { action: 'ignore', status: currentStatus, providerEventAt: currentAt, reason: 'non_resurrection' };
+    }
+  }
+
+  return {
+    action: currentStatus === incomingStatus && (!incomingAt || incomingAt === currentAt) ? 'ignore' : 'apply',
+    status: incomingStatus,
+    providerEventAt: incomingAt || currentAt,
+    reason: 'accepted',
+  };
+}
+
 // Pure decision reducer for transaction.status webhooks. Returns the intended
 // action and the next WalletTransaction status WITHOUT touching the DB. The
 // real webhook handler re-verifies current state before enacting, so this is
