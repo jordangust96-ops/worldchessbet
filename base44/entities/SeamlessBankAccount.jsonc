@@ -52,6 +52,15 @@
       "type": "string",
       "format": "date-time"
     },
+    "provider_event_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp from the latest accepted Seamless funding-source event. Used to reject stale out-of-order lifecycle updates."
+    },
+    "last_provider_event_id": {
+      "type": "string",
+      "description": "Opaque Seamless event id for replay diagnostics. Never supplied by the browser."
+    },
     "description": {
       "type": "string",
       "maxLength": 1000,
