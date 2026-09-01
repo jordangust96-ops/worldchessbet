@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
-import { seamlessDepositsEnabled } from '../../shared/seamlessFundingConfig.ts';
+import { seamlessDepositsEnabled, seamlessWithdrawalsEnabled } from '../../shared/seamlessFundingConfig.ts';
 import { isSocureIdentityVerified } from '../../shared/identityEligibility.js';
 import { socureConfig } from '../../shared/socure.ts';
 import { latestSocureBankVerification, publicSocureBankStatus } from '../../shared/socureBankEligibility.js';
@@ -17,6 +17,7 @@ Deno.serve(async (req) => {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const depositsEnabled = seamlessDepositsEnabled();
+    const withdrawalsEnabled = seamlessWithdrawalsEnabled();
     let bankScreeningEnabled = false;
     try { bankScreeningEnabled = !!socureConfig().enabled; } catch { bankScreeningEnabled = false; }
 
@@ -46,6 +47,7 @@ Deno.serve(async (req) => {
     return Response.json({
       enabled: true,
       deposits_enabled: depositsEnabled,
+      withdrawals_enabled: withdrawalsEnabled,
       bank_screening_enabled: bankScreeningEnabled,
       identity_verified: isSocureIdentityVerified(user),
       identity_status: user.identity_verification_status || 'not_started',
