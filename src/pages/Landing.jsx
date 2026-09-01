@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Crown, Zap, Shield, CircleCheck, WalletCards } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,8 +8,6 @@ import { SITE_URL } from "@/lib/seoConfig";
 
 import HowItWorksSection from "@/components/landing/HowItWorksSection";
 import PlayerProtectionCallout from "@/components/landing/PlayerProtectionCallout";
-
-const NotifyAtLaunchModal = lazy(() => import("@/components/NotifyAtLaunchModal"));
 
 const LANDING_URL = `${SITE_URL}/`;
 const SEO_TITLE = "Play Chess for Real Money — Head-to-Head Cash Contests | ChessBet";
@@ -23,7 +21,7 @@ const HERO_FEATURES = [
     label: "Fund your\nwallet",
     heading: "Add funds securely",
     description: "Fund your ChessBet wallet before entering a cash challenge.",
-    points: ["Cash funding after Early Access", "Supported U.S. locations only", "Eligibility checked before funding"],
+    points: ["Supported U.S. locations only", "Identity verification required", "Eligibility checked before funding"],
   },
   {
     id: "create-your-challenge",
@@ -39,7 +37,7 @@ const HERO_FEATURES = [
     label: "Play to\nwin",
     heading: "Skill decides the prize",
     description: "Win the match. Win the cash prize.",
-    points: ["Chess only", "Your result counts", "Cash-prize play is coming soon"],
+    points: ["Chess only", "Your result counts", "Eligibility required"],
   },
   {
     id: "fair-play",
@@ -122,7 +120,6 @@ function LandingAmbientGlow() {
 }
 
 export default function Landing() {
-  const [notifyModalOpen, setNotifyModalOpen] = useState(false);
   const [expandedFeature, setExpandedFeature] = useState(null);
   const activeFeature = HERO_FEATURES.find(({ id }) => id === expandedFeature);
   const ActiveFeatureIcon = activeFeature?.icon;
@@ -172,11 +169,11 @@ export default function Landing() {
                   size="lg"
                   className="w-full gold-gradient text-black font-bold text-lg h-14 rounded-2xl hover:opacity-90 transition-opacity"
                 >
-                  Join early access
+                  Create account
                 </Button>
               </Link>
               <p className="mt-3 text-xs leading-relaxed text-white/60">
-                Cash play will be limited to supported U.S. locations when it launches — check eligibility before you fund your account in the{" "}
+                Cash-prize contests are limited to eligible players in supported U.S. locations — check eligibility before funding your account in the{" "}
                 <Link to="/official-rules#eligibility" className="font-semibold text-[#C9A84C] hover:underline underline-offset-4">Official Rules</Link>.
               </p>
               <Link to="/fair-play-integrity#fair-play-and-appeals" className="mt-4 inline-flex text-sm font-semibold text-[#C9A84C] hover:underline underline-offset-4">
@@ -244,13 +241,7 @@ export default function Landing() {
           )}
 
           <p className="text-white/55 text-xs mt-8 max-w-sm">
-            Cash-prize play launches after Early Access.{" "}
-            <button
-              onClick={() => setNotifyModalOpen(true)}
-              className="text-[#C9A84C] font-semibold hover:underline underline-offset-2"
-            >
-              Get notified.
-            </button>
+            Identity, location, and account eligibility are required for cash-prize contests.
           </p>
         </section>
 
@@ -270,11 +261,6 @@ export default function Landing() {
         <p className="text-white/45 text-xs">© 2026 ChessBet. All rights reserved.</p>
       </footer>
 
-      {notifyModalOpen && (
-        <Suspense fallback={null}>
-          <NotifyAtLaunchModal open={notifyModalOpen} onOpenChange={setNotifyModalOpen} />
-        </Suspense>
-      )}
     </div>
   );
 }
