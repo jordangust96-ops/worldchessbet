@@ -10,7 +10,7 @@ import { base44 } from "@/api/base44Client";
 // withdraw UI on the Wallet page. Real deposit calls require the server-side
 // SEAMLESS_DEPOSITS_ENABLED switch; all bank actions require verified accounts. This UI
 // only surfaces the resulting states (verified / pending / failed bank and
-// payment). It never trusts the Seamless browser callback as verification ?
+// payment). It never trusts the Seamless browser callback as verification;
 // only the funding-source.verified webhook persists a verified source_id.
 
 const BANK_STATUS = {
@@ -42,7 +42,7 @@ function BankRow({ bank }) {
         <div className="min-w-0">
           <p className="text-sm text-white/90 truncate">
             {bank.account_name || "Bank account"}
-            {bank.account_mask ? ` ????${bank.account_mask}` : ""}
+            {bank.account_mask ? ` ending in ${bank.account_mask}` : ""}
           </p>
           {bank.is_primary && (
             <span className="text-[10px] uppercase tracking-wider text-[#C9A84C]">Primary</span>
@@ -70,7 +70,7 @@ function TxRow({ tx }) {
       </div>
       <div className="flex items-center gap-2 shrink-0">
         <span className={isDeposit ? "text-emerald-400" : "text-white/70"}>
-          {isDeposit ? "+" : "?"}${Number(tx.amount || 0).toFixed(2)}
+          {isDeposit ? "+" : "-"}${Number(tx.amount || 0).toFixed(2)}
         </span>
         <span className={`text-xs ${s.color}`}>{s.label}</span>
       </div>
@@ -131,7 +131,7 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
       const { data: link } = await base44.functions.invoke("createSeamlessBankLinkUrl", {});
       if (!link?.enabled) throw new Error(link?.reason || "Could not start bank linking.");
       // Redirect to Seamless hosted bank authorization. The browser callback is
-      // NOT verification ? the funding-source.verified webhook is authoritative.
+      // NOT verification; the funding-source.verified webhook is authoritative.
       window.location.href = link.url;
     } catch {
       setError("We couldn't start the secure bank connection. Please try again or contact support.");
@@ -275,7 +275,7 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
             className="text-xs text-[#C9A84C] hover:text-[#E8D48B] h-8 px-2 disabled:opacity-30 shrink-0"
           >
             {busy === "linking" ? <Loader2 size={14} className="animate-spin" /> : <Link2 size={14} />}
-            <span className="ml-1">{busy === "linking" ? "Connecting?" : state?.banks?.length ? "Reconnect" : "Connect bank"}</span>
+            <span className="ml-1">{busy === "linking" ? "Connecting..." : state?.banks?.length ? "Reconnect" : "Connect bank"}</span>
           </Button>
         </div>
         {state?.banks?.length ? (
@@ -405,7 +405,7 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
           className="w-full h-12 rounded-xl gold-gradient text-black font-bold hover:opacity-90 disabled:opacity-30"
         >
           {busy ? (
-            <><Loader2 size={16} className="animate-spin mr-2" /> Submitting?</>
+            <><Loader2 size={16} className="animate-spin mr-2" /> Submitting...</>
           ) : verifiedBank && bankScreened ? (
             direction === "deposit" ? "Fund via Seamless ACH" : "Withdraw via Seamless ACH"
           ) : (
