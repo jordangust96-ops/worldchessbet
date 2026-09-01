@@ -87,8 +87,8 @@ await Promise.all([
 ]);
 assert.equal(deposit.available, 125, 'concurrent duplicate Processed credits deposit once');
 await Promise.all([
-  deposit.webhook('evt-returned', 'dep-1', 'Refunded', 25, 'deposit'),
-  deposit.webhook('evt-returned', 'dep-1', 'Refunded', 25, 'deposit'),
+  deposit.webhook('evt-returned', 'dep-1', 'Returned', 25, 'deposit'),
+  deposit.webhook('evt-returned', 'dep-1', 'Returned', 25, 'deposit'),
 ]);
 assert.equal(deposit.available, 100, 'concurrent duplicate Return reverses deposit once');
 
@@ -105,8 +105,8 @@ await Promise.all([
 ]);
 assert.deepEqual([settledWithdrawal.available, settledWithdrawal.held, settledWithdrawal.reserve, settledWithdrawal.settlement], [25, 0, 0, 75], 'Processed finalizes the held withdrawal exactly once');
 await Promise.all([
-  settledWithdrawal.webhook('wd-return-event', 'wd-processed', 'Refunded', 75, 'withdrawal'),
-  settledWithdrawal.webhook('wd-return-event', 'wd-processed', 'Refunded', 75, 'withdrawal'),
+  settledWithdrawal.webhook('wd-return-event', 'wd-processed', 'Returned', 75, 'withdrawal'),
+  settledWithdrawal.webhook('wd-return-event', 'wd-processed', 'Returned', 75, 'withdrawal'),
 ]);
 assert.deepEqual([settledWithdrawal.available, settledWithdrawal.held, settledWithdrawal.reserve, settledWithdrawal.settlement], [100, 0, 0, 0], 'returned withdrawal restores funds exactly once');
 
