@@ -329,7 +329,7 @@ ok(!/profile,\s*\n\s*banks,/.test(walletStateSrc), 'wallet state does not return
 
 const fundingPanelSrc = await read('src/components/wallet/SeamlessFundingPanel.jsx');
 ok(fundingPanelSrc.includes('pollAttempts.current >= 10'), 'wallet polling is bounded');
-ok(fundingPanelSrc.includes("direction === 'deposit' && !depositsEnabled"), 'deposit input follows the deposit-only switch');
+ok(fundingPanelSrc.includes("const transferDirectionEnabled = direction === 'deposit' ? depositsEnabled : withdrawalsEnabled"), 'funding input follows independent direction switches');
 ok(fundingPanelSrc.includes('Verify your identity before connecting a bank account.'), 'wallet explains progressive identity gate');
 
 // No live Seamless network call should occur in tests; assert the pure module
