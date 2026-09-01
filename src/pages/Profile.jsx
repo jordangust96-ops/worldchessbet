@@ -5,7 +5,6 @@ import { Trophy, Swords, LogOut, Loader2, Crown, XCircle, Flag, ChevronRight, He
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import Logo from "@/components/Logo";
-import DemoModeNotice from "@/components/DemoModeNotice";
 import LegalSection from "@/components/profile/LegalSection";
 import DeleteAccountButton from "@/components/profile/DeleteAccountButton";
 import AdminToolsSection from "@/components/profile/AdminToolsSection";
@@ -135,7 +134,6 @@ export default function Profile() {
         <Link to="/play" className="inline-block">
           <Logo size="sm" />
         </Link>
-        <DemoModeNotice />
 
         {/* Profile Header */}
         <div className="text-center space-y-3">
