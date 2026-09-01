@@ -28,7 +28,7 @@ function Card({ title, description, id, children }) {
 
 function ExpandableCard({ title, summary, children, defaultOpen = false }) {
   return (
-    <details defaultOpen={defaultOpen} className="group rounded-2xl bg-white/[0.03] border border-white/5 mb-4">
+    <details open={defaultOpen} className="group rounded-2xl bg-white/[0.03] border border-white/5 mb-4">
       <summary className="list-none cursor-pointer p-4 flex items-center justify-between gap-3">
         <div>
           <h2 className="text-xs font-semibold text-white/65 uppercase tracking-wider">{title}</h2>
