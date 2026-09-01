@@ -127,12 +127,11 @@ export default function LegalDocumentPage({ policyType }) {
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#C9A84C]">Quick answer</p>
             <h2 id="eligibility-title" className="mt-2 text-base font-bold text-white">Where can I play?</h2>
             <p className="mt-2 text-sm leading-relaxed text-white/65">
-              Real-money play is not available anywhere during Early Access. Current balances are demo funds.
+              Cash-prize play is available only to eligible players in supported U.S. locations.
             </p>
             <p className="mt-2 text-sm leading-relaxed text-white/65">
-              Before cash-prize play launches, ChessBet will publish the supported U.S. locations here.
-              Access will require age, identity, and physical-location eligibility and will remain unavailable
-              anywhere applicable law or ChessBet rules do not permit it. A home address alone will not
+              Access requires age, identity, and physical-location eligibility and remains unavailable
+              anywhere applicable law or ChessBet rules do not permit it. A home address alone does not
               establish eligibility; a player must be physically located in a supported location when
               entering and playing.
             </p>
