@@ -1,7 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { postLedgerLegs } from '../../shared/ledger.ts';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
-import { EARLY_ACCESS_MODE } from '../../shared/earlyAccess.ts';
 import { isSocureIdentityVerified } from '../../shared/identityEligibility.js';
 
 // Reserves a player's Entry Amount into escrow during the shared Preparing
@@ -28,9 +27,9 @@ Deno.serve(async (req) => {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     // Only Verified accounts may enter paid contests (Provisional/Suspended/
-    // Closed cannot) — bypassed while EARLY_ACCESS_MODE is true (pre-launch
-    // testing only; see base44/shared/earlyAccess.ts).
-    if (!EARLY_ACCESS_MODE && !isSocureIdentityVerified(user)) {
+    // Closed accounts cannot lock a wager. Only an authoritative Socure
+    // verification result is eligible for real-money contest activity.
+    if (!isSocureIdentityVerified(user)) {
       return Response.json({ error: 'Your account must be verified before you can enter a paid contest' }, { status: 403 });
     }
 
