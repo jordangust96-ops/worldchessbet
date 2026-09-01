@@ -15,6 +15,14 @@ function pickLabel(body) { return body?.check?.label || body?.label || body?.tra
 function pickEventType(body) { return body?.event || body?.event_type || body?.type || ''; }
 function pickEventId(body) { return body?.event_id || body?.webhook_id || ''; }
 function pickStatus(body) { return body?.status || body?.check?.status || ''; }
+function pickRtpEligibility(body) {
+  const candidates = [
+    body?.rtp_eligible, body?.supports_rtp, body?.source?.rtp_eligible,
+    body?.source?.supports_rtp, body?.funding_source?.rtp_eligible,
+    body?.funding_source?.supports_rtp,
+  ];
+  return candidates.find((value) => typeof value === 'boolean') ?? null;
+}
 function pickAmount(body) {
   const value = Number(body?.amount ?? body?.check?.amount);
   return Number.isFinite(value) ? value / 100 : undefined;
@@ -190,6 +198,7 @@ async function handleFundingSource(base44, body, eventType, idemKey) {
   const decision = applyFundingSourceEvent(bank, { eventType, timestamp: eventTime });
   const accountName = safeAccountName(body);
   const accountMask = safeLastFour(body);
+  const rtpEligible = pickRtpEligibility(body);
   const providerEventAt = normalizeProviderEventTime(eventTime);
   const now = new Date().toISOString();
 
@@ -203,10 +212,13 @@ async function handleFundingSource(base44, body, eventType, idemKey) {
       account_name: accountName,
       account_mask: accountMask,
       is_primary: eventType === 'funding-source.made-primary',
+      rtp_eligible: rtpEligible === true,
+      rtp_eligibility_source: rtpEligible == null ? 'unknown' : 'provider_webhook',
       status: initialStatus,
       added_at: providerEventAt || now,
     };
     if (initialStatus === 'verified') createFields.verified_at = providerEventAt || now;
+    if (rtpEligible != null) createFields.rtp_eligibility_checked_at = providerEventAt || now;
     if (providerEventAt) createFields.provider_event_at = providerEventAt;
     if (eventId) createFields.last_provider_event_id = eventId;
     bank = await base44.asServiceRole.entities.SeamlessBankAccount.create(createFields);
@@ -230,6 +242,11 @@ async function handleFundingSource(base44, body, eventType, idemKey) {
     if (accountName) updates.account_name = accountName;
     if (accountMask) updates.account_mask = accountMask;
     if (eventType === 'funding-source.made-primary' && decision.action === 'metadata') updates.is_primary = true;
+    if (rtpEligible != null) {
+      updates.rtp_eligible = rtpEligible;
+      updates.rtp_eligibility_source = 'provider_webhook';
+      updates.rtp_eligibility_checked_at = providerEventAt || now;
+    }
     if (Object.keys(updates).length > 0) {
       bank = await base44.asServiceRole.entities.SeamlessBankAccount.update(bank.id, updates);
     }
