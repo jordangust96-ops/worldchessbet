@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { isSocureIdentityVerified } from '../../shared/identityEligibility.js';
+import { isSocureBankVerificationAccepted, latestSocureBankVerification } from '../../shared/socureBankEligibility.js';
 import {
   seamlessConfig, seamlessRequest, seamlessBaseUrl, buildWithdrawalBody,
   PATH_CHECK_SEND, SEAMLESS_PROVIDER_KEY,
@@ -85,6 +86,17 @@ Deno.serve(async (req) => {
     userId = user.id;
     if (!isSocureIdentityVerified(user) || user.withdrawal_hold) {
       return Response.json({ error: 'Your account is not eligible for bank transfers' }, { status: 403 });
+    }
+
+    const screeningBanks = await base44.asServiceRole.entities.SeamlessBankAccount.filter({ user_id: user.id, status: 'verified' });
+    const screeningBank = screeningBanks.find((item) => item.source_id && item.is_primary) || screeningBanks[0];
+    if (!screeningBank?.source_id) {
+      return Response.json({ error: 'Link and verify a bank account first', action: 'bank_link_required' }, { status: 400 });
+    }
+    const bankVerifications = await base44.asServiceRole.entities.SocureBankVerification.filter({ user_id: user.id, source_id: screeningBank.source_id });
+    const bankVerification = latestSocureBankVerification(bankVerifications, screeningBank.source_id);
+    if (!isSocureBankVerificationAccepted(bankVerification, screeningBank.source_id)) {
+      return Response.json({ error: 'Complete bank account screening before withdrawing.', action: 'bank_screening_required' }, { status: 403 });
     }
 
     const { amount, idempotencyKey } = await req.json();
