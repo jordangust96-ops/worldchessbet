@@ -107,35 +107,6 @@
       "type": "string",
       "description": "Groups together the balanced set of entries created for a single financial event"
     },
-    "operation_id": {
-      "type": "string",
-      "description": "Stable logical financial operation identifier. New ledger rows are immutable and unique by operation_id plus leg_index."
-    },
-    "leg_index": {
-      "type": "integer",
-      "minimum": 0,
-      "description": "Deterministic zero-based identity of this leg within its operation."
-    },
-    "available_delta": {
-      "type": "number",
-      "description": "Authoritative available-balance delta for user_account legs."
-    },
-    "held_delta": {
-      "type": "number",
-      "description": "Authoritative held-balance delta for user_account legs."
-    },
-    "total_wagered_delta": {
-      "type": "number"
-    },
-    "total_won_delta": {
-      "type": "number"
-    },
-    "total_deposited_delta": {
-      "type": "number"
-    },
-    "total_withdrawn_delta": {
-      "type": "number"
-    },
     "correlation_id": {
       "type": "string",
       "description": "Stable trace key across participant, match, game, wallet transaction, dispute, and provider records."
