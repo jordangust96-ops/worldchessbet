@@ -122,15 +122,31 @@ export async function releaseUserWalletLock(userId: string, owner: string) {
   await evalAtomic(RELEASE_LOCK, [key('wallet-lock', userId)], [owner]);
 }
 
-export async function claimWithdrawalOperation(userId: string, idempotencyKey: string, amount: number) {
-  const recordKey = key('withdrawal', `${userId}:${idempotencyKey}`);
+async function claimPaymentOperation(kind: 'deposit' | 'withdrawal', userId: string, idempotencyKey: string, amount: number) {
+  const recordKey = key(kind, `${userId}:${idempotencyKey}`);
   const proposed = JSON.stringify({ user_id: userId, idempotency_key: idempotencyKey, amount, state: 'new' });
   return parse(await evalAtomic(CLAIM_RECORD, [recordKey], [proposed, String(OP_TTL_SECONDS)]));
 }
 
-export async function saveWithdrawalOperation(userId: string, idempotencyKey: string, value: Record<string, unknown>) {
-  const recordKey = key('withdrawal', `${userId}:${idempotencyKey}`);
+async function savePaymentOperation(kind: 'deposit' | 'withdrawal', userId: string, idempotencyKey: string, value: Record<string, unknown>) {
+  const recordKey = key(kind, `${userId}:${idempotencyKey}`);
   return parse(await evalAtomic(SET_RECORD, [recordKey], [JSON.stringify(value), String(OP_TTL_SECONDS)]));
+}
+
+export function claimWithdrawalOperation(userId: string, idempotencyKey: string, amount: number) {
+  return claimPaymentOperation('withdrawal', userId, idempotencyKey, amount);
+}
+
+export function saveWithdrawalOperation(userId: string, idempotencyKey: string, value: Record<string, unknown>) {
+  return savePaymentOperation('withdrawal', userId, idempotencyKey, value);
+}
+
+export function claimDepositOperation(userId: string, idempotencyKey: string, amount: number) {
+  return claimPaymentOperation('deposit', userId, idempotencyKey, amount);
+}
+
+export function saveDepositOperation(userId: string, idempotencyKey: string, value: Record<string, unknown>) {
+  return savePaymentOperation('deposit', userId, idempotencyKey, value);
 }
 
 export async function claimWebhookEvent(eventKey: string, providerRef: string, owner: string) {
