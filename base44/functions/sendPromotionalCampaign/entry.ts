@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 import { postLedgerLegs } from '../../shared/ledger.ts';
+import { EARLY_ACCESS_MODE } from '../../shared/earlyAccess.ts';
 
 // Reusable, generic marketing/promotional email sender for admins. Pass a
 // unique campaignKey (so re-running never double-sends or double-tops-up),
@@ -52,6 +53,9 @@ Deno.serve(async (req) => {
     const { campaignKey, subject, htmlBody, ensureMinBalance } = await req.json();
     if (!campaignKey || !subject || !htmlBody) {
       return Response.json({ error: 'campaignKey, subject, and htmlBody are required' }, { status: 400 });
+    }
+    if (typeof ensureMinBalance === 'number' && !EARLY_ACCESS_MODE) {
+      return Response.json({ error: 'Promotional wallet top-ups are unavailable in production-mode testing.' }, { status: 409 });
     }
 
     const users = await base44.asServiceRole.entities.User.list();
