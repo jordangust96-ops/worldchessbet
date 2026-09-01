@@ -143,6 +143,13 @@ ok(constantTimeEqual('a', 'b') === false, 'single char differ rejects');
   ok(verifiedFirst.action === 'apply' && verifiedFirst.status === 'verified',
     'verification before added safely creates verified state');
 
+  const duplicateVerified = applyFundingSourceEvent(
+    { status: 'verified', provider_event_at: verifiedFirst.providerEventAt },
+    { eventType: 'funding-source.verified', timestamp: at2 }
+  );
+  ok(duplicateVerified.action === 'ignore' && duplicateVerified.status === 'verified',
+    'duplicate verification event is harmless');
+
   const staleAdded = applyFundingSourceEvent(
     { status: 'verified', provider_event_at: verifiedFirst.providerEventAt },
     { eventType: 'funding-source.added', timestamp: at1 }
