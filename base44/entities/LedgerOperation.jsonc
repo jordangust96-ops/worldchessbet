@@ -1,0 +1,85 @@
+{
+  "name": "LedgerOperation",
+  "type": "object",
+  "properties": {
+    "operation_id": {
+      "type": "string",
+      "maxLength": 255
+    },
+    "ledger_group_id": {
+      "type": "string",
+      "maxLength": 255
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "posting",
+        "projecting",
+        "completed",
+        "review_required"
+      ],
+      "default": "pending"
+    },
+    "expected_leg_count": {
+      "type": "integer",
+      "minimum": 2
+    },
+    "plan_hash": {
+      "type": "string",
+      "maxLength": 128
+    },
+    "plan_json": {
+      "type": "string",
+      "maxLength": 12000
+    },
+    "projection_before_json": {
+      "type": "string",
+      "maxLength": 12000
+    },
+    "wallet_transaction_id": {
+      "type": "string"
+    },
+    "match_id": {
+      "type": "string"
+    },
+    "game_id": {
+      "type": "string"
+    },
+    "last_error": {
+      "type": "string",
+      "maxLength": 1000
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "operation_id",
+    "ledger_group_id",
+    "status",
+    "expected_leg_count",
+    "plan_hash",
+    "plan_json",
+    "created_at"
+  ],
+  "rls": {
+    "create": false,
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": false,
+    "delete": false
+  }
+}
