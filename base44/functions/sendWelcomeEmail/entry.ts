@@ -89,11 +89,11 @@ Deno.serve(async (req) => {
       <p>Hi ${firstName},</p>
       <p>Welcome to ChessBet&mdash;we're glad you're here.</p>
       <p>ChessBet is built for players who believe every game should mean something. Challenge opponents, compete head-to-head, and put your skills to the test.</p>
-      <p>As an Early Access member, you can:</p>
-      <p style="margin:4px 0;">&#9823; Play competitive matches in Demo Mode</p>
-      <p style="margin:4px 0;">&#129309; Create public or private challenges</p>
-      <p style="margin:4px 0;">&#128640; Be among the first notified when real-money contests launch</p>
-      <p>We're just getting started, and we're excited to have you with us from the beginning.</p>
+      <p>To get started:</p>
+      <p style="margin:4px 0;">&#9823; Complete your account eligibility steps</p>
+      <p style="margin:4px 0;">&#129309; Create or accept public and private challenges when eligible</p>
+      <p style="margin:4px 0;">&#128640; Review contest terms before committing funds</p>
+      <p>We're glad to have you here.</p>
       <p>See you across the board.</p>
       <p>&mdash; The ChessBet Team</p>
     `;
@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
       bodyHtml,
       ctaText: 'Start Playing',
       ctaUrl: appUrl || undefined,
-      earlyAccessText: "ChessBet is currently operating in Demo Mode while we prepare for our real-money launch. Join the community, play matches, and you'll be among the first notified when real-money wagering becomes available.",
+      earlyAccessText: "",
       supportEmail,
     });
 
