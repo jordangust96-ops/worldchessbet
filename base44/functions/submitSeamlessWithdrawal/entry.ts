@@ -1,5 +1,4 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
-import { EARLY_ACCESS_MODE } from '../../shared/earlyAccess.ts';
 import { isSocureIdentityVerified } from '../../shared/identityEligibility.js';
 import {
   seamlessConfig, seamlessRequest, seamlessBaseUrl, buildWithdrawalBody,
@@ -76,10 +75,6 @@ async function releaseWithdrawalReservation(base44, tx, amount, reason) {
 // keyed by user, so concurrent Base44 function instances cannot both create a
 // withdrawal reservation. The request idempotency key is durable for 90 days.
 Deno.serve(async (req) => {
-  if (EARLY_ACCESS_MODE) {
-    return Response.json({ enabled: false, reason: 'Withdrawals are unavailable during Early Access.' });
-  }
-
   let lockOwner = '';
   let userId = '';
   try {
