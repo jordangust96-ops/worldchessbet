@@ -15,7 +15,7 @@ const SECTIONS = [
     eyebrow: "About ChessBet",
     heading: "Chess competition built around skill and fair play",
     intro:
-      "ChessBet is building a head-to-head chess platform where transparent contest terms and fair-play protections come first.",
+      "ChessBet is a head-to-head chess platform where transparent contest terms and fair-play protections come first.",
     points: [
       "Skill-based head-to-head blitz, rapid, and classical chess",
       "Clear contest terms before a player commits",
@@ -35,7 +35,7 @@ const SECTIONS = [
     ],
   },
   {
-    id: "early-access-and-fees",
+    id: "fees-and-eligibility",
     eyebrow: "Fees and eligibility",
     heading: "Clear terms before cash play",
     intro:
