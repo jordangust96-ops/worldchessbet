@@ -16,7 +16,7 @@ assert.ok(fundingConfig.includes("enabled('SEAMLESS_WITHDRAWALS_ENABLED')"));
 assert.ok(deposit.includes('if (!seamlessDepositsEnabled())'));
 assert.ok(withdrawal.includes('if (!seamlessWithdrawalsEnabled())'));
 assert.ok(withdrawal.indexOf('if (!seamlessWithdrawalsEnabled())') < withdrawal.indexOf('seamlessRequest('));
-assert.ok(withdrawal.indexOf('if (!seamlessWithdrawalsEnabled())') < withdrawal.indexOf('reserveWithdrawal('));
+assert.ok(withdrawal.indexOf('if (!seamlessWithdrawalsEnabled())') < withdrawal.indexOf('const reservationGroupId = await reserveWithdrawal'));
 assert.ok(walletState.includes('withdrawals_enabled: withdrawalsEnabled'));
 assert.ok(fundingPanel.includes('!withdrawalsEnabled'));
 assert.ok(fundingPanel.includes('transferDirectionEnabled'));
