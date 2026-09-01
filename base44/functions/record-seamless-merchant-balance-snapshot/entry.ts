@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
       created_at: now,
     });
 
-    const reconciliation = await base44.asServiceRole.entities.SeamlessPooledFundsReconciliation.create({
+    const reconciliationFields = {
       snapshot_id: snapshot.id,
       ...result,
       calculation_json: JSON.stringify({
@@ -116,7 +116,9 @@ Deno.serve(async (req) => {
       }),
       created_by: admin.id,
       created_at: now,
-    });
+    };
+    if (reconciliationFields.coverage_ratio == null) delete reconciliationFields.coverage_ratio;
+    const reconciliation = await base44.asServiceRole.entities.SeamlessPooledFundsReconciliation.create(reconciliationFields);
 
     await recordIntegrationEvent(base44, {
       eventType: 'financial.seamless_merchant_balance_reconciled',
