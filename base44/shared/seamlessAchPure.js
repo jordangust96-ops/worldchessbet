@@ -14,6 +14,8 @@ export const STATUS_REVERSED = 'reversed';
 export const PATH_CREATE_CUSTOMER = '/user';
 export const PATH_ACH_DEBIT = '/ach-debit';
 export const PATH_CHECK_SEND = '/check/send';
+export const PATH_BALANCE_FROM_ACCOUNT = '/funding-source/add/balance/from-account';
+export const PATH_BALANCE_TO_ACCOUNT = '/funding-source/add/balance/to-account';
 
 // Amounts are sent to Seamless as fixed 2-decimal strings.
 export function formatAmount(value) {
@@ -89,12 +91,13 @@ export function buildDepositBody({ providerUserId, name, amount, description, la
 
 // Withdrawal: POST /check/send with recipient = provider user id, account = verified source_id.
 // Seamless v2 requires a non-empty recipient name.
-export function buildWithdrawalBody({ providerUserId, name, amount, description, label, sourceId }) {
+export function buildWithdrawalBody({ providerUserId, name, amount, description, label, sourceId, transferSpeed }) {
   if (!providerUserId) throw new Error('provider user id required');
   if (!String(name || '').trim()) throw new Error('account holder name required');
   if (!sourceId) throw new Error('verified source_id required');
   if (!label) throw new Error('stable label required');
-  return {
+  if (transferSpeed != null && transferSpeed !== 'rtp') throw new Error('unsupported transfer speed');
+  const body = {
     recipient: providerUserId,
     name: String(name).trim(),
     amount: formatAmount(amount),
@@ -102,6 +105,16 @@ export function buildWithdrawalBody({ providerUserId, name, amount, description,
     label,
     account: sourceId,
   };
+  if (transferSpeed === 'rtp') body.transfer_speed = 'rtp';
+  return body;
+}
+
+// Merchant-level balance transfers are intentionally kept separate from player
+// funding. These helpers only build the provider payload; they do not authorize
+// or execute money movement.
+export function buildMerchantBalanceTransferBody({ sourceId, amount }) {
+  if (!sourceId) throw new Error('merchant source_id required');
+  return { source_id: sourceId, amount: formatAmount(amount) };
 }
 
 // Constant-time string equality for secret comparison. Never leaks length via
