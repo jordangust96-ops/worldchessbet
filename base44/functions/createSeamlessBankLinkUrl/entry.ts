@@ -1,5 +1,4 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
-import { EARLY_ACCESS_MODE } from '../../shared/earlyAccess.ts';
 import { isSocureIdentityVerified } from '../../shared/identityEligibility.js';
 import {
   seamlessConfig, buildBankLinkUrl,
@@ -9,16 +8,9 @@ import {
 // by Seamless, not direct Plaid Link in the browser). The URL is returned to the
 // authenticated user only; the browser success/cancel callback is NEVER trusted
 // as verification — only the funding-source.verified webhook persists a verified
-// source_id. Fails closed on Early Access or missing configuration.
+// source_id. Fails closed on missing provider configuration.
 Deno.serve(async (req) => {
   try {
-    if (EARLY_ACCESS_MODE) {
-      return Response.json({
-        enabled: false,
-        reason: 'Bank linking is unavailable during Early Access.',
-      });
-    }
-
     const cfg = seamlessConfig(); // fail closed on missing/invalid env/keys
 
     const base44 = createClientFromRequest(req);
