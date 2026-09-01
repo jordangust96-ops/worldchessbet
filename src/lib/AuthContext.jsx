@@ -3,7 +3,6 @@ import { base44 } from '@/api/base44Client';
 import { appParams } from '@/lib/app-params';
 import { createAxiosClient } from '@base44/sdk/dist/utils/axios-client';
 import { clearMfaVerified } from '@/lib/mfaSession';
-import { DEMO_MODE } from '@/lib/appConfig';
 import { trackCompletedOAuthLogin } from '@/lib/googleAnalytics';
 
 const AuthContext = createContext();
@@ -115,10 +114,9 @@ export const AuthProvider = ({ children }) => {
         base44.functions.invoke('sendWelcomeEmail', { userId: currentUser.id }).catch(() => {});
       }
 
-      // Do not spend a provider lookup on login. During Early Access the
-      // compliance gate is intentionally bypassed; after launch this display
-      // reflects the last server-side paid-action verification.
-      setJurisdictionStatus(DEMO_MODE ? 'approved' : (currentUser?.jurisdiction_status || 'unknown'));
+      // Do not spend a provider lookup on login. This display reflects the
+      // last server-side paid-action verification; enforcement remains server-side.
+      setJurisdictionStatus(currentUser?.jurisdiction_status || 'unknown');
       setJurisdictionReason('');
     } catch (error) {
       console.error('User auth check failed:', error);
