@@ -12,6 +12,7 @@ import {
   buildCreateCustomerBody,
   buildDepositBody,
   buildWithdrawalBody,
+  buildMerchantBalanceTransferBody,
   constantTimeEqual,
   webhookIdempotencyKey,
   applyWebhookEvent,
@@ -20,6 +21,8 @@ import {
   PATH_CREATE_CUSTOMER,
   PATH_ACH_DEBIT,
   PATH_CHECK_SEND,
+  PATH_BALANCE_FROM_ACCOUNT,
+  PATH_BALANCE_TO_ACCOUNT,
 } from './seamlessAchPure.js';
 
 export {
@@ -32,6 +35,7 @@ export {
   buildCreateCustomerBody,
   buildDepositBody,
   buildWithdrawalBody,
+  buildMerchantBalanceTransferBody,
   constantTimeEqual,
   webhookIdempotencyKey,
   applyWebhookEvent,
@@ -40,6 +44,8 @@ export {
   PATH_CREATE_CUSTOMER,
   PATH_ACH_DEBIT,
   PATH_CHECK_SEND,
+  PATH_BALANCE_FROM_ACCOUNT,
+  PATH_BALANCE_TO_ACCOUNT,
 };
 
 // Resolve Seamless config from server secrets. Fails closed (throws) on any
