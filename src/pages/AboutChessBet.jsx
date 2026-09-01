@@ -7,7 +7,7 @@ import { SITE_URL } from "@/lib/seoConfig";
 
 const ABOUT_TITLE = "About ChessBet | Fair, Skill-Based Head-to-Head Chess";
 const ABOUT_DESCRIPTION =
-  "Learn how ChessBet combines skill-based head-to-head chess, transparent contest terms, Early Access safeguards, and human-reviewed fair-play protection.";
+  "Learn how ChessBet combines skill-based head-to-head chess, transparent contest terms, eligibility controls, and human-reviewed fair-play protection.";
 
 const SECTIONS = [
   {
@@ -36,14 +36,14 @@ const SECTIONS = [
   },
   {
     id: "early-access-and-fees",
-    eyebrow: "Early Access and fees",
-    heading: "Clear terms before cash play launches",
+    eyebrow: "Fees and eligibility",
+    heading: "Clear terms before cash play",
     intro:
-      "Early Access uses demo funds. Cash-prize play, ACH funding, withdrawals, and settlement are not live yet.",
+      "Cash-prize activity requires verified identity, an eligible location, and a supported funding account.",
     points: [
-      "Every future contest will show its entry amount and platform service fee before commitment",
+      "Every contest shows its entry amount and platform service fee before commitment",
       "The winner of a decisive contest receives the combined contest entry amounts",
-      "Eligibility will be checked before funding is available in supported U.S. locations",
+      "Eligibility is checked before funding is available in supported U.S. locations",
     ],
   },
 ];
