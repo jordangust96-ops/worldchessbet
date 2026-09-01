@@ -53,7 +53,7 @@ export default function HowItWorksSection() {
             <div className="w-12 h-12 rounded-2xl bg-[#C9A84C]/10 flex items-center justify-center mx-auto">
               <ShieldCheck size={22} className="text-[#C9A84C]" />
             </div>
-            <h3 className="text-xl font-bold text-white">Signals are evidence—not verdicts</h3>
+            <h3 className="text-xl font-bold text-white">We look closer before we act</h3>
             <p className="text-white/50 text-sm max-w-2xl mx-auto leading-relaxed">
               Stockfish can surface unusual patterns; reviewers consider the game record and player reports.
             </p>
