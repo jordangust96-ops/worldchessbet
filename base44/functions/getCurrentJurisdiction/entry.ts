@@ -21,7 +21,7 @@ import { isLocationApproved } from '../../shared/jurisdictionRegions.js';
 // ============================================================================
 // ============================================================================
 // Geolocation enforcement is controlled solely by MAXMIND_GEOIP_ENABLED (see
-// base44/shared/jurisdictionGates.js). EARLY_ACCESS_MODE never participates in
+// base44/shared/jurisdictionGates.js). Product-release state never participates in
 // a jurisdiction decision.
 //
 // MAXMIND_GEOIP_ENABLED must be explicitly true for protected activity. If it
@@ -186,34 +186,6 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // Administrative bypass: platform administrators (e.g. the build-phase
-    // owner account) must be able to reach every page and feature regardless
-    // of their physical location during pre-launch. Short-circuit to an
-    // approved result before any paid MaxMind lookup, so an admin is never
-    // blocked by jurisdiction enforcement.
-    if (user.role === 'admin') {
-      const now = new Date().toISOString();
-      await base44.asServiceRole.entities.User.update(user.id, {
-        jurisdiction_status: 'approved',
-        jurisdiction_last_verified_at: now,
-        jurisdiction_verification_provider: PROVIDER,
-        jurisdiction_vpn_detected: false,
-      });
-      return Response.json({
-        status: 'approved',
-        approved: true,
-        state: '',
-        country: '',
-        vpnDetected: false,
-        reason: '',
-        provider: PROVIDER,
-        enforcementEnabled: ENABLE_GEOLOCATION_ENFORCEMENT,
-        verificationSkipped: true,
-        cached: false,
-        adminBypass: true,
-        verifiedAt: now,
-      });
-    }
 
     let triggerEvent = 'manual';
     let relatedEntityType = 'none';
