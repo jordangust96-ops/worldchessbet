@@ -59,6 +59,9 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const mfaError = await requireAdminMfa(base44, caller, body?.mfaSessionToken, req.headers.get('user-agent') || '');
     if (mfaError) return mfaError;
+    if (!EARLY_ACCESS_MODE) {
+      return Response.json({ error: 'Early Access campaigns are disabled in production-mode testing.' }, { status: 409 });
+    }
 
     let run = (await base44.asServiceRole.entities.CampaignRun.filter({ campaign_key: CAMPAIGN_KEY }))[0];
     if (!run) {
