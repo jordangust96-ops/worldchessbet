@@ -233,8 +233,8 @@ ok(applyWebhookEvent({ status: 'failed' }, { status: 'Processed' }).action === '
 // ---------------- Static guards: deposit-only switch + webhook auth ----------------
 const depositSrc = await read('base44/functions/submitSeamlessDeposit/entry.ts');
 ok(depositSrc.includes('seamlessDepositsEnabled()'), 'deposit requires the dedicated server-side switch');
-ok(depositSrc.indexOf('seamlessDepositsEnabled()') < depositSrc.indexOf('claimDepositOperation'), 'deposit switch precedes durable mutation');
-ok(depositSrc.indexOf('seamlessDepositsEnabled()') < depositSrc.indexOf('seamlessRequest'), 'deposit switch precedes provider request');
+ok(depositSrc.indexOf('if (!seamlessDepositsEnabled())') < depositSrc.indexOf('await claimDepositOperation'), 'deposit switch precedes durable mutation');
+ok(depositSrc.indexOf('if (!seamlessDepositsEnabled())') < depositSrc.indexOf('data = await seamlessRequest'), 'deposit switch precedes provider request');
 ok(depositSrc.includes('isSocureIdentityVerified'), 'deposit retains Socure eligibility');
 for (const f of ['base44/functions/ensureSeamlessCustomer/entry.ts', 'base44/functions/createSeamlessBankLinkUrl/entry.ts', 'base44/functions/submitSeamlessWithdrawal/entry.ts']) {
   const src = await read(f);
