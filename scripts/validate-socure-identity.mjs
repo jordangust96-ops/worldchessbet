@@ -16,7 +16,7 @@ assert.equal(isSocureIdentityVerified({ ...verifiedSocureUser, identity_verifica
 assert.equal(isSocureIdentityVerified({ ...verifiedSocureUser, identity_verification_status: 'rejected', account_state: 'provisional' }), false, 'rejected is not eligible');
 assert.equal(isSocureIdentityVerified({ ...verifiedSocureUser, account_state: 'provisional' }), false, 'account state is required');
 
-const [contest, wager, seamlessDeposit, plaidTransfer, legacyVerify, starter, webhook, userEntity, verificationEntity, earlyAccess, seamlessCustomer, seamlessLink, seamlessWithdrawal, plaidLink, plaidExchange] =
+const [contest, wager, seamlessDeposit, plaidTransfer, legacyVerify, starter, webhook, userEntity, verificationEntity, earlyAccess, earlyFunding, seamlessCustomer, seamlessLink, seamlessWithdrawal, plaidLink, plaidExchange] =
   await Promise.all([
     readFile(new URL('../base44/functions/runContestEligibility/entry.ts', import.meta.url), 'utf8'),
     readFile(new URL('../base44/functions/lockWager/entry.ts', import.meta.url), 'utf8'),
@@ -28,6 +28,7 @@ const [contest, wager, seamlessDeposit, plaidTransfer, legacyVerify, starter, we
     readFile(new URL('../base44/entities/User.jsonc', import.meta.url), 'utf8'),
     readFile(new URL('../base44/entities/SocureIdentityVerification.jsonc', import.meta.url), 'utf8'),
     readFile(new URL('../base44/shared/earlyAccess.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../base44/shared/earlyAccessFunding.ts', import.meta.url), 'utf8'),
     readFile(new URL('../base44/functions/ensureSeamlessCustomer/entry.ts', import.meta.url), 'utf8'),
     readFile(new URL('../base44/functions/createSeamlessBankLinkUrl/entry.ts', import.meta.url), 'utf8'),
     readFile(new URL('../base44/functions/submitSeamlessWithdrawal/entry.ts', import.meta.url), 'utf8'),
@@ -35,9 +36,11 @@ const [contest, wager, seamlessDeposit, plaidTransfer, legacyVerify, starter, we
     readFile(new URL('../base44/functions/exchangePlaidPublicToken/entry.ts', import.meta.url), 'utf8'),
   ]);
 
-assert.match(earlyAccess, /export const EARLY_ACCESS_MODE = true/, 'Early Access remains enabled');
+assert.match(earlyAccess, /export const EARLY_ACCESS_MODE = false/, 'Early Access is disabled for production-mode testing');
+assert.match(earlyFunding, /if \(!EARLY_ACCESS_MODE\)/, 'new users receive no Early Access funding while production mode is active');
 for (const [name, source] of [['contest', contest], ['wager', wager]]) {
-  assert.match(source, /!EARLY_ACCESS_MODE\s*&&\s*!isSocureIdentityVerified\(user\)/, `${name} has a production Socure gate with the Early Access bypass retained`);
+  assert.match(source, /if \(!isSocureIdentityVerified\(user\)\)/, `${name} requires an authoritative Socure identity result`);
+  assert.doesNotMatch(source, /EARLY_ACCESS_MODE/, `${name} has no Early Access identity bypass`);
 }
 for (const [name, source] of [['seamless deposit', seamlessDeposit], ['Plaid transfer', plaidTransfer]]) {
   assert.match(source, /!isSocureIdentityVerified\(user\)/, `${name} requires a verified Socure identity result`);
