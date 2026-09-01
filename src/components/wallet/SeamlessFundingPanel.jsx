@@ -84,6 +84,8 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [amount, setAmount] = useState("");
+  const [routingNumber, setRoutingNumber] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
   const [direction, setDirection] = useState("deposit");
   const depositRequestKey = useRef("");
   const withdrawalRequestKey = useRef("");
@@ -138,6 +140,35 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
     }
   };
 
+  const screenBank = async () => {
+    if (!verifiedBank?.source_id || !/^\d{9}$/.test(routingNumber) || !/^\d{4,34}$/.test(accountNumber)) {
+      setError("Enter a valid 9-digit routing number and bank account number.");
+      return;
+    }
+    setError(""); setBusy("screening");
+    try {
+      const { data } = await base44.functions.invoke("requestSocureBankVerification", {
+        sourceId: verifiedBank.source_id,
+        routingNumber,
+        accountNumber,
+      });
+      if (!data?.enabled) throw new Error(data?.reason || "Bank screening is unavailable right now.");
+      setRoutingNumber("");
+      setAccountNumber("");
+      await load();
+      if (data?.verification?.status !== "completed" || data?.verification?.decision !== "ACCEPT") {
+        setError("Your bank account needs review before transfers can be enabled.");
+      }
+    } catch (e) {
+      const code = e?.response?.data?.error;
+      setError(code === "funding_source_account_mismatch"
+        ? "The account number does not match your connected bank."
+        : "We couldn't complete bank screening. Please verify the details or contact support.");
+    } finally {
+      setBusy("");
+    }
+  };
+
   const submit = async () => {
     const v = parseFloat(amount);
     if (!v || v <= 0 || !wallet) return;
@@ -164,6 +195,7 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
   };
 
   const depositsEnabled = !!state?.deposits_enabled;
+  const bankScreeningEnabled = !!state?.bank_screening_enabled;
   const identityVerified = !!state?.identity_verified;
   const effectiveAccountState = state?.account_state || accountState;
   const effectiveWithdrawalHold = state?.withdrawal_hold ?? withdrawalHold;
@@ -174,7 +206,9 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
   const attentionBank = state?.banks?.find((b) =>
     ["verification_failed", "verification_expired", "deleted", "error"].includes(b.status)
   );
-  const canSubmit = !ineligible && !!verifiedBank && !busy && parseFloat(amount) > 0 && (direction !== 'deposit' || depositsEnabled);
+  const bankScreeningStatus = verifiedBank?.socure_status || "not_started";
+  const bankScreened = bankScreeningStatus === "verified";
+  const canSubmit = !ineligible && !!verifiedBank && bankScreened && !busy && parseFloat(amount) > 0 && (direction !== 'deposit' || depositsEnabled);
 
   if (loading) {
     return (
@@ -251,10 +285,66 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
         )}
       </div>
 
-      {/* Step 3: existing server-side transfer gates remain authoritative. */}
+      {/* Step 3: Socure Account Intelligence is bound to the verified Seamless source. */}
+      {verifiedBank && (
+        <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4 space-y-3">
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]">Step 3</p>
+            <h4 className="text-sm font-semibold text-white mt-1">Screen bank account</h4>
+            <p className="text-xs text-white/45 mt-1">
+              {bankScreened
+                ? "Your connected bank passed account screening."
+                : bankScreeningStatus === "processing"
+                  ? "Bank screening is in progress."
+                  : bankScreeningStatus === "review_required"
+                    ? "Your bank account needs review before transfers can be enabled."
+                    : bankScreeningStatus === "failed"
+                      ? "Bank screening could not be completed. Contact support before trying again."
+                      : bankScreeningEnabled
+                        ? "Confirm the routing and account numbers for the bank you connected. ChessBet does not store these numbers."
+                        : "Bank screening is temporarily unavailable."}
+            </p>
+          </div>
+          {bankScreened ? (
+            <div className="flex items-center gap-2 text-sm text-emerald-300">
+              <CheckCircle2 size={16} /> Socure screening complete
+            </div>
+          ) : bankScreeningStatus === "not_started" && bankScreeningEnabled ? (
+            <div className="space-y-3">
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                value={routingNumber}
+                onChange={(e) => setRoutingNumber(e.target.value.replace(/\D/g, "").slice(0, 9))}
+                placeholder="9-digit routing number"
+                className="w-full h-11 px-4 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder:text-white/20 text-sm focus:border-[#C9A84C]/50 focus:outline-none"
+              />
+              <input
+                type="password"
+                inputMode="numeric"
+                autoComplete="off"
+                value={accountNumber}
+                onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, "").slice(0, 34))}
+                placeholder="Bank account number"
+                className="w-full h-11 px-4 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder:text-white/20 text-sm focus:border-[#C9A84C]/50 focus:outline-none"
+              />
+              <Button
+                onClick={screenBank}
+                disabled={busy === "screening" || routingNumber.length !== 9 || accountNumber.length < 4}
+                className="w-full h-10 rounded-xl gold-gradient text-black font-bold disabled:opacity-40"
+              >
+                {busy === "screening" ? <><Loader2 size={15} className="animate-spin mr-2" /> Screening…</> : "Verify bank details"}
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      )}
+
+      {/* Step 4: existing server-side transfer gates remain authoritative. */}
       <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4 space-y-3">
         <div>
-          <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]">Step 3</p>
+          <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]">Step 4</p>
           <h4 className="text-sm font-semibold text-white mt-1">Fund account</h4>
           <p className="text-xs text-white/45 mt-1">
             {!depositsEnabled
@@ -263,7 +353,9 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
                 ? "Complete identity verification first."
                 : !verifiedBank
                   ? "Connect and verify a bank before funding your account."
-                  : "Your identity and bank connection are ready."}
+                  : !bankScreened
+                    ? "Complete bank account screening before transfers."
+                    : "Your identity, bank connection, and screening are ready."}
           </p>
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -274,13 +366,13 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
                 ? "gold-gradient text-black"
                 : "bg-white/[0.05] text-white/70 border border-white/10"
             }`}
-            disabled={ineligible || !verifiedBank || !depositsEnabled}
+            disabled={ineligible || !verifiedBank || !bankScreened || !depositsEnabled}
           >
             <Plus size={16} className="mr-2" /> Fund Account
           </Button>
           <Button
             onClick={() => setDirection("withdrawal")}
-            disabled={ineligible || !verifiedBank || (wallet && (wallet.available_balance || 0) <= 0)}
+            disabled={ineligible || !verifiedBank || !bankScreened || (wallet && (wallet.available_balance || 0) <= 0)}
             className={`h-12 rounded-2xl font-bold disabled:opacity-30 ${
               direction === "withdrawal"
                 ? "gold-gradient text-black"
@@ -300,7 +392,7 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           placeholder={direction === "deposit" ? "Amount to fund" : "Amount to withdraw"}
-          disabled={ineligible || !verifiedBank || (direction === 'deposit' && !depositsEnabled)}
+          disabled={ineligible || !verifiedBank || !bankScreened || (direction === 'deposit' && !depositsEnabled)}
           className="w-full h-12 px-4 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder:text-white/20 text-sm focus:border-[#C9A84C]/50 focus:outline-none disabled:opacity-40"
         />
         <Button
@@ -310,10 +402,10 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
         >
           {busy ? (
             <><Loader2 size={16} className="animate-spin mr-2" /> Submitting?</>
-          ) : verifiedBank ? (
+          ) : verifiedBank && bankScreened ? (
             direction === "deposit" ? "Fund via Seamless ACH" : "Withdraw via Seamless ACH"
           ) : (
-            "Link & verify a bank first"
+            "Connect & screen a bank first"
           )}
         </Button>
         {direction === "withdrawal" && wallet && (
