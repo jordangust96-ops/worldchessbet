@@ -89,9 +89,9 @@ assert.match(walletState, /bank_screening_enabled: bankScreeningEnabled/, 'walle
 assert.match(walletState, /socure_status: publicSocureBankStatus/, 'wallet state exposes only a sanitized bank-screening status');
 assert.match(walletState, /source_id: bank\.source_id/, 'wallet can bind screening to the selected Seamless source');
 assert.match(deposit, /bank_screening_required/, 'deposits fail closed without accepted Socure bank screening');
-assert.ok(deposit.indexOf('bank_screening_required') < deposit.indexOf('claimDepositOperation'), 'deposit screening precedes durable deposit mutation');
+assert.ok(deposit.indexOf('bank_screening_required') < deposit.indexOf('let operation = await claimDepositOperation'), 'deposit screening precedes durable deposit mutation');
 assert.match(withdrawal, /bank_screening_required/, 'withdrawals fail closed without accepted Socure bank screening');
-assert.ok(withdrawal.indexOf('bank_screening_required') < withdrawal.indexOf('acquireUserWalletLock'), 'withdrawal screening precedes lock and reservation mutation');
+assert.ok(withdrawal.indexOf('bank_screening_required') < withdrawal.indexOf('if (!await acquireUserWalletLock'), 'withdrawal screening precedes lock and reservation mutation');
 assert.match(fundingPanel, /requestSocureBankVerification/, 'wallet invokes Socure bank screening in the user journey');
 assert.match(fundingPanel, /ChessBet does not store these numbers/, 'wallet explains memory-only bank detail handling');
 assert.match(fundingPanel, /bankScreened/, 'wallet transfer controls require completed screening');
