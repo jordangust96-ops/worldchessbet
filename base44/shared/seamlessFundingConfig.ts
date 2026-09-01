@@ -13,3 +13,7 @@ export function seamlessDepositsEnabled() {
 export function seamlessWithdrawalsEnabled() {
   return enabled('SEAMLESS_WITHDRAWALS_ENABLED');
 }
+
+export function seamlessRtpPayoutsEnabled() {
+  return enabled('SEAMLESS_RTP_PAYOUTS_ENABLED');
+}
