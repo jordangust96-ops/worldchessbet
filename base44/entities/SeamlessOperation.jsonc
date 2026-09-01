@@ -8,6 +8,7 @@
     "operation_type": {
       "type": "string",
       "enum": [
+        "deposit",
         "withdrawal",
         "webhook"
       ]
