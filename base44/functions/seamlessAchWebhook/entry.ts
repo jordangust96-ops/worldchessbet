@@ -193,7 +193,7 @@ async function handleFundingSource(base44, body, eventType, idemKey) {
 
   if (!bank) {
     const initialStatus = decision.status || 'added';
-    bank = await base44.asServiceRole.entities.SeamlessBankAccount.create({
+    const createFields = {
       user_id: profile.user_id,
       source_id: sourceId,
       profile_id: profile.id,
@@ -203,12 +203,12 @@ async function handleFundingSource(base44, body, eventType, idemKey) {
       is_primary: eventType === 'funding-source.made-primary',
       status: initialStatus,
       added_at: providerEventAt || now,
-      verified_at: initialStatus === 'verified' ? (providerEventAt || now) : '',
-      provider_event_at: providerEventAt || '',
-      last_provider_event_id: eventId || '',
-    });
-  } else if (decision.action === 'apply' || eventType === 'funding-source.updated' ||
-             eventType === 'funding-source.made-primary' || eventType === 'funding-source.made-billing') {
+    };
+    if (initialStatus === 'verified') createFields.verified_at = providerEventAt || now;
+    if (providerEventAt) createFields.provider_event_at = providerEventAt;
+    if (eventId) createFields.last_provider_event_id = eventId;
+    bank = await base44.asServiceRole.entities.SeamlessBankAccount.create(createFields);
+  } else if (decision.action === 'apply' || decision.action === 'metadata') {
     const updates = {};
     if (decision.action === 'apply') {
       updates.status = decision.status;
@@ -219,9 +219,13 @@ async function handleFundingSource(base44, body, eventType, idemKey) {
         updates.is_primary = false;
       }
     }
+    if (decision.action === 'metadata') {
+      if (decision.providerEventAt) updates.provider_event_at = decision.providerEventAt;
+      if (eventId) updates.last_provider_event_id = eventId;
+    }
     if (accountName) updates.account_name = accountName;
     if (accountMask) updates.account_mask = accountMask;
-    if (eventType === 'funding-source.made-primary') updates.is_primary = true;
+    if (eventType === 'funding-source.made-primary' && decision.action === 'metadata') updates.is_primary = true;
     if (Object.keys(updates).length > 0) {
       bank = await base44.asServiceRole.entities.SeamlessBankAccount.update(bank.id, updates);
     }
@@ -233,7 +237,7 @@ async function handleFundingSource(base44, body, eventType, idemKey) {
   });
   return {
     received: true,
-    applied: decision.action === 'apply' || !banks[0],
+    applied: ['apply', 'metadata'].includes(decision.action) || !banks[0],
     bank_status: bank.status,
     stale: decision.reason === 'stale_event',
   };
