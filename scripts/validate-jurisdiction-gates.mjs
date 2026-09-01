@@ -159,7 +159,9 @@ ok(entrySrc.includes('isReusableVerification('), 'entry.ts delegates cache reuse
 ok(entrySrc.includes('MAXMIND_GEOIP_ENABLED'), 'entry.ts reads MAXMIND_GEOIP_ENABLED env gate');
 ok(entrySrc.includes('MAXMIND_ADMIN_FORCE_LIVE_CHECKS'), 'entry.ts reads MAXMIND_ADMIN_FORCE_LIVE_CHECKS env gate');
 ok(/liveCheckForcedByAdmin\s*=\s*forceLiveCheck\s*&&\s*user\.role\s*===\s*'admin'\s*&&\s*canAdminForceLiveCheck/.test(entrySrc), 'admin force-live requires admin role AND the server-only gate');
-ok(/!ENABLE_GEOLOCATION_ENFORCEMENT\s*&&\s*status\s*!==\s*'approved'/.test(entrySrc), 'fail-closed bypass branch only fires when enforcement is disabled (preserved)');
+ok(entrySrc.includes('providerConfigurationUnavailable'), 'disabled or missing MaxMind configuration has an explicit fail-closed path');
+ok(/providerConfigurationUnavailable\)\s*\{\s*status\s*=\s*'verification_failed'/.test(entrySrc), 'disabled or missing MaxMind configuration -> verification_failed');
+ok(!/status:\s*'approved'[\s\S]{0,400}verificationSkipped:\s*true/.test(entrySrc), 'no disabled-provider approved bypass remains');
 ok(/!lookup\.ok/.test(entrySrc) && /status\s*=\s*'verification_failed'/.test(entrySrc), 'provider lookup failure -> verification_failed (fail-closed preserved)');
 ok(!entrySrc.includes('VERIFICATION_CACHE_TTL_MS = 15'), 'TTL constant moved to the pure shared module (no duplicate)');
 
