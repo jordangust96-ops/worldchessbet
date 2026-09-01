@@ -4,7 +4,6 @@ import { Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import Logo from "@/components/Logo";
-import DemoModeNotice from "@/components/DemoModeNotice";
 import RestrictedModeBanner from "@/components/RestrictedModeBanner";
 import TransactionHistory from "@/components/wallet/TransactionHistory";
 import SeamlessFundingPanel from "@/components/wallet/SeamlessFundingPanel";
@@ -124,7 +123,7 @@ export default function WalletPage() {
     setWithdrawalHold(!!me.withdrawal_hold);
     setAccountState(me.account_state || "verified");
     setIdentityStatus(me.identity_verification_status || "not_started");
-    // The wallet is always created by the backend (grantEarlyAccessFunds, as
+    // The wallet is always created by the backend (ensureWallet, as
     // the service role) so there is exactly one per user. Never create a
     // wallet from the client — that previously produced a duplicate wallet
     // (user-role created, which the financial backend updated separately from
@@ -134,7 +133,7 @@ export default function WalletPage() {
     if (wallets.length > 0) {
       setWallet(wallets[0]);
     } else {
-      const { data } = await base44.functions.invoke("grantEarlyAccessFunds", {});
+      const { data } = await base44.functions.invoke("ensureWallet", {});
       setWallet(data.wallet);
     }
     await loadTransactions(me.id, 1);
@@ -186,7 +185,6 @@ export default function WalletPage() {
         <Link to="/play" className="inline-block">
           <Logo size="sm" />
         </Link>
-        <DemoModeNotice />
         <RestrictedModeBanner />
 
         {/* Balance Card */}
