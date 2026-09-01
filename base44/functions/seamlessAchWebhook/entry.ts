@@ -29,7 +29,9 @@ Deno.serve(async (req) => {
   const body = await req.json().catch(() => ({}));
   const eventType = pickEventType(body);
   const eventId = pickEventId(body);
-  const providerRef = pickCheckId(body) || pickSourceId(body) || pickLabel(body);
+  const providerRef = eventType.startsWith('funding-source.')
+    ? (pickSourceId(body) || pickCustomerId(body) || eventId)
+    : (pickCheckId(body) || pickSourceId(body) || pickLabel(body));
   const providerStatus = pickStatus(body);
   const idemKey = webhookIdempotencyKey({ eventId, providerRef, eventType, status: providerStatus, timestamp: body?.timestamp || '' });
   const owner = crypto.randomUUID();
@@ -175,8 +177,8 @@ async function handleFundingSource(base44, body, eventType, idemKey) {
   let bank = banks[0] || null;
   if (bank && (
     bank.user_id !== profile.user_id ||
-    bank.profile_id !== profile.id ||
-    bank.provider_user_id !== providerUserId
+    (bank.profile_id && bank.profile_id !== profile.id) ||
+    (bank.provider_user_id && bank.provider_user_id !== providerUserId)
   )) {
     await auditFundingSource(base44, {
       eventType, idemKey, sourceId, providerUserId, bank, profile,
@@ -210,6 +212,8 @@ async function handleFundingSource(base44, body, eventType, idemKey) {
     bank = await base44.asServiceRole.entities.SeamlessBankAccount.create(createFields);
   } else if (decision.action === 'apply' || decision.action === 'metadata') {
     const updates = {};
+    if (!bank.profile_id) updates.profile_id = profile.id;
+    if (!bank.provider_user_id) updates.provider_user_id = providerUserId;
     if (decision.action === 'apply') {
       updates.status = decision.status;
       if (providerEventAt) updates.provider_event_at = providerEventAt;
