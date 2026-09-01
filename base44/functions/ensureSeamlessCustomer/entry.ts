@@ -4,6 +4,7 @@ import {
   seamlessConfig, seamlessRequest, buildCreateCustomerBody,
   PATH_CREATE_CUSTOMER, SEAMLESS_PROVIDER_KEY,
 } from '../../shared/seamlessAch.ts';
+import { legalNameFromUser } from '../../shared/legalName.ts';
 
 // Idempotently ensures a Seamless ACH customer exists for the authenticated
 // user. If a SeamlessPaymentProfile already exists for this user, its
@@ -35,14 +36,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Derive a best-effort first/last name. ChessBet users register by email
-    // and may not have a structured full_name; fall back gracefully.
-    const fullName = (user.full_name || user.name || '').trim();
-    const [firstName, ...rest] = fullName.split(/\s+/);
-    const lastName = rest.length ? rest.join(' ') : firstName || 'Player';
+    const legalName = legalNameFromUser(user);
+    if (!legalName) {
+      return Response.json({ error: 'A valid legal first and last name are required.' }, { status: 409 });
+    }
     const body = buildCreateCustomerBody({
-      firstName: firstName || 'ChessBet',
-      lastName,
+      firstName: legalName.firstName,
+      lastName: legalName.lastName,
       email: user.email,
       phone: (user as any).phone || undefined,
     });
