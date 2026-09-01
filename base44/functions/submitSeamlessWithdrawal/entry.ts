@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { seamlessWithdrawalsEnabled } from '../../shared/seamlessFundingConfig.ts';
 import { isSocureIdentityVerified } from '../../shared/identityEligibility.js';
+import { legalNameFromUser } from '../../shared/legalName.ts';
 import { isSocureBankVerificationAccepted, latestSocureBankVerification } from '../../shared/socureBankEligibility.js';
 import {
   seamlessConfig, seamlessRequest, seamlessBaseUrl, buildWithdrawalBody,
@@ -144,7 +145,7 @@ Deno.serve(async (req) => {
       (await base44.asServiceRole.entities.SeamlessBankAccount.filter({ user_id: user.id, status: 'verified' }))[0];
     if (!bank?.source_id) return Response.json({ error: 'Link and verify a bank account first', action: 'bank_link_required' }, { status: 400 });
 
-    const accountHolderName = String(user.full_name || user.name || '').trim();
+    const accountHolderName = legalNameFromUser(user);
     if (!accountHolderName) return Response.json({ error: 'A verified account holder name is required before withdrawal.' }, { status: 400 });
 
     let tx = operation.wallet_transaction_id
@@ -194,7 +195,7 @@ Deno.serve(async (req) => {
     let data;
     try {
       data = await seamlessRequest('POST', PATH_CHECK_SEND, buildWithdrawalBody({
-        providerUserId: profile.provider_user_id, name: accountHolderName, amount: value,
+        providerUserId: profile.provider_user_id, name: accountHolderName.fullName, amount: value,
         description: 'Withdrawal', label, sourceId: bank.source_id,
       }));
     } catch (error) {
