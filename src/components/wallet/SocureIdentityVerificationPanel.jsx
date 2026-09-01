@@ -12,10 +12,87 @@ const COPY = {
   expired: "Your identity verification session expired. Please start again.",
 };
 
-export default function SocureIdentityVerificationPanel({ status = "not_started" }) {
+export default function SocureIdentityVerificationPanel({
+  status = "not_started",
+  fullName = "",
+  onNameSaved,
+}) {
+  const initialParts = fullName.trim().split(/\s+/).filter(Boolean);
+  const [firstName, setFirstName] = useState(initialParts[0] || "");
+  const [lastName, setLastName] = useState(initialParts.slice(1).join(" "));
+  const [savedFullName, setSavedFullName] = useState(fullName.trim());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const hasLegalName = savedFullName.split(/\s+/).filter(Boolean).length >= 2;
 
+  const saveLegalName = async () => {
+    if (!firstName.trim() || !lastName.trim()) {
+      setError("Enter your legal first and last name.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      const { data } = await base44.functions.invoke("setFundingLegalName", {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+      });
+      if (!data?.saved || !data?.full_name) throw new Error("legal_name_update_failed");
+      setSavedFullName(data.full_name);
+      onNameSaved?.(data.full_name);
+    } catch {
+      setError("We couldn't save your legal name. Please review it and try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!hasLegalName) {
+    return (
+      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+        <div className="flex items-start gap-3">
+          <div className="h-9 w-9 rounded-lg bg-[#C9A84C]/10 flex items-center justify-center shrink-0">
+            <ShieldCheck size={18} className="text-[#C9A84C]" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]">Step 1</p>
+            <p className="text-sm font-medium text-white mt-0.5">Confirm your legal name</p>
+            <p className="text-xs text-white/50 mt-1">
+              Use the first and last name shown on your identity and bank records.
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+          <input
+            type="text"
+            autoComplete="given-name"
+            value={firstName}
+            onChange={(event) => setFirstName(event.target.value)}
+            placeholder="Legal first name"
+            maxLength={80}
+            className="h-11 px-4 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder:text-white/20 text-sm focus:border-[#C9A84C]/50 focus:outline-none"
+          />
+          <input
+            type="text"
+            autoComplete="family-name"
+            value={lastName}
+            onChange={(event) => setLastName(event.target.value)}
+            placeholder="Legal last name"
+            maxLength={120}
+            className="h-11 px-4 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder:text-white/20 text-sm focus:border-[#C9A84C]/50 focus:outline-none"
+          />
+        </div>
+        <Button
+          onClick={saveLegalName}
+          disabled={busy || !firstName.trim() || !lastName.trim()}
+          className="w-full mt-4 h-10 rounded-xl gold-gradient text-black font-bold disabled:opacity-40"
+        >
+          {busy ? <><Loader2 size={15} className="animate-spin mr-2" /> Saving?</> : "Save and continue"}
+        </Button>
+        {error && <p className="mt-3 text-xs text-red-400 flex items-center gap-1.5"><AlertTriangle size={13} /> {error}</p>}
+      </div>
+    );
+  }
 
   if (status === "verified") {
     return (
