@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
-import { seamlessWithdrawalsEnabled } from '../../shared/seamlessFundingConfig.ts';
+import { seamlessWithdrawalsEnabled, seamlessRtpPayoutsEnabled } from '../../shared/seamlessFundingConfig.ts';
 import { isSocureIdentityVerified } from '../../shared/identityEligibility.js';
 import { legalNameFromUser } from '../../shared/legalName.ts';
 import { isSocureBankVerificationAccepted, latestSocureBankVerification } from '../../shared/socureBankEligibility.js';
@@ -147,6 +147,10 @@ Deno.serve(async (req) => {
 
     const accountHolderName = legalNameFromUser(user);
     if (!accountHolderName) return Response.json({ error: 'A verified account holder name is required before withdrawal.' }, { status: 400 });
+    // RTP is fail-closed: both the server switch and provider-confirmed bank
+    // eligibility must be true. Standard speed remains the existing provider
+    // default, and no automatic fallback can submit a second payout.
+    const transferSpeed = seamlessRtpPayoutsEnabled() && bank.rtp_eligible === true ? 'rtp' : undefined;
 
     let tx = operation.wallet_transaction_id
       ? await base44.asServiceRole.entities.WalletTransaction.get(operation.wallet_transaction_id)
@@ -184,7 +188,7 @@ Deno.serve(async (req) => {
         internal_entity_type: 'wallet_transaction', internal_entity_id: tx.id, correlation_id: tx.id,
         idempotency_key: idempotencyKey, user_id: user.id, wallet_transaction_id: tx.id,
         status: 'submitting', effective_at: new Date().toISOString(),
-        metadata_json: JSON.stringify({ provider: SEAMLESS_PROVIDER_KEY, direction: 'withdrawal', label, source_id: bank.source_id }),
+        metadata_json: JSON.stringify({ provider: SEAMLESS_PROVIDER_KEY, direction: 'withdrawal', label, source_id: bank.source_id, transfer_speed: transferSpeed || 'standard' }),
       });
     }
 
@@ -196,7 +200,7 @@ Deno.serve(async (req) => {
     try {
       data = await seamlessRequest('POST', PATH_CHECK_SEND, buildWithdrawalBody({
         providerUserId: profile.provider_user_id, name: accountHolderName.fullName, amount: value,
-        description: 'Withdrawal', label, sourceId: bank.source_id,
+        description: 'Withdrawal', label, sourceId: bank.source_id, transferSpeed,
       }));
     } catch (error) {
       const status = Number(error?.status || 0);
@@ -224,7 +228,7 @@ Deno.serve(async (req) => {
       internal_entity_type: 'wallet_transaction', internal_entity_id: tx.id, correlation_id: tx.id,
       idempotency_key: idempotencyKey, user_id: user.id, wallet_transaction_id: tx.id,
       status: 'submitted', effective_at: new Date().toISOString(),
-      metadata_json: JSON.stringify({ provider: SEAMLESS_PROVIDER_KEY, direction: 'withdrawal', label, source_id: bank.source_id,
+      metadata_json: JSON.stringify({ provider: SEAMLESS_PROVIDER_KEY, direction: 'withdrawal', label, source_id: bank.source_id, transfer_speed: transferSpeed || 'standard',
         endpoint: `${seamlessBaseUrl((Deno.env.get('SEAMLESS_ACH_ENV') || '').trim())}${PATH_CHECK_SEND}` }),
     });
     await base44.asServiceRole.entities.WalletTransaction.update(tx.id, { integration_status: 'submitted', direction: 'reserve', source_event: 'seamless_withdrawal_submitted' });
@@ -234,9 +238,9 @@ Deno.serve(async (req) => {
       eventType: 'financial.seamless_withdrawal_submitted', aggregateType: 'wallet_transaction', aggregateId: tx.id,
       correlationId: tx.id, idempotencyKey: `seamless:withdrawal:submitted:${tx.id}`, actorType: 'user', actorId: user.id,
       userId: user.id, walletTransactionId: tx.id, status: 'pending', amount: value, result: providerRef,
-      eventData: { provider: SEAMLESS_PROVIDER_KEY, provider_ref: providerRef, label },
+      eventData: { provider: SEAMLESS_PROVIDER_KEY, provider_ref: providerRef, label, transfer_speed: transferSpeed || 'standard' },
     });
-    return Response.json({ enabled: true, transaction_id: tx.id, provider_reference_id: providerRef, status: 'pending' });
+    return Response.json({ enabled: true, transaction_id: tx.id, provider_reference_id: providerRef, status: 'pending', transfer_speed: transferSpeed || 'standard' });
   } catch {
     return Response.json({ error: 'Unable to submit withdrawal' }, { status: 503 });
   } finally {
