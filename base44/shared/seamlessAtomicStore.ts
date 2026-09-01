@@ -4,7 +4,9 @@
 const PREFIX = 'chessbet:seamless:v1';
 const OP_TTL_SECONDS = 60 * 60 * 24 * 90;
 const EVENT_TTL_SECONDS = 60 * 60 * 24 * 90;
-const LOCK_TTL_MS = 45_000;
+// A lease must outlast the 12s provider timeout and the subsequent Base44
+// ledger/entity writes. A crashed worker remains recoverable after three minutes.
+const LOCK_TTL_MS = 3 * 60 * 1000;
 
 function config() {
   const url = (Deno.env.get('SEAMLESS_ATOMIC_REDIS_REST_URL') || '').trim().replace(/\/$/, '');
