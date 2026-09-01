@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 
 // Seamless ACH funding panel. Replaces the former direct-Plaid-Link deposit/
-// withdraw UI on the Wallet page. All real-money provider calls are gated
-// server-side by EARLY_ACCESS_MODE and by verified-account checks; this UI
+// withdraw UI on the Wallet page. Real deposit calls require the server-side
+// SEAMLESS_DEPOSITS_ENABLED switch; all bank actions require verified accounts. This UI
 // only surfaces the resulting states (verified / pending / failed bank and
 // payment). It never trusts the Seamless browser callback as verification ?
 // only the funding-source.verified webhook persists a verified source_id.
@@ -163,18 +163,18 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
     }
   };
 
-  const earlyAccess = !!state?.early_access;
+  const depositsEnabled = !!state?.deposits_enabled;
   const identityVerified = !!state?.identity_verified;
   const effectiveAccountState = state?.account_state || accountState;
   const effectiveWithdrawalHold = state?.withdrawal_hold ?? withdrawalHold;
   const notVerified = !identityVerified || effectiveAccountState !== "verified";
-  const ineligible = earlyAccess || effectiveWithdrawalHold || notVerified;
+  const ineligible = effectiveWithdrawalHold || notVerified;
   const verifiedBank = state?.banks?.find((b) => b.status === "verified");
   const pendingBank = state?.banks?.find((b) => ["added", "pending_verification"].includes(b.status));
   const attentionBank = state?.banks?.find((b) =>
     ["verification_failed", "verification_expired", "deleted", "error"].includes(b.status)
   );
-  const canSubmit = !ineligible && !!verifiedBank && !busy && parseFloat(amount) > 0;
+  const canSubmit = !ineligible && !!verifiedBank && !busy && parseFloat(amount) > 0 && (direction !== 'deposit' || depositsEnabled);
 
   if (loading) {
     return (
@@ -186,34 +186,24 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
 
   return (
     <div className="space-y-4">
-      {earlyAccess && (
-        <div className="rounded-2xl bg-amber-500/[0.06] border border-amber-500/20 p-4 text-center">
-          <p className="text-sm text-amber-300/90 font-medium">
-            Bank transfers are unavailable during Early Access.
-          </p>
-          <p className="text-xs text-amber-300/60 mt-1">
-            Your demo balance is unchanged. Real deposits and withdrawals unlock at launch.
-          </p>
-        </div>
-      )}
 
       {/* Account-state notices (preserved from the prior UX) */}
-      {!earlyAccess && effectiveWithdrawalHold && (
+      {effectiveWithdrawalHold && (
         <p className="text-xs text-red-400/80 text-center">
           Withdrawals are temporarily on hold while we complete a routine account review.
         </p>
       )}
-      {!earlyAccess && !effectiveWithdrawalHold && notVerified && effectiveAccountState === "provisional" && (
+      {!effectiveWithdrawalHold && notVerified && effectiveAccountState === "provisional" && (
         <p className="text-xs text-white/40 text-center">
           Complete identity verification to unlock deposits and withdrawals.
         </p>
       )}
-      {!earlyAccess && !effectiveWithdrawalHold && effectiveAccountState === "suspended" && (
+      {!effectiveWithdrawalHold && effectiveAccountState === "suspended" && (
         <p className="text-xs text-red-400/80 text-center">
           Your account is currently suspended. Deposits and withdrawals are unavailable.
         </p>
       )}
-      {!earlyAccess && !effectiveWithdrawalHold && effectiveAccountState === "closed" && (
+      {!effectiveWithdrawalHold && effectiveAccountState === "closed" && (
         <p className="text-xs text-red-400/80 text-center">
           This account is closed. Deposits and withdrawals are unavailable.
         </p>
@@ -267,8 +257,8 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
           <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]">Step 3</p>
           <h4 className="text-sm font-semibold text-white mt-1">Fund account</h4>
           <p className="text-xs text-white/45 mt-1">
-            {earlyAccess
-              ? "Account funding is not available yet."
+            {!depositsEnabled
+              ? "Account funding is temporarily unavailable."
               : !identityVerified
                 ? "Complete identity verification first."
                 : !verifiedBank
@@ -284,7 +274,7 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
                 ? "gold-gradient text-black"
                 : "bg-white/[0.05] text-white/70 border border-white/10"
             }`}
-            disabled={ineligible || !verifiedBank}
+            disabled={ineligible || !verifiedBank || !depositsEnabled}
           >
             <Plus size={16} className="mr-2" /> Fund Account
           </Button>
@@ -310,7 +300,7 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           placeholder={direction === "deposit" ? "Amount to fund" : "Amount to withdraw"}
-          disabled={ineligible || !verifiedBank}
+          disabled={ineligible || !verifiedBank || (direction === 'deposit' && !depositsEnabled)}
           className="w-full h-12 px-4 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder:text-white/20 text-sm focus:border-[#C9A84C]/50 focus:outline-none disabled:opacity-40"
         />
         <Button
