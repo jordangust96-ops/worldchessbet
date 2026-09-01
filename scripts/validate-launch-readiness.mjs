@@ -42,10 +42,17 @@ assert.ok(ensureCustomer.includes('legalNameFromUser(user)'));
 assert.ok(bankScreening.includes('legalNameFromUser(user)'));
 
 const pooledPlan = await read('docs/architecture/deferred-pooled-account.md');
-assert.ok(pooledPlan.includes('Do not implement or enable fund movement'));
+assert.ok(pooledPlan.includes('implemented for publish readiness'));
+assert.ok(pooledPlan.includes('merchant-pool level'));
 assert.ok(pooledPlan.includes('SEAMLESS_DEPOSITS_ENABLED'));
 assert.ok(pooledPlan.includes('SEAMLESS_WITHDRAWALS_ENABLED'));
-assert.ok(pooledPlan.includes('Decisions required from Seamless'));
+assert.ok(pooledPlan.includes('Implemented identifier mapping'));
+
+const pooledReconciliation = await read('base44/functions/record-seamless-merchant-balance-snapshot/entry.ts');
+assert.ok(pooledReconciliation.includes('reconcileSeamlessMerchantBalance'));
+assert.ok(pooledReconciliation.includes("provider_balance_scope: 'merchant_pool'"));
+assert.ok(pooledReconciliation.includes("player_balance_scope: 'internal_ledger'"));
+assert.ok(pooledReconciliation.includes('requireAdminMfa'));
 
 async function collect(dir) {
   const entries = await readdir(new URL(dir, root), { withFileTypes: true });
