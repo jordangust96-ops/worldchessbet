@@ -6,8 +6,10 @@ import {
   PATH_ACH_DEBIT, SEAMLESS_PROVIDER_KEY,
 } from '../../shared/seamlessAch.ts';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
+import { claimDepositOperation, saveDepositOperation } from '../../shared/seamlessAtomicStore.ts';
 
 const MAX_AMOUNT = 10000;
+const IDEMPOTENCY_KEY = /^[A-Za-z0-9._:-]{16,128}$/;
 
 // Submits a Seamless ACH debit (deposit) to the user's verified funding source.
 // Provider acceptance creates ONLY a pending WalletTransaction — displayed
@@ -29,13 +31,30 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { amount } = await req.json();
+    const { amount, idempotencyKey } = await req.json();
     const value = Number(amount);
     if (!Number.isFinite(value) || value <= 0 || value > MAX_AMOUNT) {
       return Response.json({ error: 'Invalid deposit amount' }, { status: 400 });
     }
+    if (!IDEMPOTENCY_KEY.test(String(idempotencyKey || ''))) {
+      return Response.json({ error: 'A valid deposit idempotency key is required' }, { status: 400 });
+    }
     if (!isSocureIdentityVerified(user) || user.withdrawal_hold) {
       return Response.json({ error: 'Your account is not eligible for bank transfers' }, { status: 403 });
+    }
+
+    let operation = await claimDepositOperation(user.id, idempotencyKey, value);
+    if (!operation || Number(operation.amount) !== value) {
+      return Response.json({ error: 'Invalid deposit idempotency key reuse' }, { status: 409 });
+    }
+    if (operation.state === 'submitted') {
+      return Response.json({ enabled: true, transaction_id: operation.wallet_transaction_id, provider_reference_id: operation.provider_reference_id || '', status: 'pending', deduplicated: true });
+    }
+    if (operation.state === 'submitting' || operation.state === 'uncertain') {
+      return Response.json({ enabled: true, transaction_id: operation.wallet_transaction_id || '', status: 'uncertain', deduplicated: true, reconciliation_required: true }, { status: 202 });
+    }
+    if (operation.state === 'failed') {
+      return Response.json({ error: 'This deposit request was rejected. Start a new request with a new idempotency key.' }, { status: 409 });
     }
 
     const profile = (
@@ -73,22 +92,28 @@ Deno.serve(async (req) => {
     // Durable idempotency: create the pending WalletTransaction FIRST with a
     // stable idempotency_key, and never resubmit an already-provider-submitted
     // transaction. The label ties the provider request back to this record.
-    const pending = await base44.asServiceRole.entities.WalletTransaction.create({
-      user_id: user.id,
-      type: 'deposit',
-      amount: value,
-      description: 'Seamless ACH funding pending',
-      status: 'pending',
-      integration_status: 'pending',
-      currency: 'USD',
-      direction: 'credit',
-      source_event: 'seamless_deposit',
-      initiating_actor: 'user',
-      initiating_actor_id: user.id,
-      idempotency_key: `seamless:deposit:${user.id}:${crypto.randomUUID()}`,
-      correlation_id: '',
-      schema_version: 1,
-    });
+    let pending = operation.wallet_transaction_id
+      ? await base44.asServiceRole.entities.WalletTransaction.get(operation.wallet_transaction_id)
+      : null;
+    if (!pending) {
+      pending = await base44.asServiceRole.entities.WalletTransaction.create({
+        user_id: user.id,
+        type: 'deposit',
+        amount: value,
+        description: 'Seamless ACH funding pending',
+        status: 'pending',
+        integration_status: 'pending',
+        currency: 'USD',
+        direction: 'credit',
+        source_event: 'seamless_deposit',
+        initiating_actor: 'user',
+        initiating_actor_id: user.id,
+        idempotency_key: idempotencyKey,
+        correlation_id: '',
+        schema_version: 1,
+      });
+      operation = await saveDepositOperation(user.id, idempotencyKey, { ...operation, wallet_transaction_id: pending.id, state: 'new' });
+    }
 
     const accountHolderName = String(user.full_name || user.name || '').trim();
     if (!accountHolderName) {
