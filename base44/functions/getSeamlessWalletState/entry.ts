@@ -1,6 +1,8 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { seamlessDepositsEnabled } from '../../shared/seamlessFundingConfig.ts';
 import { isSocureIdentityVerified } from '../../shared/identityEligibility.js';
+import { socureConfig } from '../../shared/socure.ts';
+import { latestSocureBankVerification, publicSocureBankStatus } from '../../shared/socureBankEligibility.js';
 
 // Read-only view of the authenticated user's Seamless funding state for the
 // Wallet page. Reads ONLY our own stored records (SeamlessPaymentProfile,
@@ -15,6 +17,8 @@ Deno.serve(async (req) => {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const depositsEnabled = seamlessDepositsEnabled();
+    let bankScreeningEnabled = false;
+    try { bankScreeningEnabled = !!socureConfig().enabled; } catch { bankScreeningEnabled = false; }
 
     const profile = (
       await base44.asServiceRole.entities.SeamlessPaymentProfile.filter({ user_id: user.id })
@@ -22,6 +26,9 @@ Deno.serve(async (req) => {
 
     const banks = await base44.asServiceRole.entities.SeamlessBankAccount.filter(
       { user_id: user.id }, '-added_at', 50
+    );
+    const bankVerifications = await base44.asServiceRole.entities.SocureBankVerification.filter(
+      { user_id: user.id }, '-requested_at', 100
     );
 
     const [deposits, withdrawals] = await Promise.all([
@@ -39,20 +46,26 @@ Deno.serve(async (req) => {
     return Response.json({
       enabled: true,
       deposits_enabled: depositsEnabled,
+      bank_screening_enabled: bankScreeningEnabled,
       identity_verified: isSocureIdentityVerified(user),
       identity_status: user.identity_verification_status || 'not_started',
       account_state: user.account_state || 'provisional',
       withdrawal_hold: !!user.withdrawal_hold,
       profile: profile ? { exists: true, status: profile.status || 'created' } : null,
-      banks: banks.map((bank) => ({
-        id: bank.id,
-        account_name: bank.account_name || '',
-        account_mask: bank.account_mask || '',
-        is_primary: !!bank.is_primary,
-        status: bank.status || 'added',
-        added_at: bank.added_at || '',
-        verified_at: bank.verified_at || '',
-      })),
+      banks: banks.map((bank) => {
+        const verification = latestSocureBankVerification(bankVerifications, bank.source_id);
+        return {
+          id: bank.id,
+          source_id: bank.source_id || '',
+          account_name: bank.account_name || '',
+          account_mask: bank.account_mask || '',
+          is_primary: !!bank.is_primary,
+          status: bank.status || 'added',
+          socure_status: publicSocureBankStatus(verification),
+          added_at: bank.added_at || '',
+          verified_at: bank.verified_at || '',
+        };
+      }),
       recent: recent.map((tx) => ({
         id: tx.id,
         type: tx.type,
