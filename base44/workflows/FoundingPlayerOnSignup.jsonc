@@ -35,5 +35,5 @@
     }
   },
   "name": "Founding Player On Signup",
-  "description": "Creates and credits each new user's Early Access wallet, then awards the Founding Player badge (and sends the notification email) until the 250-user cap is reached."
+  "description": "Ensures a new user has a zero-balance wallet, then awards the Founding Player badge (and sends the notification email) until the 250-user cap is reached. Early Access funding is inert while production-mode testing is enabled."
 }
