@@ -85,6 +85,7 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
   const [error, setError] = useState("");
   const [amount, setAmount] = useState("");
   const [direction, setDirection] = useState("deposit");
+  const depositRequestKey = useRef("");
   const withdrawalRequestKey = useRef("");
 
   const load = useCallback(async () => {
@@ -136,14 +137,15 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
     try {
       const fn = direction === "deposit" ? "submitSeamlessDeposit" : "submitSeamlessWithdrawal";
       const payload = { amount: v };
-      if (direction === "withdrawal") {
-        withdrawalRequestKey.current ||= crypto.randomUUID();
-        payload.idempotencyKey = withdrawalRequestKey.current;
-      }
+      const requestKey = direction === "deposit" ? depositRequestKey : withdrawalRequestKey;
+      requestKey.current ||= crypto.randomUUID();
+      payload.idempotencyKey = requestKey.current;
       const { data } = await base44.functions.invoke(fn, payload);
       if (!data?.enabled) throw new Error(data?.reason || "Bank transfers are unavailable right now.");
-      if (direction === "withdrawal") withdrawalRequestKey.current = "";
-      setAmount("");
+      // Preserve the key for an in-doubt provider result: pressing submit again
+      // asks the server for the same logical transfer, never a second ACH request.
+      if (data?.status !== "uncertain") requestKey.current = "";
+      if (data?.status !== "uncertain") setAmount("");
       await load();
       if (onRefresh) onRefresh();
     } catch (e) {
