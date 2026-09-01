@@ -6,18 +6,13 @@ import {
   sha256Hex,
   socureConfig,
 } from '../../shared/socure.ts';
+import { legalNameFromUser } from '../../shared/legalName.ts';
 
 // Authenticated users initiate Account Intelligence only for their own verified
 // Seamless funding source. Raw routing/account input exists only for this
 // in-memory request: it is never returned, logged, or persisted.
 const DIGITS = /^[0-9]+$/;
 
-function splitLegalName(user: any) {
-  const fullName = String(user?.full_name || user?.name || '').trim();
-  const parts = fullName.split(/\s+/).filter(Boolean);
-  if (parts.length < 2) return null;
-  return { givenName: parts[0], familyName: parts.slice(1).join(' ') };
-}
 
 function extractSignals(response: any) {
   const enrichments = Array.isArray(response?.data_enrichments) ? response.data_enrichments : [];
@@ -113,7 +108,7 @@ Deno.serve(async (req) => {
     if (!fundingSource || mask.length < 4 || !normalizedAccount.endsWith(mask)) {
       return Response.json({ error: 'funding_source_account_mismatch' }, { status: 409 });
     }
-    const legalName = splitLegalName(user);
+    const legalName = legalNameFromUser(user);
     if (!legalName) {
       return Response.json({ error: 'verified_legal_name_required' }, { status: 409 });
     }
@@ -156,8 +151,8 @@ Deno.serve(async (req) => {
     const response = await evaluateSocureBankAccount({
       config,
       evaluationId: `chessbet-${candidate.id}`,
-      givenName: legalName.givenName,
-      familyName: legalName.familyName,
+      givenName: legalName.firstName,
+      familyName: legalName.lastName,
       accountNumber: normalizedAccount,
       routingNumber: normalizedRouting,
     });
