@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { seamlessWithdrawalsEnabled } from '../../shared/seamlessFundingConfig.ts';
 import { isSocureIdentityVerified } from '../../shared/identityEligibility.js';
 import { isSocureBankVerificationAccepted, latestSocureBankVerification } from '../../shared/socureBankEligibility.js';
 import {
@@ -79,10 +80,16 @@ Deno.serve(async (req) => {
   let lockOwner = '';
   let userId = '';
   try {
-    seamlessConfig(); // fail closed before any provider mutation
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!seamlessWithdrawalsEnabled()) {
+      return Response.json({
+        enabled: false,
+        reason: 'Withdrawals are not available yet.',
+      }, { status: 409 });
+    }
+    seamlessConfig(); // fail closed before any provider mutation
     userId = user.id;
     if (!isSocureIdentityVerified(user) || user.withdrawal_hold) {
       return Response.json({ error: 'Your account is not eligible for bank transfers' }, { status: 403 });
