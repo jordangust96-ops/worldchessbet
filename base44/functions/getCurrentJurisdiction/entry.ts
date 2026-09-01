@@ -21,28 +21,20 @@ import { isLocationApproved } from '../../shared/jurisdictionRegions.js';
 // ============================================================================
 // ============================================================================
 // Geolocation enforcement is controlled solely by MAXMIND_GEOIP_ENABLED (see
-// base44/shared/jurisdictionGates.js). EARLY_ACCESS_MODE no longer participates
-// in the jurisdiction decision: with MAXMIND_GEOIP_ENABLED=true, enforcement
-// is always on and Early Access never bypasses it.
+// base44/shared/jurisdictionGates.js). EARLY_ACCESS_MODE never participates in
+// a jurisdiction decision.
 //
-// When enforcement is disabled (MAXMIND_GEOIP_ENABLED false), ordinary app
-// flows return an approved bypass without calling MaxMind, preventing paid
-// provider usage pre-launch. An administrator may still explicitly request one
-// live lookup with forceLiveCheck=true, but only when the separate
-// MAXMIND_ADMIN_FORCE_LIVE_CHECKS server gate is also enabled, for a
-// controlled integration test.
-//
-// When enforcement is enabled, fresh checks occur at meaningful paid
-// boundaries: account funding, contest creation/joining, and final entry
-// reservation. Successful approved/blocked results may be reused briefly when
-// the trusted edge IP is unchanged, avoiding duplicate calls during one match
-// preparation flow without trusting a stale location.
+// MAXMIND_GEOIP_ENABLED must be explicitly true for protected activity. If it
+// is false or absent, ChessBet does not call MaxMind and fails closed with a
+// clear configuration error. When enabled, fresh checks occur at funding,
+// contest creation/joining, and final entry reservation. Successful
+// approved/blocked results may be reused briefly only for the same trusted edge
+// IP, avoiding duplicate calls without trusting a stale location.
 // ============================================================================
-// Server-only provider gate. Geolocation enforcement is controlled solely by
-// MAXMIND_GEOIP_ENABLED; EARLY_ACCESS_MODE is no longer consulted here. With
-// MAXMIND_GEOIP_ENABLED=true, fresh MaxMind lookups run and a provider outage
-// / missing configuration fails closed (verification_failed), which blocks the
-// paid action. With it false, the approved bypass below is retained.
+// Server-only provider gate. With MAXMIND_GEOIP_ENABLED=true, fresh MaxMind
+// lookups run and provider outage / missing credentials fail closed
+// (verification_failed), which blocks the paid action. With it false or
+// missing, protected activity also fails closed without a provider request.
 const MAXMIND_GEOIP_ENABLED = Deno.env.get('MAXMIND_GEOIP_ENABLED') === 'true';
 // Separate server-only gate for admin-initiated live lookups. Defaults false
 // (env unset), so an administrator cannot trigger a paid MaxMind call unless
@@ -228,23 +220,11 @@ Deno.serve(async (req) => {
     const liveCheckForcedByAdmin =
       forceLiveCheck && user.role === 'admin' && canAdminForceLiveCheck(MAXMIND_ADMIN_FORCE_LIVE_CHECKS);
 
-    // While geolocation enforcement is disabled (MAXMIND_GEOIP_ENABLED=false),
-    // ordinary traffic must not consume a paid lookup. Admins can still perform
-    // an explicit, auditable live test.
-    if (!ENABLE_GEOLOCATION_ENFORCEMENT && !liveCheckForcedByAdmin) {
-      return Response.json({
-        status: 'approved',
-        approved: true,
-        state: user.current_jurisdiction_state || '',
-        country: user.current_jurisdiction_country || '',
-        vpnDetected: !!user.jurisdiction_vpn_detected,
-        reason: '',
-        provider: PROVIDER,
-        enforcementEnabled: false,
-        verificationSkipped: true,
-        cached: false,
-      });
-    }
+    // Never convert a missing/disabled provider configuration into an approval.
+    // This path deliberately performs no paid lookup, then persists the
+    // configuration failure below as an auditable, non-reusable decision.
+    const providerConfigurationUnavailable =
+      !ENABLE_GEOLOCATION_ENFORCEMENT && !liveCheckForcedByAdmin;
 
     let status = 'unknown';
     let state = '';
@@ -254,7 +234,10 @@ Deno.serve(async (req) => {
     let lookupDetails = {};
     let cachedVerification = null;
 
-    if (!ip) {
+    if (providerConfigurationUnavailable) {
+      status = 'verification_failed';
+      reason = 'Location verification is unavailable because MaxMind is not configured.';
+    } else if (!ip) {
       status = 'unknown';
       reason = UNKNOWN_MESSAGE;
     } else {
@@ -294,23 +277,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Preserve the fully-computed, pre-bypass result for audit purposes
-    // before the centralized bypass (if any) below overrides it.
+    // Disabled/missing MaxMind configuration is a failure, never an approval.
+    // Keep this field for historical audit compatibility; new decisions never
+    // use an enforcement bypass.
     const wouldBeStatus = status;
     const wouldBeReason = reason;
-    let enforcementBypassed = false;
-
-    // The one and only bypass branch in the app — overrides a non-approved
-    // result so it never blocks/restricts a flow while geolocation enforcement
-    // is disabled (MAXMIND_GEOIP_ENABLED=false). With MAXMIND_GEOIP_ENABLED=true
-    // this never fires and Early Access never bypasses enforcement. The
-    // original result computed above is untouched in wouldBeStatus/wouldBeReason
-    // and is written to the audit log below.
-    if (!ENABLE_GEOLOCATION_ENFORCEMENT && status !== 'approved') {
-      enforcementBypassed = true;
-      status = 'approved';
-      reason = '';
-    }
+    const enforcementBypassed = false;
 
     // A reused result already has an immutable provider audit record. Avoid
     // duplicate User/log writes for the same IP during one short flow.
