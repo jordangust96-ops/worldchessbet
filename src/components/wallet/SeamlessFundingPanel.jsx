@@ -195,6 +195,7 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
   };
 
   const depositsEnabled = !!state?.deposits_enabled;
+  const withdrawalsEnabled = !!state?.withdrawals_enabled;
   const bankScreeningEnabled = !!state?.bank_screening_enabled;
   const identityVerified = !!state?.identity_verified;
   const effectiveAccountState = state?.account_state || accountState;
@@ -208,7 +209,8 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
   );
   const bankScreeningStatus = verifiedBank?.socure_status || "not_started";
   const bankScreened = bankScreeningStatus === "verified";
-  const canSubmit = !ineligible && !!verifiedBank && bankScreened && !busy && parseFloat(amount) > 0 && (direction !== 'deposit' || depositsEnabled);
+  const transferDirectionEnabled = direction === 'deposit' ? depositsEnabled : withdrawalsEnabled;
+  const canSubmit = !ineligible && !!verifiedBank && bankScreened && !busy && parseFloat(amount) > 0 && transferDirectionEnabled;
 
   if (loading) {
     return (
@@ -347,15 +349,17 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
           <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]">Step 4</p>
           <h4 className="text-sm font-semibold text-white mt-1">Fund account</h4>
           <p className="text-xs text-white/45 mt-1">
-            {!depositsEnabled
-              ? "Account funding is temporarily unavailable."
-              : !identityVerified
+            {!identityVerified
                 ? "Complete identity verification first."
-                : !verifiedBank
-                  ? "Connect and verify a bank before funding your account."
-                  : !bankScreened
-                    ? "Complete bank account screening before transfers."
-                    : "Your identity, bank connection, and screening are ready."}
+              : !verifiedBank
+                ? "Connect and verify a bank before transferring funds."
+                : !bankScreened
+                  ? "Complete bank account screening before transfers."
+                  : direction === "deposit" && !depositsEnabled
+                    ? "Account funding is temporarily unavailable."
+                    : direction === "withdrawal" && !withdrawalsEnabled
+                      ? "Withdrawals are temporarily unavailable."
+                      : "Your identity, bank connection, and screening are ready."}
           </p>
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -372,7 +376,7 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
           </Button>
           <Button
             onClick={() => setDirection("withdrawal")}
-            disabled={ineligible || !verifiedBank || !bankScreened || (wallet && (wallet.available_balance || 0) <= 0)}
+            disabled={ineligible || !verifiedBank || !bankScreened || !withdrawalsEnabled || (wallet && (wallet.available_balance || 0) <= 0)}
             className={`h-12 rounded-2xl font-bold disabled:opacity-30 ${
               direction === "withdrawal"
                 ? "gold-gradient text-black"
@@ -392,7 +396,7 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           placeholder={direction === "deposit" ? "Amount to fund" : "Amount to withdraw"}
-          disabled={ineligible || !verifiedBank || !bankScreened || (direction === 'deposit' && !depositsEnabled)}
+          disabled={ineligible || !verifiedBank || !bankScreened || !transferDirectionEnabled}
           className="w-full h-12 px-4 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder:text-white/20 text-sm focus:border-[#C9A84C]/50 focus:outline-none disabled:opacity-40"
         />
         <Button
