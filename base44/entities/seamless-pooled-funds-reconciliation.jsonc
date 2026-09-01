@@ -1,0 +1,89 @@
+{
+  "name": "SeamlessPooledFundsReconciliation",
+  "type": "object",
+  "properties": {
+    "snapshot_id": {
+      "type": "string"
+    },
+    "provider_available_balance": {
+      "type": "number"
+    },
+    "provider_pending_balance": {
+      "type": "number"
+    },
+    "provider_total_balance": {
+      "type": "number"
+    },
+    "player_available_liability": {
+      "type": "number"
+    },
+    "player_held_liability": {
+      "type": "number"
+    },
+    "player_ledger_liability": {
+      "type": "number",
+      "description": "Sum of player available and held balances. This remains separate from provider cash."
+    },
+    "pending_deposit_amount": {
+      "type": "number"
+    },
+    "reserved_withdrawal_amount": {
+      "type": "number"
+    },
+    "uncertain_withdrawal_amount": {
+      "type": "number"
+    },
+    "settled_coverage_variance": {
+      "type": "number",
+      "description": "Merchant settled balance minus player ledger liability."
+    },
+    "coverage_ratio": {
+      "type": "number"
+    },
+    "snapshot_age_hours": {
+      "type": "number"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "covered",
+        "shortfall",
+        "stale_snapshot"
+      ]
+    },
+    "calculation_json": {
+      "type": "string",
+      "maxLength": 8000
+    },
+    "created_by": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "snapshot_id",
+    "provider_available_balance",
+    "player_ledger_liability",
+    "settled_coverage_variance",
+    "status",
+    "created_by",
+    "created_at"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": false,
+    "delete": false
+  }
+}
