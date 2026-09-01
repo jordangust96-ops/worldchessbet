@@ -35,6 +35,8 @@ function RegisterSEO() {
 }
 
 export default function Register() {
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -47,6 +49,10 @@ export default function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    if (!firstName.trim() || !lastName.trim()) {
+      setError("Enter your legal first and last name");
+      return;
+    }
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
@@ -77,6 +83,10 @@ export default function Register() {
       }
       try {
         const me = await base44.auth.me();
+        await base44.functions.invoke("setFundingLegalName", {
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+        });
         for (const policyType of POLICY_TYPE_ORDER) {
           const configs = await base44.entities.PrivacyPolicyConfig.filter(
             { is_active: true, policy_type: policyType },
@@ -253,6 +263,35 @@ export default function Register() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="firstName">Legal first name</Label>
+              <Input
+                id="firstName"
+                type="text"
+                autoComplete="given-name"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                maxLength={80}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lastName">Legal last name</Label>
+              <Input
+                id="lastName"
+                type="text"
+                autoComplete="family-name"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                maxLength={120}
+                required
+              />
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Use the name that appears on your identity and bank records.
+          </p>
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <div className="relative">
