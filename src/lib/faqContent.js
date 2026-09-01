@@ -33,8 +33,7 @@ export const FAQ_SECTIONS = [
       {
         question: "How are players verified?",
         paragraphs: [
-          "Prior to public launch, ChessBet will verify player identity and eligibility before allowing participation in real-money contests.",
-          "During Early Access, these verification requirements are temporarily disabled.",
+          "ChessBet verifies player identity and eligibility before allowing participation in real-money contests.",
         ],
       },
       {
@@ -70,8 +69,7 @@ export const FAQ_SECTIONS = [
         id: "how-payouts-work",
         question: "How do payouts work?",
         paragraphs: [
-          "Real-money settlement and withdrawals are not active during Early Access; all current balances are demo funds.",
-          "At launch, after a decisive result is confirmed, the winner will receive 100% of both players' combined Contest Entry Amounts in their ChessBet balance. The fixed Platform Service Fee is disclosed and reserved separately, so it is not deducted from the winner's prize.",
+          "After a decisive result is confirmed, the winner receives 100% of both players' combined Contest Entry Amounts in their ChessBet balance. The fixed Platform Service Fee is disclosed and reserved separately, so it is not deducted from the winner's prize.",
           "For a draw, cancellation, or platform void, each player's Contest Entry Amount and Platform Service Fee are returned. If a report triggers an integrity review, the reserved funds remain pending until a person reviews the available evidence and the contest is resolved.",
           "Available funds may then be withdrawn through the supported bank-transfer method, subject to identity verification, fraud-prevention review, active-contest holds, and verified provider status.",
         ],
