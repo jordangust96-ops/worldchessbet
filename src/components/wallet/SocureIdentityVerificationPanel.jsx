@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { AlertTriangle, CheckCircle2, Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
-import { DEMO_MODE } from "@/lib/appConfig";
 
 const COPY = {
   not_started: "Verify your identity before funding or entering paid contests.",
@@ -19,7 +18,6 @@ export default function SocureIdentityVerificationPanel({ status = "not_started"
 
   // The server retains the authoritative Early Access switch. Hiding this
   // launch-only control keeps the existing demo experience unchanged.
-  if (DEMO_MODE) return null;
 
   if (status === "verified") {
     return (
