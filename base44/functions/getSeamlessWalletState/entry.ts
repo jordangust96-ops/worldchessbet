@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { EARLY_ACCESS_MODE } from '../../shared/earlyAccess.ts';
+import { isSocureIdentityVerified } from '../../shared/identityEligibility.js';
 
 // Read-only view of the authenticated user's Seamless funding state for the
 // Wallet page. Reads ONLY our own stored records (SeamlessPaymentProfile,
@@ -38,9 +39,27 @@ Deno.serve(async (req) => {
     return Response.json({
       early_access: earlyAccess,
       enabled: !earlyAccess,
-      profile,
-      banks,
-      recent,
+      identity_verified: isSocureIdentityVerified(user),
+      identity_status: user.identity_verification_status || 'not_started',
+      account_state: user.account_state || 'provisional',
+      withdrawal_hold: !!user.withdrawal_hold,
+      profile: profile ? { exists: true, status: profile.status || 'created' } : null,
+      banks: banks.map((bank) => ({
+        id: bank.id,
+        account_name: bank.account_name || '',
+        account_mask: bank.account_mask || '',
+        is_primary: !!bank.is_primary,
+        status: bank.status || 'added',
+        added_at: bank.added_at || '',
+        verified_at: bank.verified_at || '',
+      })),
+      recent: recent.map((tx) => ({
+        id: tx.id,
+        type: tx.type,
+        amount: tx.amount,
+        status: tx.status,
+        created_date: tx.created_date,
+      })),
     });
   } catch (error) {
     return Response.json({ error: error?.message || 'Unable to load funding state' }, { status: 500 });
