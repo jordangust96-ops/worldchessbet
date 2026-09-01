@@ -15,12 +15,12 @@ import { base44 } from "@/api/base44Client";
 
 const BANK_STATUS = {
   verified: { label: "Verified", color: "text-emerald-400", icon: CheckCircle2 },
-  pending_verification: { label: "Verifying", color: "text-amber-400", icon: Clock },
-  added: { label: "Added", color: "text-white/50", icon: Clock },
-  verification_failed: { label: "Verification failed", color: "text-red-400", icon: XCircle },
-  verification_expired: { label: "Verification expired", color: "text-red-400", icon: XCircle },
+  pending_verification: { label: "Verification in progress", color: "text-amber-400", icon: Clock },
+  added: { label: "Connection submitted", color: "text-amber-400", icon: Clock },
+  verification_failed: { label: "Needs attention", color: "text-red-400", icon: XCircle },
+  verification_expired: { label: "Reconnect required", color: "text-red-400", icon: XCircle },
   deleted: { label: "Removed", color: "text-white/40", icon: XCircle },
-  error: { label: "Error", color: "text-red-400", icon: XCircle },
+  error: { label: "Needs attention", color: "text-red-400", icon: XCircle },
 };
 
 const TX_STATUS = {
@@ -87,6 +87,10 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
   const [direction, setDirection] = useState("deposit");
   const depositRequestKey = useRef("");
   const withdrawalRequestKey = useRef("");
+  const pollAttempts = useRef(0);
+  const query = new URLSearchParams(window.location.search);
+  const bankLinkReturned = query.get("bank_link_return") === "1";
+  const bankLinkCancelled = query.get("bank_link_cancelled") === "1";
 
   const load = useCallback(async () => {
     try {
@@ -102,16 +106,20 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
 
   useEffect(() => { load(); }, [load]);
 
-  // Poll while any bank is still verifying or a Seamless tx is pending, so the
-  // user sees the verified/pending/failed transition without a manual refresh.
+  // Poll briefly after a hosted-flow return or while persisted state is pending.
+  // Stop after ten inexpensive refreshes; later visits always reload server state.
   useEffect(() => {
     const hasPending =
       state?.banks?.some((b) => ["added", "pending_verification"].includes(b.status)) ||
-      state?.recent?.some((t) => t.status === "pending");
-    if (!hasPending) return;
-    const t = setInterval(load, 8000);
-    return () => clearInterval(t);
-  }, [state, load]);
+      state?.recent?.some((t) => t.status === "pending") ||
+      (bankLinkReturned && !!state?.profile && !state?.banks?.length);
+    if (!hasPending || pollAttempts.current >= 10) return;
+    const timer = setTimeout(() => {
+      pollAttempts.current += 1;
+      load();
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, [state, load, bankLinkReturned]);
 
   const linkBank = async () => {
     setError(""); setBusy("linking");
@@ -156,9 +164,16 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
   };
 
   const earlyAccess = !!state?.early_access;
-  const notVerified = accountState !== "verified";
-  const ineligible = earlyAccess || withdrawalHold || notVerified;
+  const identityVerified = !!state?.identity_verified;
+  const effectiveAccountState = state?.account_state || accountState;
+  const effectiveWithdrawalHold = state?.withdrawal_hold ?? withdrawalHold;
+  const notVerified = !identityVerified || effectiveAccountState !== "verified";
+  const ineligible = earlyAccess || effectiveWithdrawalHold || notVerified;
   const verifiedBank = state?.banks?.find((b) => b.status === "verified");
+  const pendingBank = state?.banks?.find((b) => ["added", "pending_verification"].includes(b.status));
+  const attentionBank = state?.banks?.find((b) =>
+    ["verification_failed", "verification_expired", "deleted", "error"].includes(b.status)
+  );
   const canSubmit = !ineligible && !!verifiedBank && !busy && parseFloat(amount) > 0;
 
   if (loading) {
@@ -262,7 +277,7 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           placeholder={direction === "deposit" ? "Amount to fund" : "Amount to withdraw"}
-          disabled={ineligible}
+          disabled={ineligible || !verifiedBank}
           className="w-full h-12 px-4 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder:text-white/20 text-sm focus:border-[#C9A84C]/50 focus:outline-none disabled:opacity-40"
         />
         <Button
