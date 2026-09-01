@@ -46,7 +46,7 @@ ok(new Set(APPROVED_STATES).size === 10, 'allowlist entries are unique');
 ok(isGeoipEnforcementEnabled(false) === false, 'provider off -> enforcement off');
 ok(isGeoipEnforcementEnabled(true) === true, 'provider on -> enforcement on');
 const gatesSrc = await read('base44/shared/jurisdictionGates.js');
-ok(/export function isGeoipEnforcementEnabled\s*\(\s*maxmindGeoipEnabled\s*\)/.test(gatesSrc), 'isGeoipEnforcementEnabled takes only the provider flag (no EA param)');
+ok(/export function isGeoipEnforcementEnabled\s*\(\s*maxmindGeoipEnabled\s*\)/.test(gatesSrc), 'isGeoipEnforcementEnabled depends only on the provider flag');
 
 // ---------- Admin force-live gate (MAXMIND_ADMIN_FORCE_LIVE_CHECKS) ----------
 ok(canAdminForceLiveCheck(false) === false, 'admin force gate unset (default) -> cannot bypass cache');
