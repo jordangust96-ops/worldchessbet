@@ -171,6 +171,13 @@ ok(constantTimeEqual('a', 'b') === false, 'single char differ rejects');
   ok(primary.action === 'metadata' && primary.status === 'added',
     'made-primary never implies verification');
 
+  const legacyDatedAdded = applyFundingSourceEvent(
+    { status: 'verified' },
+    { eventType: 'funding-source.added', timestamp: at1 }
+  );
+  ok(legacyDatedAdded.action === 'ignore' && legacyDatedAdded.status === 'verified',
+    'dated added replay cannot downgrade a legacy verified row without event timestamp');
+
   const noTimestampPending = applyFundingSourceEvent(
     { status: 'verified' },
     { eventType: 'funding-source.pending-verification' }
