@@ -1,5 +1,4 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
-import { EARLY_ACCESS_MODE } from '../../shared/earlyAccess.ts';
 import { isSocureIdentityVerified } from '../../shared/identityEligibility.js';
 
 // Single authoritative eligibility pipeline for contest participation.
@@ -35,9 +34,9 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Invalid entry amount' }, { status: 400 });
     }
 
-    // 1. Identity Verification — bypassed while EARLY_ACCESS_MODE is true
-    // (pre-launch testing only; see base44/shared/earlyAccess.ts).
-    if (!EARLY_ACCESS_MODE && !isSocureIdentityVerified(user)) {
+    // 1. Identity Verification — only an authoritative Socure result is
+    // eligible for real-money contest activity.
+    if (!isSocureIdentityVerified(user)) {
       const reason =
         user.account_state === 'suspended'
           ? 'Your account is currently suspended and cannot enter paid contests.'
