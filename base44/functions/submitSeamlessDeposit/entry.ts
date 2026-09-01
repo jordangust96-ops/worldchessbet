@@ -179,8 +179,8 @@ Deno.serve(async (req) => {
     // Submission accepted: mark the durable record as submitted to the provider.
     // Still NO ledger posting / balance change until Processed webhook.
     await base44.asServiceRole.entities.WalletTransaction.update(pending.id, {
-      integration_status: 'submitted',
-      idempotency_key: `seamless:deposit:${pending.id}`,
+      integration_status: 'submitted', idempotency_key: idempotencyKey,
+      source_event: 'seamless_deposit_submitted',
     });
 
     await base44.asServiceRole.entities.IntegrationReference.create({
@@ -190,7 +190,7 @@ Deno.serve(async (req) => {
       internal_entity_type: 'wallet_transaction',
       internal_entity_id: pending.id,
       correlation_id: pending.id,
-      idempotency_key: `seamless:deposit:${pending.id}`,
+      idempotency_key: idempotencyKey,
       user_id: user.id,
       wallet_transaction_id: pending.id,
       status: 'submitted',
@@ -200,6 +200,8 @@ Deno.serve(async (req) => {
         endpoint: `${seamlessBaseUrl((Deno.env.get('SEAMLESS_ACH_ENV') || '').trim())}${PATH_ACH_DEBIT}`,
       }),
     });
+
+    await saveDepositOperation(user.id, idempotencyKey, { ...operation, wallet_transaction_id: pending.id, label, state: 'submitted', provider_reference_id: providerRef });
 
     await recordIntegrationEvent(base44, {
       eventType: 'financial.seamless_deposit_submitted',
