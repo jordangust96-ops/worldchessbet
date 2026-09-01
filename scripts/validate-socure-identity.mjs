@@ -81,6 +81,7 @@ assert.match(verificationEntity, /"reason_codes"[\s\S]*?"read": false/, 'provide
 
 assert.doesNotMatch(bankScreen, /requireAdminMfa/, 'bank screening is available to the authenticated owner, not admin-only');
 assert.match(bankScreen, /user = await base44\.auth\.me\(\)/, 'bank screening authenticates the caller');
+assert.match(bankScreen, /catch \{[\s\S]*error: 'Unauthorized'[\s\S]*status: 401/, 'authentication failures return a safe 401 instead of an internal error');
 assert.match(bankScreen, /user_id: user\.id,[\s\S]*source_id: sourceId,[\s\S]*status: 'verified'/, 'screening binds to the caller owned verified Seamless source');
 assert.match(bankScreen, /normalizedAccount\.endsWith\(mask\)/, 'screening account input must match the Seamless account mask');
 assert.doesNotMatch(bankScreen, /account_number:\s*normalizedAccount[\s\S]*SocureBankVerification\.create/, 'raw bank details are not persisted in the verification entity');
