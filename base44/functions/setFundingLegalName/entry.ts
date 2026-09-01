@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
-import { normalizeLegalNameParts } from '../../shared/legalName.ts';
+import { legalNameFromUser, normalizeLegalNameParts } from '../../shared/legalName.ts';
 
 // Authenticated, self-service legal-name capture for funding readiness.
 // Identity decisions remain exclusively Socure-controlled. Once an identity
@@ -10,7 +10,8 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    if (['pending', 'verified'].includes(user.identity_verification_status || '')) {
+    const existingLegalName = legalNameFromUser(user);
+    if (existingLegalName && ['pending', 'verified'].includes(user.identity_verification_status || '')) {
       return Response.json({ error: 'legal_name_locked' }, { status: 409 });
     }
 
