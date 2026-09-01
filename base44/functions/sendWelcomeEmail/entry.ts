@@ -7,7 +7,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 // confirmation, etc.) should copy this same buildChessBetEmailHtml() helper
 // into its own function file to keep a consistent, on-brand look.
 // ---------------------------------------------------------------------------
-function buildChessBetEmailHtml({ appUrl, headerTitle, headerSubtitle, bodyHtml, ctaText, ctaUrl, earlyAccessText, supportEmail }) {
+function buildChessBetEmailHtml({ appUrl, headerTitle, headerSubtitle, bodyHtml, ctaText, ctaUrl, supportEmail }) {
   const gold = '#C9A84C';
   const fontFamily = "'Inter',Arial,Helvetica,sans-serif";
   const logoBlock = `
@@ -49,11 +49,7 @@ function buildChessBetEmailHtml({ appUrl, headerTitle, headerSubtitle, bodyHtml,
       <div style="text-align:center;padding:16px 24px 32px;">
         <a href="${ctaUrl}" style="display:inline-block;background:${gold};color:#0A0A0A;font-weight:700;font-size:15px;text-decoration:none;padding:14px 36px;border-radius:12px;">${ctaText}</a>
       </div>` : ''}
-      ${earlyAccessText ? `
-      <div style="margin:0 20px 24px;padding:14px 16px;background:#151310;border:1px solid #2a2416;border-radius:12px;">
-        <p style="color:${gold};font-size:12px;font-weight:700;margin:0 0 4px;letter-spacing:0.5px;text-transform:uppercase;">Early Access</p>
-        <p style="color:#a8a29a;font-size:12px;line-height:1.6;margin:0;">${earlyAccessText}</p>
-      </div>` : ''}
+
       <div style="border-top:1px solid #1a1a1a;padding:20px 24px;text-align:center;">
         <p style="color:#666;font-size:11px;margin:0 0 4px;">&copy; ${new Date().getFullYear()} ChessBet. All rights reserved.</p>
         ${supportEmail ? `<p style="color:#666;font-size:11px;margin:0;">Questions? <a href="mailto:${supportEmail}" style="color:${gold};text-decoration:none;">${supportEmail}</a></p>` : ''}
@@ -105,7 +101,6 @@ Deno.serve(async (req) => {
       bodyHtml,
       ctaText: 'Start Playing',
       ctaUrl: appUrl || undefined,
-      earlyAccessText: "",
       supportEmail,
     });
 
