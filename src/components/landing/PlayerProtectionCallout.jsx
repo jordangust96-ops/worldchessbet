@@ -50,7 +50,7 @@ export default function PlayerProtectionCallout() {
       </div>
 
       <p className="mt-5 text-center text-xs text-white/35">
-        Early Access uses demo funds. Funding, withdrawals, and cash-prize settlement are not live yet.
+        Funding, withdrawals, and cash-prize contests require verified identity, supported location, and applicable account eligibility.
       </p>
     </section>
   );
