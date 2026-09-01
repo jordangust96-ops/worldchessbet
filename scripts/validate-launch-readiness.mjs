@@ -1,0 +1,68 @@
+import assert from 'node:assert/strict';
+import { readFile, readdir } from 'node:fs/promises';
+import { join } from 'node:path';
+
+const root = new URL('../', import.meta.url);
+const read = (path) => readFile(new URL(path, root), 'utf8');
+
+const fundingConfig = await read('base44/shared/seamlessFundingConfig.ts');
+const deposit = await read('base44/functions/submitSeamlessDeposit/entry.ts');
+const withdrawal = await read('base44/functions/submitSeamlessWithdrawal/entry.ts');
+const walletState = await read('base44/functions/getSeamlessWalletState/entry.ts');
+const fundingPanel = await read('src/components/wallet/SeamlessFundingPanel.jsx');
+
+assert.ok(fundingConfig.includes("enabled('SEAMLESS_DEPOSITS_ENABLED')"));
+assert.ok(fundingConfig.includes("enabled('SEAMLESS_WITHDRAWALS_ENABLED')"));
+assert.ok(deposit.includes('if (!seamlessDepositsEnabled())'));
+assert.ok(withdrawal.includes('if (!seamlessWithdrawalsEnabled())'));
+assert.ok(withdrawal.indexOf('if (!seamlessWithdrawalsEnabled())') < withdrawal.indexOf('seamlessRequest('));
+assert.ok(withdrawal.indexOf('if (!seamlessWithdrawalsEnabled())') < withdrawal.indexOf('reserveWithdrawal('));
+assert.ok(walletState.includes('withdrawals_enabled: withdrawalsEnabled'));
+assert.ok(fundingPanel.includes('!withdrawalsEnabled'));
+assert.ok(fundingPanel.includes('transferDirectionEnabled'));
+
+const legalName = await read('base44/shared/legalName.ts');
+const setLegalName = await read('base44/functions/setFundingLegalName/entry.ts');
+const register = await read('src/pages/Register.jsx');
+const identityPanel = await read('src/components/wallet/SocureIdentityVerificationPanel.jsx');
+const identityStart = await read('base44/functions/startSocureIdentityVerification/entry.ts');
+const ensureCustomer = await read('base44/functions/ensureSeamlessCustomer/entry.ts');
+const bankScreening = await read('base44/functions/requestSocureBankVerification/entry.ts');
+
+assert.ok(legalName.includes('normalizeLegalNameParts'));
+assert.ok(setLegalName.includes('await base44.auth.me()'));
+assert.ok(setLegalName.includes('base44.asServiceRole.entities.User.update(user.id'));
+assert.ok(!setLegalName.includes('body?.userId'));
+assert.ok(register.includes('Legal first name') && register.includes('Legal last name'));
+assert.ok(register.includes('setFundingLegalName'));
+assert.ok(identityPanel.includes('Confirm your legal name'));
+assert.ok(identityPanel.includes('setFundingLegalName'));
+assert.ok(identityStart.includes('legalNameFromUser(user)'));
+assert.ok(ensureCustomer.includes('legalNameFromUser(user)'));
+assert.ok(bankScreening.includes('legalNameFromUser(user)'));
+
+const pooledPlan = await read('docs/architecture/deferred-pooled-account.md');
+assert.ok(pooledPlan.includes('Do not implement or enable fund movement'));
+assert.ok(pooledPlan.includes('SEAMLESS_DEPOSITS_ENABLED'));
+assert.ok(pooledPlan.includes('SEAMLESS_WITHDRAWALS_ENABLED'));
+assert.ok(pooledPlan.includes('Decisions required from Seamless'));
+
+async function collect(dir) {
+  const entries = await readdir(new URL(dir, root), { withFileTypes: true });
+  const output = [];
+  for (const entry of entries) {
+    if (['dist', 'node_modules'].includes(entry.name)) continue;
+    const child = join(dir, entry.name).replaceAll('\\', '/');
+    if (entry.isDirectory()) output.push(...await collect(child + '/'));
+    else output.push(child);
+  }
+  return output;
+}
+
+for (const file of [...await collect('src/'), ...await collect('base44/functions/'), ...await collect('base44/shared/')]) {
+  const source = await read(file);
+  assert.ok(!source.includes('EARLY_ACCESS_MODE'), `${file} still contains EARLY_ACCESS_MODE`);
+  assert.ok(!source.includes('Early Access'), `${file} still contains player/runtime Early Access wording`);
+}
+
+console.log('Launch readiness validation passed.');
