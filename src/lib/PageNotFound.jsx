@@ -23,7 +23,7 @@ export default function PageNotFound() {
         <>
         <SEO
             title="Page Not Found | ChessBet"
-            description="This ChessBet page is unavailable. Visit the ChessBet homepage for current Early Access information."
+            description="This ChessBet page is unavailable. Visit the ChessBet homepage for current information."
             noindex
         />
         <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50">
