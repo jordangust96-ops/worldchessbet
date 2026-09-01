@@ -1,5 +1,4 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
-import { requireAdminMfa } from '../../shared/mfa.ts';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 import {
   SOCURE_PROVIDER_KEY,
@@ -8,11 +7,9 @@ import {
   socureConfig,
 } from '../../shared/socure.ts';
 
-// Paid Socure Account Intelligence is deliberately admin-initiated and MFA
-// protected. It is not a public wallet action, does not run from webhooks, and
-// never changes a user's account state, funding source, wallet, or ledger.
-// The caller provides raw account input only for the in-memory request; it is
-// never returned, logged, or stored.
+// Authenticated users initiate Account Intelligence only for their own verified
+// Seamless funding source. Raw routing/account input exists only for this
+// in-memory request: it is never returned, logged, or persisted.
 const DIGITS = /^[0-9]+$/;
 
 function splitLegalName(user: any) {
@@ -48,6 +45,18 @@ function extractSignals(response: any) {
   };
 }
 
+function publicVerification(verification: any) {
+  if (!verification) return null;
+  return {
+    id: verification.id,
+    source_id: verification.source_id,
+    status: verification.status,
+    decision: verification.decision,
+    requested_at: verification.requested_at,
+    completed_at: verification.completed_at,
+  };
+}
+
 function firstByCreated(records: any[]) {
   return [...records].sort((a, b) =>
     new Date(a?.created_date || 0).getTime() - new Date(b?.created_date || 0).getTime()
@@ -58,13 +67,12 @@ function firstByCreated(records: any[]) {
 Deno.serve(async (req) => {
   let base44: any;
   let candidate: any = null;
-  let admin: any = null;
+  let user: any = null;
   try {
     base44 = createClientFromRequest(req);
-    admin = await base44.auth.me();
+    user = await base44.auth.me();
+    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     const body = await req.json();
-    const mfaError = await requireAdminMfa(base44, admin, body?.mfaSessionToken, req.headers.get('user-agent') || '');
-    if (mfaError) return mfaError;
 
     // No Socure network request is possible while the separate server-only
     // switch is unset or false.
@@ -73,11 +81,10 @@ Deno.serve(async (req) => {
       return Response.json({ enabled: false, reason: 'Socure screening is not enabled.' });
     }
 
-    const { userId, sourceId, accountNumber, routingNumber } = body || {};
+    const { sourceId, accountNumber, routingNumber } = body || {};
     const normalizedAccount = typeof accountNumber === 'string' ? accountNumber.replace(/\s+/g, '') : '';
     const normalizedRouting = typeof routingNumber === 'string' ? routingNumber.replace(/\s+/g, '') : '';
     if (
-      typeof userId !== 'string' || !userId ||
       typeof sourceId !== 'string' || !sourceId ||
       !DIGITS.test(normalizedAccount) || normalizedAccount.length < 4 || normalizedAccount.length > 34 ||
       !/^\d{9}$/.test(normalizedRouting)
@@ -85,16 +92,14 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'invalid_request' }, { status: 400 });
     }
 
-    const [target, bank] = await Promise.all([
-      base44.asServiceRole.entities.User.get(userId),
-      base44.asServiceRole.entities.SeamlessBankAccount.filter({
-        user_id: userId,
+    const bank = await base44.asServiceRole.entities.SeamlessBankAccount.filter({
+        user_id: user.id,
         source_id: sourceId,
         status: 'verified',
-      }),
-    ]);
-    if (!target) return Response.json({ error: 'user_not_found' }, { status: 404 });
-    if (target.account_state !== 'verified' || target.withdrawal_hold) {
+      });
+    if (user.account_state !== 'verified' || user.withdrawal_hold ||
+        user.identity_verification_status !== 'verified' ||
+        user.identity_verification_provider !== 'socure' || !user.identity_provider_reference) {
       return Response.json({ error: 'target_not_eligible' }, { status: 403 });
     }
     const fundingSource = bank[0];
@@ -104,7 +109,7 @@ Deno.serve(async (req) => {
     if (!fundingSource || mask.length < 4 || !normalizedAccount.endsWith(mask)) {
       return Response.json({ error: 'funding_source_account_mismatch' }, { status: 409 });
     }
-    const legalName = splitLegalName(target);
+    const legalName = splitLegalName(user);
     if (!legalName) {
       return Response.json({ error: 'verified_legal_name_required' }, { status: 409 });
     }
@@ -113,19 +118,19 @@ Deno.serve(async (req) => {
     const requestKey = `socure:bank:v1:${sourceId}:${fingerprint}`;
     const existing = await base44.asServiceRole.entities.SocureBankVerification.filter({ request_key: requestKey });
     if (existing.length > 0) {
-      return Response.json({ enabled: true, charged: false, already_requested: true, verification: firstByCreated(existing) });
+      return Response.json({ enabled: true, charged: false, already_requested: true, verification: publicVerification(firstByCreated(existing)) });
     }
 
     // Durable, deterministic request marker before the paid API boundary.
     candidate = await base44.asServiceRole.entities.SocureBankVerification.create({
-      user_id: userId,
+      user_id: user.id,
       source_id: sourceId,
       request_key: requestKey,
       account_fingerprint: fingerprint,
       workflow: config.workflow,
       status: 'processing',
       decision: 'UNKNOWN',
-      requested_by_admin_id: admin.id,
+      requested_by_user_id: user.id,
       requested_at: new Date().toISOString(),
     });
 
@@ -170,12 +175,12 @@ Deno.serve(async (req) => {
     await recordIntegrationEvent(base44, {
       eventType: 'compliance.socure_bank_verification_completed',
       aggregateType: 'user',
-      aggregateId: userId,
+      aggregateId: user.id,
       correlationId: candidate.id,
       idempotencyKey: `socure:bank:completed:${candidate.id}`,
-      actorType: 'administrator',
-      actorId: admin.id,
-      userId,
+      actorType: 'user',
+      actorId: user.id,
+      userId: user.id,
       status,
       result: signals.decision,
       eventData: {
@@ -189,7 +194,7 @@ Deno.serve(async (req) => {
     return Response.json({
       enabled: true,
       charged: true,
-      verification: completed,
+      verification: publicVerification(completed),
       human_review_required: status === 'manual_review_required',
     });
   } catch (error) {
@@ -209,8 +214,8 @@ Deno.serve(async (req) => {
           aggregateId: updated.user_id,
           correlationId: updated.id,
           idempotencyKey: `socure:bank:unresolved:${updated.id}`,
-          actorType: 'administrator',
-          actorId: admin?.id || '',
+          actorType: 'user',
+          actorId: user?.id || '',
           userId: updated.user_id,
           status,
           result: category,
