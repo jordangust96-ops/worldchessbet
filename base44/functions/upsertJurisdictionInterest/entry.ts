@@ -62,6 +62,7 @@ Deno.serve(async (req) => {
     // none exists. Resetting delivery state to pending on every save keeps a
     // re-opt-in (new location) eligible for a future launch notification.
     const fields = {
+      launch_epoch: 2,
       user_id: user.id,
       email: user.email,
       selected_country_code: rawCountry,
