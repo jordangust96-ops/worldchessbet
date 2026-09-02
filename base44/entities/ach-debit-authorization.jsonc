@@ -55,10 +55,9 @@
         "write": false
       }
     },
-    "routing_number": {
+    "bank_details_ciphertext": {
       "type": "string",
-      "maxLength": 9,
-      "description": "Routing number associated with the authorization; restricted to administrators.",
+      "description": "AES-GCM encrypted routing/account evidence; plaintext bank details are never persisted.",
       "rls": {
         "read": {
           "user_condition": {
@@ -67,6 +66,36 @@
         },
         "write": false
       }
+    },
+    "bank_details_iv": {
+      "type": "string",
+      "maxLength": 64,
+      "rls": {
+        "read": {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        "write": false
+      }
+    },
+    "bank_details_sha256": {
+      "type": "string",
+      "maxLength": 64,
+      "description": "Integrity digest of the encrypted authorization evidence plaintext.",
+      "rls": {
+        "read": {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        "write": false
+      }
+    },
+    "routing_last_four": {
+      "type": "string",
+      "maxLength": 4,
+      "description": "Last four digits only; full routing/account evidence is encrypted."
     },
     "account_last_four": {
       "type": "string",
@@ -152,7 +181,10 @@
     "authorization_version",
     "authorization_text",
     "accepted_at",
-    "routing_number",
+    "bank_details_ciphertext",
+    "bank_details_iv",
+    "bank_details_sha256",
+    "routing_last_four",
     "account_last_four",
     "account_fingerprint",
     "account_type",
