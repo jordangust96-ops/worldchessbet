@@ -141,9 +141,9 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
         });
         const decision = evaluateJurisdictionAccess(jurisdiction);
         if (!decision.allowed) {
-          throw new Error(
-            decision.reason || "Bank linking is unavailable from your current location."
-          );
+          setError(decision.reason || "Bank linking is unavailable from your current location.");
+          setBusy("");
+          return;
         }
       }
 
@@ -154,8 +154,8 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
       // Redirect to Seamless hosted bank authorization. The browser callback is
       // NOT verification; the funding-source.verified webhook is authoritative.
       window.location.href = link.url;
-    } catch (err) {
-      setError(err?.message || "We couldn't start the secure bank connection. Please try again or contact support.");
+    } catch {
+      setError("We couldn't start the secure bank connection. Please try again or contact support.");
     } finally {
       setBusy("");
     }
