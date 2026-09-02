@@ -34,3 +34,64 @@ export async function encryptComplianceJson(value: unknown) {
     sha256: await sha256Text(new TextDecoder().decode(plaintext)),
   };
 }
+
+function retentionUntil(activityAt: string) {
+  const date = new Date(activityAt);
+  if (!Number.isFinite(date.getTime())) throw new Error('invalid compliance activity timestamp');
+  date.setUTCFullYear(date.getUTCFullYear() + 2);
+  return date.toISOString();
+}
+
+// Extends required KYC and ACH evidence retention from each transaction. A
+// deposit fails closed without the encrypted Socure report and its matching
+// active debit authorization. Withdrawals still require KYC evidence but do not
+// require debit authorization because they are outbound credits.
+export async function extendComplianceEvidenceRetention(base44: any, {
+  userId,
+  fundingSourceId,
+  activityAt = new Date().toISOString(),
+  requireAchAuthorization = false,
+}: {
+  userId: string;
+  fundingSourceId: string;
+  activityAt?: string;
+  requireAchAuthorization?: boolean;
+}) {
+  const deadline = retentionUntil(activityAt);
+  const identities = await base44.asServiceRole.entities.SocureIdentityVerification.filter(
+    { user_id: userId, status: 'verified', provider_decision: 'ACCEPT' },
+    '-completed_at',
+    10
+  );
+  const identity = identities.find((row: any) =>
+    row.provider_evaluation_id && row.provider_report_ciphertext &&
+    row.provider_report_iv && row.provider_report_sha256
+  );
+  if (!identity) throw new Error('retained Socure identity evidence is required');
+  await base44.asServiceRole.entities.SocureIdentityVerification.update(identity.id, {
+    retention_until: deadline,
+  });
+
+  const authorizations = await base44.asServiceRole.entities.AchDebitAuthorization.filter(
+    { user_id: userId, funding_source_id: fundingSourceId, status: 'active' },
+    '-accepted_at',
+    10
+  );
+  const authorization = authorizations.find((row: any) =>
+    row.bank_details_ciphertext && row.bank_details_iv && row.bank_details_sha256
+  );
+  if (requireAchAuthorization && !authorization) {
+    throw new Error('active ACH debit authorization is required');
+  }
+  if (authorization) {
+    await base44.asServiceRole.entities.AchDebitAuthorization.update(authorization.id, {
+      last_transaction_at: activityAt,
+      retention_until: deadline,
+    });
+  }
+  return {
+    identity_verification_id: identity.id,
+    authorization_id: authorization?.id || '',
+    retention_until: deadline,
+  };
+}
