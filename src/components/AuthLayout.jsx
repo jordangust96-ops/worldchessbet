@@ -1,7 +1,7 @@
 import React from "react";
 import { Crown } from "lucide-react";
 
-export default function AuthLayout({ icon: Icon, title, subtitle, footer, children }) {
+export default function AuthLayout({ icon: Icon, title, subtitle = "", footer = null, children = null }) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#0A0A0A] px-4 py-14">
       <div className="w-full max-w-md">
