@@ -99,6 +99,7 @@ Deno.serve(async (req) => {
   let user: any = null;
   let enrollment: any = null;
   let screening: any = null;
+  let providerRequestStarted = false;
 
   try {
     base44 = createClientFromRequest(req);
@@ -306,6 +307,7 @@ Deno.serve(async (req) => {
 
     // This payload is based on Seamless's endpoint example. Keep the feature flag
     // false until Seamless confirms the production account and exact JSON contract.
+    providerRequestStarted = true;
     const providerResponse = await seamlessRequest(
       'POST',
       PATH_VERIFIED_THIRD_PARTY_FUNDING_SOURCE,
@@ -401,7 +403,7 @@ Deno.serve(async (req) => {
     const socureCategory = cleanText((error as any)?.socureCategory, 128);
     const providerStatus = Number((error as any)?.status || 0);
     const providerUncertain = (error as any)?.providerOutcomeUncertain === true ||
-      (!socureCategory && (!providerStatus || providerStatus >= 500));
+      (providerRequestStarted && !socureCategory && (!providerStatus || providerStatus >= 500));
     const errorCode = socureCategory || (providerStatus ? `seamless_http_${providerStatus}` : 'internal_error');
     const state = socureCategory
       ? (socureCategory.includes('unknown_outcome') ? 'uncertain' : 'failed')
