@@ -142,7 +142,6 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
         const decision = evaluateJurisdictionAccess(jurisdiction);
         if (!decision.allowed) {
           setError(decision.reason || "Bank linking is unavailable from your current location.");
-          setBusy("");
           return;
         }
       }
