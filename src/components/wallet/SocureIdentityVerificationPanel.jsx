@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { AlertTriangle, CheckCircle2, Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
@@ -18,6 +18,7 @@ export default function SocureIdentityVerificationPanel({
   fullName = "",
   onNameSaved,
   wallet,
+  onRefresh,
 }) {
   const initialParts = fullName.trim().split(/\s+/).filter(Boolean);
   const [firstName, setFirstName] = useState(initialParts[0] || "");
@@ -26,6 +27,42 @@ export default function SocureIdentityVerificationPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const hasLegalName = savedFullName.split(/\s+/).filter(Boolean).length >= 2;
+
+  // The status shown to the user. Starts from the page-load value but is kept
+  // current by polling while a verification is pending — Socure's hosted flow
+  // redirects the browser straight back to /wallet, often before the
+  // socureIdentityWebhook has landed, so without this the panel would show
+  // "in progress" indefinitely until the user manually reloads. Mirrors the
+  // poll pattern already used by SeamlessFundingPanel for bank-link status.
+  const [liveStatus, setLiveStatus] = useState(status);
+  const pollAttempts = useRef(0);
+
+  useEffect(() => {
+    setLiveStatus(status);
+    pollAttempts.current = 0;
+  }, [status]);
+
+  useEffect(() => {
+    if (liveStatus !== "pending" || pollAttempts.current >= 10) return;
+    const timer = setTimeout(async () => {
+      pollAttempts.current += 1;
+      try {
+        const me = await base44.auth.me();
+        const next = me?.identity_verification_status || "pending";
+        if (next !== liveStatus) {
+          setLiveStatus(next);
+          // Let the Wallet page refresh account state, wallet, and the funding
+          // panel's own status once verification actually resolves, instead of
+          // only updating this panel's local copy.
+          if (next !== "pending") onRefresh?.();
+        }
+      } catch {
+        // Transient failure; the next scheduled attempt (or a manual reload)
+        // will pick up the latest status.
+      }
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, [liveStatus, onRefresh]);
 
   const saveLegalName = async () => {
     if (!firstName.trim() || !lastName.trim()) {
@@ -96,7 +133,7 @@ export default function SocureIdentityVerificationPanel({
     );
   }
 
-  if (status === "verified") {
+  if (liveStatus === "verified") {
     return (
       <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.05] p-4 flex items-center gap-3">
         <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
@@ -156,7 +193,7 @@ export default function SocureIdentityVerificationPanel({
         <div className="min-w-0 flex-1">
           <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]">Step 1</p>
           <p className="text-sm font-medium text-white mt-0.5">Verify your identity</p>
-          <p className="text-xs text-white/50 mt-1">{COPY[status] || COPY.not_started}</p>
+          <p className="text-xs text-white/50 mt-1">{COPY[liveStatus] || COPY.not_started}</p>
         </div>
       </div>
       <Button onClick={start} disabled={busy} className="w-full mt-4 h-10 rounded-xl gold-gradient text-black font-bold disabled:opacity-40">
