@@ -6,8 +6,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 
-// Seamless ACH funding panel. Replaces the former direct-Plaid-Link deposit/
-// withdraw UI on the Wallet page. Real deposit calls require the server-side
+// Seamless ACH funding panel. Uses Seamless-hosted bank authorization plus
+// server-side ACH deposit/withdrawal APIs. Real deposit calls require the server-side
 // SEAMLESS_DEPOSITS_ENABLED switch; all bank actions require verified accounts. This UI
 // only surfaces the resulting states (verified / pending / failed bank and
 // payment). It never trusts the Seamless browser callback as verification;
