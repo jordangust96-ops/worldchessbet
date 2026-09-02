@@ -12,6 +12,7 @@ export const STATUS_REVERSED = 'reversed';
 
 // Seamless ACH v2 endpoint paths.
 export const PATH_CREATE_CUSTOMER = '/user';
+export const PATH_VERIFIED_THIRD_PARTY_FUNDING_SOURCE = '/on-demand/funding-source';
 export const PATH_ACH_DEBIT = '/ach-debit';
 export const PATH_CHECK_SEND = '/check/send';
 export const PATH_BALANCE_FROM_ACCOUNT = '/funding-source/add/balance/from-account';
@@ -73,6 +74,24 @@ export function buildCreateCustomerBody({ firstName, lastName, email, phone }) {
   if (email) body.email = email;
   if (phone) body.phone = phone;
   return body;
+}
+
+// Verified 3rd-party funding source: the full routing/account values exist only
+// in the provider request. Callers must never log, return, or persist this body.
+export function buildVerifiedThirdPartyFundingSourceBody({
+  providerUserId, routingNumber, accountNumber, accountType, nickname,
+}) {
+  if (!providerUserId) throw new Error('provider user id required');
+  if (!/^\d{9}$/.test(String(routingNumber || ''))) throw new Error('valid routing number required');
+  if (!/^\d{4,34}$/.test(String(accountNumber || ''))) throw new Error('valid account number required');
+  if (!['checking', 'savings'].includes(accountType)) throw new Error('checking or savings required');
+  return {
+    user_id: providerUserId,
+    routing_number: String(routingNumber),
+    account_number: String(accountNumber),
+    account_type: accountType,
+    nickname: String(nickname || 'ChessBet funding account').slice(0, 100),
+  };
 }
 
 // Deposit: POST /ach-debit with sender = provider user id. Seamless v2
