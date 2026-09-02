@@ -161,6 +161,7 @@ Deno.serve(async (req) => {
         return Response.json({ error: 'Insufficient available balance' }, { status: 400 });
       }
       tx = await base44.asServiceRole.entities.WalletTransaction.create({
+        launch_epoch: 2,
         user_id: user.id, type: 'withdrawal', amount: value,
         description: 'Seamless ACH withdrawal reservation pending',
         status: 'pending', integration_status: 'pending', currency: 'USD', direction: 'reserve',
