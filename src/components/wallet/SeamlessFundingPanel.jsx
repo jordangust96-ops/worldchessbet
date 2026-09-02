@@ -188,101 +188,58 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
         </p>
       )}
 
-      {/* Step 2: provider-persisted bank state is authoritative. */}
+      {/* Step 2: authorization, Socure screening, then Seamless verified source creation. */}
       <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4 space-y-3">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]">Step 2</p>
-            <h4 className="text-sm font-semibold text-white mt-1">Connect a bank</h4>
-            <p className="text-xs text-white/45 mt-1">
-              {!identityVerified
-                ? "Verify your identity before connecting a bank account."
-                : verifiedBank
-                  ? "Your bank account is connected and verified."
-                  : attentionBank
-                    ? "Your bank connection needs attention. Reconnect to try again."
-                    : pendingBank
-                      ? "We're confirming your bank connection. This status updates automatically."
-                      : bankLinkCancelled
-                        ? "Bank connection was cancelled. You can try again when ready."
-                        : bankLinkReturned
-                          ? "We're waiting for confirmation from your bank connection."
-                          : "Securely connect the bank account you'll use with ChessBet."}
-            </p>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={linkBank}
-            disabled={busy === "linking" || ineligible}
-            className="text-xs text-[#C9A84C] hover:text-[#E8D48B] h-8 px-2 disabled:opacity-30 shrink-0"
-          >
-            {busy === "linking" ? <Loader2 size={14} className="animate-spin" /> : <Link2 size={14} />}
-            <span className="ml-1">{busy === "linking" ? "Connecting..." : state?.banks?.length ? "Reconnect" : "Connect bank"}</span>
-          </Button>
+        <div>
+          <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]">Step 2</p>
+          <h4 className="text-sm font-semibold text-white mt-1">Authorize & verify a bank</h4>
+          <p className="text-xs text-white/45 mt-1">
+            {!identityVerified
+              ? "Verify your identity before adding a funding account."
+              : verifiedBank
+                ? "Your bank account passed Socure screening and is verified with Seamless."
+                : !thirdPartyFundingEnabled
+                  ? "Verified bank linking is being prepared pending provider approval."
+                  : !bankScreeningEnabled
+                    ? "Bank account screening is temporarily unavailable."
+                    : "Authorize ACH transfers and verify the account you'll use with ChessBet."}
+          </p>
         </div>
+
         {state?.banks?.length ? (
           <div className="space-y-2">
-            {state.banks.map((b) => <BankRow key={b.id} bank={b} />)}
+            {state.banks.map((bank) => <BankRow key={bank.id} bank={bank} />)}
           </div>
+        ) : thirdPartyFundingEnabled && bankScreeningEnabled && identityVerified ? (
+          <VerifiedThirdPartyFundingSourceForm
+            legalName={state?.legal_name || ""}
+            disabled={ineligible}
+            onComplete={load}
+          />
         ) : (
-          <p className="text-xs text-white/30 text-center py-2">No confirmed bank connection yet.</p>
+          <p className="text-xs text-white/30 text-center py-2">No verified funding account yet.</p>
         )}
       </div>
 
-      {/* Step 3: Socure Account Intelligence is bound to the verified Seamless source. */}
+      {/* Step 3 is evidence-only: enrollment itself already ran Socure first. */}
       {verifiedBank && (
         <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4 space-y-3">
           <div>
             <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]">Step 3</p>
-            <h4 className="text-sm font-semibold text-white mt-1">Screen bank account</h4>
+            <h4 className="text-sm font-semibold text-white mt-1">Bank screening</h4>
             <p className="text-xs text-white/45 mt-1">
               {bankScreened
-                ? "Your connected bank passed account screening."
+                ? "Socure Account Intelligence accepted this account before it was added to Seamless."
                 : bankScreeningStatus === "processing"
                   ? "Bank screening is in progress."
-                  : bankScreeningStatus === "review_required"
-                    ? "Your bank account needs review before transfers can be enabled."
-                    : bankScreeningStatus === "failed"
-                      ? "Bank screening could not be completed. Contact support before trying again."
-                      : bankScreeningEnabled
-                        ? "Confirm the routing and account numbers for the bank you connected. ChessBet does not store these numbers."
-                        : "Bank screening is temporarily unavailable."}
+                  : "This account needs review before transfers can be enabled."}
             </p>
           </div>
-          {bankScreened ? (
+          {bankScreened && (
             <div className="flex items-center gap-2 text-sm text-emerald-300">
               <CheckCircle2 size={16} /> Socure screening complete
             </div>
-          ) : bankScreeningStatus === "not_started" && bankScreeningEnabled ? (
-            <div className="space-y-3">
-              <input
-                type="text"
-                inputMode="numeric"
-                autoComplete="off"
-                value={routingNumber}
-                onChange={(e) => setRoutingNumber(e.target.value.replace(/\D/g, "").slice(0, 9))}
-                placeholder="9-digit routing number"
-                className="w-full h-11 px-4 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder:text-white/20 text-sm focus:border-[#C9A84C]/50 focus:outline-none"
-              />
-              <input
-                type="password"
-                inputMode="numeric"
-                autoComplete="off"
-                value={accountNumber}
-                onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, "").slice(0, 34))}
-                placeholder="Bank account number"
-                className="w-full h-11 px-4 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder:text-white/20 text-sm focus:border-[#C9A84C]/50 focus:outline-none"
-              />
-              <Button
-                onClick={screenBank}
-                disabled={busy === "screening" || routingNumber.length !== 9 || accountNumber.length < 4}
-                className="w-full h-10 rounded-xl gold-gradient text-black font-bold disabled:opacity-40"
-              >
-                {busy === "screening" ? <><Loader2 size={15} className="animate-spin mr-2" /> Screening…</> : "Verify bank details"}
-              </Button>
-            </div>
-          ) : null}
+          )}
         </div>
       )}
 
