@@ -42,11 +42,6 @@
       "type": "number",
       "default": 0
     },
-    "early_access_credited": {
-      "type": "boolean",
-      "default": false,
-      "description": "Legacy historical marker retained for compatibility with existing wallet records. No active code writes or reads this field."
-    },
     "description": {
       "type": "string",
       "maxLength": 1000,
