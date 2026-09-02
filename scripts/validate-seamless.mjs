@@ -21,6 +21,8 @@ const {
   buildDepositBody,
   buildWithdrawalBody,
   buildMerchantBalanceTransferBody,
+  buildVerifiedThirdPartyFundingSourceBody,
+  PATH_VERIFIED_THIRD_PARTY_FUNDING_SOURCE,
   PATH_BALANCE_FROM_ACCOUNT,
   PATH_BALANCE_TO_ACCOUNT,
   constantTimeEqual,
@@ -84,6 +86,24 @@ assert.throws(() => seamlessBaseUrl('staging'), /SEAMLESS_ACH_ENV/, 'bad env thr
   const min = buildCreateCustomerBody({ firstName: 'Jane', lastName: 'Doe' });
   ok(!('email' in min) && !('phone' in min), 'optional email/phone omitted');
   assert.throws(() => buildCreateCustomerBody({ lastName: 'Doe' }), /firstName/, 'missing firstName throws');
+}
+
+// ---------------- Verified third-party funding source ----------------
+{
+  ok(PATH_VERIFIED_THIRD_PARTY_FUNDING_SOURCE === '/on-demand/funding-source', 'verified source endpoint path');
+  const source = buildVerifiedThirdPartyFundingSourceBody({
+    providerUserId: 'U123',
+    routingNumber: '021000021',
+    accountNumber: '123456789',
+    accountType: 'checking',
+    nickname: 'Primary checking',
+  });
+  ok(source.user_id === 'U123', 'verified source binds the provider user');
+  ok(source.routing_number === '021000021' && source.account_number === '123456789', 'verified source carries bank details only in provider payload');
+  ok(source.account_type === 'checking' && source.nickname === 'Primary checking', 'verified source carries account metadata');
+  assert.throws(() => buildVerifiedThirdPartyFundingSourceBody({ providerUserId: 'U', routingNumber: '123', accountNumber: '1234', accountType: 'checking' }), /routing/);
+  assert.throws(() => buildVerifiedThirdPartyFundingSourceBody({ providerUserId: 'U', routingNumber: '021000021', accountNumber: '12', accountType: 'checking' }), /account number/);
+  assert.throws(() => buildVerifiedThirdPartyFundingSourceBody({ providerUserId: 'U', routingNumber: '021000021', accountNumber: '1234', accountType: 'brokerage' }), /checking or savings/);
 }
 
 // ---------------- Deposit / withdrawal body construction ----------------
@@ -312,6 +332,17 @@ for (const f of ['base44/functions/ensureSeamlessCustomer/entry.ts', 'base44/fun
   ok(src.includes('isSocureIdentityVerified'), f + ' retains Socure eligibility');
 }
 
+const thirdPartySrc = await read('base44/functions/createVerifiedSeamlessFundingSource/entry.ts');
+ok(thirdPartySrc.includes('if (!seamlessThirdPartyFundingEnabled())'), 'third-party enrollment has its own default-off provider approval gate');
+ok(thirdPartySrc.indexOf('if (!seamlessThirdPartyFundingEnabled())') < thirdPartySrc.indexOf('SeamlessFundingSourceEnrollment.create'), 'approval gate precedes durable enrollment');
+ok(thirdPartySrc.indexOf('evaluateSocureBankAccount') < thirdPartySrc.indexOf("PATH_VERIFIED_THIRD_PARTY_FUNDING_SOURCE"), 'Socure screening precedes Seamless source creation');
+ok(thirdPartySrc.includes('consentAccepted === true'), 'enrollment requires explicit consumer consent');
+ok(thirdPartySrc.includes('encryptComplianceJson'), 'bank authorization evidence is encrypted before persistence');
+ok(thirdPartySrc.includes('providerRequestStarted'), 'unknown provider outcomes are distinguished from local failures');
+ok(!/console\.log/.test(thirdPartySrc), 'third-party enrollment never logs bank data');
+ok(depositSrc.includes('requireAchAuthorization: true'), 'deposits require retained active ACH authorization');
+ok(withdrawalSrc.includes('requireAchAuthorization: false'), 'withdrawals retain KYC evidence without misapplying debit authorization');
+
 const webhookSrc = await read('base44/functions/seamlessAchWebhook/entry.ts');
 ok(webhookSrc.includes('verifySeamlessWebhookAuth'), 'webhook verifies Authorization');
 ok(webhookSrc.includes('verifySeamlessWebhookAuth'), 'webhook delegates auth to the server-only constant-time verifier');
@@ -351,7 +382,9 @@ ok(!/profile,\s*\n\s*banks,/.test(walletStateSrc), 'wallet state does not return
 const fundingPanelSrc = await read('src/components/wallet/SeamlessFundingPanel.jsx');
 ok(fundingPanelSrc.includes('pollAttempts.current >= 10'), 'wallet polling is bounded');
 ok(fundingPanelSrc.includes("const transferDirectionEnabled = direction === 'deposit' ? depositsEnabled : withdrawalsEnabled"), 'funding input follows independent direction switches');
-ok(fundingPanelSrc.includes('Verify your identity before connecting a bank account.'), 'wallet explains progressive identity gate');
+ok(fundingPanelSrc.includes('Verify your identity before adding a funding account.'), 'wallet explains progressive identity gate');
+ok(fundingPanelSrc.includes('VerifiedThirdPartyFundingSourceForm'), 'wallet uses ChessBet-owned consent and enrollment');
+ok(!fundingPanelSrc.includes('createSeamlessBankLinkUrl'), 'wallet no longer starts the hosted Plaid-style bank link');
 
 // No live Seamless network call should occur in tests; assert the pure module
 // has no fetch import (smoke check).
