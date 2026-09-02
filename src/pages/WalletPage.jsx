@@ -37,7 +37,7 @@ export default function WalletPage() {
   // re-check jurisdiction themselves immediately before starting, so this
   // value is passed through for context/messaging only, not used to hide the
   // page itself.
-  const jurisdictionDecision = useOutletContext();
+  const jurisdictionDecision = /** @type {{ allowed: boolean, reason?: string, promptEligible?: boolean } | null} */ (useOutletContext());
   const [wallet, setWallet] = useState(null);
   const [userId, setUserId] = useState(null);
   const [transactions, setTransactions] = useState([]);
