@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
     // At-most-once selection: only pending active rows. Processing/notified/
     // failed rows are never selected here, so a sent row can never be re-sent.
     const pending = await svc.JurisdictionInterest.filter(
-      { launch_epoch: 2, is_active: true, status: 'pending' },
+      { is_active: true, status: 'pending', launch_epoch: 2 },
       '-consent_at',
       MAX_BATCH,
     );
