@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
     }
 
     const rows = await base44.asServiceRole.entities.JurisdictionInterest.filter(
-      { is_active: true },
+      { launch_epoch: 2, is_active: true },
       '-consent_at',
       5000,
     );
