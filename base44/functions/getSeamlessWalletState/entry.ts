@@ -5,6 +5,7 @@ import {
   seamlessWithdrawalsEnabled,
 } from '../../shared/seamlessFundingConfig.ts';
 import { isSocureIdentityVerified } from '../../shared/identityEligibility.js';
+import { legalNameFromUser } from '../../shared/legalName.ts';
 import { socureConfig } from '../../shared/socure.ts';
 import { latestSocureBankVerification, publicSocureBankStatus } from '../../shared/socureBankEligibility.js';
 
@@ -56,6 +57,7 @@ Deno.serve(async (req) => {
       third_party_funding_enabled: thirdPartyFundingEnabled,
       bank_screening_enabled: bankScreeningEnabled,
       identity_verified: isSocureIdentityVerified(user),
+      legal_name: legalNameFromUser(user)?.fullName || '',
       identity_status: user.identity_verification_status || 'not_started',
       account_state: user.account_state || 'provisional',
       withdrawal_hold: !!user.withdrawal_hold,
