@@ -142,6 +142,7 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
 
   const depositsEnabled = !!state?.deposits_enabled;
   const withdrawalsEnabled = !!state?.withdrawals_enabled;
+  const thirdPartyFundingEnabled = !!state?.third_party_funding_enabled;
   const bankScreeningEnabled = !!state?.bank_screening_enabled;
   const identityVerified = !!state?.identity_verified;
   const effectiveAccountState = state?.account_state || accountState;
@@ -149,10 +150,6 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
   const notVerified = !identityVerified || effectiveAccountState !== "verified";
   const ineligible = effectiveWithdrawalHold || notVerified;
   const verifiedBank = state?.banks?.find((b) => b.status === "verified");
-  const pendingBank = state?.banks?.find((b) => ["added", "pending_verification"].includes(b.status));
-  const attentionBank = state?.banks?.find((b) =>
-    ["verification_failed", "verification_expired", "deleted", "error"].includes(b.status)
-  );
   const bankScreeningStatus = verifiedBank?.socure_status || "not_started";
   const bankScreened = bankScreeningStatus === "verified";
   const transferDirectionEnabled = direction === 'deposit' ? depositsEnabled : withdrawalsEnabled;
