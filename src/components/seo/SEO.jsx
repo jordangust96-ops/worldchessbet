@@ -8,10 +8,10 @@ import { SITE_NAME, DEFAULT_OG_IMAGE, TWITTER_HANDLE } from "@/lib/seoConfig";
 export default function SEO({
   title,
   description,
-  canonicalUrl,
+  canonicalUrl = "",
   ogImage = DEFAULT_OG_IMAGE,
   ogType = "website",
-  structuredData,
+  structuredData = null,
   noindex = false,
   imageAlt = "ChessBet",
 }) {
