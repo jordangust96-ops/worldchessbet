@@ -24,6 +24,7 @@ Deno.serve(async (req) => {
 
     const game = await base44.asServiceRole.entities.Game.get(gameId);
     if (!game) return Response.json({ error: 'Game not found' }, { status: 404 });
+    if (Number(game.launch_epoch) !== 2) return Response.json({ error: 'Game not available' }, { status: 410 });
 
     const match = await base44.asServiceRole.entities.Match.get(game.match_id);
     if (!match) return Response.json({ error: 'Match not found' }, { status: 404 });
