@@ -19,6 +19,7 @@ Deno.serve(async (req) => {
 
     let match = await base44.asServiceRole.entities.Match.get(matchId);
     if (!match) return Response.json({ error: 'Match not found' }, { status: 404 });
+    if (Number(match.launch_epoch) !== 2) return Response.json({ error: 'Match not available' }, { status: 410 });
 
     if (match.status !== 'searching') {
       return Response.json({ error: 'This match is no longer available' }, { status: 400 });
