@@ -110,7 +110,7 @@ function LandingAmbientGlow() {
         <div
           key={pulse.id}
           className="landing-ambient-pulse absolute inset-0"
-          style={{ "--pulse-x": `${pulse.x}px`, "--pulse-y": `${pulse.y}px` }}
+          style={/** @type {any} */ ({ "--pulse-x": `${pulse.x}px`, "--pulse-y": `${pulse.y}px` })}
           onAnimationEnd={() => setPulse(null)}
         />
       )}
