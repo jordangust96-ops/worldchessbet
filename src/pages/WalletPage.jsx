@@ -202,6 +202,16 @@ export default function WalletPage() {
         </Link>
         <RestrictedModeBanner />
 
+        {jurisdictionDecision && !jurisdictionDecision.allowed && (
+          <div className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.06] p-4 text-center">
+            <p className="text-xs text-amber-200/80">
+              {jurisdictionDecision.reason ||
+                "Paid contests aren't available from your current location."}{" "}
+              Your balance stays yours — you can still withdraw it below.
+            </p>
+          </div>
+        )}
+
         {/* Balance Card */}
         <div className="rounded-3xl bg-gradient-to-br from-[#1A1A1A] to-[#111] border border-white/5 p-6 text-center">
           <p className="text-xs uppercase tracking-widest text-white/40 mb-2">Total Balance</p>
