@@ -5,7 +5,7 @@ let masterGain = null;
 
 function getAudioContext() {
   if (typeof window === "undefined") return null;
-  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  const AudioContextClass = window.AudioContext || (/** @type {any} */ (window)).webkitAudioContext;
   if (!AudioContextClass) return null;
 
   if (!audioContext) {
