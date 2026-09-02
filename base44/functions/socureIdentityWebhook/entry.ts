@@ -11,6 +11,14 @@ Deno.serve(async (req) => {
   } catch {
     return new Response('Unauthorized', { status: 401 });
   }
+  // identityConfig() returns { enabled: false } (rather than throwing) when
+  // SOCURE_IDENTITY_ENABLED is off, with no webhookToken present. Without this
+  // explicit check, the comparison below degrades to matching the literal
+  // string "Bearer undefined", which is a guessable bypass. Fail closed here
+  // instead of falling through to that comparison.
+  if (!config.enabled) {
+    return new Response('Unauthorized', { status: 401 });
+  }
 
   const authorization = req.headers.get('authorization') || '';
   if (!constantTimeEqual(authorization, `Bearer ${config.webhookToken}`)) {
