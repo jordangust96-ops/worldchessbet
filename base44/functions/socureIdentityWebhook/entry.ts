@@ -4,6 +4,16 @@ import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 import { encryptComplianceJson } from '../../shared/complianceEvidence.ts';
 import { complianceRetentionUntil } from '../../shared/achAuthorization.js';
 
+// Whether this webhook's body actually contains Socure's *complete* DocV
+// report is a question about Socure's real payload shape for the
+// Hosted Predictive DocV workflow, which is not yet provisioned
+// (SOCURE_IDENTITY_ENABLED is currently false and SOCURE_IDENTITY_WORKFLOW is
+// unconfirmed) -- that is intentionally NOT guessed at here. What IS fixed
+// below, independent of the payload shape, is that a decision is only ever
+// applied to a verification that is still open/awaiting one; see the guard
+// after the event-id dedup check.
+const OPEN_IDENTITY_VERIFICATION_STATES = new Set(['pending', 'review_required']);
+
 Deno.serve(async (req) => {
   let config;
   try {
@@ -50,6 +60,34 @@ Deno.serve(async (req) => {
   );
   if (seen.length > 0 || verification.webhook_event_id === eventId) {
     return Response.json({ received: true, deduplicated: true });
+  }
+
+  // Corroborate against OUR OWN state machine (independent of the provider
+  // payload's contents): a delayed, out-of-order, or replayed webhook must
+  // not be able to overwrite a verification that already reached a terminal
+  // outcome -- e.g. resurrecting an 'expired' row (whose session the user
+  // already abandoned for a newer one) back to 'verified'. Socure's
+  // documented 'decision_update' event legitimately moves 'review_required'
+  // to a terminal decision, so that state stays open.
+  if (!OPEN_IDENTITY_VERIFICATION_STATES.has(verification.status)) {
+    await recordIntegrationEvent(base44, {
+      eventType: 'identity.socure_result_ignored_terminal_state',
+      aggregateType: 'user',
+      aggregateId: verification.user_id,
+      correlationId: verification.id,
+      idempotencyKey: eventKey,
+      actorType: 'system',
+      userId: verification.user_id,
+      status: verification.status,
+      result: 'ignored_terminal_state',
+      eventData: {
+        provider: 'socure',
+        event_type: eventType,
+        verification_id: verification.id,
+        evaluation_id: data.eval_id,
+      },
+    });
+    return Response.json({ received: true, ignored: true, reason: 'verification_already_finalized' });
   }
 
   const decision = String(data.decision || 'UNKNOWN').toUpperCase();
