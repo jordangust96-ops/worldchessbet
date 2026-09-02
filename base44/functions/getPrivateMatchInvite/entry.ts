@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
     }
 
     const matches = await base44.asServiceRole.entities.Match.filter(
-      { invite_code: inviteCode },
+      { launch_epoch: 2, invite_code: inviteCode },
       '-created_date',
       2
     );
