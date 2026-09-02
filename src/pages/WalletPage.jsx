@@ -17,7 +17,7 @@ async function listCompletedMatchesForPlayer(field, userId) {
   let skip = 0;
   while (true) {
     const page = await base44.entities.Match.filter(
-      { status: "completed", [field]: userId },
+      { launch_epoch: 2, status: "completed", [field]: userId },
       "-created_date",
       MATCH_HISTORY_PAGE_SIZE,
       skip
@@ -52,8 +52,8 @@ export default function WalletPage() {
   const loadTransactions = async (uid, page) => {
     const skip = (page - 1) * TX_PAGE_SIZE;
     const [txs, allIds] = await Promise.all([
-      base44.entities.WalletTransaction.filter({ user_id: uid }, "-created_date", TX_PAGE_SIZE, skip),
-      base44.entities.WalletTransaction.filter({ user_id: uid }, "-created_date", 5000, 0, ["id"]),
+      base44.entities.WalletTransaction.filter({ launch_epoch: 2, user_id: uid }, "-created_date", TX_PAGE_SIZE, skip),
+      base44.entities.WalletTransaction.filter({ launch_epoch: 2, user_id: uid }, "-created_date", 5000, 0, ["id"]),
     ]);
     setTransactions(txs);
     setTxTotalCount(allIds.length);
@@ -79,7 +79,7 @@ export default function WalletPage() {
             }
           })
         )
-      ).filter(Boolean);
+      ).filter((match) => match?.launch_epoch === 2);
 
       const opponentIds = [
         ...new Set(
@@ -119,7 +119,11 @@ export default function WalletPage() {
   };
 
   const loadData = async () => {
-    const me = await base44.auth.me();
+    let me = await base44.auth.me();
+    if (me.launch_epoch !== 2) {
+      await base44.functions.invoke("ensureLaunchEpoch", {});
+      me = await base44.auth.me();
+    }
     setUserId(me.id);
     setWithdrawalHold(!!me.withdrawal_hold);
     setAccountState(me.account_state || "verified");
