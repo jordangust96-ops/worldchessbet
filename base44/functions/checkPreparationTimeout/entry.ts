@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
 
       for (const depositorId of refundTargets) {
         const entryTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
-        launch_epoch: 2,
+          launch_epoch: 2,
           user_id: depositorId,
           type: 'wager_refund',
           amount: match.wager_amount,
@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
         });
 
         const feeTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
-        launch_epoch: 2,
+          launch_epoch: 2,
           user_id: depositorId,
           type: 'service_fee_refund',
           amount: serviceFee,
