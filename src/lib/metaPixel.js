@@ -8,11 +8,13 @@
 const STANDARD_EVENTS = new Set(["PageView", "CompleteRegistration"]);
 
 export function trackPixelEvent(eventName, params = {}) {
-  if (typeof window === "undefined" || typeof window.fbq !== "function") return;
+  if (typeof window === "undefined") return;
+  const fbq = (/** @type {any} */ (window)).fbq;
+  if (typeof fbq !== "function") return;
   if (STANDARD_EVENTS.has(eventName)) {
-    window.fbq("track", eventName, params);
+    fbq("track", eventName, params);
   } else {
-    window.fbq("trackCustom", eventName, params);
+    fbq("trackCustom", eventName, params);
   }
 }
 
