@@ -51,7 +51,8 @@ export function seamlessDashboardHost(env) {
   throw new Error('SEAMLESS_ACH_ENV must be "sandbox" or "production"');
 }
 
-// Hosted Plaid-style bank authorization URL (NOT direct Plaid Link).
+// Seamless-hosted bank authorization URL. Seamless may use Plaid internally;
+// ChessBet does not call Plaid or receive Plaid access tokens directly.
 // production: https://dashboard.seamlesschex.com/ach/#/bank-account/{PUBLIC_KEY}/{USER_ID}?successUrl=..&cancelUrl=..
 // sandbox:     https://sandbox.seamlesschex.com/ach/#/bank-account/...
 export function buildBankLinkUrl({ env, publicKey, providerUserId, successUrl, cancelUrl }) {
