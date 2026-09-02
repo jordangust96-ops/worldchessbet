@@ -1,6 +1,8 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { identityConfig, constantTimeEqual } from '../../shared/socureIdentity.ts';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
+import { encryptComplianceJson } from '../../shared/complianceEvidence.ts';
+import { complianceRetentionUntil } from '../../shared/achAuthorization.js';
 
 Deno.serve(async (req) => {
   let config;
@@ -52,12 +54,36 @@ Deno.serve(async (req) => {
     .filter((value) => typeof value === 'string')
     .slice(0, 20);
 
+  // A passing decision is never applied unless the full provider evidence was
+  // first encrypted for the required audit-retention period. Returning 503
+  // makes Socure retry rather than silently losing compliance evidence.
+  let archived;
+  try {
+    archived = await encryptComplianceJson(body);
+  } catch {
+    return new Response('Evidence archive unavailable', { status: 503 });
+  }
+  const archivedAt = new Date().toISOString();
+  const minimumRetention = complianceRetentionUntil(archivedAt);
+  const retentionUntil = Date.parse(verification.retention_until || '') > Date.parse(minimumRetention)
+    ? verification.retention_until
+    : minimumRetention;
+  const providerEventAt = Number.isFinite(Date.parse(String(body?.event_at || '')))
+    ? new Date(body.event_at).toISOString()
+    : archivedAt;
+
   await base44.asServiceRole.entities.SocureIdentityVerification.update(verification.id, {
     status,
     provider_decision: normalizedDecision,
     webhook_event_id: eventId,
     reason_codes: reasonCodes,
-    completed_at: new Date().toISOString(),
+    completed_at: archivedAt,
+    provider_event_at: providerEventAt,
+    provider_report_ciphertext: archived.ciphertext,
+    provider_report_iv: archived.iv,
+    provider_report_sha256: archived.sha256,
+    report_archived_at: archivedAt,
+    retention_until: retentionUntil,
     failure_code: status === 'failed' ? 'provider_unknown_decision' : '',
   });
 
