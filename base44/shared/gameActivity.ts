@@ -36,7 +36,7 @@ export async function countCurrentlyLiveGames(entity: any, nowMs = Date.now()) {
   let skip = 0;
 
   while (true) {
-    const page = await entity.filter({ status: 'active' }, 'created_date', PAGE_SIZE, skip);
+    const page = await entity.filter({ launch_epoch: 2, status: 'active' }, 'created_date', PAGE_SIZE, skip);
     count += page.filter((game: Record<string, unknown>) => isGameCurrentlyLive(game, nowMs)).length;
     if (page.length < PAGE_SIZE) return count;
     skip += page.length;
