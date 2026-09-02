@@ -25,6 +25,7 @@ const {
   PATH_BALANCE_TO_ACCOUNT,
   constantTimeEqual,
   webhookIdempotencyKey,
+  isMerchantBalanceTransaction,
   applyWebhookEvent,
   applyFundingSourceEvent,
   normalizeProviderEventTime,
@@ -250,6 +251,20 @@ ok(constantTimeEqual('a', 'b') === false, 'single char differ rejects');
     'explicit unavailable event without timestamp fails closed');
 }
 
+// ---------------- Merchant balance webhook routing ----------------
+const merchantTransfer = {
+  event: 'transaction.status',
+  check: { description: 'Transfer to Balance', rec_bname: 'Balance', label: null },
+};
+ok(isMerchantBalanceTransaction(merchantTransfer, 'transaction.status'),
+  'unlabeled Transfer to Balance is account-level treasury activity');
+ok(isMerchantBalanceTransaction({ check: { sndr_bname: 'Balance', label: '' } }, 'transaction.status'),
+  'unlabeled transfer from provider Balance is account-level treasury activity');
+ok(!isMerchantBalanceTransaction({ check: { description: 'Transfer to Balance', label: 'chessbet:deposit:1' } }, 'transaction.status'),
+  'ChessBet-labeled transaction remains on the player settlement path');
+ok(!isMerchantBalanceTransaction(merchantTransfer, 'payment.changed'),
+  'non-transaction event is not classified as a merchant balance transaction');
+
 // ---------------- Money state machine (applyWebhookEvent) ----------------
 // Exactly-once ledger posting on Processed; no balance change before Processed.
 ok(JSON.stringify(applyWebhookEvent({ status: 'pending' }, { status: 'Processed' })) === JSON.stringify({ action: 'post', status: 'completed' }),
@@ -304,6 +319,12 @@ ok(webhookSrc.includes("status: 401"), 'webhook rejects unauthorized with 401 (n
 ok(webhookSrc.includes('applyWebhookEvent'), 'webhook routes via the money state machine');
 ok(webhookSrc.includes('postLedgerLegs'), 'webhook posts through the authoritative ledger helper');
 ok(webhookSrc.includes('claimWebhookEvent'), 'webhook atomically claims the event before financial mutation');
+ok(webhookSrc.indexOf("eventType === 'endpoint.test'") < webhookSrc.indexOf('claimWebhookEvent(idemKey'),
+  'authenticated endpoint probes are acknowledged before financial idempotency');
+ok(webhookSrc.includes('isMerchantBalanceTransaction(body, eventType)'),
+  'merchant balance transactions bypass player WalletTransaction settlement');
+ok(webhookSrc.includes("result: 'merchant_balance_ignored'"),
+  'merchant balance transactions are audited and acknowledged');
 ok(webhookSrc.includes('pickAmount(body)'), 'unmatched callbacks use only a defined optional amount');
 ok(!/console\.log.*authorization/i.test(webhookSrc), 'webhook never logs Authorization');
 ok(webhookSrc.includes('body?.customer_id'), 'funding-source ownership reads official customer_id');
