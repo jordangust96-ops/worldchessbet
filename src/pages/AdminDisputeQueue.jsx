@@ -29,7 +29,7 @@ export default function AdminDisputeQueue() {
     const sorted = [...allCases].sort((a, b) => {
       const rankDiff = (CASE_PRIORITY_RANK[b.priority] || 0) - (CASE_PRIORITY_RANK[a.priority] || 0);
       if (rankDiff !== 0) return rankDiff;
-      return new Date(b.created_date) - new Date(a.created_date);
+      return new Date(b.created_date).getTime() - new Date(a.created_date).getTime();
     });
     setCases(sorted);
 
