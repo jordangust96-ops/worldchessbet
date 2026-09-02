@@ -9,7 +9,9 @@ import {
   PATH_ACH_DEBIT, SEAMLESS_PROVIDER_KEY,
 } from '../../shared/seamlessAch.ts';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
-import { claimDepositOperation, saveDepositOperation } from '../../shared/seamlessAtomicStore.ts';
+import {
+  acquireUserWalletLock, releaseUserWalletLock, claimDepositOperation, saveDepositOperation,
+} from '../../shared/seamlessAtomicStore.ts';
 
 const MAX_AMOUNT = 10000;
 const IDEMPOTENCY_KEY = /^[A-Za-z0-9._:-]{16,128}$/;
@@ -20,7 +22,13 @@ const IDEMPOTENCY_KEY = /^[A-Za-z0-9._:-]{16,128}$/;
 // request. The ledger is posted exactly once when a Processed webhook later
 // confirms settlement (seamlessAchWebhook). Fails closed when deposits are
 // disabled or provider configuration is missing.
+// Mirrors submitSeamlessWithdrawal's per-user Redis lock: without it, a user
+// (or a buggy/compromised client) could fire multiple concurrent deposit
+// requests with distinct idempotency keys against the same bank account with
+// no velocity control, each independently reaching Seamless.
 Deno.serve(async (req) => {
+  let lockOwner = '';
+  let userId = '';
   try {
     if (!seamlessDepositsEnabled()) {
       return Response.json({
@@ -33,6 +41,7 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    userId = user.id;
 
     const { amount, idempotencyKey } = await req.json();
     const value = Number(amount);
@@ -55,6 +64,11 @@ Deno.serve(async (req) => {
     const bankVerification = latestSocureBankVerification(bankVerifications, screeningBank.source_id);
     if (!isSocureBankVerificationAccepted(bankVerification, screeningBank.source_id)) {
       return Response.json({ error: 'Complete bank account screening before funding.', action: 'bank_screening_required' }, { status: 403 });
+    }
+
+    lockOwner = crypto.randomUUID();
+    if (!await acquireUserWalletLock(user.id, lockOwner)) {
+      return Response.json({ error: 'deposit_in_progress', retryable: true }, { status: 409 });
     }
 
     let operation = await claimDepositOperation(user.id, idempotencyKey, value);
@@ -253,5 +267,9 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     return Response.json({ error: error?.message || 'Unable to submit deposit' }, { status: 500 });
+  } finally {
+    if (userId && lockOwner) {
+      try { await releaseUserWalletLock(userId, lockOwner); } catch { /* TTL safely releases an unavailable store lock. */ }
+    }
   }
 });
