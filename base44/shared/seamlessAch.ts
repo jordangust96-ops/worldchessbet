@@ -13,7 +13,8 @@ import {
   buildDepositBody,
   buildWithdrawalBody,
   buildMerchantBalanceTransferBody,
-  constantTimeEqual,
+  buildVerifiedThirdPartyFundingSourceBody,
+  constantTimeEqual:
   webhookIdempotencyKey,
   isMerchantBalanceTransaction,
   applyWebhookEvent,
@@ -24,6 +25,7 @@ import {
   PATH_CHECK_SEND,
   PATH_BALANCE_FROM_ACCOUNT,
   PATH_BALANCE_TO_ACCOUNT,
+  PATH_VERIFIED_THIRD_PARTY_FUNDING_SOURCE,
 } from './seamlessAchPure.js';
 
 export {
@@ -37,7 +39,8 @@ export {
   buildDepositBody,
   buildWithdrawalBody,
   buildMerchantBalanceTransferBody,
-  constantTimeEqual,
+  buildVerifiedThirdPartyFundingSourceBody,
+  constantTimeEqual:
   webhookIdempotencyKey,
   isMerchantBalanceTransaction,
   applyWebhookEvent,
@@ -48,6 +51,7 @@ export {
   PATH_CHECK_SEND,
   PATH_BALANCE_FROM_ACCOUNT,
   PATH_BALANCE_TO_ACCOUNT,
+  PATH_VERIFIED_THIRD_PARTY_FUNDING_SOURCE,
 };
 
 // Resolve Seamless config from server secrets. Fails closed (throws) on any
