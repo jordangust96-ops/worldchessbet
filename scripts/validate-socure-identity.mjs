@@ -65,14 +65,13 @@ const removedDirectPlaidArtifacts = [
   'base44/functions/createPlaidLinkToken/entry.ts',
   'base44/functions/exchangePlaidPublicToken/entry.ts',
   'base44/functions/createPlaidTransfer/entry.ts',
-  'base44/entities/PlaidBankAccount.jsonc',
   'base44/shared/plaid.ts',
 ];
 for (const path of removedDirectPlaidArtifacts) {
   await assert.rejects(
     () => access(new URL(`../${path}`, import.meta.url)),
     { code: 'ENOENT' },
-    `${path} must remain absent; ChessBet uses verified third-party funding sources, not direct Plaid`,
+    `${path} must remain absent; runtime bank enrollment cannot call Plaid directly`,
   );
 }
 assert.match(thirdPartyEnrollment, /seamlessThirdPartyFundingEnabled/, 'bank enrollment has a provider-approval switch');
