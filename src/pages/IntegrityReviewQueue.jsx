@@ -30,7 +30,7 @@ export default function IntegrityReviewQueue() {
     const sorted = [...allFlags].sort((a, b) => {
       const rankDiff = (SEVERITY_RANK[b.severity] || 0) - (SEVERITY_RANK[a.severity] || 0);
       if (rankDiff !== 0) return rankDiff;
-      return new Date(b.created_date) - new Date(a.created_date);
+      return new Date(b.created_date).getTime() - new Date(a.created_date).getTime();
     });
     setFlags(sorted);
 
