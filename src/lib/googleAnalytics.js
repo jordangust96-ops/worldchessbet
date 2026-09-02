@@ -4,8 +4,10 @@ const PENDING_OAUTH_LOGIN_KEY = "chessbet_pending_oauth_login";
 const OAUTH_LOGIN_MAX_AGE_MS = 30 * 60 * 1000;
 
 export function trackGoogleAnalyticsEvent(eventName, properties = {}) {
-  if (typeof window === "undefined" || typeof window.gtag !== "function") return;
-  window.gtag("event", eventName, properties);
+  if (typeof window === "undefined") return;
+  const gtag = (/** @type {any} */ (window)).gtag;
+  if (typeof gtag !== "function") return;
+  gtag("event", eventName, properties);
 }
 
 export function rememberOAuthLogin(method) {
