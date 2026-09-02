@@ -93,6 +93,79 @@
         "write": false
       }
     },
+    "request_ip_address": {
+      "type": "string",
+      "maxLength": 128,
+      "description": "Consumer IP captured server-side when the hosted verification was started.",
+      "rls": {
+        "read": {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        "write": false
+      }
+    },
+    "request_user_agent": {
+      "type": "string",
+      "maxLength": 1000,
+      "rls": {
+        "read": {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        "write": false
+      }
+    },
+    "provider_event_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "provider_report_ciphertext": {
+      "type": "string",
+      "description": "AES-GCM encrypted Socure webhook evidence; plaintext PII is never stored.",
+      "rls": {
+        "read": {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        "write": false
+      }
+    },
+    "provider_report_iv": {
+      "type": "string",
+      "rls": {
+        "read": {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        "write": false
+      }
+    },
+    "provider_report_sha256": {
+      "type": "string",
+      "maxLength": 64,
+      "rls": {
+        "read": {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        "write": false
+      }
+    },
+    "report_archived_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "retention_until": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Minimum two-year evidence retention deadline; extended by later transactions."
+    },
     "description": {
       "type": "string",
       "maxLength": 1000
