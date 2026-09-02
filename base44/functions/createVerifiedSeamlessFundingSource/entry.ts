@@ -25,6 +25,15 @@ import {
   socureConfig,
 } from '../../shared/socure.ts';
 
+// A terminal 'failed' or 'manual_review_required' outcome never reached the
+// paid Seamless boundary for the account in question (see the two call sites
+// below), so retrying with the same account details is safe. 'uncertain'
+// means Seamless's own response was ambiguous and must never be auto-retried;
+// 'created'/'screening'/'creating_provider_source'/'verified' are in-flight or
+// already succeeded and must never start a second attempt for this account.
+const RETRYABLE_ENROLLMENT_STATES = new Set(['failed', 'manual_review_required']);
+const ENROLLMENT_RETRY_COOLDOWN_MS = 60 * 1000;
+
 function cleanText(value: unknown, max: number) {
   return String(value || '').trim().replace(/\s+/g, ' ').slice(0, max);
 }
@@ -183,7 +192,47 @@ Deno.serve(async (req) => {
     }
 
     const fingerprint = await sha256Hex(`${user.id}:${routingNumber}:${accountNumber}`);
-    const requestKey = `seamless:verified-third-party:v1:${user.id}:${fingerprint}`;
+    const baseRequestKey = `seamless:verified-third-party:v1:${user.id}:${fingerprint}`;
+
+    // Look up every prior attempt for this exact account (not just one
+    // request_key), so a terminal failure/review outcome does not
+    // permanently lock the user out of retrying the same account. Only the
+    // most recent attempt's state decides whether a new attempt is allowed.
+    const priorAttempts = await base44.asServiceRole.entities.SeamlessFundingSourceEnrollment.filter(
+      { user_id: user.id, account_fingerprint: fingerprint }, '-created_date', 50
+    );
+    const latestAttempt = priorAttempts[0] || null;
+
+    if (latestAttempt && !RETRYABLE_ENROLLMENT_STATES.has(latestAttempt.state)) {
+      // In-progress, uncertain, or already-verified: never start a second
+      // attempt at the paid provider boundary for this exact account.
+      const status = latestAttempt.state === 'verified' ? 200 : 202;
+      return Response.json({
+        enabled: true,
+        deduplicated: true,
+        enrollment: publicEnrollment(latestAttempt),
+        reconciliation_required: latestAttempt.state === 'uncertain',
+      }, { status });
+    }
+
+    if (latestAttempt) {
+      const lastAttemptAt = Date.parse(latestAttempt.completed_at || latestAttempt.requested_at || '');
+      const sinceLastAttemptMs = Number.isFinite(lastAttemptAt) ? Date.now() - lastAttemptAt : Infinity;
+      if (sinceLastAttemptMs < ENROLLMENT_RETRY_COOLDOWN_MS) {
+        return Response.json({
+          enabled: true,
+          deduplicated: true,
+          error: 'Please wait a moment before retrying this bank account.',
+          enrollment: publicEnrollment(latestAttempt),
+          retry_after_ms: Math.max(0, ENROLLMENT_RETRY_COOLDOWN_MS - sinceLastAttemptMs),
+        }, { status: 429 });
+      }
+    }
+
+    // Each retry after a terminal failure/review gets its own unique
+    // request_key (suffixed by the prior-attempt count) so the existing
+    // per-request idempotency/race-debounce below still applies per attempt.
+    const requestKey = priorAttempts.length > 0 ? `${baseRequestKey}:${priorAttempts.length}` : baseRequestKey;
     const existing = await base44.asServiceRole.entities.SeamlessFundingSourceEnrollment.filter({ request_key: requestKey });
     if (existing.length > 0) {
       const canonical = firstByCreated(existing);
