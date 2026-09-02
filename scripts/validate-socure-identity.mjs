@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import { isSocureIdentityVerified } from '../base44/shared/identityEligibility.js';
 import {
   isSocureBankVerificationAccepted,
@@ -34,8 +34,8 @@ assert.equal(latestSocureBankVerification([
 ], 'source-1').id, 'new', 'latest screening is selected deterministically');
 
 const [contest, wager, deposit, legacyVerify, starter, webhook, userEntity, verificationEntity,
-  customer, bankLink, withdrawal, directLink, directExchange, directTransfer, walletProvisioning,
-  bankScreen, walletState, fundingPanel] = await Promise.all([
+  customer, bankLink, withdrawal, walletProvisioning, bankScreen, walletState,
+  fundingPanel] = await Promise.all([
   read('base44/functions/runContestEligibility/entry.ts'),
   read('base44/functions/lockWager/entry.ts'),
   read('base44/functions/submitSeamlessDeposit/entry.ts'),
@@ -47,9 +47,6 @@ const [contest, wager, deposit, legacyVerify, starter, webhook, userEntity, veri
   read('base44/functions/ensureSeamlessCustomer/entry.ts'),
   read('base44/functions/createSeamlessBankLinkUrl/entry.ts'),
   read('base44/functions/submitSeamlessWithdrawal/entry.ts'),
-  read('base44/functions/createPlaidLinkToken/entry.ts'),
-  read('base44/functions/exchangePlaidPublicToken/entry.ts'),
-  read('base44/functions/createPlaidTransfer/entry.ts'),
   read('base44/shared/walletProvisioning.ts'),
   read('base44/functions/requestSocureBankVerification/entry.ts'),
   read('base44/functions/getSeamlessWalletState/entry.ts'),
@@ -62,10 +59,22 @@ for (const [name, source] of [['contest', contest], ['wager', wager]]) {
 for (const [name, source] of [['Seamless deposit', deposit], ['Seamless customer', customer], ['Seamless bank link', bankLink], ['Seamless withdrawal', withdrawal]]) {
   assert.match(source, /isSocureIdentityVerified\(user\)/, `${name} requires authoritative Socure identity`);
 }
-for (const [name, source] of [['direct link', directLink], ['direct exchange', directExchange], ['direct transfer', directTransfer]]) {
-  assert.match(source, /status:\s*410/, `${name} is permanently fail-closed`);
-  assert.doesNotMatch(source, /fetch\(|plaidClient|seamlessRequest/, `${name} cannot call a provider`);
+const removedDirectPlaidArtifacts = [
+  'base44/functions/createPlaidLinkToken/entry.ts',
+  'base44/functions/exchangePlaidPublicToken/entry.ts',
+  'base44/functions/createPlaidTransfer/entry.ts',
+  'base44/entities/PlaidBankAccount.jsonc',
+  'base44/shared/plaid.ts',
+];
+for (const path of removedDirectPlaidArtifacts) {
+  await assert.rejects(
+    () => access(new URL(`../${path}`, import.meta.url)),
+    { code: 'ENOENT' },
+    `${path} must remain absent; ChessBet uses Seamless-hosted bank linking, not direct Plaid`,
+  );
 }
+assert.match(bankLink, /buildBankLinkUrl/, 'bank linking remains hosted by Seamless');
+assert.doesNotMatch(bankLink, /PLAID_|plaid\(/, 'bank linking cannot call Plaid directly');
 assert.match(legacyVerify, /Socure is authoritative/, 'legacy admin verification cannot promote users');
 assert.match(legacyVerify, /requireAdminMfa/, 'legacy admin compatibility route retains MFA');
 assert.doesNotMatch(walletProvisioning, /WalletTransaction|postLedgerLegs/, 'wallet provisioning cannot create funds');
