@@ -44,7 +44,7 @@ export default function AdminDisputeCaseDetail() {
       c.reporting_user_id ? base44.entities.User.get(c.reporting_user_id).catch(() => null) : null,
       c.reported_user_id ? base44.entities.User.get(c.reported_user_id).catch(() => null) : null,
     ]);
-    setNotes([...caseNotes].sort((a, b) => new Date(a.created_date) - new Date(b.created_date)));
+    setNotes([...caseNotes].sort((a, b) => new Date(a.created_date).getTime() - new Date(b.created_date).getTime()));
     setUserLabels({
       [c.reporting_user_id]: reporter?.full_name || reporter?.email || c.reporting_user_id,
       [c.reported_user_id]: reported?.full_name || reported?.email || c.reported_user_id,
