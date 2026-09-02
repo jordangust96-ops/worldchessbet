@@ -113,13 +113,13 @@ export default function Home() {
     // event can never resurrect a match whose game already ended.
     const isMatchGenuinelyActive = async (m) => {
       if (m.status !== "in_progress") return true;
-      const games = await base44.entities.Game.filter({ match_id: m.id }, "-created_date", 1);
+      const games = await base44.entities.Game.filter({ launch_epoch: 2, match_id: m.id }, "-created_date", 1);
       return games[0]?.status !== "completed";
     };
 
     const checkActiveMatch = async () => {
-      const asP1 = await base44.entities.Match.filter({ player1_id: user.id }, "-created_date", 5);
-      const asP2 = await base44.entities.Match.filter({ player2_id: user.id }, "-created_date", 5);
+      const asP1 = await base44.entities.Match.filter({ launch_epoch: 2, player1_id: user.id }, "-created_date", 5);
+      const asP2 = await base44.entities.Match.filter({ launch_epoch: 2, player2_id: user.id }, "-created_date", 5);
       const candidates = [...asP1, ...asP2].filter(
         (m) => ["preparing", "both_ready", "in_progress"].includes(m.status) && m.id !== dismissedMatchIdRef.current
       );
@@ -136,6 +136,7 @@ export default function Home() {
     checkActiveMatch().catch(() => {});
 
     const unsubscribe = base44.entities.Match.subscribe((event) => {
+      if (event.data?.launch_epoch !== 2) return;
       if (event.data?.player1_id !== user.id && event.data?.player2_id !== user.id) return;
       if (event.type !== "update" && event.type !== "create") return;
 
@@ -175,8 +176,8 @@ export default function Home() {
       requestInFlight = true;
       try {
         const [asP1, asP2] = await Promise.all([
-          base44.entities.Match.filter({ player1_id: user.id }, "-created_date", 5),
-          base44.entities.Match.filter({ player2_id: user.id }, "-created_date", 5),
+          base44.entities.Match.filter({ launch_epoch: 2, player1_id: user.id }, "-created_date", 5),
+          base44.entities.Match.filter({ launch_epoch: 2, player2_id: user.id }, "-created_date", 5),
         ]);
         const candidate = [...asP1, ...asP2].find(
           (m) =>
@@ -186,7 +187,7 @@ export default function Home() {
         if (!candidate) return;
         let genuinelyActive = true;
         if (candidate.status === "in_progress") {
-          const games = await base44.entities.Game.filter({ match_id: candidate.id }, "-created_date", 1);
+          const games = await base44.entities.Game.filter({ launch_epoch: 2, match_id: candidate.id }, "-created_date", 1);
           genuinelyActive = games[0]?.status !== "completed";
         }
         if (genuinelyActive && candidate.id !== dismissedMatchIdRef.current) {
@@ -219,7 +220,13 @@ export default function Home() {
   useEffect(() => {
     if (!myMatchId) return;
     if (activeMatch?.id === myMatchId) return;
-    base44.entities.Match.get(myMatchId).then(setActiveMatch);
+    base44.entities.Match.get(myMatchId).then((match) => {
+      if (match?.launch_epoch === 2) setActiveMatch(match);
+      else {
+        setMyMatchId(null);
+        setActiveMatch(null);
+      }
+    });
   }, [myMatchId, activeMatch?.id]);
 
   const handleRefreshActiveMatch = async () => {
@@ -311,7 +318,11 @@ export default function Home() {
 
   useEffect(() => {
     const load = async () => {
-      const me = await base44.auth.me();
+      let me = await base44.auth.me();
+      if (me.launch_epoch !== 2) {
+        const { data } = await base44.functions.invoke("ensureLaunchEpoch", {});
+        me = data.user;
+      }
       setUser(me);
       setMovementMode(
         touchOnlyInputRef.current ? "click" : me.movement_mode === "click" ? "click" : "drag"
