@@ -3,6 +3,7 @@ import {
   seamlessDepositsEnabled,
   seamlessWithdrawalsEnabled,
   seamlessRtpPayoutsEnabled,
+  seamlessThirdPartyFundingEnabled,
 } from '../../shared/seamlessFundingConfig.ts';
 import {
   atomicStoreEnabled,
@@ -40,9 +41,31 @@ Deno.serve(async (req) => {
       environment === 'production' &&
       configured('SEAMLESS_ACH_PUBLIC_KEY') &&
       configured('SEAMLESS_ACH_SECRET_KEY');
+    const complianceEvidenceConfigured = configured('KYC_AUDIT_ENCRYPTION_KEY');
+    const identityEnabled =
+      (Deno.env.get('SOCURE_IDENTITY_ENABLED') || '').trim().toLowerCase() === 'true';
+    const identityEnvironment =
+      (Deno.env.get('SOCURE_IDENTITY_ENV') || '').trim().toLowerCase();
+    const identityWorkflow = (Deno.env.get('SOCURE_IDENTITY_WORKFLOW') || '').trim();
+    const identityWorkflowConfigured =
+      !!identityWorkflow && identityWorkflow !== 'account_intelligence_screening';
+    const identityConfigured =
+      identityEnabled &&
+      identityEnvironment === 'production' &&
+      configured('SOCURE_IDENTITY_API_KEY') &&
+      configured('SOCURE_IDENTITY_RETURN_URL') &&
+      configured('SOCURE_IDENTITY_WEBHOOK_TOKEN') &&
+      identityWorkflowConfigured &&
+      complianceEvidenceConfigured;
+    const thirdPartyFundingEnabled = seamlessThirdPartyFundingEnabled();
 
     return Response.json({
-      ready: providerConfigured && atomicConfigured && atomicReachable,
+      ready:
+        providerConfigured &&
+        atomicConfigured &&
+        atomicReachable &&
+        identityConfigured &&
+        thirdPartyFundingEnabled,
       environment,
       provider_configured: providerConfigured,
       atomic_store_configured: atomicConfigured,
@@ -51,6 +74,11 @@ Deno.serve(async (req) => {
       deposits_enabled: seamlessDepositsEnabled(),
       withdrawals_enabled: seamlessWithdrawalsEnabled(),
       rtp_payouts_enabled: seamlessRtpPayoutsEnabled(),
+      third_party_funding_enabled: thirdPartyFundingEnabled,
+      compliance_evidence_configured: complianceEvidenceConfigured,
+      identity_enabled: identityEnabled,
+      identity_configured: identityConfigured,
+      identity_workflow_configured: identityWorkflowConfigured,
       checked_at: new Date().toISOString(),
     });
   } catch {
