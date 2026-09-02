@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
+import { evaluateJurisdictionAccess } from "@/lib/jurisdictionAccess";
 
 // Seamless ACH funding panel. Uses Seamless-hosted bank authorization plus
 // server-side ACH deposit/withdrawal APIs. Real deposit calls require the server-side
@@ -126,6 +127,26 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
   const linkBank = async () => {
     setError(""); setBusy("linking");
     try {
+      // Connecting a new bank feeds the deposit path that requires an approved
+      // jurisdiction, so re-check immediately before starting instead of
+      // relying on the page-load check, which can be several minutes stale by
+      // the time the user clicks. Skipped only when the user already holds a
+      // withdrawable balance: a bank connection is also this app's
+      // prerequisite for withdrawing existing funds, and jurisdiction must
+      // never stand between a user and their own money.
+      const hasWithdrawableBalance = (wallet?.available_balance || 0) > 0;
+      if (!hasWithdrawableBalance) {
+        const { data: jurisdiction } = await base44.functions.invoke("getCurrentJurisdiction", {
+          triggerEvent: "bank_link_start",
+        });
+        const decision = evaluateJurisdictionAccess(jurisdiction);
+        if (!decision.allowed) {
+          throw new Error(
+            decision.reason || "Bank linking is unavailable from your current location."
+          );
+        }
+      }
+
       const { data: ensure } = await base44.functions.invoke("ensureSeamlessCustomer", {});
       if (!ensure?.enabled) throw new Error(ensure?.reason || "Bank linking is unavailable right now.");
       const { data: link } = await base44.functions.invoke("createSeamlessBankLinkUrl", {});
@@ -133,8 +154,8 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
       // Redirect to Seamless hosted bank authorization. The browser callback is
       // NOT verification; the funding-source.verified webhook is authoritative.
       window.location.href = link.url;
-    } catch {
-      setError("We couldn't start the secure bank connection. Please try again or contact support.");
+    } catch (err) {
+      setError(err?.message || "We couldn't start the secure bank connection. Please try again or contact support.");
     } finally {
       setBusy("");
     }
