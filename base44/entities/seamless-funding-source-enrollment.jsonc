@@ -1,0 +1,155 @@
+{
+  "name": "SeamlessFundingSourceEnrollment",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "provider_user_id": {
+      "type": "string",
+      "rls": {
+        "read": {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        "write": false
+      }
+    },
+    "authorization_id": {
+      "type": "string",
+      "rls": {
+        "read": {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        "write": false
+      }
+    },
+    "account_fingerprint": {
+      "type": "string",
+      "maxLength": 128,
+      "rls": {
+        "read": false,
+        "write": false
+      }
+    },
+    "account_last_four": {
+      "type": "string",
+      "maxLength": 4
+    },
+    "routing_last_four": {
+      "type": "string",
+      "maxLength": 4
+    },
+    "account_type": {
+      "type": "string",
+      "enum": [
+        "checking",
+        "savings"
+      ]
+    },
+    "bank_name": {
+      "type": "string",
+      "maxLength": 200
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "created",
+        "screening",
+        "screened",
+        "creating_provider_source",
+        "verified",
+        "manual_review_required",
+        "failed",
+        "uncertain"
+      ],
+      "default": "created"
+    },
+    "socure_verification_id": {
+      "type": "string",
+      "rls": {
+        "read": {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        "write": false
+      }
+    },
+    "provider_source_id": {
+      "type": "string",
+      "rls": {
+        "read": {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        "write": false
+      }
+    },
+    "request_key": {
+      "type": "string",
+      "maxLength": 255,
+      "rls": {
+        "read": false,
+        "write": false
+      }
+    },
+    "requested_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "error_code": {
+      "type": "string",
+      "maxLength": 128,
+      "rls": {
+        "read": {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        "write": false
+      }
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000
+    }
+  },
+  "required": [
+    "user_id",
+    "provider_user_id",
+    "account_fingerprint",
+    "account_last_four",
+    "routing_last_four",
+    "account_type",
+    "bank_name",
+    "state",
+    "request_key",
+    "requested_at"
+  ],
+  "rls": {
+    "create": false,
+    "read": {
+      "$or": [
+        {
+          "data.user_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": false,
+    "delete": false
+  }
+}
