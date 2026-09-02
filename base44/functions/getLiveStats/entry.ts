@@ -65,6 +65,7 @@ Deno.serve(async (req) => {
     const [aggregates, ownPublicChallenges] = await Promise.all([
       loadAggregateStats(base44),
       base44.asServiceRole.entities.Match.filter({
+        launch_epoch: 2,
         status: 'searching',
         is_private: { $ne: true },
         player1_id: user.id,
