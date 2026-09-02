@@ -5,14 +5,12 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
-import { evaluateJurisdictionAccess } from "@/lib/jurisdictionAccess";
+import VerifiedThirdPartyFundingSourceForm from "./VerifiedThirdPartyFundingSourceForm";
 
-// Seamless ACH funding panel. Uses Seamless-hosted bank authorization plus
-// server-side ACH deposit/withdrawal APIs. Real deposit calls require the server-side
-// SEAMLESS_DEPOSITS_ENABLED switch; all bank actions require verified accounts. This UI
-// only surfaces the resulting states (verified / pending / failed bank and
-// payment). It never trusts the Seamless browser callback as verification;
-// only the funding-source.verified webhook persists a verified source_id.
+// Seamless ACH funding panel. ChessBet captures the approved ACH authorization,
+// runs Socure Account Intelligence, and only then asks Seamless to create a verified
+// third-party funding source. Provider enrollment, deposits, and withdrawals each
+// have independent server-only feature switches.
 
 const BANK_STATUS = {
   verified: { label: "Verified", color: "text-emerald-400", icon: CheckCircle2 },
@@ -85,16 +83,10 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [amount, setAmount] = useState("");
-  const [routingNumber, setRoutingNumber] = useState("");
-  const [accountNumber, setAccountNumber] = useState("");
   const [direction, setDirection] = useState("deposit");
   const depositRequestKey = useRef("");
   const withdrawalRequestKey = useRef("");
   const pollAttempts = useRef(0);
-  const query = new URLSearchParams(window.location.search);
-  const bankLinkReturned = query.get("bank_link_return") === "1";
-  const bankLinkCancelled = query.get("bank_link_cancelled") === "1";
-
   const load = useCallback(async () => {
     try {
       const { data } = await base44.functions.invoke("getSeamlessWalletState", {});
