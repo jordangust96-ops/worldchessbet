@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { seamlessDepositsEnabled } from '../../shared/seamlessFundingConfig.ts';
+import { extendComplianceEvidenceRetention } from '../../shared/complianceEvidence.ts';
 import { isSocureIdentityVerified } from '../../shared/identityEligibility.js';
 import { legalNameFromUser } from '../../shared/legalName.ts';
 import { isSocureBankVerificationAccepted, latestSocureBankVerification } from '../../shared/socureBankEligibility.js';
@@ -85,6 +86,18 @@ Deno.serve(async (req) => {
       (await base44.asServiceRole.entities.SeamlessBankAccount.filter({ user_id: user.id, status: 'verified' }))[0];
     if (!bank) {
       return Response.json({ error: 'Link and verify a bank account first', action: 'bank_link_required' }, { status: 400 });
+    }
+    try {
+      await extendComplianceEvidenceRetention(base44, {
+        userId: user.id,
+        fundingSourceId: bank.source_id,
+        requireAchAuthorization: true,
+      });
+    } catch {
+      return Response.json({
+        error: 'Required identity or ACH authorization evidence is unavailable.',
+        action: 'compliance_evidence_required',
+      }, { status: 409 });
     }
 
     // Jurisdiction determines whether new funds may be brought onto the paid
