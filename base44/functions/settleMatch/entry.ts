@@ -39,6 +39,7 @@ async function createCanonicalSettlementTransaction(base44, { match, game, userI
   if (existing.some((transaction) => ['pending', 'review_required'].includes(transaction.status))) return null;
 
   const transaction = await base44.asServiceRole.entities.WalletTransaction.create({
+        launch_epoch: 2,
     user_id: userId,
     type,
     amount,
