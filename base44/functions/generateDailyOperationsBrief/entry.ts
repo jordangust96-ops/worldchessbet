@@ -66,8 +66,12 @@ Deno.serve(async (req) => {
     const userTotalSum = wallets.reduce((s, w) => s + (w.available_balance || 0) + (w.held_balance || 0), 0);
     const revenue = ledgerAccounts.find((a) => a.account_name === 'platform_revenue')?.balance || 0;
     const suspense = ledgerAccounts.find((a) => a.account_name === 'suspense')?.balance || 0;
-    const deposits = settlementEntries.filter((e) => e.transaction_type === 'deposit').reduce((s, e) => s + (e.debit_amount || 0), 0);
-    const withdrawals = settlementEntries.filter((e) => e.transaction_type === 'withdrawal').reduce((s, e) => s + (e.credit_amount || 0), 0);
+    // Sum across ALL settlement-account rows regardless of transaction_type.
+    // Deposits post a debit (credit_amount: 0) and withdrawals post a credit
+    // (debit_amount: 0); reversal rows swap the two and so net out exactly, and
+    // any future settlement-account activity is incorporated transparently.
+    const deposits = settlementEntries.reduce((s, e) => s + (e.debit_amount || 0), 0);
+    const withdrawals = settlementEntries.reduce((s, e) => s + (e.credit_amount || 0), 0);
     const lhs = userTotalSum + revenue + suspense;
     const rhs = deposits - withdrawals;
     const ledgerDiff = Math.round((lhs - rhs) * 100) / 100;
