@@ -113,6 +113,17 @@ export function atomicStoreEnabled() {
   try { config(); return true; } catch { return false; }
 }
 
+// Read-only production health probe. EVAL exercises the same authenticated
+// Upstash command path used by the financial lock/claim scripts without
+// creating or modifying any Redis keys.
+export async function checkAtomicStoreHealth() {
+  const result = await command(['EVAL', "return redis.call('PING')", '0']);
+  if (String(result || '').toUpperCase() !== 'PONG') {
+    throw new Error('Seamless atomic store health check failed');
+  }
+  return true;
+}
+
 export async function acquireUserWalletLock(userId: string, owner: string) {
   const acquired = await evalAtomic(ACQUIRE_LOCK, [key('wallet-lock', userId)], [owner, String(LOCK_TTL_MS)]);
   return Number(acquired) === 1;
