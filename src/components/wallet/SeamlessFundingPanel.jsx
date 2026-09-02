@@ -101,85 +101,19 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
 
   useEffect(() => { load(); }, [load]);
 
-  // Poll briefly after a hosted-flow return or while persisted state is pending.
-  // Stop after ten inexpensive refreshes; later visits always reload server state.
+  // Poll briefly while provider-created bank or transfer state is pending.
+  // Stop after ten inexpensive refreshes; later visits reload server state.
   useEffect(() => {
     const hasPending =
       state?.banks?.some((b) => ["added", "pending_verification"].includes(b.status)) ||
-      state?.recent?.some((t) => t.status === "pending") ||
-      (bankLinkReturned && !!state?.profile && !state?.banks?.length);
+      state?.recent?.some((t) => t.status === "pending");
     if (!hasPending || pollAttempts.current >= 10) return;
     const timer = setTimeout(() => {
       pollAttempts.current += 1;
       load();
     }, 8000);
     return () => clearTimeout(timer);
-  }, [state, load, bankLinkReturned]);
-
-  const linkBank = async () => {
-    setError(""); setBusy("linking");
-    try {
-      // Connecting a new bank feeds the deposit path that requires an approved
-      // jurisdiction, so re-check immediately before starting instead of
-      // relying on the page-load check, which can be several minutes stale by
-      // the time the user clicks. Skipped only when the user already holds a
-      // withdrawable balance: a bank connection is also this app's
-      // prerequisite for withdrawing existing funds, and jurisdiction must
-      // never stand between a user and their own money.
-      const hasWithdrawableBalance = (wallet?.available_balance || 0) > 0;
-      if (!hasWithdrawableBalance) {
-        const { data: jurisdiction } = await base44.functions.invoke("getCurrentJurisdiction", {
-          triggerEvent: "bank_link_start",
-        });
-        const decision = evaluateJurisdictionAccess(jurisdiction);
-        if (!decision.allowed) {
-          setError(decision.reason || "Bank linking is unavailable from your current location.");
-          return;
-        }
-      }
-
-      const { data: ensure } = await base44.functions.invoke("ensureSeamlessCustomer", {});
-      if (!ensure?.enabled) throw new Error(ensure?.reason || "Bank linking is unavailable right now.");
-      const { data: link } = await base44.functions.invoke("createSeamlessBankLinkUrl", {});
-      if (!link?.enabled) throw new Error(link?.reason || "Could not start bank linking.");
-      // Redirect to Seamless hosted bank authorization. The browser callback is
-      // NOT verification; the funding-source.verified webhook is authoritative.
-      window.location.href = link.url;
-    } catch {
-      setError("We couldn't start the secure bank connection. Please try again or contact support.");
-    } finally {
-      setBusy("");
-    }
-  };
-
-  const screenBank = async () => {
-    if (!verifiedBank?.source_id || !/^\d{9}$/.test(routingNumber) || !/^\d{4,34}$/.test(accountNumber)) {
-      setError("Enter a valid 9-digit routing number and bank account number.");
-      return;
-    }
-    setError(""); setBusy("screening");
-    try {
-      const { data } = await base44.functions.invoke("requestSocureBankVerification", {
-        sourceId: verifiedBank.source_id,
-        routingNumber,
-        accountNumber,
-      });
-      if (!data?.enabled) throw new Error(data?.reason || "Bank screening is unavailable right now.");
-      setRoutingNumber("");
-      setAccountNumber("");
-      await load();
-      if (data?.verification?.status !== "completed" || data?.verification?.decision !== "ACCEPT") {
-        setError("Your bank account needs review before transfers can be enabled.");
-      }
-    } catch (e) {
-      const code = e?.response?.data?.error;
-      setError(code === "funding_source_account_mismatch"
-        ? "The account number does not match your connected bank."
-        : "We couldn't complete bank screening. Please verify the details or contact support.");
-    } finally {
-      setBusy("");
-    }
-  };
+  }, [state, load]);
 
   const submit = async () => {
     const v = parseFloat(amount);
