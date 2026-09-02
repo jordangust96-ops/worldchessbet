@@ -16,7 +16,7 @@ const PRIORITY_STYLES = {
   high: "text-red-400",
 };
 
-export default function DisputeCaseRow({ disputeCase }) {
+export default function DisputeCaseRow({ disputeCase, reporterLabel = "", reportedLabel = "" }) {
   return (
     <Link
       to={`/admin/disputes/${disputeCase.id}`}
@@ -29,7 +29,7 @@ export default function DisputeCaseRow({ disputeCase }) {
         {disputeCase.report_subcategory ? ` · ${disputeCase.report_subcategory}` : ""}
       </span>
       <span className="text-white/60 truncate">
-        {disputeCase.reporting_user_username} vs {disputeCase.reported_user_username || "—"}
+        {reporterLabel || disputeCase.reporting_user_username} vs {reportedLabel || disputeCase.reported_user_username || "—"}
       </span>
       <span className="text-white/40">{new Date(disputeCase.created_date).toLocaleDateString()}</span>
       <span className={`justify-self-start text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full ${STATUS_STYLES[disputeCase.status]}`}>
