@@ -250,7 +250,7 @@ export default function ChessboardPreview({
             position={fen || START_FEN}
             onPieceDrop={onPieceDrop}
             customSquareStyles={customSquareStyles}
-            boardOrientation={boardOrientation}
+            boardOrientation={/** @type {"white" | "black"} */ (boardOrientation)}
             arePiecesDraggable={arePiecesDraggable}
             boardWidth={Math.min(size.width, size.height || size.width)}
             customDarkSquareStyle={{ backgroundColor: style.squares.dark }}
