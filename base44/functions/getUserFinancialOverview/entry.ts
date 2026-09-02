@@ -13,8 +13,8 @@ Deno.serve(async (req) => {
     const [users, wallets, feeCharges, feeRefunds] = await Promise.all([
       base44.asServiceRole.entities.User.list('-created_date', 1000),
       base44.asServiceRole.entities.Wallet.list('-created_date', 1000),
-      base44.asServiceRole.entities.WalletTransaction.filter({ type: 'service_fee_charge' }, '-created_date', 5000),
-      base44.asServiceRole.entities.WalletTransaction.filter({ type: 'service_fee_refund' }, '-created_date', 5000),
+      base44.asServiceRole.entities.WalletTransaction.filter({ launch_epoch: 2, type: 'service_fee_charge' }, '-created_date', 5000),
+      base44.asServiceRole.entities.WalletTransaction.filter({ launch_epoch: 2, type: 'service_fee_refund' }, '-created_date', 5000),
     ]);
 
     const walletByUser = {};
