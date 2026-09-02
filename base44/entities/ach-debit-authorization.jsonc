@@ -1,0 +1,180 @@
+{
+  "name": "AchDebitAuthorization",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "Authenticated consumer who granted this authorization."
+    },
+    "signer_name": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "Name the consumer entered as an electronic signature."
+    },
+    "signature_method": {
+      "type": "string",
+      "enum": [
+        "authenticated_clickwrap"
+      ],
+      "default": "authenticated_clickwrap"
+    },
+    "authorization_version": {
+      "type": "string",
+      "maxLength": 64
+    },
+    "authorization_text": {
+      "type": "string",
+      "maxLength": 10000,
+      "description": "Exact authorization displayed and accepted."
+    },
+    "accepted_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ip_address": {
+      "type": "string",
+      "maxLength": 128,
+      "rls": {
+        "read": {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        "write": false
+      }
+    },
+    "user_agent": {
+      "type": "string",
+      "maxLength": 1000,
+      "rls": {
+        "read": {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        "write": false
+      }
+    },
+    "routing_number": {
+      "type": "string",
+      "maxLength": 9,
+      "description": "Routing number associated with the authorization; restricted to administrators.",
+      "rls": {
+        "read": {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        "write": false
+      }
+    },
+    "account_last_four": {
+      "type": "string",
+      "maxLength": 4
+    },
+    "account_fingerprint": {
+      "type": "string",
+      "maxLength": 128,
+      "description": "One-way identifier; the full account number is never persisted.",
+      "rls": {
+        "read": {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        "write": false
+      }
+    },
+    "account_type": {
+      "type": "string",
+      "enum": [
+        "checking",
+        "savings"
+      ]
+    },
+    "bank_name": {
+      "type": "string",
+      "maxLength": 200
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "revoked",
+        "superseded"
+      ],
+      "default": "active"
+    },
+    "revoked_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "funding_source_id": {
+      "type": "string",
+      "rls": {
+        "read": {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        "write": false
+      }
+    },
+    "enrollment_id": {
+      "type": "string",
+      "rls": {
+        "read": {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        "write": false
+      }
+    },
+    "retention_until": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Minimum retention deadline; extended when the consumer transacts."
+    },
+    "last_transaction_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000
+    }
+  },
+  "required": [
+    "user_id",
+    "signer_name",
+    "signature_method",
+    "authorization_version",
+    "authorization_text",
+    "accepted_at",
+    "routing_number",
+    "account_last_four",
+    "account_fingerprint",
+    "account_type",
+    "bank_name",
+    "status",
+    "retention_until"
+  ],
+  "rls": {
+    "create": false,
+    "read": {
+      "$or": [
+        {
+          "data.user_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": false,
+    "delete": false
+  }
+}
