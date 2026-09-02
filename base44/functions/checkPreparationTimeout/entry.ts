@@ -15,8 +15,8 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
 
     const [preparing, bothReady] = await Promise.all([
-      base44.asServiceRole.entities.Match.filter({ status: 'preparing' }, '-created_date', 200),
-      base44.asServiceRole.entities.Match.filter({ status: 'both_ready' }, '-created_date', 200),
+      base44.asServiceRole.entities.Match.filter({ launch_epoch: 2, status: 'preparing' }, '-created_date', 200),
+      base44.asServiceRole.entities.Match.filter({ launch_epoch: 2, status: 'both_ready' }, '-created_date', 200),
     ]);
 
     const now = Date.now();
