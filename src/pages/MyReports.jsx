@@ -21,7 +21,7 @@ function MyReportCard({ report }) {
     if (!expanded && notes.length === 0) {
       setLoadingNotes(true);
       const rows = await base44.entities.DisputeCaseNote.filter({ case_id: report.id });
-      setNotes([...rows].sort((a, b) => new Date(a.created_date) - new Date(b.created_date)));
+      setNotes([...rows].sort((a, b) => new Date(a.created_date).getTime() - new Date(b.created_date).getTime()));
       setLoadingNotes(false);
     }
     setExpanded((v) => !v);
@@ -34,7 +34,7 @@ function MyReportCard({ report }) {
       await base44.functions.invoke("submitAdditionalInformation", { caseId: report.id, content: replyText });
       setReplyText("");
       const rows = await base44.entities.DisputeCaseNote.filter({ case_id: report.id });
-      setNotes([...rows].sort((a, b) => new Date(a.created_date) - new Date(b.created_date)));
+      setNotes([...rows].sort((a, b) => new Date(a.created_date).getTime() - new Date(b.created_date).getTime()));
     } finally {
       setSending(false);
     }
