@@ -60,20 +60,19 @@ export default function AdminUserIntegrity() {
     setTargetUser(u);
     setFlags(userFlags);
     setMatches(
-      [...asP1, ...asP2].sort((a, b) => new Date(b.created_date) - new Date(a.created_date)).slice(0, 20)
+      [...asP1, ...asP2].sort((a, b) => new Date(b.created_date).getTime() - new Date(a.created_date).getTime()).slice(0, 20)
     );
     setTransactions(txs);
     setJurisdictionLogs(jurisdictionHistory);
     const playerMatchIds = new Set([...asP1, ...asP2].map((match) => match.id));
-    const playerColorByMatchId = new Map([
-      ...asP1.map((match) => [match.id, "white"]),
-      ...asP2.map((match) => [match.id, "black"]),
-    ]);
+    const playerColorByMatchId = new Map();
+    asP1.forEach((match) => playerColorByMatchId.set(match.id, "white"));
+    asP2.forEach((match) => playerColorByMatchId.set(match.id, "black"));
     setFairPlayAnalyses(
       fairPlayRecords
         .filter((analysis) => playerMatchIds.has(analysis.match_id))
         .map((analysis) => ({ ...analysis, reviewed_player_color: playerColorByMatchId.get(analysis.match_id) }))
-        .sort((a, b) => new Date(b.created_date) - new Date(a.created_date))
+        .sort((a, b) => new Date(b.created_date).getTime() - new Date(a.created_date).getTime())
         .slice(0, 20)
     );
     setLoading(false);
