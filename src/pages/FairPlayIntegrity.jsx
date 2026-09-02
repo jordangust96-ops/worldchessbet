@@ -27,7 +27,7 @@ function slugify(title) {
     .replace(/(^-|-$)/g, "");
 }
 
-function Section({ id, title, children }) {
+function Section({ id = "", title, children }) {
   const sectionId = id || slugify(title);
 
   return (
