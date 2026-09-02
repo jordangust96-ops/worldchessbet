@@ -34,10 +34,10 @@ Deno.serve(async (req) => {
 
     const [deposits, withdrawals] = await Promise.all([
       base44.asServiceRole.entities.WalletTransaction.filter(
-        { user_id: user.id, source_event: 'seamless_deposit' }, '-created_date', 10
+        { launch_epoch: 2, user_id: user.id, source_event: 'seamless_deposit' }, '-created_date', 10
       ),
       base44.asServiceRole.entities.WalletTransaction.filter(
-        { user_id: user.id, source_event: 'seamless_withdrawal' }, '-created_date', 10
+        { launch_epoch: 2, user_id: user.id, source_event: 'seamless_withdrawal' }, '-created_date', 10
       ),
     ]);
     const recent = [...deposits, ...withdrawals]
