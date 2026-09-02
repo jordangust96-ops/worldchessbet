@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { AlertTriangle, CheckCircle2, Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
+import { evaluateJurisdictionAccess } from "@/lib/jurisdictionAccess";
 
 const COPY = {
   not_started: "Verify your identity before funding or entering paid contests.",
@@ -16,6 +17,7 @@ export default function SocureIdentityVerificationPanel({
   status = "not_started",
   fullName = "",
   onNameSaved,
+  wallet,
 }) {
   const initialParts = fullName.trim().split(/\s+/).filter(Boolean);
   const [firstName, setFirstName] = useState(initialParts[0] || "");
@@ -111,6 +113,26 @@ export default function SocureIdentityVerificationPanel({
     setBusy(true);
     setError("");
     try {
+      // Paid contests and new funding require an approved jurisdiction, so
+      // re-check immediately before starting identity verification instead of
+      // relying on the page-load check, which can be several minutes stale by
+      // the time the user clicks. Skipped only when the user already holds a
+      // withdrawable balance: identity verification is also this app's
+      // prerequisite for withdrawing existing funds, and jurisdiction must
+      // never stand between a user and their own money.
+      const hasWithdrawableBalance = (wallet?.available_balance || 0) > 0;
+      if (!hasWithdrawableBalance) {
+        const { data: jurisdiction } = await base44.functions.invoke("getCurrentJurisdiction", {
+          triggerEvent: "identity_verification_start",
+        });
+        const decision = evaluateJurisdictionAccess(jurisdiction);
+        if (!decision.allowed) {
+          throw new Error(
+            decision.reason || "Identity verification is unavailable from your current location."
+          );
+        }
+      }
+
       const { data } = await base44.functions.invoke("startSocureIdentityVerification", {});
       if (!data?.enabled || !data?.redirect_uri) {
         throw new Error(data?.reason || "Identity verification is unavailable right now.");
