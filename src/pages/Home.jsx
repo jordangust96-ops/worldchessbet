@@ -400,7 +400,7 @@ export default function Home() {
           animate={{ opacity: 1 }}
           ref={boardAreaRef}
           className="w-full min-w-0 min-h-0 lg:h-full lg:flex-[62_1_0%] lg:flex lg:flex-col lg:items-center lg:justify-center lg:overflow-hidden gap-3"
-          style={desktopBoardSize ? { "--desktop-board-size": `${desktopBoardSize}px` } : undefined}
+          style={desktopBoardSize ? /** @type {any} */ ({ "--desktop-board-size": `${desktopBoardSize}px` }) : undefined}
         >
           <ChessboardPreview
             state={boardState}
