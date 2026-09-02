@@ -320,8 +320,8 @@ export default function Home() {
     const load = async () => {
       let me = await base44.auth.me();
       if (me.launch_epoch !== 2) {
-        const { data } = await base44.functions.invoke("ensureLaunchEpoch", {});
-        me = data.user;
+        await base44.functions.invoke("ensureLaunchEpoch", {});
+        me = await base44.auth.me();
       }
       setUser(me);
       setMovementMode(
