@@ -14,7 +14,7 @@ import {
   buildWithdrawalBody,
   buildMerchantBalanceTransferBody,
   buildVerifiedThirdPartyFundingSourceBody,
-  constantTimeEqual:
+  constantTimeEqual,
   webhookIdempotencyKey,
   isMerchantBalanceTransaction,
   applyWebhookEvent,
@@ -40,7 +40,7 @@ export {
   buildWithdrawalBody,
   buildMerchantBalanceTransferBody,
   buildVerifiedThirdPartyFundingSourceBody,
-  constantTimeEqual:
+  constantTimeEqual,
   webhookIdempotencyKey,
   isMerchantBalanceTransaction,
   applyWebhookEvent,
