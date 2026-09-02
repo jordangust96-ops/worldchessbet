@@ -137,6 +137,19 @@ export function constantTimeEqual(a, b) {
 // otherwise a stable FNV-1a hash of (provider ref + event type + status).
 // Timestamp is deliberately excluded: delivery retries may be re-timestamped,
 // while a different lifecycle status must remain a distinct event.
+// Account-level balance transfers share transaction.status with player money
+// movement, but carry no ChessBet label and name the provider Balance account.
+export function isMerchantBalanceTransaction(body, eventType) {
+  const label = body?.check?.label || body?.label || body?.transaction?.label || '';
+  if (eventType !== 'transaction.status' || label) return false;
+  const check = body?.check || body?.transaction || {};
+  const description = String(check?.description || body?.description || '').trim().toLowerCase();
+  const senderBank = String(check?.sndr_bname || check?.sender_bank_name || '').trim().toLowerCase();
+  const recipientBank = String(check?.rec_bname || check?.recipient_bank_name || '').trim().toLowerCase();
+  return description === 'transfer to balance' || description === 'transfer from balance' ||
+    senderBank === 'balance' || recipientBank === 'balance';
+}
+
 export function webhookIdempotencyKey({ eventId, providerRef, eventType, status, timestamp }) {
   if (eventId) return `seamless:${eventId}`;
   const raw = `${providerRef || ''}|${eventType || ''}|${status || ''}`;
