@@ -14,8 +14,8 @@ Deno.serve(async (req) => {
     // capacity checks recently-updated in-progress matches for a missed
     // Game-completion workflow.
     const [settlingMatches, inProgressMatches] = await Promise.all([
-      base44.asServiceRole.entities.Match.filter({ status: 'settling' }, 'settlement_claimed_at', 50),
-      base44.asServiceRole.entities.Match.filter({ status: 'in_progress' }, '-updated_date', 100),
+      base44.asServiceRole.entities.Match.filter({ launch_epoch: 2, status: 'settling' }, 'settlement_claimed_at', 50),
+      base44.asServiceRole.entities.Match.filter({ launch_epoch: 2, status: 'in_progress' }, '-updated_date', 100),
     ]);
 
     const candidates = [...settlingMatches, ...inProgressMatches];
@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
         game = await base44.asServiceRole.entities.Game.get(match.game_id).catch(() => null);
       }
       if (!game) {
-        const games = await base44.asServiceRole.entities.Game.filter({ match_id: match.id }, '-created_date', 1);
+        const games = await base44.asServiceRole.entities.Game.filter({ launch_epoch: 2, match_id: match.id }, '-created_date', 1);
         game = games[0] || null;
       }
       if (!game) continue;
