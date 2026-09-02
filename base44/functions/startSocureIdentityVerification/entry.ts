@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { identityConfig, startIdentityEvaluation } from '../../shared/socureIdentity.ts';
 import { legalNameFromUser } from '../../shared/legalName.ts';
+import { complianceRetentionUntil, requestIpAddress } from '../../shared/achAuthorization.js';
 
 const SESSION_TTL_MS = 30 * 60 * 1000;
 
@@ -54,6 +55,9 @@ Deno.serve(async (req) => {
       status: 'pending',
       provider_decision: 'UNKNOWN',
       requested_at: requestedAt.toISOString(),
+      request_ip_address: requestIpAddress(req),
+      request_user_agent: String(req.headers.get('user-agent') || '').slice(0, 1000),
+      retention_until: complianceRetentionUntil(requestedAt.toISOString()),
       expires_at: new Date(requestedAt.getTime() + SESSION_TTL_MS).toISOString(),
     });
 
