@@ -3,7 +3,7 @@ import { CheckCircle2 } from "lucide-react";
 
 // Automated, non-binding summary of investigation-relevant facts, derived
 // from data already on the page. Never takes action on its own.
-export default function SystemFindingsPanel({ facts, recommendedAction, rationale }) {
+export default function SystemFindingsPanel({ facts, recommendedAction = "", rationale = "" }) {
   return (
     <div className="space-y-2.5">
       <div className="space-y-1.5">
