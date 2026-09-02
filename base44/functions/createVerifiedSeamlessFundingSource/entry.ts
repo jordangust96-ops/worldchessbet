@@ -158,15 +158,28 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Create your payment profile first.', action: 'ensure_customer' }, { status: 400 });
     }
 
-    // Bank enrollment enables future deposits, so apply the same fresh location gate.
-    const jurisdiction = await base44.functions.invoke('getCurrentJurisdiction', {
-      triggerEvent: 'bank_link_start',
-      relatedEntityType: 'funding_source',
-    });
-    if (jurisdiction.data?.error || jurisdiction.data?.status !== 'approved') {
-      return Response.json({
-        error: jurisdiction.data?.reason || 'You are not currently eligible to link a funding account from this location.',
-      }, { status: 403 });
+    // Bank enrollment enables future deposits, so apply the same fresh location
+    // gate used at deposit time — EXCEPT when the user already holds a
+    // withdrawable balance. This is the only route to a verified funding
+    // source, and Step 4 of the Wallet page requires a verified funding
+    // source for withdrawals too, not just deposits. Gating this
+    // unconditionally on jurisdiction would trap a user's own money behind a
+    // location check the moment they haven't yet linked a bank — ChessBet's
+    // withdrawal policy never allows that (see JurisdictionAccessGuard.jsx
+    // and the identity/bank-link jurisdiction re-checks in the Wallet panels
+    // for the same carve-out applied elsewhere).
+    const wallet = (await base44.asServiceRole.entities.Wallet.filter({ user_id: user.id }))[0];
+    const hasWithdrawableBalance = Number(wallet?.available_balance || 0) > 0;
+    if (!hasWithdrawableBalance) {
+      const jurisdiction = await base44.functions.invoke('getCurrentJurisdiction', {
+        triggerEvent: 'bank_link_start',
+        relatedEntityType: 'funding_source',
+      });
+      if (jurisdiction.data?.error || jurisdiction.data?.status !== 'approved') {
+        return Response.json({
+          error: jurisdiction.data?.reason || 'You are not currently eligible to link a funding account from this location.',
+        }, { status: 403 });
+      }
     }
 
     const fingerprint = await sha256Hex(`${user.id}:${routingNumber}:${accountNumber}`);
