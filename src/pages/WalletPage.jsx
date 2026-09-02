@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useOutletContext } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import Logo from "@/components/Logo";
@@ -29,6 +29,15 @@ async function listCompletedMatchesForPlayer(field, userId) {
 }
 
 export default function WalletPage() {
+  // Set by JurisdictionAccessGuard: { allowed, reason, promptEligible }. The
+  // Wallet route is the one protected route the guard lets a jurisdiction-
+  // blocked user reach (see JurisdictionAccessGuard.jsx) so balance and
+  // withdrawal stay available regardless of jurisdiction. Deposit- and
+  // gameplay-adjacent actions (identity verification, bank linking) still
+  // re-check jurisdiction themselves immediately before starting, so this
+  // value is passed through for context/messaging only, not used to hide the
+  // page itself.
+  const jurisdictionDecision = useOutletContext();
   const [wallet, setWallet] = useState(null);
   const [userId, setUserId] = useState(null);
   const [transactions, setTransactions] = useState([]);
@@ -221,6 +230,7 @@ export default function WalletPage() {
           status={identityStatus}
           fullName={fullName}
           onNameSaved={setFullName}
+          wallet={wallet}
         />
 
         <SeamlessFundingPanel
