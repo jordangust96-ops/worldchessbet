@@ -88,8 +88,7 @@ Deno.serve(async (req) => {
     }
 
     // Jurisdiction determines whether new funds may be brought onto the paid
-    // platform. Mirrors the existing Plaid deposit gate so behavior is
-    // unchanged for users.
+    // platform. This preserves the existing deposit-location gate.
     const jurisdiction = await base44.functions.invoke('getCurrentJurisdiction', {
       triggerEvent: 'deposit',
       relatedEntityType: 'deposit',
