@@ -25,7 +25,7 @@ export const TIME_CONTROLS = [
 // A single wager/time-control configuration, published either publicly (to
 // the marketplace) or privately (via an invite link) — same Match, same
 // escrow/gameplay/settlement flow either way. Only the publish button differs.
-export default function HostMatchSection({ userId, balance, onHosted, disabled }) {
+export default function HostMatchSection({ userId, balance, onHosted, disabled = false }) {
   const { jurisdictionStatus, jurisdictionReason } = useAuth();
   const jurisdictionBlocked = !!jurisdictionStatus && jurisdictionStatus !== "approved";
   const [wagerValue, setWagerValue] = useState(DEFAULT_WAGER);
