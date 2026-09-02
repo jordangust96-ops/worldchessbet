@@ -22,18 +22,19 @@ const FIELDS_TO_SET = {
   withdrawal_hold: false,
 };
 
-// Fields cleared (removed) entirely.
-const FIELDS_TO_UNSET = [
-  'identity_verified_at',
-  'identity_verification_provider',
-  'identity_provider_reference',
-  'verified_id_hash',
-  'current_jurisdiction_state',
-  'current_jurisdiction_country',
-  'jurisdiction_last_verified_at',
-  'jurisdiction_verification_provider',
-  'last_geolocation_checked_at',
-];
+// Fields cleared (removed) entirely. Mongo-style $unset expects an object of
+// fieldName -> truthy value (an empty string), not an array of field names.
+const FIELDS_TO_UNSET = {
+  identity_verified_at: '',
+  identity_verification_provider: '',
+  identity_provider_reference: '',
+  verified_id_hash: '',
+  current_jurisdiction_state: '',
+  current_jurisdiction_country: '',
+  jurisdiction_last_verified_at: '',
+  jurisdiction_verification_provider: '',
+  last_geolocation_checked_at: '',
+};
 
 export default async function (req) {
   try {
