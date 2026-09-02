@@ -34,8 +34,8 @@ assert.equal(latestSocureBankVerification([
 ], 'source-1').id, 'new', 'latest screening is selected deterministically');
 
 const [contest, wager, deposit, legacyVerify, starter, webhook, userEntity, verificationEntity,
-  customer, bankLink, withdrawal, walletProvisioning, bankScreen, walletState,
-  fundingPanel] = await Promise.all([
+  customer, thirdPartyEnrollment, withdrawal, walletProvisioning, bankScreen, walletState,
+  fundingPanel, fundingForm, complianceEvidence] = await Promise.all([
   read('base44/functions/runContestEligibility/entry.ts'),
   read('base44/functions/lockWager/entry.ts'),
   read('base44/functions/submitSeamlessDeposit/entry.ts'),
@@ -45,18 +45,20 @@ const [contest, wager, deposit, legacyVerify, starter, webhook, userEntity, veri
   read('base44/entities/User.jsonc'),
   read('base44/entities/SocureIdentityVerification.jsonc'),
   read('base44/functions/ensureSeamlessCustomer/entry.ts'),
-  read('base44/functions/createSeamlessBankLinkUrl/entry.ts'),
+  read('base44/functions/createVerifiedSeamlessFundingSource/entry.ts'),
   read('base44/functions/submitSeamlessWithdrawal/entry.ts'),
   read('base44/shared/walletProvisioning.ts'),
   read('base44/functions/requestSocureBankVerification/entry.ts'),
   read('base44/functions/getSeamlessWalletState/entry.ts'),
   read('src/components/wallet/SeamlessFundingPanel.jsx'),
+  read('src/components/wallet/VerifiedThirdPartyFundingSourceForm.jsx'),
+  read('base44/shared/complianceEvidence.ts'),
 ]);
 
 for (const [name, source] of [['contest', contest], ['wager', wager]]) {
   assert.match(source, /if \(!isSocureIdentityVerified\(user\)\)/, `${name} requires an authoritative Socure identity result`);
 }
-for (const [name, source] of [['Seamless deposit', deposit], ['Seamless customer', customer], ['Seamless bank link', bankLink], ['Seamless withdrawal', withdrawal]]) {
+for (const [name, source] of [['Seamless deposit', deposit], ['Seamless customer', customer], ['third-party bank enrollment', thirdPartyEnrollment], ['Seamless withdrawal', withdrawal]]) {
   assert.match(source, /isSocureIdentityVerified\(user\)/, `${name} requires authoritative Socure identity`);
 }
 const removedDirectPlaidArtifacts = [
@@ -70,11 +72,13 @@ for (const path of removedDirectPlaidArtifacts) {
   await assert.rejects(
     () => access(new URL(`../${path}`, import.meta.url)),
     { code: 'ENOENT' },
-    `${path} must remain absent; ChessBet uses Seamless-hosted bank linking, not direct Plaid`,
+    `${path} must remain absent; ChessBet uses verified third-party funding sources, not direct Plaid`,
   );
 }
-assert.match(bankLink, /buildBankLinkUrl/, 'bank linking remains hosted by Seamless');
-assert.doesNotMatch(bankLink, /PLAID_|plaid\(/, 'bank linking cannot call Plaid directly');
+assert.match(thirdPartyEnrollment, /seamlessThirdPartyFundingEnabled/, 'bank enrollment has a provider-approval switch');
+assert.match(thirdPartyEnrollment, /evaluateSocureBankAccount/, 'bank enrollment runs Socure Account Intelligence');
+assert.match(thirdPartyEnrollment, /PATH_VERIFIED_THIRD_PARTY_FUNDING_SOURCE/, 'accepted screening creates the Seamless verified funding source');
+assert.doesNotMatch(thirdPartyEnrollment, /PLAID_|plaid\(/, 'bank enrollment cannot call Plaid directly');
 assert.match(legacyVerify, /Socure is authoritative/, 'legacy admin verification cannot promote users');
 assert.match(legacyVerify, /requireAdminMfa/, 'legacy admin compatibility route retains MFA');
 assert.doesNotMatch(walletProvisioning, /WalletTransaction|postLedgerLegs/, 'wallet provisioning cannot create funds');
@@ -102,8 +106,12 @@ assert.match(deposit, /bank_screening_required/, 'deposits fail closed without a
 assert.ok(deposit.indexOf('bank_screening_required') < deposit.indexOf('let operation = await claimDepositOperation'), 'deposit screening precedes durable deposit mutation');
 assert.match(withdrawal, /bank_screening_required/, 'withdrawals fail closed without accepted Socure bank screening');
 assert.ok(withdrawal.indexOf('bank_screening_required') < withdrawal.indexOf('if (!await acquireUserWalletLock'), 'withdrawal screening precedes lock and reservation mutation');
-assert.match(fundingPanel, /requestSocureBankVerification/, 'wallet invokes Socure bank screening in the user journey');
-assert.match(fundingPanel, /ChessBet does not store these numbers/, 'wallet explains memory-only bank detail handling');
+assert.match(fundingPanel, /VerifiedThirdPartyFundingSourceForm/, 'wallet uses the consent-first bank enrollment journey');
+assert.doesNotMatch(fundingPanel, /createSeamlessBankLinkUrl/, 'wallet cannot start the retired hosted bank-link route');
+assert.match(fundingForm, /ACH_AUTHORIZATION_TEXT/, 'wallet displays the exact versioned authorization text');
+assert.match(fundingForm, /consentAccepted/, 'wallet requires affirmative clickwrap consent');
+assert.match(thirdPartyEnrollment, /encryptComplianceJson/, 'bank account authorization evidence is encrypted at rest');
+assert.match(complianceEvidence, /extendComplianceEvidenceRetention/, 'transaction activity extends KYC and authorization retention');
 assert.match(fundingPanel, /bankScreened/, 'wallet transfer controls require completed screening');
 
 console.log('Socure identity eligibility validation passed.');
