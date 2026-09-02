@@ -51,6 +51,7 @@ Deno.serve(async (req) => {
     }
 
     const match = await base44.asServiceRole.entities.Match.create({
+      launch_epoch: 2,
       player1_id: user.id,
       wager_amount: wager,
       platform_service_fee: platformServiceFee,
