@@ -13,6 +13,7 @@ Deno.serve(async (req) => {
 
     const game = await base44.asServiceRole.entities.Game.get(gameId);
     if (!game) return Response.json({ error: 'Game not found' }, { status: 404 });
+    if (Number(game.launch_epoch) !== 2) return Response.json({ error: 'Game not available' }, { status: 410 });
     if (game.status === 'completed') {
       return Response.json({ error: 'Game has already ended' }, { status: 400 });
     }
