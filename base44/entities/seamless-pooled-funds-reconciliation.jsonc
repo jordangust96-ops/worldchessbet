@@ -84,6 +84,10 @@
       }
     },
     "update": false,
-    "delete": false
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
   }
 }
