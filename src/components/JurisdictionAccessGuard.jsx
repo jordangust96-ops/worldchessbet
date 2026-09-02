@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Outlet, Link } from "react-router-dom";
+import { Outlet, Link, useLocation } from "react-router-dom";
 import { MapPin, ShieldAlert, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
@@ -95,6 +95,7 @@ function UnavailableScreen({ reason, promptEligible, userEmail, onSignOut }) {
 
 export default function JurisdictionAccessGuard() {
   const { user, logout } = useAuth();
+  const location = useLocation();
   // null while the check is pending; { allowed, reason, promptEligible } once settled.
   const [decision, setDecision] = useState(null);
   // Tracks the user id we have already initiated a check for, so re-renders
@@ -140,6 +141,16 @@ export default function JurisdictionAccessGuard() {
 
   if (!decision) return <PendingScreen />;
   if (!decision.allowed) {
+    // Paid contests require an approved jurisdiction, but a user's own wallet
+    // balance does not stop being theirs because of where they are. The
+    // Wallet page (balance display + withdrawal) stays reachable even when
+    // jurisdiction is blocked; every other protected route still shows the
+    // unavailable screen. WalletPage and its panels are responsible for
+    // keeping deposit/gameplay actions gated behind the decision passed via
+    // outlet context.
+    if (location.pathname.startsWith("/wallet")) {
+      return <Outlet context={decision} />;
+    }
     return (
       <UnavailableScreen
         reason={decision.reason}
@@ -149,5 +160,5 @@ export default function JurisdictionAccessGuard() {
       />
     );
   }
-  return <Outlet />;
+  return <Outlet context={decision} />;
 }
