@@ -327,15 +327,19 @@ ok(withdrawalSrc.indexOf('if (!seamlessWithdrawalsEnabled())') < withdrawalSrc.i
 ok(withdrawalSrc.includes("bank.rtp_eligible === true ? 'rtp'"), 'RTP requires provider-confirmed bank eligibility');
 ok(withdrawalSrc.includes('seamlessRtpPayoutsEnabled()'), 'RTP requires its independent server-side switch');
 ok(!withdrawalSrc.includes("transferSpeed: 'rtp'"), 'withdrawal never hard-codes RTP for every payout');
-for (const f of ['base44/functions/ensureSeamlessCustomer/entry.ts', 'base44/functions/createSeamlessBankLinkUrl/entry.ts', 'base44/functions/submitSeamlessWithdrawal/entry.ts']) {
+for (const f of ['base44/functions/ensureSeamlessCustomer/entry.ts', 'base44/functions/submitSeamlessWithdrawal/entry.ts']) {
   const src = await read(f);
   ok(src.includes('isSocureIdentityVerified'), f + ' retains Socure eligibility');
 }
 
+const retiredBankLinkSrc = await read('base44/functions/createSeamlessBankLinkUrl/entry.ts');
+ok(retiredBankLinkSrc.includes("error: 'hosted_bank_link_retired'"), 'legacy hosted bank link fails clearly');
+ok(!retiredBankLinkSrc.includes('buildBankLinkUrl'), 'legacy route cannot mint a hosted Plaid-style URL');
+
 const thirdPartySrc = await read('base44/functions/createVerifiedSeamlessFundingSource/entry.ts');
 ok(thirdPartySrc.includes('if (!seamlessThirdPartyFundingEnabled())'), 'third-party enrollment has its own default-off provider approval gate');
 ok(thirdPartySrc.indexOf('if (!seamlessThirdPartyFundingEnabled())') < thirdPartySrc.indexOf('SeamlessFundingSourceEnrollment.create'), 'approval gate precedes durable enrollment');
-ok(thirdPartySrc.indexOf('evaluateSocureBankAccount') < thirdPartySrc.indexOf("PATH_VERIFIED_THIRD_PARTY_FUNDING_SOURCE"), 'Socure screening precedes Seamless source creation');
+ok(thirdPartySrc.indexOf('const socureResponse = await evaluateSocureBankAccount') < thirdPartySrc.indexOf('const providerResponse = await seamlessRequest'), 'Socure screening precedes Seamless source creation');
 ok(thirdPartySrc.includes('consentAccepted === true'), 'enrollment requires explicit consumer consent');
 ok(thirdPartySrc.includes('encryptComplianceJson'), 'bank authorization evidence is encrypted before persistence');
 ok(thirdPartySrc.includes('providerRequestStarted'), 'unknown provider outcomes are distinguished from local failures');
