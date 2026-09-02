@@ -38,12 +38,17 @@ Deno.serve(async (req) => {
       { user_id: user.id }, '-requested_at', 100
     );
 
+    // `source_event` is mutated as a deposit/withdrawal progresses (created ->
+    // *_submitting -> *_submitted/*_uncertain, then overwritten again by
+    // postLedgerLegs to the raw triggerEvent on settlement), so it is never a
+    // stable filter value once a transaction leaves its initial instant. `type`
+    // and `launch_epoch` are set once at creation and never changed afterward.
     const [deposits, withdrawals] = await Promise.all([
       base44.asServiceRole.entities.WalletTransaction.filter(
-        { launch_epoch: 2, user_id: user.id, source_event: 'seamless_deposit' }, '-created_date', 10
+        { launch_epoch: 2, user_id: user.id, type: 'deposit' }, '-created_date', 10
       ),
       base44.asServiceRole.entities.WalletTransaction.filter(
-        { launch_epoch: 2, user_id: user.id, source_event: 'seamless_withdrawal' }, '-created_date', 10
+        { launch_epoch: 2, user_id: user.id, type: 'withdrawal' }, '-created_date', 10
       ),
     ]);
     const recent = [...deposits, ...withdrawals]
