@@ -7,10 +7,6 @@
 // additional state, update the whitelist in getCurrentJurisdiction's
 // APPROVED_STATES — never hard-code state names anywhere else.
 // First-to-launch approved jurisdictions (Tier 1 launch footprint).
-// This list is for display purposes only and mirrors the authoritative
-// server-side whitelist in getCurrentJurisdiction. Enforcement is disabled
-// until true launch, so users from any location can still visit and play —
-// this list simply records which states are prepared to launch first.
 export const APPROVED_STATES = ["AR", "CO", "GA", "IA", "KS", "ND", "TX", "VA", "WI", "WY"];
 export const EFFECTIVE_APPROVED_STATES = APPROVED_STATES;
 
