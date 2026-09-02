@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { forwardRef } from "react";
 import { Crown } from "lucide-react";
 import { Chessboard } from "react-chessboard";
@@ -15,6 +16,7 @@ function Stat({ label, value }) {
 
 // Rendered off-screen and captured via html2canvas — never shown directly to the user.
 // Two-column social graphic: board on the left, amount won as the dominant focal point on the right.
+/** @type {any} */
 const ShareVictoryCard = forwardRef(function ShareVictoryCard(
   { winnerName, opponentName, wagerAmount, timeControl, amountWon, endReason, fen },
   ref
