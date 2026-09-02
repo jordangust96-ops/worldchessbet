@@ -17,3 +17,9 @@ export function seamlessWithdrawalsEnabled() {
 export function seamlessRtpPayoutsEnabled() {
   return enabled('SEAMLESS_RTP_PAYOUTS_ENABLED');
 }
+
+// Separate provider-approval gate for ChessBet-owned bank verification. This
+// remains false when absent so the unapproved endpoint is never called.
+export function seamlessThirdPartyFundingEnabled() {
+  return enabled('SEAMLESS_THIRD_PARTY_FUNDING_ENABLED');
+}
