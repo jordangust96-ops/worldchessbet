@@ -15,6 +15,15 @@ function pickLabel(body) { return body?.check?.label || body?.label || body?.tra
 function pickEventType(body) { return body?.event || body?.event_type || body?.type || ''; }
 function pickEventId(body) { return body?.event_id || body?.webhook_id || ''; }
 function pickStatus(body) { return body?.status || body?.check?.status || ''; }
+function isMerchantBalanceTransaction(body, eventType) {
+  if (eventType !== 'transaction.status' || pickLabel(body)) return false;
+  const check = body?.check || body?.transaction || {};
+  const description = String(check?.description || body?.description || '').trim().toLowerCase();
+  const senderBank = String(check?.sndr_bname || check?.sender_bank_name || '').trim().toLowerCase();
+  const recipientBank = String(check?.rec_bname || check?.recipient_bank_name || '').trim().toLowerCase();
+  return description === 'transfer to balance' || description === 'transfer from balance' ||
+    senderBank === 'balance' || recipientBank === 'balance';
+}
 function pickRtpEligibility(body) {
   const candidates = [
     body?.rtp_eligible, body?.supports_rtp, body?.source?.rtp_eligible,
@@ -36,6 +45,11 @@ Deno.serve(async (req) => {
 
   const body = await req.json().catch(() => ({}));
   const eventType = pickEventType(body);
+  // Seamless endpoint probes carry no business state and intentionally omit a
+  // provider reference/event id. Acknowledge them after authentication instead
+  // of collapsing every probe into the same financial idempotency record.
+  if (eventType === 'endpoint.test') return Response.json({ received: true, test: true });
+
   const eventId = pickEventId(body);
   const providerRef = eventType.startsWith('funding-source.')
     ? (pickSourceId(body) || pickCustomerId(body) || eventId)
@@ -56,6 +70,23 @@ Deno.serve(async (req) => {
     let result;
     if (eventType.startsWith('funding-source.')) {
       result = await handleFundingSource(base44, body, eventType, idemKey);
+    } else if (isMerchantBalanceTransaction(body, eventType)) {
+      // Merchant balance transfers are account-level treasury activity, not a
+      // player WalletTransaction. They have no ChessBet label/reference, so
+      // retrying the player-settlement lookup can never make them match.
+      await recordIntegrationEvent(base44, {
+        eventType: 'seamless.merchant_balance.transaction_status',
+        aggregateType: 'ledger_group', aggregateId: providerRef || idemKey,
+        correlationId: providerRef || idemKey, idempotencyKey: `audit:${idemKey}`,
+        actorType: 'system', status: providerStatus || 'received', amount: pickAmount(body),
+        result: 'merchant_balance_ignored',
+        eventData: {
+          provider_ref: providerRef, provider_status: providerStatus,
+          direction: body?.check?.direction || body?.direction || '',
+          description: body?.check?.description || body?.description || '',
+        },
+      });
+      result = { received: true, applied: false, ignored: true, category: 'merchant_balance' };
     } else if (eventType === 'transaction.status' || eventType.startsWith('transaction.') || eventType === 'check.status' || eventType === 'status') {
       result = await handleTransaction(base44, body, eventType, idemKey, providerRef);
     } else {
