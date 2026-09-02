@@ -182,7 +182,7 @@ export default function GameHUD({
     };
   }, [game?.fen, game?.pgn, myColor]);
 
-  const PlayerCard = ({ name, isFounder, colorLabel, colorKey, clockMs }) => {
+  const PlayerCard = ({ name, isFounder, colorLabel, colorKey }) => {
     const isActive = activeColor === colorKey;
     return (
       <div
