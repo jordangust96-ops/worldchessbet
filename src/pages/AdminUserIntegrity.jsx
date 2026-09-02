@@ -68,10 +68,13 @@ export default function AdminUserIntegrity() {
     const playerColorByMatchId = new Map();
     asP1.forEach((match) => playerColorByMatchId.set(match.id, "white"));
     asP2.forEach((match) => playerColorByMatchId.set(match.id, "black"));
-    setFairPlayAnalyses(
+    const playerFairPlayAnalyses = /** @type {any[]} */ (
       fairPlayRecords
         .filter((analysis) => playerMatchIds.has(analysis.match_id))
         .map((analysis) => ({ ...analysis, reviewed_player_color: playerColorByMatchId.get(analysis.match_id) }))
+    );
+    setFairPlayAnalyses(
+      playerFairPlayAnalyses
         .sort((a, b) => new Date(b.created_date).getTime() - new Date(a.created_date).getTime())
         .slice(0, 20)
     );
