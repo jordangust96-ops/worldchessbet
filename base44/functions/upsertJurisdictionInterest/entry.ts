@@ -80,7 +80,8 @@ Deno.serve(async (req) => {
       last_error: '',
     };
 
-    const existing = await svc.JurisdictionInterest.filter({ user_id: user.id, is_active: true, launch_epoch: 2 }, '-consent_at', 50);
+    const existing = (await svc.JurisdictionInterest.filter({ user_id: user.id, is_active: true }, '-consent_at', 50))
+      .filter((row) => Number(row.launch_epoch) === 2);
 
     let record;
     if (existing && existing.length > 0) {
