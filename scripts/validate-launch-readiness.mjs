@@ -13,6 +13,7 @@ const fundingPanel = await read('src/components/wallet/SeamlessFundingPanel.jsx'
 
 assert.ok(fundingConfig.includes("enabled('SEAMLESS_DEPOSITS_ENABLED')"));
 assert.ok(fundingConfig.includes("enabled('SEAMLESS_WITHDRAWALS_ENABLED')"));
+assert.ok(fundingConfig.includes("enabled('SEAMLESS_THIRD_PARTY_FUNDING_ENABLED')"));
 assert.ok(deposit.includes('if (!seamlessDepositsEnabled())'));
 assert.ok(withdrawal.includes('if (!seamlessWithdrawalsEnabled())'));
 assert.ok(withdrawal.indexOf('if (!seamlessWithdrawalsEnabled())') < withdrawal.indexOf('seamlessRequest('));
@@ -20,6 +21,8 @@ assert.ok(withdrawal.indexOf('if (!seamlessWithdrawalsEnabled())') < withdrawal.
 assert.ok(walletState.includes('withdrawals_enabled: withdrawalsEnabled'));
 assert.ok(fundingPanel.includes('!withdrawalsEnabled'));
 assert.ok(fundingPanel.includes('transferDirectionEnabled'));
+assert.ok(fundingPanel.includes('VerifiedThirdPartyFundingSourceForm'));
+assert.ok(!fundingPanel.includes('createSeamlessBankLinkUrl'));
 
 const legalName = await read('base44/shared/legalName.ts');
 const setLegalName = await read('base44/functions/setFundingLegalName/entry.ts');
@@ -28,6 +31,9 @@ const identityPanel = await read('src/components/wallet/SocureIdentityVerificati
 const identityStart = await read('base44/functions/startSocureIdentityVerification/entry.ts');
 const ensureCustomer = await read('base44/functions/ensureSeamlessCustomer/entry.ts');
 const bankScreening = await read('base44/functions/requestSocureBankVerification/entry.ts');
+const thirdPartyEnrollment = await read('base44/functions/createVerifiedSeamlessFundingSource/entry.ts');
+const readiness = await read('base44/functions/getSeamlessOperationalReadiness/entry.ts');
+const complianceEvidence = await read('base44/shared/complianceEvidence.ts');
 
 assert.ok(legalName.includes('normalizeLegalNameParts'));
 assert.ok(setLegalName.includes('await base44.auth.me()'));
@@ -40,6 +46,12 @@ assert.ok(identityPanel.includes('setFundingLegalName'));
 assert.ok(identityStart.includes('legalNameFromUser(user)'));
 assert.ok(ensureCustomer.includes('legalNameFromUser(user)'));
 assert.ok(bankScreening.includes('legalNameFromUser(user)'));
+assert.ok(thirdPartyEnrollment.includes('ACH_AUTHORIZATION_TEXT'));
+assert.ok(thirdPartyEnrollment.includes('evaluateSocureBankAccount'));
+assert.ok(thirdPartyEnrollment.indexOf('evaluateSocureBankAccount') < thirdPartyEnrollment.indexOf('providerRequestStarted = true'));
+assert.ok(readiness.includes('identity_workflow_configured'));
+assert.ok(readiness.includes('compliance_evidence_configured'));
+assert.ok(complianceEvidence.includes('extendComplianceEvidenceRetention'));
 
 const pooledPlan = await read('docs/architecture/deferred-pooled-account.md');
 assert.ok(pooledPlan.includes('implemented for publish readiness'));
