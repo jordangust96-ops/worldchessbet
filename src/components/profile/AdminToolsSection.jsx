@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   UserRoundSearch,
 } from "lucide-react";
+import ResetUsersForLaunchButton from "@/components/profile/ResetUsersForLaunchButton";
 
 const SITE_ACTIVITY_ADMIN_EMAIL = "jordangust96@gmail.com";
 
@@ -110,6 +111,13 @@ export default function AdminToolsSection({ userEmail }) {
               description="View traffic and platform activity metrics."
             />
           )}
+        </div>
+
+        <div className="mt-2">
+          <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-wider text-white/35">
+            Pre-launch
+          </p>
+          <ResetUsersForLaunchButton />
         </div>
       </div>
 
