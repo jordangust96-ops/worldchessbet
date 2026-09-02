@@ -110,6 +110,7 @@ Deno.serve(async (req) => {
       : null;
     if (!pending) {
       pending = await base44.asServiceRole.entities.WalletTransaction.create({
+        launch_epoch: 2,
         user_id: user.id,
         type: 'deposit',
         amount: value,
