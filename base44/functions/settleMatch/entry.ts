@@ -541,6 +541,7 @@ Deno.serve(async (req) => {
     ]);
 
     const contestRecord = await base44.asServiceRole.entities.ContestRecord.create({
+      launch_epoch: 2,
       match_id: match.id,
       game_id: game.id,
       is_private: !!match.is_private,
