@@ -55,6 +55,7 @@ Deno.serve(async (req) => {
     if (candidates.length === 0) {
       const tc = TIME_CONTROLS[match.time_control] || TIME_CONTROLS.rapid;
       await base44.asServiceRole.entities.Game.create({
+        launch_epoch: 2,
         match_id: matchId,
         player1_id: match.player1_id,
         player2_id: match.player2_id,
