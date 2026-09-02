@@ -14,7 +14,7 @@ import CaseReviewStatus from "@/components/disputes/CaseReviewStatus";
 import { buildSystemFindings } from "@/lib/disputeFindings";
 import { CASE_STATUS_LABELS } from "@/lib/reportCategories";
 
-function Card({ title, description, id, children }) {
+function Card({ title, description = "", id = "", children }) {
   return (
     <section id={id} className="rounded-2xl bg-white/[0.03] border border-white/5 p-4 mb-4">
       <div className="mb-3">
