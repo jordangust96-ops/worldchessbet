@@ -241,6 +241,7 @@ export default function WalletPage() {
           fullName={fullName}
           onNameSaved={setFullName}
           wallet={wallet}
+          onRefresh={loadData}
         />
 
         <SeamlessFundingPanel
