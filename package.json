@@ -19,7 +19,7 @@
     "test:launch": "node scripts/validate-launch-readiness.mjs"
   },
   "dependencies": {
-    "@base44/sdk": "^0.8.44",
+    "@base44/sdk": "^0.8.46",
     "@base44/vite-plugin": "^1.0.34",
     "@hello-pangea/dnd": "^17.0.0",
     "@heycatch/sdk": "^0.7.0",
