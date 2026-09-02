@@ -4,6 +4,7 @@ export const ONLINE_WINDOW_MS = 2 * 60 * 1000;
 
 export function publicAvailableMatchQuery(userId = '') {
   const query: Record<string, unknown> = {
+    launch_epoch: 2,
     status: 'searching',
     is_private: { $ne: true },
   };
