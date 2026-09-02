@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
       last_error: '',
     };
 
-    const existing = await svc.JurisdictionInterest.filter({ launch_epoch: 2, user_id: user.id, is_active: true }, '-consent_at', 50);
+    const existing = await svc.JurisdictionInterest.filter({ user_id: user.id, is_active: true, launch_epoch: 2 }, '-consent_at', 50);
 
     let record;
     if (existing && existing.length > 0) {
@@ -90,7 +90,7 @@ Deno.serve(async (req) => {
       }
     } else {
       // Defensive sweep: deactivate any non-flagged duplicates the user may own.
-      const any = await svc.JurisdictionInterest.filter({ launch_epoch: 2, user_id: user.id }, null, 50);
+      const any = await svc.JurisdictionInterest.filter({ user_id: user.id, launch_epoch: 2 }, null, 50);
       for (const r of any) {
         if (r.is_active !== false) {
           try { await svc.JurisdictionInterest.update(r.id, { is_active: false }); } catch { /* ignore */ }
