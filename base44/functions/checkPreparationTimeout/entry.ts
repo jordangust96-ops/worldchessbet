@@ -7,6 +7,15 @@ import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 // cancels any match still stuck in the shared Preparing Match phase past the
 // readiness timeout, refunding any entry amounts already reserved. Safe to
 // call at any time — it only ever acts on matches that are genuinely stale.
+//
+// Every candidate is re-fetched and re-validated immediately before it is
+// claimed for cancellation — the initial query snapshot can be seconds or
+// minutes stale by the time a given match is reached in a large sweep, and
+// acting on the stale snapshot could refund-and-cancel a match that has, in
+// the meantime, become fully certified/funded and started going live via
+// finalizeMatchStart. Both sides check and respect each other's
+// start_operation_id / cancellation_operation_id claim before committing any
+// money movement or status change.
 
 const PREPARATION_TIMEOUT_MS = 2 * 60 * 1000;
 
@@ -26,10 +35,28 @@ Deno.serve(async (req) => {
 
     const cancelledIds = [];
     for (const candidate of stale) {
-      let match = candidate;
+      // Re-fetch fresh state immediately before claiming — never act on the
+      // query snapshot taken above.
+      let match = await base44.asServiceRole.entities.Match.get(candidate.id);
+      if (!match) continue;
+      if (match.status !== 'preparing' && match.status !== 'both_ready') continue;
+      if (
+        !match.preparation_started_at ||
+        now - new Date(match.preparation_started_at).getTime() <= PREPARATION_TIMEOUT_MS
+      ) continue;
+      if (match.cancellation_operation_id || match.status === 'cancelling') continue;
+      // A start claim already exists, or both players are already certified
+      // and funded — this match is actively converging on going live, not
+      // abandoned. Never refund-and-cancel it here; finalizeMatchStart's own
+      // idempotent retry (re-invoked by the client every few seconds while
+      // both players show ready) is what finishes it.
+      if (match.start_operation_id) continue;
+      const bothCertifiedAlready = match.player1_certified && match.player2_certified;
+      const bothDepositedAlready = match.player1_deposited && match.player2_deposited;
+      if (bothCertifiedAlready && bothDepositedAlready) continue;
+
       const serviceFee = Number(match.platform_service_fee);
       if (!Number.isFinite(serviceFee) || serviceFee < 0) continue;
-      if (match.cancellation_operation_id || match.status === 'cancelling') continue;
 
       const cancellationOperationId = crypto.randomUUID();
       await base44.asServiceRole.entities.Match.update(match.id, {
@@ -39,6 +66,18 @@ Deno.serve(async (req) => {
       await new Promise((resolve) => setTimeout(resolve, 150));
       match = await base44.asServiceRole.entities.Match.get(match.id);
       if (match.cancellation_operation_id !== cancellationOperationId) continue;
+      if (match.start_operation_id) {
+        // finalizeMatchStart won the race and claimed this match for a start
+        // transition during our own claim delay. Back off before any refund
+        // is posted, and hand the match back to 'both_ready' so the start
+        // transition can still complete rather than leaving it stranded
+        // mid-cancel with no refund and no game.
+        await base44.asServiceRole.entities.Match.update(match.id, {
+          status: 'both_ready',
+          cancellation_operation_id: '',
+        });
+        continue;
+      }
 
       const refundTargets = [];
       if (match.player1_deposited) refundTargets.push(match.player1_id);
