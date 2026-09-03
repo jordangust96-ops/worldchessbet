@@ -48,6 +48,7 @@ export async function applyBalanceHold(base44, { userId, amount, direction, matc
     correlation_id: matchId || userId,
     currency: 'USD',
     schema_version: 1,
+    launch_epoch: 2,
   });
 }
 
@@ -114,7 +115,7 @@ export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletT
         initiating_actor: actor, initiating_actor_id: actorId || '', trigger_event: triggerEvent,
         external_reference_type: externalRefType || 'none', external_reference_id: externalRefId || '',
         ledger_group_id: groupId, correlation_id: correlationId, game_id: gameId || '',
-        currency: 'USD', schema_version: 1,
+        currency: 'USD', schema_version: 1, launch_epoch: 2,
       });
     } else {
       const accounts = await base44.asServiceRole.entities.SystemLedgerAccount.filter({ account_name: leg.ledgerAccount });
@@ -133,7 +134,7 @@ export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletT
         initiating_actor: actor, initiating_actor_id: actorId || '', trigger_event: triggerEvent,
         external_reference_type: externalRefType || 'none', external_reference_id: externalRefId || '',
         ledger_group_id: groupId, correlation_id: correlationId, game_id: gameId || '',
-        currency: 'USD', schema_version: 1,
+        currency: 'USD', schema_version: 1, launch_epoch: 2,
       });
     }
   }
