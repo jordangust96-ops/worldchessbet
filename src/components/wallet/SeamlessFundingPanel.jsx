@@ -133,12 +133,20 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
       if (data?.status !== "uncertain") setAmount("");
       await load();
       if (onRefresh) onRefresh();
-    } catch {
-      setError("We couldn't submit that request. Please try again or contact support.");
+    } catch (e) {
+      const serverMessage = e?.response?.data?.error;
+      setError(typeof serverMessage === "string" && serverMessage
+        ? serverMessage
+        : "We couldn't submit that request. Please try again or contact support.");
     } finally {
       setBusy("");
     }
   };
+
+  const MIN_DEPOSIT_AMOUNT = 10;
+  const SMALL_WITHDRAWAL_THRESHOLD = 10;
+  const SMALL_WITHDRAWAL_FEE = 2.5;
+  const parsedAmount = parseFloat(amount);
 
   const depositsEnabled = !!state?.deposits_enabled;
   const withdrawalsEnabled = !!state?.withdrawals_enabled;
