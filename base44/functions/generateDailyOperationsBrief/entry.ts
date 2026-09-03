@@ -57,10 +57,10 @@ Deno.serve(async (req) => {
       svc.SettlementReconciliation.filter({}, '-created_date', 500),
       svc.FairPlayAnalysis.filter({ status: 'manual_review' }, '-created_date', 500),
       svc.IntegrationEvent.filter({ delivery_state: 'failed' }, '-created_date', 500),
-      svc.Match.filter({ status: 'in_progress' }, '-updated_date', 500),
+      svc.Match.filter({ launch_epoch: 2, status: 'in_progress' }, '-updated_date', 500),
       svc.Wallet.list(null, 5000),
       svc.SystemLedgerAccount.list(null, 100),
-      svc.LedgerEntry.filter({ ledger_account: 'settlement' }, null, 5000),
+      svc.LedgerEntry.filter({ launch_epoch: 2, ledger_account: 'settlement' }, null, 5000),
       // Fair Play screening backlog — unlike manual_review, these never
       // otherwise surface anywhere an admin would see them in aggregate. A
       // large or stale backlog here usually means the external analyzer is
