@@ -1,40 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link, useOutletContext } from "react-router-dom";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import Logo from "@/components/Logo";
 import RestrictedModeBanner from "@/components/RestrictedModeBanner";
 import TransactionHistory from "@/components/wallet/TransactionHistory";
 import SeamlessFundingPanel from "@/components/wallet/SeamlessFundingPanel";
 import SocureIdentityVerificationPanel from "@/components/wallet/SocureIdentityVerificationPanel";
-import NotifyAtLaunchModal from "@/components/NotifyAtLaunchModal";
-
-// Pre-launch notice shown above identity verification while real-money play
-// is still being finished. Remove this block (and the NotifyAtLaunchModal
-// wiring below) once ChessBet has officially launched real-money contests.
-function RealMoneyLaunchNotice({ onNotifyClick }) {
-  return (
-    <div className="rounded-2xl border border-[#C9A84C]/20 bg-[#C9A84C]/[0.05] p-4 flex items-start gap-3">
-      <div className="h-9 w-9 rounded-lg bg-[#C9A84C]/10 flex items-center justify-center shrink-0">
-        <Sparkles size={18} className="text-[#C9A84C]" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-white">Real-money play is almost here</p>
-        <p className="text-xs text-white/50 mt-1">
-          We're putting the finishing touches on real-money contests, and they'll be open soon.{" "}
-          <button
-            type="button"
-            onClick={onNotifyClick}
-            className="text-[#C9A84C] underline underline-offset-2 hover:text-[#E2C66E]"
-          >
-            Click here to be notified the moment it launches.
-          </button>
-        </p>
-      </div>
-    </div>
-  );
-}
+import RealMoneyLaunchNotice from "@/components/RealMoneyLaunchNotice";
 
 const TX_PAGE_SIZE = 20;
 const MATCH_HISTORY_PAGE_SIZE = 500;
@@ -77,7 +51,6 @@ export default function WalletPage() {
   const [accountState, setAccountState] = useState("verified");
   const [identityStatus, setIdentityStatus] = useState("not_started");
   const [fullName, setFullName] = useState("");
-  const [notifyModalOpen, setNotifyModalOpen] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -264,7 +237,7 @@ export default function WalletPage() {
           </div>
         </div>
 
-        <RealMoneyLaunchNotice onNotifyClick={() => setNotifyModalOpen(true)} />
+        <RealMoneyLaunchNotice />
 
         <SocureIdentityVerificationPanel
           status={identityStatus}
@@ -273,8 +246,6 @@ export default function WalletPage() {
           wallet={wallet}
           onRefresh={loadData}
         />
-
-        <NotifyAtLaunchModal open={notifyModalOpen} onOpenChange={setNotifyModalOpen} />
 
         <SeamlessFundingPanel
           wallet={wallet}
