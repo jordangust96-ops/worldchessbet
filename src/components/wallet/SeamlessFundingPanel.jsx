@@ -147,6 +147,11 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
   const SMALL_WITHDRAWAL_THRESHOLD = 10;
   const SMALL_WITHDRAWAL_FEE = 2.5;
   const parsedAmount = parseFloat(amount);
+  // Mirrors the server's full-balance fee waiver (submitSeamlessWithdrawal):
+  // withdrawing the entire available balance skips the small-withdrawal fee,
+  // so a balance under $10 (or even under the fee itself) is never stranded.
+  const isFullBalanceWithdrawal =
+    !!wallet && parsedAmount > 0 && parsedAmount >= (wallet.available_balance || 0) - 0.005;
 
   const depositsEnabled = !!state?.deposits_enabled;
   const withdrawalsEnabled = !!state?.withdrawals_enabled;
