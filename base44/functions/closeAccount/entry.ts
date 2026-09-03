@@ -159,8 +159,9 @@ Deno.serve(async (req) => {
         if (!profile?.provider_user_id) {
           return Response.json({ error: 'No Seamless customer profile', action: 'ensure_customer', available_balance: payout }, { status: 400 });
         }
+        let complianceEvidence;
         try {
-          await extendComplianceEvidenceRetention(base44, { userId: user.id, fundingSourceId: bank.source_id, requireAchAuthorization: false });
+          complianceEvidence = await extendComplianceEvidenceRetention(base44, { userId: user.id, fundingSourceId: bank.source_id, requireAchAuthorization: false });
         } catch {
           return Response.json({
             error: 'Required retained identity evidence is unavailable.',
@@ -192,6 +193,11 @@ Deno.serve(async (req) => {
           initiating_actor_id: user.id,
           correlation_id: '',
           schema_version: 1,
+          // Same rationale as submitSeamlessWithdrawal: capture the specific
+          // bank account used now, not re-derived later from the user's
+          // (possibly since-changed) primary bank account.
+          funding_source_id: bank.source_id,
+          ach_authorization_id: complianceEvidence?.authorization_id || '',
         });
 
         // Reserve funds using the same ledger accounts/group-id convention as
