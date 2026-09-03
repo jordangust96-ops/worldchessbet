@@ -254,9 +254,7 @@ Deno.serve(async (req) => {
     });
     await base44.asServiceRole.entities.WalletTransaction.update(tx.id, {
       integration_status: 'submitted', direction: 'reserve', source_event: 'seamless_withdrawal_submitted',
-      description: withdrawalFee > 0
-        ? `Seamless ACH withdrawal (a $${withdrawalFee.toFixed(2)} small-withdrawal fee was separately charged)`
-        : undefined,
+      ...(withdrawalFee > 0 ? { description: `Seamless ACH withdrawal (a $${withdrawalFee.toFixed(2)} small-withdrawal fee was separately charged)` } : {}),
     });
     await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, state: 'submitted', provider_reference_id: providerRef });
 
