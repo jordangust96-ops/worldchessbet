@@ -84,4 +84,22 @@ for (const file of [...await collect('src/'), ...await collect('base44/functions
   assert.ok(!source.includes('Early Access'), `${file} still contains player/runtime Early Access wording`);
 }
 
+const ledger = await read('base44/shared/ledger.ts');
+const disputeManagement = await read('base44/functions/manageDisputeCase/entry.ts');
+const ledgerIntegrity = await read('base44/functions/checkLedgerIntegrity/entry.ts');
+const operationsBrief = await read('base44/functions/generateDailyOperationsBrief/entry.ts');
+const ledgerEntrySchema = await read('base44/entities/LedgerEntry.jsonc');
+const walletTransactionSchema = await read('base44/entities/WalletTransaction.jsonc');
+
+assert.equal((ledger.match(/launch_epoch: 2/g) || []).length, 3, 'Every shared ledger entry must be launch-scoped');
+const disputeFinancialCreates = disputeManagement.match(/entities\.(?:LedgerEntry|WalletTransaction)\.create\(\{/g) || [];
+assert.ok(disputeFinancialCreates.length > 0);
+assert.equal((disputeManagement.match(/launch_epoch: 2/g) || []).length, disputeFinancialCreates.length, 'Every dispute financial record must be launch-scoped');
+assert.ok(ledgerIntegrity.includes('LedgerEntry.filter({ launch_epoch: 2 }'));
+assert.ok(ledgerIntegrity.includes('WalletTransaction.filter({ launch_epoch: 2 }'));
+assert.ok(operationsBrief.includes("Match.filter({ launch_epoch: 2, status: 'in_progress' }"));
+assert.ok(operationsBrief.includes("LedgerEntry.filter({ launch_epoch: 2, ledger_account: 'settlement' }"));
+assert.ok(ledgerEntrySchema.includes('"launch_epoch"'));
+assert.ok(walletTransactionSchema.includes('"launch_epoch"'));
+
 console.log('Launch readiness validation passed.');
