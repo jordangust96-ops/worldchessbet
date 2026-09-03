@@ -445,12 +445,47 @@ Deno.serve(async (req) => {
           const pendingPayoutCoversThis = !!pendingPayout && pendingPayout.user_id === winnerId;
           const holdCoversThis = pendingPayoutCoversThis || (disputeCase.hold_status === 'post_settlement_hold' && disputeCase.hold_target_user_id === winnerId);
 
+          // Every user-facing leg below gets its own WalletTransaction,
+          // created first so its id can be tagged onto the LedgerEntry that
+          // posts it (postRemedyLegs writes leg.walletTransactionId through
+          // to LedgerEntry.wallet_transaction_id) — otherwise a dispute
+          // remedy moves real money with no WalletTransaction a user or
+          // admin can trace it through, unlike every other money-moving flow.
+          const walletTransactionIds = [];
           const legs = [];
           if (winnerId && payout > 0) {
-            legs.push({ ledgerAccount: 'user_account', userId: winnerId, debit: payout, credit: 0, fromHeld: holdCoversThis, transactionType: 'reversal' });
+            const winnerReversalTx = await base44.asServiceRole.entities.WalletTransaction.create({
+              user_id: winnerId,
+              type: 'admin_reversal',
+              amount: payout,
+              match_id: match.id,
+              description: `Winnings reversed — Case #${fmtCase(disputeCase.case_number)}`,
+              status: 'completed',
+              direction: 'debit',
+              correlation_id: disputeCase.id,
+              source_event: 'dispute_case_contest_reversal',
+              initiating_actor: 'administrator',
+              initiating_actor_id: admin.id,
+            });
+            walletTransactionIds.push(winnerReversalTx.id);
+            legs.push({ ledgerAccount: 'user_account', userId: winnerId, debit: payout, credit: 0, fromHeld: holdCoversThis, transactionType: 'reversal', walletTransactionId: winnerReversalTx.id });
           }
           if (loserId && entryAmount > 0) {
-            legs.push({ ledgerAccount: 'user_account', userId: loserId, debit: 0, credit: entryAmount, transactionType: 'reversal' });
+            const loserRefundTx = await base44.asServiceRole.entities.WalletTransaction.create({
+              user_id: loserId,
+              type: 'wager_refund',
+              amount: entryAmount,
+              match_id: match.id,
+              description: `Entry amount refunded — contest reversed, Case #${fmtCase(disputeCase.case_number)}`,
+              status: 'completed',
+              direction: 'credit',
+              correlation_id: disputeCase.id,
+              source_event: 'dispute_case_contest_reversal',
+              initiating_actor: 'administrator',
+              initiating_actor_id: admin.id,
+            });
+            walletTransactionIds.push(loserRefundTx.id);
+            legs.push({ ledgerAccount: 'user_account', userId: loserId, debit: 0, credit: entryAmount, transactionType: 'reversal', walletTransactionId: loserRefundTx.id });
           }
           let contestClearingNet = payout - entryAmount;
           if (feeTreatment === 'refunded' && fee > 0) {
@@ -476,9 +511,12 @@ Deno.serve(async (req) => {
           resolutionFields.fee_treatment = feeTreatment;
           resolutionFields.target_user_id = winnerId || '';
           resolutionFields.reversal_ledger_entry_ids = entries.map((e) => e.id);
+          resolutionFields.reversal_wallet_transaction_ids = walletTransactionIds;
+          caseUpdates.wallet_transaction_ids = [...(disputeCase.wallet_transaction_ids || []), ...walletTransactionIds];
           effectsSummary = `The contest result has been reversed. $${payout.toFixed(2)} was debited from the original winner and $${entryAmount.toFixed(2)} was refunded to the original loser. Platform fee ${feeTreatment}.`;
         } else if (resolutionType === 'contest_voided') {
           const entries = [];
+          const walletTransactionIds = [];
           if (match && match.status === 'completed' && contestRecord) {
             const winnerId = contestRecord.winner_id;
             const loserId = contestRecord.loser_id;
@@ -488,9 +526,63 @@ Deno.serve(async (req) => {
             const pendingPayoutCoversThis = !!pendingPayout && pendingPayout.user_id === winnerId;
             const holdCoversThis = pendingPayoutCoversThis || (disputeCase.hold_status === 'post_settlement_hold' && disputeCase.hold_target_user_id === winnerId);
 
+            // The winner's leg used to mix a debit (clawed-back winnings) and
+            // a credit (their own entry amount refunded) in one combined
+            // ledger leg — split into two separately-tracked WalletTransactions
+            // (one admin_reversal, one wager_refund) so each side of that net
+            // movement is independently traceable, same rationale as above.
             const legs = [];
-            if (winnerId) legs.push({ ledgerAccount: 'user_account', userId: winnerId, debit: payout, credit: entryAmount, fromHeld: holdCoversThis, transactionType: 'reversal' });
-            if (loserId) legs.push({ ledgerAccount: 'user_account', userId: loserId, debit: 0, credit: entryAmount, transactionType: 'reversal' });
+            if (winnerId && payout > 0) {
+              const winnerReversalTx = await base44.asServiceRole.entities.WalletTransaction.create({
+                user_id: winnerId,
+                type: 'admin_reversal',
+                amount: payout,
+                match_id: match.id,
+                description: `Winnings reversed — contest voided, Case #${fmtCase(disputeCase.case_number)}`,
+                status: 'completed',
+                direction: 'debit',
+                correlation_id: disputeCase.id,
+                source_event: 'dispute_case_contest_void',
+                initiating_actor: 'administrator',
+                initiating_actor_id: admin.id,
+              });
+              walletTransactionIds.push(winnerReversalTx.id);
+              legs.push({ ledgerAccount: 'user_account', userId: winnerId, debit: payout, credit: 0, fromHeld: holdCoversThis, transactionType: 'reversal', walletTransactionId: winnerReversalTx.id });
+            }
+            if (winnerId && entryAmount > 0) {
+              const winnerRefundTx = await base44.asServiceRole.entities.WalletTransaction.create({
+                user_id: winnerId,
+                type: 'wager_refund',
+                amount: entryAmount,
+                match_id: match.id,
+                description: `Entry amount refunded — contest voided, Case #${fmtCase(disputeCase.case_number)}`,
+                status: 'completed',
+                direction: 'credit',
+                correlation_id: disputeCase.id,
+                source_event: 'dispute_case_contest_void',
+                initiating_actor: 'administrator',
+                initiating_actor_id: admin.id,
+              });
+              walletTransactionIds.push(winnerRefundTx.id);
+              legs.push({ ledgerAccount: 'user_account', userId: winnerId, debit: 0, credit: entryAmount, transactionType: 'reversal', walletTransactionId: winnerRefundTx.id });
+            }
+            if (loserId && entryAmount > 0) {
+              const loserRefundTx = await base44.asServiceRole.entities.WalletTransaction.create({
+                user_id: loserId,
+                type: 'wager_refund',
+                amount: entryAmount,
+                match_id: match.id,
+                description: `Entry amount refunded — contest voided, Case #${fmtCase(disputeCase.case_number)}`,
+                status: 'completed',
+                direction: 'credit',
+                correlation_id: disputeCase.id,
+                source_event: 'dispute_case_contest_void',
+                initiating_actor: 'administrator',
+                initiating_actor_id: admin.id,
+              });
+              walletTransactionIds.push(loserRefundTx.id);
+              legs.push({ ledgerAccount: 'user_account', userId: loserId, debit: 0, credit: entryAmount, transactionType: 'reversal', walletTransactionId: loserRefundTx.id });
+            }
             if (fee > 0) legs.push({ ledgerAccount: 'platform_revenue', debit: fee, credit: 0, transactionType: 'reversal' });
             const contestClearingNet = payout - entryAmount * 2 - fee;
             if (contestClearingNet > 0) legs.push({ ledgerAccount: 'contest_clearing', debit: 0, credit: contestClearingNet, transactionType: 'reversal' });
@@ -511,9 +603,28 @@ Deno.serve(async (req) => {
           } else if (match) {
             // Not yet settled — simply refund each player's escrowed entry hold.
             for (const playerId of [match.player1_id, match.player2_id].filter(Boolean)) {
+              const amount = match.wager_amount || 0;
+              let walletTransactionId = '';
+              if (amount > 0) {
+                const refundTx = await base44.asServiceRole.entities.WalletTransaction.create({
+                  user_id: playerId,
+                  type: 'wager_refund',
+                  amount,
+                  match_id: match.id,
+                  description: `Entry amount refunded — contest voided before settlement, Case #${fmtCase(disputeCase.case_number)}`,
+                  status: 'completed',
+                  direction: 'release',
+                  correlation_id: disputeCase.id,
+                  source_event: 'dispute_case_contest_void',
+                  initiating_actor: 'administrator',
+                  initiating_actor_id: admin.id,
+                });
+                walletTransactionIds.push(refundTx.id);
+                walletTransactionId = refundTx.id;
+              }
               const entry = await applyBalanceHold(base44, {
-                userId: playerId, amount: match.wager_amount || 0, direction: 'release',
-                matchId: match.id, actor: 'administrator', actorId: admin.id, triggerEvent: 'contest_void',
+                userId: playerId, amount, direction: 'release',
+                matchId: match.id, actor: 'administrator', actorId: admin.id, triggerEvent: 'contest_void', walletTransactionId,
               });
               if (entry) entries.push(entry);
             }
@@ -525,6 +636,8 @@ Deno.serve(async (req) => {
           }
 
           resolutionFields.void_ledger_entry_ids = entries.map((e) => e.id);
+          resolutionFields.void_wallet_transaction_ids = walletTransactionIds;
+          caseUpdates.wallet_transaction_ids = [...(disputeCase.wallet_transaction_ids || []), ...walletTransactionIds];
           effectsSummary = "The contest has been voided. Both players' entry amounts have been refunded and no statistics were awarded.";
         } else if (resolutionType === 'account_suspended') {
           if (!payload.targetUserId) return Response.json({ error: 'targetUserId is required' }, { status: 400 });
