@@ -217,7 +217,7 @@ Deno.serve(async (req) => {
         category: 'fair_play',
         priority: staleAwaitingAnalyzer.length >= 10 ? 'high' : 'medium',
         status: 'human_approval_required',
-        authority_level: 'autonomous',
+        authority_level: 'human_approval_required',
         title: `Fair Play screening backlog: ${staleAwaitingAnalyzer.length} game(s) awaiting the analyzer for over 24 hours`,
         summary: `${awaitingAnalyzerAnalyses.length} FairPlayAnalysis record(s) are in status 'awaiting_analyzer' (${staleAwaitingAnalyzer.length} of them for over 24 hours) and ${failedAnalyses.length} are in status 'failed'. This usually means FAIR_PLAY_SCREENING_ENABLED, FAIR_PLAY_ANALYZER_URL, or FAIR_PLAY_ANALYZER_SECRET is unset or the analyzer is unreachable — engine-assistance screening may be silently stopped platform-wide.`,
         evidence: `awaiting_analyzer_count=${awaitingAnalyzerAnalyses.length}; stale_awaiting_analyzer_count=${staleAwaitingAnalyzer.length}; failed_count=${failedAnalyses.length}`,
