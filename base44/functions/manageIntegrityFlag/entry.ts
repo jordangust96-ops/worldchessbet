@@ -94,6 +94,115 @@ Deno.serve(async (req) => {
     } else if (action === 'mark_cleared') {
       newStatus = 'cleared';
       flagUpdates.status = newStatus;
+    } else if (action === 'open_case') {
+      if (!flag.match_id) return Response.json({ error: 'This flag has no linked match' }, { status: 400 });
+      const match = await base44.asServiceRole.entities.Match.get(flag.match_id);
+      if (!match) return Response.json({ error: 'Match not found' }, { status: 404 });
+
+      const existingCases = await base44.asServiceRole.entities.DisputeCase.filter({ match_id: flag.match_id });
+      const openExisting = existingCases.find((c) => !['resolved', 'closed'].includes(c.status));
+      if (openExisting) {
+        return Response.json({
+          error: `An open case already exists for this match (Case #CB-${String(openExisting.case_number).padStart(6, '0')})`,
+        }, { status: 409 });
+      }
+
+      const [game, contestRecords, ledgerEntries, walletTransactions, flaggedUser] = await Promise.all([
+        match.game_id ? base44.asServiceRole.entities.Game.get(match.game_id).catch(() => null) : Promise.resolve(null),
+        base44.asServiceRole.entities.ContestRecord.filter({ match_id: flag.match_id }),
+        base44.asServiceRole.entities.LedgerEntry.filter({ match_id: flag.match_id }),
+        base44.asServiceRole.entities.WalletTransaction.filter({ match_id: flag.match_id }),
+        base44.asServiceRole.entities.User.get(flag.user_id).catch(() => null),
+      ]);
+      const contestRecord = contestRecords[0] || null;
+      const flaggedName = flaggedUser?.full_name || flaggedUser?.email || 'Player';
+      const ledgerEntryIds = contestRecord?.ledger_entry_ids || ledgerEntries.map((e) => e.id);
+      const walletTransactionIds = contestRecord?.wallet_transaction_ids || walletTransactions.map((t) => t.id);
+
+      const [latest] = await base44.asServiceRole.entities.DisputeCase.list('-case_number', 1);
+      const caseNumber = (latest?.case_number || 1000) + 1;
+      const reportDescription = `Case opened by ${admin.full_name || admin.email || 'an administrator'} from Integrity Flag ${flagId} (${flag.flag_type}, severity ${flag.severity}). No player report was filed for this contest. ${flag.notes || ''}`.trim().slice(0, 4000);
+
+      // DisputeCase RLS restricts direct creation to admins reviewing their
+      // own filed report; this is the one path that opens a case with no
+      // reporting player at all — an admin converting an autonomous Fair
+      // Play/integrity flag into a formal case so the existing hold/remedy
+      // tooling in manageDisputeCase (holds, reversal, void) becomes
+      // available for it. The admin stands in as reporting_user_id since the
+      // field is required and there is no player report to attribute this to.
+      const disputeCase = await base44.asServiceRole.entities.DisputeCase.create({
+        case_number: caseNumber,
+        status: 'open',
+        priority: flag.severity === 'high' ? 'high' : 'medium',
+        report_category: 'fair_play',
+        report_subcategory: 'Automated Fair Play Screening',
+        report_description: reportDescription,
+        attachments: [],
+        match_id: flag.match_id,
+        game_id: game?.id || match.game_id || '',
+        contest_record_id: contestRecord?.id || '',
+        reporting_user_id: admin.id,
+        reported_user_id: flag.user_id,
+        reporting_user_username: admin.full_name || admin.email || 'Admin',
+        reported_user_username: flaggedName,
+        time_control: match.time_control || '',
+        display_name: match.display_name || '',
+        entry_amount: match.wager_amount || 0,
+        is_private: !!match.is_private,
+        pgn: game?.pgn || contestRecord?.pgn || '',
+        final_fen: game?.fen || contestRecord?.final_fen || '',
+        outcome_type: game?.end_reason || contestRecord?.outcome_type || '',
+        winner_id: game?.winner_id || contestRecord?.winner_id || '',
+        contest_status: match.status || '',
+        ledger_entry_ids: ledgerEntryIds,
+        wallet_transaction_ids: walletTransactionIds,
+        hold_status: 'none',
+        held_amount: 0,
+        escalated: flag.severity === 'high',
+        fair_play_review_flag: true,
+        aml_review_flag: false,
+        manual_settlement_review_flag: false,
+      });
+
+      await base44.asServiceRole.entities.DisputeCaseNote.create({
+        case_id: disputeCase.id,
+        reporting_user_id: admin.id,
+        author_id: admin.id,
+        author_name: admin.full_name || admin.email || 'Admin',
+        author_role: 'admin',
+        action_type: 'case_created',
+        content: `Case opened from Integrity Flag ${flagId} (${flag.flag_type}, severity ${flag.severity}). No player report was filed for this contest.`,
+        visible_to_user: false,
+      });
+
+      const evidence = await base44.asServiceRole.entities.CaseEvidence.create({
+        case_id: disputeCase.id,
+        case_number: caseNumber,
+        match_id: flag.match_id,
+        game_id: game?.id || match.game_id || '',
+        contest_record_id: contestRecord?.id || '',
+        pgn: game?.pgn || contestRecord?.pgn || '',
+        move_log: game?.move_log || contestRecord?.move_log || [],
+        final_fen: game?.fen || contestRecord?.final_fen || '',
+        ledger_entry_ids: ledgerEntryIds,
+        wallet_transaction_ids: walletTransactionIds,
+        winner_id: contestRecord?.winner_id || '',
+        loser_id: contestRecord?.loser_id || '',
+        winner_payout: contestRecord?.winner_payout || 0,
+        platform_fee: contestRecord?.platform_fee || 0,
+        contest_pool: contestRecord?.contest_pool || 0,
+        settlement_timestamp: contestRecord?.settlement_timestamp || '',
+        report_category: 'fair_play',
+        report_subcategory: 'Automated Fair Play Screening',
+        report_description: reportDescription,
+        captured_at: new Date().toISOString(),
+        legal_hold: false,
+      });
+      await base44.asServiceRole.entities.DisputeCase.update(disputeCase.id, { evidence_id: evidence.id });
+
+      newStatus = 'under_review';
+      flagUpdates.status = newStatus;
+      notes = notes || `Opened Dispute Case #CB-${String(caseNumber).padStart(6, '0')} from this flag.`;
     } else if (action === 'mark_action_taken') {
       newStatus = 'action_taken';
       flagUpdates.status = newStatus;
