@@ -252,8 +252,41 @@ Deno.serve(async (req) => {
       metadata_json: JSON.stringify({ provider: SEAMLESS_PROVIDER_KEY, direction: 'withdrawal', label, source_id: bank.source_id, transfer_speed: transferSpeed || 'standard',
         endpoint: `${seamlessBaseUrl((Deno.env.get('SEAMLESS_ACH_ENV') || '').trim())}${PATH_CHECK_SEND}` }),
     });
-    await base44.asServiceRole.entities.WalletTransaction.update(tx.id, { integration_status: 'submitted', direction: 'reserve', source_event: 'seamless_withdrawal_submitted' });
+    await base44.asServiceRole.entities.WalletTransaction.update(tx.id, {
+      integration_status: 'submitted', direction: 'reserve', source_event: 'seamless_withdrawal_submitted',
+      description: withdrawalFee > 0
+        ? `Seamless ACH withdrawal (a $${withdrawalFee.toFixed(2)} small-withdrawal fee was separately charged)`
+        : undefined,
+    });
     await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, state: 'submitted', provider_reference_id: providerRef });
+
+    // Charge the small-withdrawal fee only now that Seamless has accepted the
+    // payout request. Charging earlier would mean refunding it on every
+    // synchronous rejection; charging here means the fee is only ever taken
+    // once the withdrawal is essentially guaranteed to proceed. This is a
+    // separate, immediately-completed ledger posting (not held/reserved) so
+    // it never touches the withdrawal's own reservation/settlement legs in
+    // the webhook -- those keep working exactly as before, unmodified, and
+    // stay reconcilable against the exact ACH amount Seamless received.
+    if (withdrawalFee > 0) {
+      try {
+        const feeGroupId = `seamless:withdrawal:fee:${tx.id}`;
+        if (!await hasLedgerGroup(base44, feeGroupId)) {
+          await postLedgerLegs(base44, {
+            groupId: feeGroupId, actor: 'system', triggerEvent: 'withdrawal_fee',
+            externalRefType: 'provider_payout', externalRefId: providerRef,
+            legs: [
+              { ledgerAccount: 'user_account', userId: user.id, debit: withdrawalFee, credit: 0, transactionType: 'withdrawal_fee' },
+              { ledgerAccount: 'platform_revenue', debit: 0, credit: withdrawalFee, transactionType: 'withdrawal_fee' },
+            ],
+          });
+        }
+      } catch (feeError) {
+        // Best-effort: never fail an already-accepted withdrawal over a fee
+        // posting error. Logged for manual reconciliation.
+        console.error(JSON.stringify({ event: 'withdrawal_fee_charge_failed', wallet_transaction_id: tx.id, error: feeError?.message || String(feeError) }));
+      }
+    }
     await upsertOperationAudit(base44, { user_id: user.id, idempotency_key: idempotencyKey, provider_reference_id: providerRef, wallet_transaction_id: tx.id, amount: value, status: 'submitted', reservation_ledger_group_id: reservationGroupId, attempts: 1 });
     await recordIntegrationEvent(base44, {
       eventType: 'financial.seamless_withdrawal_submitted', aggregateType: 'wallet_transaction', aggregateId: tx.id,
