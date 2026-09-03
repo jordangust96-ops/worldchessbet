@@ -334,6 +334,7 @@ Deno.serve(async (req) => {
       response.withdrawal_amount = value;
       response.withdrawal_fee = withdrawalFee;
       response.total_debit_amount = totalDebitAmount;
+      response.fee_transaction_id = feeTransactionId;
     }
     return Response.json(response);
   } catch {
