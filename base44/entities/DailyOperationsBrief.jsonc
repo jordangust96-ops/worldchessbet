@@ -51,6 +51,16 @@
       "type": "number",
       "default": 0
     },
+    "fair_play_analyzer_backlog_count": {
+      "type": "number",
+      "default": 0,
+      "description": "FairPlayAnalysis records in status 'awaiting_analyzer' \u2014 a nonzero count usually means the external analyzer is unconfigured or down."
+    },
+    "fair_play_analyzer_failed_count": {
+      "type": "number",
+      "default": 0,
+      "description": "FairPlayAnalysis records in status 'failed'."
+    },
     "production_anomaly_count": {
       "type": "number",
       "default": 0
