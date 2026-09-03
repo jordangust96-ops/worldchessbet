@@ -18,6 +18,10 @@
       "type": "string",
       "description": "ID of the ContestRecord this report concerns, if the contest has already settled"
     },
+    "integrity_flag_id": {
+      "type": "string",
+      "description": "Structured link to the IntegrityFlag this case was opened from (manageIntegrityFlag's open_case action), if any. Empty for a case filed directly by a player report. Mirrors the reciprocal IntegrityFlag.dispute_case_id field \u2014 previously this relationship existed only as a free-text mention of the flag id inside report_description/DisputeCaseNote content."
+    },
     "reporting_user_id": {
       "type": "string",
       "description": "User who submitted the report"
