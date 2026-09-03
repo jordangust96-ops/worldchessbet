@@ -14,8 +14,8 @@ Deno.serve(async (req) => {
     const [wallets, accounts, entries, transactions, seamlessOperations] = await Promise.all([
       base44.asServiceRole.entities.Wallet.list(null, 5000),
       base44.asServiceRole.entities.SystemLedgerAccount.list(null, 100),
-      base44.asServiceRole.entities.LedgerEntry.list(null, 5000),
-      base44.asServiceRole.entities.WalletTransaction.list(null, 5000),
+      base44.asServiceRole.entities.LedgerEntry.filter({ launch_epoch: 2 }, null, 5000),
+      base44.asServiceRole.entities.WalletTransaction.filter({ launch_epoch: 2 }, null, 5000),
       base44.asServiceRole.entities.SeamlessOperation.list(null, 5000).catch(() => []),
     ]);
     const audit = auditLedgerSnapshot({ entries, wallets, accounts, transactions, seamlessOperations });
