@@ -148,6 +148,12 @@
       "default": 1,
       "minimum": 1
     },
+    "launch_epoch": {
+      "type": "integer",
+      "default": 2,
+      "minimum": 2,
+      "description": "Production data generation. Records from launch onward use epoch 2; earlier immutable history remains outside production reporting."
+    },
     "payout_hold_status": {
       "type": "string",
       "enum": [
