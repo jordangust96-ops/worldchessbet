@@ -181,20 +181,29 @@ Deno.serve(async (req) => {
     });
 
     const createReviewFlag = async (userId: string, color: string, side: ReturnType<typeof normalizedSide>) => {
-      if (side.risk_band !== 'review' || !userId) return;
+      // 'monitor' gets a low-severity flag too (no email) so it is at least
+      // visible in the Integrity Review Queue and dedups against repeats —
+      // previously a 'monitor' result left no trace anywhere for an admin to
+      // find, even though the plain-language guidance for it tells admins to
+      // watch for a pattern across contests. 'review' still gets the full
+      // medium-severity flag plus an admin email — previously this function
+      // never notified anyone, so the highest-stakes automated result could
+      // only be found by an admin who happened to browse the queue.
+      if (!['review', 'monitor'].includes(side.risk_band) || !userId) return;
       const existingFlags = await base44.asServiceRole.entities.IntegrityFlag.filter({
         user_id: userId,
         match_id: match.id,
         flag_type: 'engine_assistance_suspected',
       });
       if (existingFlags.length) return;
+      const isReview = side.risk_band === 'review';
       const flag = await base44.asServiceRole.entities.IntegrityFlag.create({
         user_id: userId,
         match_id: match.id,
         flag_type: 'engine_assistance_suspected',
-        severity: 'medium',
+        severity: isReview ? 'medium' : 'low',
         status: 'open',
-        notes: `Automated Fair Play screening recommended human review for ${color}. Score: ${side.risk_score ?? 'unavailable'}. ${side.reasons.join(' ')}`.slice(0, 4000),
+        notes: `Automated Fair Play screening recommended ${isReview ? 'human review' : 'monitoring'} for ${color}. Band: ${side.risk_band}. Score: ${side.risk_score ?? 'unavailable'}. ${side.reasons.join(' ')}`.slice(0, 4000),
       });
       await base44.asServiceRole.entities.IntegrityAuditLog.create({
         flag_id: flag.id,
@@ -202,6 +211,21 @@ Deno.serve(async (req) => {
         new_status: 'open',
         notes: 'Created from an external Fair Play analyzer result. No automated account, financial, or contest action was taken.',
       });
+      if (isReview) {
+        base44.asServiceRole.entities.User.filter({ role: 'admin' })
+          .then((admins) =>
+            Promise.all(
+              admins.map((a) =>
+                base44.asServiceRole.integrations.Core.SendEmail({
+                  to: a.email,
+                  subject: `Fair Play Review Flag — Match ${match.id}`,
+                  body: `Automated Fair Play screening recommended human review for ${color} in match ${match.id} (game ${game.id}).\n\nRisk score: ${side.risk_score ?? 'unavailable'}\nReasons: ${side.reasons.join('; ') || 'none reported'}\n\nReview this in the admin dashboard under Integrity.`,
+                }).catch(() => {})
+              )
+            )
+          )
+          .catch(() => {});
+      }
     };
 
     await Promise.all([
