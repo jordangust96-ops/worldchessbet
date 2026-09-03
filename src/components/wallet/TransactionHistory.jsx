@@ -31,6 +31,7 @@ const statusConfig = {
   pending: { label: "Pending", className: "text-[#C9A84C] bg-[#C9A84C]/10 border-[#C9A84C]/20" },
   failed: { label: "Not applied", className: "text-white/45 bg-white/5 border-white/10" },
   review_required: { label: "Review required", className: "text-orange-300 bg-orange-500/10 border-orange-500/20" },
+  pending_release: { label: "Pending release", className: "text-[#C9A84C] bg-[#C9A84C]/10 border-[#C9A84C]/20" },
 };
 
 const incomingTypes = ["deposit", "payout", "wager_refund", "service_fee_refund"];
@@ -72,6 +73,15 @@ function getTransactionExplanation(tx, match) {
   const amount = `$${formatMoney(tx.amount)}`;
   const entry = match?.wager_amount != null ? `$${formatMoney(match.wager_amount)}` : null;
 
+  if (tx.type === "payout" && tx.payout_hold_status === "held") {
+    const releaseText = tx.payout_release_at
+      ? `available ${moment(tx.payout_release_at).format("MMM D [at] h:mm A")} if no report is filed`
+      : "available once the 24-hour contest reporting window has passed with no report filed";
+    return {
+      heading: "Pending release",
+      text: `You won this contest and ${amount} has been credited, but held pending the standard 24-hour contest reporting window — ${releaseText}. It does not count toward your available balance yet.`,
+    };
+  }
   if (isSuppressedDuplicate(tx)) {
     return {
       heading: "No balance change",
@@ -187,7 +197,8 @@ export default function TransactionHistory({
           const opponentName = context?.opponentName;
           const timeControl = match?.display_name || titleCase(match?.time_control);
           const result = getMatchResult(match, userId);
-          const status = statusConfig[tx.status] || statusConfig.completed;
+          const isPendingRelease = tx.type === "payout" && tx.payout_hold_status === "held";
+          const status = isPendingRelease ? statusConfig.pending_release : (statusConfig[tx.status] || statusConfig.completed);
           const isFailed = tx.status === "failed";
           const needsReview = tx.status === "review_required";
           const explanation = getTransactionExplanation(tx, match);
@@ -206,12 +217,16 @@ export default function TransactionHistory({
             ? `Not applied · $${formatMoney(tx.amount)}`
             : needsReview
               ? `Review · $${formatMoney(tx.amount)}`
-              : `${isIncoming ? "+" : "-"}$${formatMoney(tx.amount)}`;
+              : isPendingRelease
+                ? `Pending · +$${formatMoney(tx.amount)}`
+                : `${isIncoming ? "+" : "-"}$${formatMoney(tx.amount)}`;
           const amountClass = isFailed || needsReview
             ? "text-white/45"
-            : isIncoming
-              ? "text-green-400"
-              : "text-red-400";
+            : isPendingRelease
+              ? "text-[#C9A84C]"
+              : isIncoming
+                ? "text-green-400"
+                : "text-red-400";
           const subtitleParts = match
             ? [
                 opponentName ? `vs. ${opponentName}` : "Contest transaction",
