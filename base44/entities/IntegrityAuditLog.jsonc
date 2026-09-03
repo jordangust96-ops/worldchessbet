@@ -24,7 +24,8 @@
         "add_notes",
         "freeze_withdrawals",
         "unfreeze_withdrawals",
-        "request_identity_verification"
+        "request_identity_verification",
+        "open_case"
       ]
     },
     "previous_status": {
