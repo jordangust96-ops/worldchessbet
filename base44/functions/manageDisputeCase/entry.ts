@@ -672,6 +672,7 @@ Deno.serve(async (req) => {
           await applyBalanceHold(base44, {
             userId: pendingPayout.user_id, amount: pendingPayout.amount, direction: 'release',
             matchId: disputeCase.match_id, actor: 'administrator', actorId: admin.id, triggerEvent: 'pending_winnings_release',
+            walletTransactionId: pendingPayout.id,
           });
           await base44.asServiceRole.entities.WalletTransaction.update(pendingPayout.id, { payout_hold_status: 'released' });
           effectsSummary = `${effectsSummary} The pending winnings hold on this contest was released to Available Balance.`.trim();
