@@ -148,6 +148,16 @@ async function classifySettlementPostingFailure(base44, transaction, match, game
 // that the winner and a drawn match's players already get. On a draw, both
 // the Entry Amount and the Service Fee are fully refunded to each player; no
 // Platform Revenue is recognized.
+//
+// Pending winnings: the winner's payout is credited into Held Balance, not
+// Available Balance (see the 'user_account' leg below) — it becomes
+// withdrawable only after the same 24-hour window players have to file a
+// contest report (submitContestReport) has passed with no report filed, via
+// the releasePendingWinnings sweep. Filing a report keeps it held under
+// review; an admin resolving that report via manageDisputeCase either
+// releases it (no_violation and other non-reversing resolutions) or debits
+// it directly out of Held Balance (contest_reversed/contest_voided). This
+// never delays or affects the loser's forfeiture, which is unconditional.
 
 Deno.serve(async (req) => {
   try {
