@@ -1,0 +1,99 @@
+{
+  "name": "SeamlessStatusReconciliation",
+  "type": "object",
+  "properties": {
+    "wallet_transaction_id": {
+      "type": "string",
+      "description": "ChessBet WalletTransaction being recovered through the Seamless single-check lookup."
+    },
+    "provider_reference_id": {
+      "type": "string",
+      "maxLength": 255,
+      "description": "Persisted Seamless check_id. ChessBet labels are never used as lookup keys."
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "active",
+        "retryable_error",
+        "settled",
+        "failed",
+        "reversed",
+        "manual_review"
+      ],
+      "default": "active"
+    },
+    "provider_status": {
+      "type": "string",
+      "maxLength": 64,
+      "description": "Latest sanitized status returned by Seamless."
+    },
+    "normalized_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "completed",
+        "failed",
+        "reversed"
+      ],
+      "default": "pending"
+    },
+    "attempt_count": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 0
+    },
+    "first_seen_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_checked_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "next_check_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_error_code": {
+      "type": "string",
+      "maxLength": 128,
+      "description": "Sanitized local/provider error category; never contains credentials or response payloads."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000
+    }
+  },
+  "required": [
+    "wallet_transaction_id",
+    "provider_reference_id",
+    "state",
+    "normalized_status",
+    "attempt_count",
+    "first_seen_at",
+    "next_check_at"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": false
+  }
+}
