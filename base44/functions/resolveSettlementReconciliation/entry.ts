@@ -2,7 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { requireAdminMfa } from '../../shared/mfa.ts';
 
 const ACTIVE_FLAG_STATUSES = ['open', 'under_review'];
-const SETTLEMENT_TYPES = ['payout', 'wager_refund', 'service_fee_refund'];
+const SETTLEMENT_TYPES = ['payout', 'wager_refund', 'wager_forfeit', 'service_fee_refund'];
 const SETTLEMENT_EVENTS = ['match_settlement', 'match_settlement_draw', 'service_fee_refund'];
 
 Deno.serve(async (req) => {
@@ -86,8 +86,20 @@ Deno.serve(async (req) => {
     if (settlementLedgerEntries.length) {
       return Response.json({ error: 'Settlement ledger entries already exist; automated reconciliation is not safe' }, { status: 409 });
     }
-    if (settlementTransactions.length !== 1 || orphanTransactions.length !== 1) {
-      return Response.json({ error: 'Expected exactly one unposted settlement transaction' }, { status: 409 });
+    // A decisive settlement now creates up to two WalletTransaction rows
+    // before any ledger posting — the winner's payout and the loser's
+    // forfeiture — elected and completed together in one posting call. A
+    // crashed attempt may have stopped after creating just one of them, or
+    // both; either is safe to retry from scratch as long as every settlement
+    // transaction found is still fully orphaned (no ledger group, never
+    // processed). Anything else means something already posted partially in
+    // a way this automated path cannot safely reason about.
+    if (
+      settlementTransactions.length === 0 ||
+      settlementTransactions.length > 2 ||
+      settlementTransactions.length !== orphanTransactions.length
+    ) {
+      return Response.json({ error: 'Expected only unposted settlement transactions' }, { status: 409 });
     }
 
     const reservePerPlayer = Number(match.wager_amount || 0);
@@ -134,12 +146,12 @@ Deno.serve(async (req) => {
       settlement_hold: true,
     });
 
-    await base44.asServiceRole.entities.WalletTransaction.update(orphanTransactions[0].id, {
+    await Promise.all(orphanTransactions.map((row) => base44.asServiceRole.entities.WalletTransaction.update(row.id, {
       status: 'failed',
       integration_status: 'failed',
       source_event: 'settlement_reconciliation_abandoned',
-      description: `${orphanTransactions[0].description || 'Settlement transaction'} — superseded by admin reconciliation`,
-    });
+      description: `${row.description || 'Settlement transaction'} — superseded by admin reconciliation`,
+    })));
 
     await base44.asServiceRole.entities.Match.update(match.id, {
       status: 'in_progress',
