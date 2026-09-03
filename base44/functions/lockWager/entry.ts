@@ -2,6 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { postLedgerLegs } from '../../shared/ledger.ts';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 import { isSocureIdentityVerified } from '../../shared/identityEligibility.js';
+import { acquireUserWalletLock, releaseUserWalletLock } from '../../shared/seamlessAtomicStore.ts';
 
 // Reserves a player's Entry Amount into escrow during the shared Preparing
 // Match phase. Requires that player to have already certified Fair Play.
@@ -21,10 +22,21 @@ import { isSocureIdentityVerified } from '../../shared/identityEligibility.js';
 // own balanced ledger group so the two remain independently auditable.
 
 Deno.serve(async (req) => {
+  // Same per-user Redis lock submitSeamlessDeposit/submitSeamlessWithdrawal use
+  // around their wallet debit, and for the same reason: postLedgerLegs reads
+  // the current Wallet balance and writes back a computed result with no
+  // compare-and-set. Without a lock here, two lockWager calls for the same
+  // user across two different matches (concurrent contest entries) could
+  // both read the same starting balance and race, letting a lost update
+  // reserve funds beyond what the user actually has. Held for the full
+  // reservation — balance check through both ledger postings.
+  let lockOwner = '';
+  let userId = '';
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    userId = user.id;
 
     // Only Verified accounts may enter paid contests (Provisional/Suspended/
     // Closed accounts cannot lock a wager. Only an authoritative Socure
@@ -73,6 +85,11 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'This contest is missing its disclosed Platform Service Fee.' }, { status: 409 });
     }
     const totalCharge = match.wager_amount + serviceFee;
+
+    lockOwner = crypto.randomUUID();
+    if (!await acquireUserWalletLock(user.id, lockOwner)) {
+      return Response.json({ error: 'wager_lock_in_progress', retryable: true }, { status: 409 });
+    }
 
     const wallets = await base44.asServiceRole.entities.Wallet.filter({ user_id: user.id });
     const wallet = wallets[0];
@@ -213,5 +230,9 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error(JSON.stringify({ event: 'backend_function_failed', error: error?.message || 'unknown_error' }));
     return Response.json({ error: 'internal_error' }, { status: 500 });
+  } finally {
+    if (userId && lockOwner) {
+      try { await releaseUserWalletLock(userId, lockOwner); } catch { /* TTL safely releases an unavailable store lock. */ }
+    }
   }
 });
