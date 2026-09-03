@@ -87,6 +87,7 @@ Deno.serve(async (req) => {
     let newStatus = previousStatus;
     const flagUpdates = { assigned_admin_id: admin.id };
     let notifyUser = null;
+    let auditNotes = notes;
 
     if (action === 'mark_under_review') {
       newStatus = 'under_review';
@@ -202,7 +203,7 @@ Deno.serve(async (req) => {
 
       newStatus = 'under_review';
       flagUpdates.status = newStatus;
-      notes = notes || `Opened Dispute Case #CB-${String(caseNumber).padStart(6, '0')} from this flag.`;
+      auditNotes = auditNotes || `Opened Dispute Case #CB-${String(caseNumber).padStart(6, '0')} from this flag.`;
     } else if (action === 'mark_action_taken') {
       newStatus = 'action_taken';
       flagUpdates.status = newStatus;
@@ -234,7 +235,7 @@ Deno.serve(async (req) => {
       action,
       previous_status: previousStatus,
       new_status: newStatus,
-      notes: notes || '',
+      notes: auditNotes || '',
     });
 
     if (notifyUser) {
