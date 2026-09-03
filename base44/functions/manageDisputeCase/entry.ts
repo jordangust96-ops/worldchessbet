@@ -43,13 +43,17 @@ const fmtCase = (n) => `CB-${String(n).padStart(6, '0')}`;
 // otherwise from Available Balance, capped at what is actually available so
 // no balance ever goes negative. All legs across a call must balance
 // (sum debit === sum credit); every leg posts its own immutable LedgerEntry.
-async function postRemedyLegs(base44, { matchId, admin, triggerEvent, legs }) {
+async function postRemedyLegs(base44, { matchId, admin, triggerEvent, legs, groupId: explicitGroupId }) {
   const totalDebit = legs.reduce((s, l) => s + (l.debit || 0), 0);
   const totalCredit = legs.reduce((s, l) => s + (l.credit || 0), 0);
   if (Math.round(totalDebit * 100) !== Math.round(totalCredit * 100)) {
     throw new Error(`Unbalanced remedy legs: debit=${totalDebit} credit=${totalCredit}`);
   }
-  const groupId = crypto.randomUUID();
+  // Deterministic, greppable ledger_group_id when the caller can supply one
+  // (a dispute case can only be resolved once, so `dispute:<caseId>:<event>`
+  // is guaranteed unique) — falls back to a random id for any future caller
+  // that can't guarantee that.
+  const groupId = explicitGroupId || crypto.randomUUID();
   const entries = [];
   for (const leg of legs) {
     if (leg.ledgerAccount === 'user_account') {
