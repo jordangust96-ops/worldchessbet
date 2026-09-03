@@ -103,6 +103,7 @@ async function postRemedyLegs(base44, { matchId, admin, triggerEvent, legs, grou
           correlation_id: matchId || groupId,
           currency: 'USD',
           schema_version: 1,
+          launch_epoch: 2,
         })
       );
     } else {
@@ -129,6 +130,7 @@ async function postRemedyLegs(base44, { matchId, admin, triggerEvent, legs, grou
           correlation_id: matchId || groupId,
           currency: 'USD',
           schema_version: 1,
+          launch_epoch: 2,
         })
       );
     }
@@ -470,6 +472,7 @@ Deno.serve(async (req) => {
               source_event: 'dispute_case_contest_reversal',
               initiating_actor: 'administrator',
               initiating_actor_id: admin.id,
+              launch_epoch: 2,
             });
             walletTransactionIds.push(winnerReversalTx.id);
             legs.push({ ledgerAccount: 'user_account', userId: winnerId, debit: payout, credit: 0, fromHeld: holdCoversThis, transactionType: 'reversal', walletTransactionId: winnerReversalTx.id });
@@ -487,6 +490,7 @@ Deno.serve(async (req) => {
               source_event: 'dispute_case_contest_reversal',
               initiating_actor: 'administrator',
               initiating_actor_id: admin.id,
+              launch_epoch: 2,
             });
             walletTransactionIds.push(loserRefundTx.id);
             legs.push({ ledgerAccount: 'user_account', userId: loserId, debit: 0, credit: entryAmount, transactionType: 'reversal', walletTransactionId: loserRefundTx.id });
@@ -552,6 +556,7 @@ Deno.serve(async (req) => {
                 source_event: 'dispute_case_contest_void',
                 initiating_actor: 'administrator',
                 initiating_actor_id: admin.id,
+                launch_epoch: 2,
               });
               walletTransactionIds.push(winnerReversalTx.id);
               legs.push({ ledgerAccount: 'user_account', userId: winnerId, debit: payout, credit: 0, fromHeld: holdCoversThis, transactionType: 'reversal', walletTransactionId: winnerReversalTx.id });
@@ -569,6 +574,7 @@ Deno.serve(async (req) => {
                 source_event: 'dispute_case_contest_void',
                 initiating_actor: 'administrator',
                 initiating_actor_id: admin.id,
+                launch_epoch: 2,
               });
               walletTransactionIds.push(winnerRefundTx.id);
               legs.push({ ledgerAccount: 'user_account', userId: winnerId, debit: 0, credit: entryAmount, transactionType: 'reversal', walletTransactionId: winnerRefundTx.id });
@@ -586,6 +592,7 @@ Deno.serve(async (req) => {
                 source_event: 'dispute_case_contest_void',
                 initiating_actor: 'administrator',
                 initiating_actor_id: admin.id,
+                launch_epoch: 2,
               });
               walletTransactionIds.push(loserRefundTx.id);
               legs.push({ ledgerAccount: 'user_account', userId: loserId, debit: 0, credit: entryAmount, transactionType: 'reversal', walletTransactionId: loserRefundTx.id });
@@ -628,6 +635,7 @@ Deno.serve(async (req) => {
                   source_event: 'dispute_case_contest_void',
                   initiating_actor: 'administrator',
                   initiating_actor_id: admin.id,
+                  launch_epoch: 2,
                 });
                 walletTransactionIds.push(refundTx.id);
                 walletTransactionId = refundTx.id;
