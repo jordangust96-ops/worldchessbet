@@ -19,6 +19,7 @@ function normalizeTransaction(transaction, ledgerEntries) {
     wager_forfeit: 'release',
     service_fee_charge: 'reserve',
     service_fee_refund: 'release',
+    withdrawal_fee: 'debit',
   };
   return {
     transaction_id: transaction.id,
