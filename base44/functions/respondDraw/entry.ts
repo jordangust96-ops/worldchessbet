@@ -7,7 +7,7 @@ Deno.serve(async (req) => {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { gameId, action } = await req.json();
-    if (!gameId || !['offer', 'accept', 'decline'].includes(action)) {
+    if (!gameId || !['offer', 'accept', 'decline', 'cancel'].includes(action)) {
       return Response.json({ error: 'gameId and a valid action are required' }, { status: 400 });
     }
 
@@ -27,12 +27,47 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'You are not a player in this match' }, { status: 403 });
     }
 
+    // Every branch below re-fetches and re-validates immediately before its
+    // write. Game.update is a merge-patch, not compare-and-set, and several
+    // other paths (submitMove, resignGame, checkTimeout, and this function
+    // itself called again) can change draw_offered_by or complete the game
+    // in the gap between the read above and here — without this, a stale
+    // accept could silently overwrite a real checkmate/resignation/timeout
+    // result with a draw, misdirecting settlement.
+
     if (action === 'offer') {
       if (game.draw_offered_by) {
         return Response.json({ error: 'A draw offer is already pending' }, { status: 400 });
       }
+      const preCommitGame = await base44.asServiceRole.entities.Game.get(gameId);
+      if (!preCommitGame || preCommitGame.status === 'completed') {
+        return Response.json({ error: 'Game has already ended' }, { status: 400 });
+      }
+      if (preCommitGame.draw_offered_by) {
+        return Response.json({ error: 'A draw offer is already pending' }, { status: 400 });
+      }
       const updatedGame = await base44.asServiceRole.entities.Game.update(gameId, {
         draw_offered_by: user.id,
+      });
+      return Response.json({ game: updatedGame });
+    }
+
+    if (action === 'cancel') {
+      // Lets the offering player retract their own still-pending offer,
+      // rather than leaving it live and acceptable indefinitely with no way
+      // to withdraw it.
+      if (game.draw_offered_by !== user.id) {
+        return Response.json({ error: 'You do not have an active draw offer to cancel' }, { status: 400 });
+      }
+      const preCommitGame = await base44.asServiceRole.entities.Game.get(gameId);
+      if (!preCommitGame || preCommitGame.status === 'completed') {
+        return Response.json({ error: 'Game has already ended' }, { status: 400 });
+      }
+      if (preCommitGame.draw_offered_by !== user.id) {
+        return Response.json({ error: 'This draw offer is no longer active' }, { status: 409 });
+      }
+      const updatedGame = await base44.asServiceRole.entities.Game.update(gameId, {
+        draw_offered_by: '',
       });
       return Response.json({ game: updatedGame });
     }
@@ -45,6 +80,13 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'decline') {
+      const preCommitGame = await base44.asServiceRole.entities.Game.get(gameId);
+      if (!preCommitGame || preCommitGame.status === 'completed') {
+        return Response.json({ error: 'Game has already ended' }, { status: 400 });
+      }
+      if (preCommitGame.draw_offered_by !== game.draw_offered_by) {
+        return Response.json({ error: 'This draw offer is no longer active' }, { status: 409 });
+      }
       const updatedGame = await base44.asServiceRole.entities.Game.update(gameId, {
         draw_offered_by: '',
       });
@@ -52,6 +94,13 @@ Deno.serve(async (req) => {
     }
 
     // action === 'accept'
+    const preCommitGame = await base44.asServiceRole.entities.Game.get(gameId);
+    if (!preCommitGame || preCommitGame.status === 'completed') {
+      return Response.json({ error: 'Game has already ended' }, { status: 400 });
+    }
+    if (preCommitGame.draw_offered_by !== game.draw_offered_by) {
+      return Response.json({ error: 'This draw offer is no longer active' }, { status: 409 });
+    }
     const updatedGame = await base44.asServiceRole.entities.Game.update(gameId, {
       status: 'completed',
       result: 'draw',
