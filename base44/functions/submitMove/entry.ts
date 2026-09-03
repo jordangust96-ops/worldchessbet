@@ -105,6 +105,7 @@ Deno.serve(async (req) => {
             winner_id: myColor === 'w' ? match.player2_id : match.player1_id,
             end_reason: 'timeout',
             completed_at: new Date().toISOString(),
+            draw_offered_by: '',
             [moverTimeField]: 0,
           }
         : {
@@ -113,8 +114,21 @@ Deno.serve(async (req) => {
             winner_id: '',
             end_reason: 'timeout_vs_insufficient_material',
             completed_at: new Date().toISOString(),
+            draw_offered_by: '',
             [moverTimeField]: 0,
           };
+
+      // Re-validate immediately before committing: another action (a
+      // resignation, a draw acceptance, the opponent's own move, or the
+      // opponent's checkTimeout call) may have already resolved or advanced
+      // this game in the time it took to reach this point. Game.update is a
+      // merge-patch, not compare-and-set, so without this a stale write here
+      // could silently overwrite a correct, already-committed outcome.
+      const preCommitGame = await base44.asServiceRole.entities.Game.get(gameId);
+      if (!preCommitGame || preCommitGame.status === 'completed' || preCommitGame.fen !== game.fen) {
+        return Response.json({ error: 'Game state changed; refresh before moving' }, { status: 409 });
+      }
+
       const timedOutGame = await base44.asServiceRole.entities.Game.update(gameId, timeoutUpdates);
       return Response.json({ game: timedOutGame });
     }
@@ -136,6 +150,11 @@ Deno.serve(async (req) => {
       pgn: chess.pgn(),
       [moverTimeField]: moverRemainingMs,
       turn_started_at: moveTimestamp,
+      // A pending draw offer lapses the moment either side makes another
+      // move — standard chess convention, and load-bearing here: without
+      // it an offer made many moves ago stays acceptable indefinitely,
+      // letting a losing player fall back to a stale offer to avoid a loss.
+      draw_offered_by: '',
       move_log: [
         ...(game.move_log || []),
         {
@@ -166,6 +185,15 @@ Deno.serve(async (req) => {
         else if (chess.isInsufficientMaterial()) updates.end_reason = 'insufficient_material';
         else updates.end_reason = 'fifty_move_rule';
       }
+    }
+
+    // Re-validate immediately before committing, for the same reason as the
+    // timeout branch above — this covers both a same-player double-submit
+    // (fen changed since we read it) and a completion race against
+    // resignGame/respondDraw/checkTimeout (status flipped to completed).
+    const preCommitGame = await base44.asServiceRole.entities.Game.get(gameId);
+    if (!preCommitGame || preCommitGame.status === 'completed' || preCommitGame.fen !== game.fen) {
+      return Response.json({ error: 'Game state changed; refresh before moving' }, { status: 409 });
     }
 
     const updatedGame = await base44.asServiceRole.entities.Game.update(gameId, updates);
