@@ -16,6 +16,14 @@ const TIME_CONTROLS = {
 // could race independently). Idempotent: however many times/clients call this
 // for the same matchId, only one Game is ever authoritative — every caller
 // converges on the same Game id.
+//
+// Only ever creates or attaches a Game for a match in a status where that is
+// legitimate (both_ready and later). This is deliberate defense in depth
+// against a match that has been cancelled (refunded) — whether by the user
+// or by the preparation-timeout sweep — ever ending up with a live Game
+// attached, which would otherwise let both players play a real-money match
+// for free after already being refunded.
+const LIVE_OR_POST_START_STATUSES = new Set(['both_ready', 'in_progress', 'settling', 'completed']);
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -33,6 +41,10 @@ Deno.serve(async (req) => {
     const isP2 = match.player2_id === user.id;
     if (!isP1 && !isP2) {
       return Response.json({ error: 'You are not a player in this match' }, { status: 403 });
+    }
+
+    if (!LIVE_OR_POST_START_STATUSES.has(match.status)) {
+      return Response.json({ error: 'This match is not in a state that can have a game attached' }, { status: 409 });
     }
 
     // Already attached — just return it.
@@ -98,7 +110,12 @@ Deno.serve(async (req) => {
     }
 
     const freshMatch = await base44.asServiceRole.entities.Match.get(matchId);
-    if (!freshMatch.game_id) {
+    // Re-check status against the freshest read before attaching — a
+    // cancellation could have landed while the above ran. If so, leave the
+    // Game unattached: it stays unreachable through the match (every lookup
+    // here is keyed off matchId + this status gate), and simply becomes an
+    // orphaned row rather than a live game on a refunded match.
+    if (!freshMatch.game_id && LIVE_OR_POST_START_STATUSES.has(freshMatch.status)) {
       await base44.asServiceRole.entities.Match.update(matchId, { game_id: canonicalGame.id });
     }
 
