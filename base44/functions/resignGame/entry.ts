@@ -28,6 +28,17 @@ Deno.serve(async (req) => {
     const winnerId = isP1 ? match.player2_id : match.player1_id;
     const result = isP1 ? 'black_win' : 'white_win';
 
+    // Re-validate immediately before committing: a checkmate/timeout/draw
+    // acceptance may have already resolved this game since the read above.
+    // Game.update is a merge-patch, not compare-and-set, so without this a
+    // stale resignation could silently overwrite a correct, already-
+    // committed outcome (e.g. turning an actual checkmate loss into a
+    // resignation record with a different end_reason).
+    const preCommitGame = await base44.asServiceRole.entities.Game.get(gameId);
+    if (!preCommitGame || preCommitGame.status === 'completed') {
+      return Response.json({ error: 'Game has already ended' }, { status: 400 });
+    }
+
     const updatedGame = await base44.asServiceRole.entities.Game.update(gameId, {
       status: 'completed',
       result,
