@@ -48,6 +48,7 @@ Deno.serve(async (req) => {
       openCases, reviewCases, openFlags, reviewFlags,
       reconciliations, manualReviewAnalyses, failedEvents, inProgressMatches,
       wallets, ledgerAccounts, settlementEntries,
+      awaitingAnalyzerAnalyses, failedAnalyses,
     ] = await Promise.all([
       svc.DisputeCase.filter({ status: 'open' }, '-created_date', 500),
       svc.DisputeCase.filter({ status: 'under_review' }, '-created_date', 500),
@@ -60,6 +61,13 @@ Deno.serve(async (req) => {
       svc.Wallet.list(null, 5000),
       svc.SystemLedgerAccount.list(null, 100),
       svc.LedgerEntry.filter({ ledger_account: 'settlement' }, null, 5000),
+      // Fair Play screening backlog — unlike manual_review, these never
+      // otherwise surface anywhere an admin would see them in aggregate. A
+      // large or stale backlog here usually means the external analyzer is
+      // unconfigured or down, silently stopping all engine-assistance
+      // screening platform-wide.
+      svc.FairPlayAnalysis.filter({ status: 'awaiting_analyzer' }, '-created_date', 500),
+      svc.FairPlayAnalysis.filter({ status: 'failed' }, '-created_date', 500),
     ]);
 
     // --- Internal ledger invariant (mirrors checkLedgerIntegrity, read-only here) ---
@@ -199,6 +207,27 @@ Deno.serve(async (req) => {
       });
     }
 
+    const staleAwaitingAnalyzer = awaitingAnalyzerAnalyses.filter((a) => {
+      const t = new Date(a.updated_date || a.created_date || 0).getTime();
+      return Number.isFinite(t) && (now.getTime() - t) > DAY_MS;
+    });
+    if (staleAwaitingAnalyzer.length > 0) {
+      pushFinding({
+        finding_key: `fair-play-analyzer-backlog-${briefDate}`,
+        category: 'fair_play',
+        priority: staleAwaitingAnalyzer.length >= 10 ? 'high' : 'medium',
+        status: 'human_approval_required',
+        authority_level: 'autonomous',
+        title: `Fair Play screening backlog: ${staleAwaitingAnalyzer.length} game(s) awaiting the analyzer for over 24 hours`,
+        summary: `${awaitingAnalyzerAnalyses.length} FairPlayAnalysis record(s) are in status 'awaiting_analyzer' (${staleAwaitingAnalyzer.length} of them for over 24 hours) and ${failedAnalyses.length} are in status 'failed'. This usually means FAIR_PLAY_SCREENING_ENABLED, FAIR_PLAY_ANALYZER_URL, or FAIR_PLAY_ANALYZER_SECRET is unset or the analyzer is unreachable — engine-assistance screening may be silently stopped platform-wide.`,
+        evidence: `awaiting_analyzer_count=${awaitingAnalyzerAnalyses.length}; stale_awaiting_analyzer_count=${staleAwaitingAnalyzer.length}; failed_count=${failedAnalyses.length}`,
+        recommended_next_step: 'Verify the Fair Play analyzer environment configuration and connectivity, then retry affected analyses from Admin → User Integrity.',
+        is_approval_required: true,
+        related_entity_type: 'fair_play_analysis',
+        related_entity_id: '',
+      });
+    }
+
     const newLowRiskCount = stuckMatches.length + manualReviewAnalyses.length + Math.max(0, casesAwaiting.length - highCases.length);
 
     // --- Persist findings (reuse open finding by key to avoid duplicates) ---
@@ -236,6 +265,7 @@ Deno.serve(async (req) => {
     lines.push(`## High-priority investigations: ${highCases.length + highFlags.length}`);
     lines.push(`## Money/ledger exceptions: ${moneyExceptions} (ledger ${ledgerBalanced ? 'balanced' : `IMBALANCED (diff ${ledgerDiff})`})`);
     lines.push(`## Fair-play/dispute cases awaiting review: ${fairPlayAwaiting.length} fair-play-linked (${casesAwaiting.length} total disputes), ${manualReviewAnalyses.length} analyses in manual_review`);
+    lines.push(`## Fair-play screening backlog: ${awaitingAnalyzerAnalyses.length} awaiting_analyzer (${staleAwaitingAnalyzer.length} over 24h), ${failedAnalyses.length} failed`);
     lines.push(`## Production anomalies: ${productionAnomalies} failed integration deliveries (last 24h)`);
     lines.push(`## Match health: ${stuckMatches.length} possibly stuck in-progress matches`);
     lines.push(`## New low-risk items: ${newLowRiskCount}`);
@@ -266,6 +296,8 @@ Deno.serve(async (req) => {
         high_priority_investigation_count: highCases.length + highFlags.length,
         money_ledger_exception_count: moneyExceptions,
         fair_play_dispute_awaiting_review_count: fairPlayAwaiting.length,
+        fair_play_analyzer_backlog_count: awaitingAnalyzerAnalyses.length,
+        fair_play_analyzer_failed_count: failedAnalyses.length,
         production_anomaly_count: productionAnomalies,
         resolved_low_risk_count: 0,
         new_low_risk_count: newLowRiskCount,
@@ -294,6 +326,8 @@ Deno.serve(async (req) => {
         high_priority_investigations: highCases.length + highFlags.length,
         money_ledger_exceptions: moneyExceptions,
         fair_play_dispute_awaiting_review: fairPlayAwaiting.length,
+        fair_play_analyzer_backlog: awaitingAnalyzerAnalyses.length,
+        fair_play_analyzer_failed: failedAnalyses.length,
         production_anomalies: productionAnomalies,
         stuck_matches: stuckMatches.length,
         new_low_risk: newLowRiskCount,
