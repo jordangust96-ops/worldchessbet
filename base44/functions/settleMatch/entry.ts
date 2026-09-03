@@ -485,7 +485,12 @@ Deno.serve(async (req) => {
       }
       legs.push(
         { ledgerAccount: 'suspense', debit: totalFee, credit: 0, transactionType: 'platform_fee' },
-        { ledgerAccount: 'user_account', userId: winnerId, debit: 0, credit: pot, heldDelta: -(wagerAmount + serviceFee), transactionType: 'match_settlement', totalWonDelta: pot },
+        // creditHeld (not credit): the pot lands in the winner's Held Balance,
+        // not Available Balance — it stays pending until releasePendingWinnings
+        // (or an admin resolving a filed report via manageDisputeCase)
+        // releases it. heldDelta separately releases the winner's own
+        // already-reserved entry + fee, which this payout supersedes.
+        { ledgerAccount: 'user_account', userId: winnerId, debit: 0, credit: 0, creditHeld: pot, heldDelta: -(wagerAmount + serviceFee), transactionType: 'match_settlement', totalWonDelta: pot },
         { ledgerAccount: 'platform_revenue', debit: 0, credit: totalFee, transactionType: 'platform_fee' },
       );
       if (loserId) {
