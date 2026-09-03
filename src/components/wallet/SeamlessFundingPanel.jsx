@@ -313,11 +313,32 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
             Minimum deposit: ${MIN_DEPOSIT_AMOUNT.toFixed(2)}
           </p>
         )}
+        {direction === "withdrawal" && wallet && (wallet.available_balance || 0) > 0 && (
+          <button
+            type="button"
+            onClick={() => setAmount(String((wallet.available_balance || 0).toFixed(2)))}
+            disabled={ineligible || !verifiedBank || !bankScreened || !transferDirectionEnabled}
+            className="w-full text-[11px] text-[#C9A84C] text-center hover:underline disabled:opacity-40 disabled:pointer-events-none"
+          >
+            Withdraw full balance (${(wallet.available_balance || 0).toFixed(2)}) — no fee
+          </button>
+        )}
         {direction === "withdrawal" && parsedAmount > 0 && parsedAmount < SMALL_WITHDRAWAL_THRESHOLD && (
-          <p className="text-[11px] text-amber-400/80 text-center">
-            Withdrawals under ${SMALL_WITHDRAWAL_THRESHOLD.toFixed(2)} include a ${SMALL_WITHDRAWAL_FEE.toFixed(2)} fee
-            (${(parsedAmount + SMALL_WITHDRAWAL_FEE).toFixed(2)} will be deducted from your balance).
-          </p>
+          isFullBalanceWithdrawal ? (
+            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-2.5 text-center">
+              <p className="text-xs font-medium text-emerald-300">No fee — you're withdrawing your full balance</p>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-3 py-2.5 text-center">
+              <p className="text-xs font-semibold text-amber-300">
+                ${SMALL_WITHDRAWAL_FEE.toFixed(2)} fee applies to withdrawals under ${SMALL_WITHDRAWAL_THRESHOLD.toFixed(2)}
+              </p>
+              <p className="mt-1 text-[11px] text-amber-200/70">
+                ${(parsedAmount + SMALL_WITHDRAWAL_FEE).toFixed(2)} total will be deducted from your balance to send you ${parsedAmount.toFixed(2)}.
+                Withdraw your full balance instead to avoid this fee.
+              </p>
+            </div>
+          )
         )}
         <Button
           onClick={submit}
