@@ -16,6 +16,7 @@ function normalizeTransaction(transaction, ledgerEntries) {
     wager_lock: 'reserve',
     wager_refund: 'release',
     payout: 'credit',
+    wager_forfeit: 'release',
     service_fee_charge: 'reserve',
     service_fee_refund: 'release',
   };
