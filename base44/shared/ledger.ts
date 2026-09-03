@@ -50,7 +50,7 @@ export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletT
         total_withdrawn: (wallet.total_withdrawn || 0) + (leg.totalWithdrawnDelta || 0),
       });
       entries.push({
-        user_id: leg.userId, match_id: matchId || '', wallet_transaction_id: walletTransactionId || '',
+        user_id: leg.userId, match_id: matchId || '', wallet_transaction_id: leg.walletTransactionId || walletTransactionId || '',
         ledger_account: 'user_account', transaction_type: leg.transactionType,
         debit_amount: leg.debit || 0, credit_amount: leg.credit || 0,
         resulting_available_balance: newAvailable, resulting_held_balance: newHeld, resulting_total_balance: newTotal,
@@ -69,7 +69,7 @@ export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletT
       }
       await base44.asServiceRole.entities.SystemLedgerAccount.update(acct.id, { balance: newBalance });
       entries.push({
-        match_id: matchId || '', wallet_transaction_id: walletTransactionId || '',
+        match_id: matchId || '', wallet_transaction_id: leg.walletTransactionId || walletTransactionId || '',
         ledger_account: leg.ledgerAccount, transaction_type: leg.transactionType,
         debit_amount: leg.debit || 0, credit_amount: leg.credit || 0,
         resulting_total_balance: newBalance,
@@ -82,27 +82,40 @@ export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletT
   }
   const createdEntries = await base44.asServiceRole.entities.LedgerEntry.bulkCreate(entries);
 
-  // Normalize the user-facing transaction and emit a provider-neutral outbox
-  // record only after the balanced ledger posting has succeeded. Integration
-  // metadata is deliberately non-authoritative and cannot roll back money.
+  // Normalize the user-facing transaction(s) and emit a provider-neutral
+  // outbox record only after the balanced ledger posting has succeeded.
+  // Integration metadata is deliberately non-authoritative and cannot roll
+  // back money.
+  //
+  // A single balanced posting can touch more than one player's
+  // WalletTransaction — e.g. a decisive Match settlement posts the
+  // winner's payout and the loser's forfeiture together in one call so they
+  // complete atomically (either both land or neither does). Mark every
+  // distinct WalletTransaction referenced by these legs as completed, not
+  // just the call-level/primary one.
+  const directionByType = {
+    deposit: 'credit',
+    withdrawal: 'debit',
+    wager_lock: 'reserve',
+    wager_refund: 'release',
+    payout: 'credit',
+    wager_forfeit: 'release',
+    service_fee_charge: 'reserve',
+    service_fee_refund: 'release',
+  };
+  const requiresExternalRail = ['deposit', 'withdrawal', 'account_closure_disbursement'].includes(triggerEvent);
+  const walletTransactionIds = [...new Set(
+    legs.map((leg) => leg.walletTransactionId).concat([walletTransactionId]).filter(Boolean)
+  )];
   let walletTransaction = null;
-  if (walletTransactionId) {
+  for (const id of walletTransactionIds) {
     try {
-      walletTransaction = await base44.asServiceRole.entities.WalletTransaction.get(walletTransactionId);
-      const directionByType = {
-        deposit: 'credit',
-        withdrawal: 'debit',
-        wager_lock: 'reserve',
-        wager_refund: 'release',
-        payout: 'credit',
-        service_fee_charge: 'reserve',
-        service_fee_refund: 'release',
-      };
-      const requiresExternalRail = ['deposit', 'withdrawal', 'account_closure_disbursement'].includes(triggerEvent);
-      await base44.asServiceRole.entities.WalletTransaction.update(walletTransactionId, {
+      const current = await base44.asServiceRole.entities.WalletTransaction.get(id);
+      if (id === walletTransactionId) walletTransaction = current;
+      await base44.asServiceRole.entities.WalletTransaction.update(id, {
         status: 'completed',
         currency: 'USD',
-        direction: directionByType[walletTransaction.type] || 'internal',
+        direction: directionByType[current.type] || 'internal',
         correlation_id: correlationId,
         ledger_group_id: groupId,
         source_event: triggerEvent,
@@ -110,13 +123,13 @@ export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletT
         initiating_actor_id: actorId || '',
         processed_at: new Date().toISOString(),
         integration_status: requiresExternalRail ? 'unrouted' : 'internal_complete',
-        idempotency_key: walletTransaction.idempotency_key || `ledger:${groupId}`,
+        idempotency_key: current.idempotency_key || `ledger:${groupId}`,
         schema_version: 1,
       });
     } catch (error) {
       console.error(JSON.stringify({
         event: 'wallet_transaction_trace_update_failed',
-        wallet_transaction_id: walletTransactionId,
+        wallet_transaction_id: id,
         ledger_group_id: groupId,
         error: error?.message || 'unknown_error',
       }));
