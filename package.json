@@ -15,6 +15,7 @@
     "test:seamless-status-recovery": "node scripts/validate-seamless-status-recovery.mjs",
     "test:account-closure": "node scripts/validate-account-closure-payout.mjs",
     "test:dispute-traceability": "node scripts/validate-dispute-remedy-traceability.mjs",
+    "test:funding-source-traceability": "node scripts/validate-funding-source-traceability.mjs",
     "test:ledger": "node scripts/validate-ledger-integrity.mjs",
     "test:jurisdiction": "node scripts/validate-jurisdiction-gates.mjs",
     "test:waitlist": "node scripts/validate-jurisdiction-waitlist.mjs",
