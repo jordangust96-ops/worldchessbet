@@ -18,6 +18,7 @@ const typeConfig = {
   wager_lock: { icon: Minus, color: "text-orange-400", bg: "bg-orange-500/10", label: "Contest Entry Reserved" },
   wager_refund: { icon: Plus, color: "text-blue-400", bg: "bg-blue-500/10", label: "Contest Entry Refund" },
   payout: { icon: ArrowDownLeft, color: "text-[#C9A84C]", bg: "bg-[#C9A84C]/10", label: "Contest Winnings" },
+  wager_forfeit: { icon: Minus, color: "text-red-400", bg: "bg-red-500/10", label: "Contest Entry Forfeited" },
   service_fee_charge: { icon: Minus, color: "text-orange-400", bg: "bg-orange-500/10", label: "Platform Service Fee" },
   service_fee_refund: { icon: Plus, color: "text-blue-400", bg: "bg-blue-500/10", label: "Platform Service Fee Refund" },
 };
@@ -98,6 +99,7 @@ function getTransactionExplanation(tx, match) {
     withdrawal: `This transaction removed ${amount} from your ChessBet balance for withdrawal.`,
     wager_lock: `Your ${amount} contest entry moved from available funds to reserved funds when the contest began.`,
     wager_refund: `Your ${amount} contest entry was returned to your available balance.`,
+    wager_forfeit: `You lost this contest, so your ${amount} reserved contest entry was forfeited to your opponent and is no longer part of your balance.`,
     payout: entry
       ? `You won this contest and ${amount} was added to your available balance. The prize is funded by both players’ ${entry} contest entries; platform service fees are separate.`
       : `You won this contest and ${amount} was added to your available balance. Platform service fees are separate from the prize.`,
