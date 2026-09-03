@@ -26,6 +26,13 @@ async function markSettlementAttempt(base44, transaction, match, game, status) {
       ? `${transaction.description || 'Settlement transaction'} — not applied; another settlement attempt controls this contest.`
       : `${transaction.description || 'Settlement transaction'} — processing stopped and requires administrative review.`,
     schema_version: 1,
+    // A losing/failed election candidate must never keep the pending-
+    // winnings 'held' marker it was stamped with at creation (before the
+    // election resolved) — releasePendingWinnings and manageDisputeCase
+    // both also defensively require status:'completed' before treating a
+    // payout as the real held one, but clearing it here at the source is
+    // what keeps that invariant true rather than merely papering over it.
+    ...(transaction.type === 'payout' ? { payout_hold_status: '', payout_release_at: '' } : {}),
   });
 }
 
