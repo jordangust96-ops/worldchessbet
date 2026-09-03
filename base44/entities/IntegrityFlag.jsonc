@@ -59,6 +59,10 @@
       "type": "string",
       "description": "ID of the admin currently assigned to review this flag"
     },
+    "dispute_case_id": {
+      "type": "string",
+      "description": "Structured link to the DisputeCase this flag was converted into via manageIntegrityFlag's open_case action, if any. Mirrors the reciprocal DisputeCase.integrity_flag_id field."
+    },
     "notes": {
       "type": "string",
       "maxLength": 4000,
