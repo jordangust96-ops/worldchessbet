@@ -78,6 +78,7 @@ export default function WalletPage() {
   const [accountState, setAccountState] = useState("verified");
   const [identityStatus, setIdentityStatus] = useState("not_started");
   const [fullName, setFullName] = useState("");
+  const [notifyModalOpen, setNotifyModalOpen] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -264,6 +265,8 @@ export default function WalletPage() {
           </div>
         </div>
 
+        <RealMoneyLaunchNotice onNotifyClick={() => setNotifyModalOpen(true)} />
+
         <SocureIdentityVerificationPanel
           status={identityStatus}
           fullName={fullName}
@@ -271,6 +274,8 @@ export default function WalletPage() {
           wallet={wallet}
           onRefresh={loadData}
         />
+
+        <NotifyAtLaunchModal open={notifyModalOpen} onOpenChange={setNotifyModalOpen} />
 
         <SeamlessFundingPanel
           wallet={wallet}
