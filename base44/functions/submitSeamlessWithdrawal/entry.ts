@@ -178,9 +178,19 @@ Deno.serve(async (req) => {
       : null;
     if (!tx) {
       const wallet = (await base44.asServiceRole.entities.Wallet.filter({ user_id: user.id }))[0];
-      if (!wallet || Number(wallet.available_balance || 0) < totalDebitAmount) {
-        const errorMsg = withdrawalFee > 0 
-          ? `Insufficient balance. Withdrawal requires $${value} + $${withdrawalFee.toFixed(2)} fee = $${totalDebitAmount.toFixed(2)} available`
+      const availableBalance = Number(wallet?.available_balance || 0);
+      const baseFee = value < SMALL_WITHDRAWAL_THRESHOLD ? SMALL_WITHDRAWAL_FEE : 0;
+      // A withdrawal of the user's entire available balance ("close out")
+      // waives the small-withdrawal fee. Without this, a balance smaller than
+      // the fee itself (e.g. $2 available, $2.50 fee) could never be
+      // withdrawn at all under any requested amount -- funds permanently
+      // stranded, exactly what minimums/fees are meant to avoid.
+      const isFullBalanceWithdrawal = baseFee > 0 && availableBalance > 0 && value >= availableBalance - 0.005;
+      withdrawalFee = isFullBalanceWithdrawal ? 0 : baseFee;
+      const requiredBalance = value + withdrawalFee;
+      if (!wallet || availableBalance < requiredBalance) {
+        const errorMsg = withdrawalFee > 0
+          ? `Insufficient balance. Withdrawal requires $${value.toFixed(2)} + $${withdrawalFee.toFixed(2)} fee = $${requiredBalance.toFixed(2)} available`
           : 'Insufficient available balance';
         return Response.json({ error: errorMsg }, { status: 400 });
       }
@@ -192,8 +202,14 @@ Deno.serve(async (req) => {
         source_event: 'seamless_withdrawal_request', initiating_actor: 'user', initiating_actor_id: user.id,
         idempotency_key: idempotencyKey, correlation_id: '', schema_version: 1,
       });
-      operation = await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, wallet_transaction_id: tx.id, state: 'new' });
+      operation = await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, wallet_transaction_id: tx.id, state: 'new', fee_amount: withdrawalFee });
+    } else {
+      // Retry of an in-flight withdrawal: reuse the fee decision made on the
+      // first attempt rather than recomputing it, since this withdrawal's own
+      // reservation has already moved `value` out of available_balance by now.
+      withdrawalFee = Number(operation.fee_amount || 0);
     }
+    const totalDebitAmount = value + withdrawalFee;
 
     const reservationGroupId = await reserveWithdrawal(base44, tx, value);
     operation = await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, wallet_transaction_id: tx.id, reservation_ledger_group_id: reservationGroupId, state: 'reserved' });
