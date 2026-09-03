@@ -1,0 +1,45 @@
+{
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "*/2 * * * *",
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "game_clock_timeout_sweep",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "check_timeouts": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "checkGameTimeouts",
+            "args": {}
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Check Game Clock Timeouts",
+            "description": "Resolve active games whose clock has run out with no client present"
+          }
+        }
+      }
+    ]
+  },
+  "name": "Game Clock Timeout Sweep",
+  "description": "Every 2 minutes, resolves any in-progress game whose server-authoritative clock has actually run out, as a safety net for when no connected client is present to trigger the normal per-game timeout check."
+}
