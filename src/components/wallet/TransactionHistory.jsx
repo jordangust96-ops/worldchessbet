@@ -21,7 +21,10 @@ const typeConfig = {
   wager_forfeit: { icon: Minus, color: "text-red-400", bg: "bg-red-500/10", label: "Contest Entry Forfeited" },
   service_fee_charge: { icon: Minus, color: "text-orange-400", bg: "bg-orange-500/10", label: "Platform Service Fee" },
   service_fee_refund: { icon: Plus, color: "text-blue-400", bg: "bg-blue-500/10", label: "Platform Service Fee Refund" },
+  withdrawal_fee: { icon: Minus, color: "text-amber-400", bg: "bg-amber-500/10", label: "Small Withdrawal Fee" },
 };
+
+const SMALL_WITHDRAWAL_THRESHOLD = 10;
 
 const statusConfig = {
   completed: { label: "Completed", className: "text-green-400 bg-green-500/10 border-green-500/20" },
