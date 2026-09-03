@@ -153,8 +153,9 @@ Deno.serve(async (req) => {
       .find((item) => item.source_id && item.is_primary) ||
       (await base44.asServiceRole.entities.SeamlessBankAccount.filter({ user_id: user.id, status: 'verified' }))[0];
     if (!bank?.source_id) return Response.json({ error: 'Link and verify a bank account first', action: 'bank_link_required' }, { status: 400 });
+    let complianceEvidence;
     try {
-      await extendComplianceEvidenceRetention(base44, {
+      complianceEvidence = await extendComplianceEvidenceRetention(base44, {
         userId: user.id,
         fundingSourceId: bank.source_id,
         requireAchAuthorization: false,
@@ -201,6 +202,13 @@ Deno.serve(async (req) => {
         status: 'pending', integration_status: 'pending', currency: 'USD', direction: 'reserve',
         source_event: 'seamless_withdrawal_request', initiating_actor: 'user', initiating_actor_id: user.id,
         idempotency_key: idempotencyKey, correlation_id: '', schema_version: 1,
+        // The specific bank account (and, if one exists, its active debit
+        // authorization) used for THIS withdrawal — captured now, not
+        // re-derived later by looking up the user's current primary bank
+        // account, which can point at a different account by the time
+        // anyone investigates a dispute.
+        funding_source_id: bank.source_id,
+        ach_authorization_id: complianceEvidence?.authorization_id || '',
       });
       operation = await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, wallet_transaction_id: tx.id, state: 'new', fee_amount: withdrawalFee });
     } else {
