@@ -307,6 +307,17 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
           disabled={ineligible || !verifiedBank || !bankScreened || !transferDirectionEnabled}
           className="w-full h-12 px-4 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder:text-white/20 text-sm focus:border-[#C9A84C]/50 focus:outline-none disabled:opacity-40"
         />
+        {direction === "deposit" && (
+          <p className="text-[11px] text-white/30 text-center">
+            Minimum deposit: ${MIN_DEPOSIT_AMOUNT.toFixed(2)}
+          </p>
+        )}
+        {direction === "withdrawal" && parsedAmount > 0 && parsedAmount < SMALL_WITHDRAWAL_THRESHOLD && (
+          <p className="text-[11px] text-amber-400/80 text-center">
+            Withdrawals under ${SMALL_WITHDRAWAL_THRESHOLD.toFixed(2)} include a ${SMALL_WITHDRAWAL_FEE.toFixed(2)} fee
+            (${(parsedAmount + SMALL_WITHDRAWAL_FEE).toFixed(2)} will be deducted from your balance).
+          </p>
+        )}
         <Button
           onClick={submit}
           disabled={!canSubmit}
