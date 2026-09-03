@@ -49,6 +49,8 @@ Deno.serve(async (req) => {
   // provider reference/event id. Acknowledge them after authentication instead
   // of collapsing every probe into the same financial idempotency record.
   if (eventType === 'endpoint.test') return Response.json({ received: true, test: true });
+  // Admin-auth-equivalent (same Seamless secret) diagnostic for confirming the
+  // atomic store is reachable in production without touching any business data.
   if (eventType === 'diagnostic.atomic_store_probe') {
     const configured = atomicStoreEnabled();
     let reachable = false;
@@ -67,6 +69,31 @@ Deno.serve(async (req) => {
     : (pickCheckId(body) || pickSourceId(body) || pickLabel(body));
   const providerStatus = pickStatus(body);
   const idemKey = webhookIdempotencyKey({ eventId, providerRef, eventType, status: providerStatus, timestamp: body?.timestamp || '' });
+
+  // Merchant balance transfers are account-level treasury activity, not a
+  // player WalletTransaction: they never touch the ledger or a wallet lock,
+  // and recordIntegrationEvent is already idempotent on idempotencyKey. Handle
+  // them before the atomic-store claim so an unreachable/misconfigured Redis
+  // cannot turn these harmless, self-deduplicating audit events into 500s that
+  // burn through the provider's webhook retry budget (this is what was
+  // happening: Seamless disables the endpoint after enough failed retries).
+  if (isMerchantBalanceTransaction(body, eventType)) {
+    const base44 = createClientFromRequest(req);
+    await recordIntegrationEvent(base44, {
+      eventType: 'seamless.merchant_balance.transaction_status',
+      aggregateType: 'ledger_group', aggregateId: providerRef || idemKey,
+      correlationId: providerRef || idemKey, idempotencyKey: `audit:${idemKey}`,
+      actorType: 'system', status: providerStatus || 'received', amount: pickAmount(body),
+      result: 'merchant_balance_ignored',
+      eventData: {
+        provider_ref: providerRef, provider_status: providerStatus,
+        direction: body?.check?.direction || body?.direction || '',
+        description: body?.check?.description || body?.description || '',
+      },
+    });
+    return Response.json({ received: true, applied: false, ignored: true, category: 'merchant_balance' });
+  }
+
   const owner = crypto.randomUUID();
 
   try {
@@ -81,23 +108,6 @@ Deno.serve(async (req) => {
     let result;
     if (eventType.startsWith('funding-source.')) {
       result = await handleFundingSource(base44, body, eventType, idemKey);
-    } else if (isMerchantBalanceTransaction(body, eventType)) {
-      // Merchant balance transfers are account-level treasury activity, not a
-      // player WalletTransaction. They have no ChessBet label/reference, so
-      // retrying the player-settlement lookup can never make them match.
-      await recordIntegrationEvent(base44, {
-        eventType: 'seamless.merchant_balance.transaction_status',
-        aggregateType: 'ledger_group', aggregateId: providerRef || idemKey,
-        correlationId: providerRef || idemKey, idempotencyKey: `audit:${idemKey}`,
-        actorType: 'system', status: providerStatus || 'received', amount: pickAmount(body),
-        result: 'merchant_balance_ignored',
-        eventData: {
-          provider_ref: providerRef, provider_status: providerStatus,
-          direction: body?.check?.direction || body?.direction || '',
-          description: body?.check?.description || body?.description || '',
-        },
-      });
-      result = { received: true, applied: false, ignored: true, category: 'merchant_balance' };
     } else if (eventType === 'transaction.status' || eventType.startsWith('transaction.') || eventType === 'check.status' || eventType === 'status') {
       result = await handleTransaction(base44, body, eventType, idemKey, providerRef);
     } else {
