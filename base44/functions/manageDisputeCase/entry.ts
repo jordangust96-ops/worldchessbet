@@ -82,6 +82,7 @@ async function postRemedyLegs(base44, { matchId, admin, triggerEvent, legs }) {
         await base44.asServiceRole.entities.LedgerEntry.create({
           user_id: leg.userId,
           match_id: matchId || '',
+          wallet_transaction_id: leg.walletTransactionId || '',
           ledger_account: 'user_account',
           transaction_type: leg.transactionType,
           debit_amount: debit,
@@ -109,6 +110,7 @@ async function postRemedyLegs(base44, { matchId, admin, triggerEvent, legs }) {
       entries.push(
         await base44.asServiceRole.entities.LedgerEntry.create({
           match_id: matchId || '',
+          wallet_transaction_id: leg.walletTransactionId || '',
           ledger_account: leg.ledgerAccount,
           transaction_type: leg.transactionType,
           debit_amount: leg.debit || 0,
