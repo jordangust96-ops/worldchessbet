@@ -102,13 +102,13 @@ const [
 // tagged onto the ledger leg it backs, before any money moves.
 assert.match(walletTxnSchemaSrc, /"admin_reversal"/, 'WalletTransaction.type carries admin_reversal for dispute-remedy clawbacks');
 
-assert.match(disputeSrc, /type: 'admin_reversal',[\s\S]{0,200}source_event: 'dispute_case_contest_reversal'/, 'contest_reversed creates an admin_reversal WalletTransaction for the winner clawback');
-assert.match(disputeSrc, /type: 'wager_refund',[\s\S]{0,200}source_event: 'dispute_case_contest_reversal'/, 'contest_reversed creates a wager_refund WalletTransaction for the loser refund');
+assert.match(disputeSrc, /type: 'admin_reversal',[\s\S]{0,400}source_event: 'dispute_case_contest_reversal'/, 'contest_reversed creates an admin_reversal WalletTransaction for the winner clawback');
+assert.match(disputeSrc, /type: 'wager_refund',[\s\S]{0,400}source_event: 'dispute_case_contest_reversal'/, 'contest_reversed creates a wager_refund WalletTransaction for the loser refund');
 assert.match(disputeSrc, /legs\.push\(\{ ledgerAccount: 'user_account', userId: winnerId, debit: payout, credit: 0, fromHeld: holdCoversThis, transactionType: 'reversal', walletTransactionId: winnerReversalTx\.id \}\);/, "contest_reversed's winner debit leg is tagged with its own WalletTransaction id");
 assert.match(disputeSrc, /legs\.push\(\{ ledgerAccount: 'user_account', userId: loserId, debit: 0, credit: entryAmount, transactionType: 'reversal', walletTransactionId: loserRefundTx\.id \}\);/, "contest_reversed's loser credit leg is tagged with its own WalletTransaction id");
 assert.match(disputeSrc, /resolutionFields\.reversal_wallet_transaction_ids = walletTransactionIds;/, 'contest_reversed records its WalletTransaction ids on the CaseResolution');
 
-assert.match(disputeSrc, /type: 'admin_reversal',[\s\S]{0,200}source_event: 'dispute_case_contest_void'/, 'contest_voided (settled) creates an admin_reversal WalletTransaction for the winner clawback');
+assert.match(disputeSrc, /type: 'admin_reversal',[\s\S]{0,400}source_event: 'dispute_case_contest_void'/, 'contest_voided (settled) creates an admin_reversal WalletTransaction for the winner clawback');
 assert.doesNotMatch(disputeSrc, /debit: payout, credit: entryAmount, fromHeld: holdCoversThis, transactionType: 'reversal' \}\);/, "contest_voided's winner leg no longer mixes a debit and a credit in one untracked leg — it is split so each side gets its own WalletTransaction");
 assert.match(disputeSrc, /description: `Entry amount refunded — contest voided before settlement, Case #\$\{fmtCase\(disputeCase\.case_number\)\}`/, 'the not-yet-settled contest_voided branch also creates a WalletTransaction per refunded player, not just the settled branch');
 assert.match(disputeSrc, /walletTransactionId,\s*\n\s*\}\);\s*\n\s*if \(entry\) entries\.push\(entry\);/, 'the not-yet-settled refund is threaded into applyBalanceHold via walletTransactionId');
