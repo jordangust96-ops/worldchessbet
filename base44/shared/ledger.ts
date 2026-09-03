@@ -88,11 +88,6 @@ export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletT
   }
   const createdEntries = await base44.asServiceRole.entities.LedgerEntry.bulkCreate(entries);
 
-  return await finishPosting(base44, { legs, walletTransactionId, actor, actorId, triggerEvent, groupId, correlationId, matchId, gameId, externalRefType, externalRefId, createdEntries });
-}
-
-async function finishPosting(base44, { legs, walletTransactionId, actor, actorId, triggerEvent, groupId, correlationId, matchId, gameId, externalRefType, externalRefId, createdEntries }) {
-
   // Normalize the user-facing transaction(s) and emit a provider-neutral
   // outbox record only after the balanced ledger posting has succeeded.
   // Integration metadata is deliberately non-authoritative and cannot roll
