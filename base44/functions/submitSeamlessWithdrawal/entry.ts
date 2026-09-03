@@ -174,8 +174,11 @@ Deno.serve(async (req) => {
       : null;
     if (!tx) {
       const wallet = (await base44.asServiceRole.entities.Wallet.filter({ user_id: user.id }))[0];
-      if (!wallet || Number(wallet.available_balance || 0) < value) {
-        return Response.json({ error: 'Insufficient available balance' }, { status: 400 });
+      if (!wallet || Number(wallet.available_balance || 0) < totalDebitAmount) {
+        const errorMsg = withdrawalFee > 0 
+          ? `Insufficient balance. Withdrawal requires $${value} + $${withdrawalFee.toFixed(2)} fee = $${totalDebitAmount.toFixed(2)} available`
+          : 'Insufficient available balance';
+        return Response.json({ error: errorMsg }, { status: 400 });
       }
       tx = await base44.asServiceRole.entities.WalletTransaction.create({
         launch_epoch: 2,
@@ -188,7 +191,7 @@ Deno.serve(async (req) => {
       operation = await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, wallet_transaction_id: tx.id, state: 'new' });
     }
 
-    const reservationGroupId = await reserveWithdrawal(base44, tx, value);
+    const reservationGroupId = await reserveWithdrawal(base44, tx, totalDebitAmount);
     operation = await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, wallet_transaction_id: tx.id, reservation_ledger_group_id: reservationGroupId, state: 'reserved' });
     await upsertOperationAudit(base44, {
       user_id: user.id, idempotency_key: idempotencyKey, wallet_transaction_id: tx.id, amount: value,
