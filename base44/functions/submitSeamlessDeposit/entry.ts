@@ -13,6 +13,7 @@ import {
   acquireUserWalletLock, releaseUserWalletLock, claimDepositOperation, saveDepositOperation,
 } from '../../shared/seamlessAtomicStore.ts';
 
+const MIN_DEPOSIT_AMOUNT = 10; // Minimum $10 to cover $5 contest + $1 platform fee
 const MAX_AMOUNT = 10000;
 const IDEMPOTENCY_KEY = /^[A-Za-z0-9._:-]{16,128}$/;
 
@@ -45,8 +46,8 @@ Deno.serve(async (req) => {
 
     const { amount, idempotencyKey } = await req.json();
     const value = Number(amount);
-    if (!Number.isFinite(value) || value <= 0 || value > MAX_AMOUNT) {
-      return Response.json({ error: 'Invalid deposit amount' }, { status: 400 });
+    if (!Number.isFinite(value) || value < MIN_DEPOSIT_AMOUNT || value > MAX_AMOUNT) {
+      return Response.json({ error: `Deposit amount must be between $${MIN_DEPOSIT_AMOUNT} and $${MAX_AMOUNT}` }, { status: 400 });
     }
     if (!IDEMPOTENCY_KEY.test(String(idempotencyKey || ''))) {
       return Response.json({ error: 'A valid deposit idempotency key is required' }, { status: 400 });
