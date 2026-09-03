@@ -17,6 +17,7 @@
     "test:waitlist": "node scripts/validate-jurisdiction-waitlist.mjs",
     "test:socure": "node scripts/validate-socure-identity.mjs",
     "test:match-lifecycle": "node scripts/validate-match-start-race.mjs",
+    "test:gameplay": "node scripts/validate-game-end-race.mjs",
     "test:launch": "node scripts/validate-launch-readiness.mjs"
   },
   "dependencies": {
