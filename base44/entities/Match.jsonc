@@ -193,6 +193,14 @@
         "write": false
       }
     },
+    "start_operation_id": {
+      "type": "string",
+      "description": "Server-generated ownership token for an in-flight both_ready -> in_progress transition, claimed by finalizeMatchStart. Also checked (and respected) by checkPreparationTimeout and cancelMatch so a match already claimed to go live is never refunded and cancelled out from under it.",
+      "rls": {
+        "read": false,
+        "write": false
+      }
+    },
     "description": {
       "type": "string",
       "maxLength": 1000,
