@@ -47,14 +47,13 @@ export default function AdminUserIntegrity() {
     }
     setIsAdmin(true);
 
-    const [u, userFlags, asP1, asP2, txs, jurisdictionHistory, fairPlayRecords] = await Promise.all([
+    const [u, userFlags, asP1, asP2, txs, jurisdictionHistory] = await Promise.all([
       base44.entities.User.get(userId).catch(() => null),
       base44.entities.IntegrityFlag.filter({ user_id: userId }, "-created_date"),
       base44.entities.Match.filter({ player1_id: userId }, "-created_date", 25),
       base44.entities.Match.filter({ player2_id: userId }, "-created_date", 25),
       base44.entities.WalletTransaction.filter({ user_id: userId }, "-created_date", 25),
       base44.entities.JurisdictionVerificationLog.filter({ user_id: userId }, "-created_date", 25),
-      base44.entities.FairPlayAnalysis.list("-created_date", 250),
     ]);
 
     setTargetUser(u);
@@ -68,10 +67,17 @@ export default function AdminUserIntegrity() {
     const playerColorByMatchId = new Map();
     asP1.forEach((match) => playerColorByMatchId.set(match.id, "white"));
     asP2.forEach((match) => playerColorByMatchId.set(match.id, "black"));
+    // Scoped per-match, not a global recency-capped list-then-filter — a
+    // global FairPlayAnalysis.list() capped at N records silently drops this
+    // player's older analyses once platform-wide volume passes that cap.
+    // Querying by this player's own match IDs has no such ceiling.
+    const fairPlayRecords = (
+      await Promise.all(
+        [...playerMatchIds].map((matchId) => base44.entities.FairPlayAnalysis.filter({ match_id: matchId }))
+      )
+    ).flat();
     const playerFairPlayAnalyses = /** @type {any[]} */ (
-      fairPlayRecords
-        .filter((analysis) => playerMatchIds.has(analysis.match_id))
-        .map((analysis) => ({ ...analysis, reviewed_player_color: playerColorByMatchId.get(analysis.match_id) }))
+      fairPlayRecords.map((analysis) => ({ ...analysis, reviewed_player_color: playerColorByMatchId.get(analysis.match_id) }))
     );
     setFairPlayAnalyses(
       playerFairPlayAnalyses
