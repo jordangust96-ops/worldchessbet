@@ -281,17 +281,34 @@ Deno.serve(async (req) => {
     // Charge the small-withdrawal fee only now that Seamless has accepted the
     // payout request. Charging earlier would mean refunding it on every
     // synchronous rejection; charging here means the fee is only ever taken
-    // once the withdrawal is essentially guaranteed to proceed. This is a
-    // separate, immediately-completed ledger posting (not held/reserved) so
-    // it never touches the withdrawal's own reservation/settlement legs in
-    // the webhook -- those keep working exactly as before, unmodified, and
-    // stay reconcilable against the exact ACH amount Seamless received.
+    // once the withdrawal is essentially guaranteed to proceed. This posts as
+    // its own WalletTransaction (type: withdrawal_fee) so it shows up as a
+    // clearly separate, visible line in the user's transaction history --
+    // and as a separate, immediately-completed ledger posting (not
+    // held/reserved) so it never touches the withdrawal's own
+    // reservation/settlement legs in the webhook -- those keep working
+    // exactly as before, unmodified, and stay reconcilable against the exact
+    // ACH amount Seamless received.
+    let feeTransactionId = '';
     if (withdrawalFee > 0) {
       try {
         const feeGroupId = `seamless:withdrawal:fee:${tx.id}`;
+        const feeIdempotencyKey = `${idempotencyKey}:fee`;
+        let feeTx = (await base44.asServiceRole.entities.WalletTransaction.filter({ idempotency_key: feeIdempotencyKey }, '-created_date', 1))[0];
+        if (!feeTx) {
+          feeTx = await base44.asServiceRole.entities.WalletTransaction.create({
+            launch_epoch: 2,
+            user_id: user.id, type: 'withdrawal_fee', amount: withdrawalFee,
+            description: `Small-withdrawal fee: applies to withdrawals under $${SMALL_WITHDRAWAL_THRESHOLD.toFixed(2)} (this one was $${value.toFixed(2)})`,
+            status: 'pending', integration_status: 'internal_complete', currency: 'USD', direction: 'debit',
+            source_event: 'seamless_withdrawal_fee', initiating_actor: 'system', initiating_actor_id: '',
+            idempotency_key: feeIdempotencyKey, correlation_id: tx.id, schema_version: 1,
+          });
+        }
+        feeTransactionId = feeTx.id;
         if (!await hasLedgerGroup(base44, feeGroupId)) {
           await postLedgerLegs(base44, {
-            groupId: feeGroupId, actor: 'system', triggerEvent: 'withdrawal_fee',
+            groupId: feeGroupId, walletTransactionId: feeTx.id, actor: 'system', triggerEvent: 'withdrawal_fee',
             externalRefType: 'provider_payout', externalRefId: providerRef,
             legs: [
               { ledgerAccount: 'user_account', userId: user.id, debit: withdrawalFee, credit: 0, transactionType: 'withdrawal_fee' },
