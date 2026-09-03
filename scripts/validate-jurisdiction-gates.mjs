@@ -193,7 +193,11 @@ ok(!/setTimeout|setInterval/.test(guardSrc), 'guard has no timer');
 ok(!/addEventListener/.test(guardSrc), 'guard has no focus/visibility/navigation listener');
 ok(!/useNavigate/.test(guardSrc), 'guard has no navigation listener');
 ok(!/localStorage|sessionStorage/.test(guardSrc), 'guard uses no localStorage/sessionStorage');
-ok(guardSrc.includes("<Outlet />"), 'guard renders <Outlet /> when allowed');
+// Matches <Outlet />, <Outlet>, and <Outlet context={...} />: the guard
+// legitimately threads its jurisdiction decision to children (see the
+// wallet-page partial-access case below) via an Outlet prop, so this must
+// not require the bare, prop-less tag.
+ok(/<Outlet\b/.test(guardSrc), 'guard renders <Outlet /> (optionally with props) when allowed');
 
 // ---------- 8. Backend enforcement call sites (preserved) ----------
 const createSrc = await read('base44/functions/createMatch/entry.ts');
