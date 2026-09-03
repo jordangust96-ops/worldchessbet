@@ -22,8 +22,8 @@ assert.equal(mapTransactionStatus('Pending'), 'pending');
 const recovery = await read('base44/functions/reconcile-seamless-ach-statuses/entry.ts');
 assert.match(recovery, /seamlessRequest\('GET', buildCheckLookupPath\(providerRef\)\)/,
   'recovery uses the confirmed single-check GET endpoint');
-assert.match(recovery, /status: 'submitted'/,
-  'recovery selects the persisted provider-reference record');
+assert.match(recovery, /provider_key: SEAMLESS_PROVIDER_KEY,\s+wallet_transaction_id: candidate\.id,\s+}/,
+  'recovery selects the persisted provider check_id regardless of its last local status');
 assert.match(recovery, /!String\(ref\.external_reference_id\)\.startsWith\('chessbet-'\)/,
   'ChessBet labels are explicitly excluded as lookup keys');
 assert.match(recovery, /claimWebhookEvent\(idemKey, providerRef, owner\)/,
@@ -36,6 +36,18 @@ assert.match(recovery, /MAX_LOOKUP_AGE_MS = 90/,
   'automated lookups have a bounded 90-day window');
 assert.match(recovery, /BACKOFF_MS/,
   'per-transaction lookups back off');
+assert.match(recovery, /\{ status: 'completed', integration_status: 'settled' }/,
+  'settled ACH items remain eligible for bounded late-return monitoring');
+assert.match(recovery, /POST_SETTLEMENT_INTERVAL_MS = 24/,
+  'post-settlement provider checks are limited to daily cadence');
+assert.match(recovery, /isClosedTrackerState\(tracker\?\.state\)/,
+  'manual-review and terminal trackers are not recreated on every sweep');
+assert.match(recovery, /\['failed', 'reversed', 'manual_review', 'settled'\]/,
+  'closed tracker states are explicit and fail closed');
+assert.match(recovery, /priority = Number\(a\.status === 'completed'\)/,
+  'unresolved ACH transactions are processed before settled monitoring');
+assert.match(recovery, /Post-settlement monitoring window completed/,
+  'settled monitoring stops cleanly after the bounded window');
 assert.doesNotMatch(recovery, /seamlessRequest\('GET',[\s\S]*label/,
   'recovery never sends a label as a lookup query');
 
