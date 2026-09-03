@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
         });
 
         await postLedgerLegs(base44, {
-          groupId: crypto.randomUUID(),
+          groupId: `match:${match.id}:preparation_timeout:${entryTransaction.id}`,
           matchId: match.id,
           walletTransactionId: entryTransaction.id,
           actor: 'system',
@@ -119,7 +119,7 @@ Deno.serve(async (req) => {
         });
 
         await postLedgerLegs(base44, {
-          groupId: crypto.randomUUID(),
+          groupId: `match:${match.id}:service_fee_refund:${feeTransaction.id}`,
           matchId: match.id,
           walletTransactionId: feeTransaction.id,
           actor: 'system',
