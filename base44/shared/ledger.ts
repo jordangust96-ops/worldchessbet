@@ -10,15 +10,21 @@ export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletT
     throw new Error('Invalid ledger posting request');
   }
   for (const leg of legs) {
-    for (const amount of [leg.debit || 0, leg.credit || 0, leg.heldDelta || 0]) {
+    for (const amount of [leg.debit || 0, leg.credit || 0, leg.heldDelta || 0, leg.creditHeld || 0]) {
       if (!Number.isFinite(amount)) throw new Error('Ledger amount must be finite');
     }
-    if ((leg.debit || 0) < 0 || (leg.credit || 0) < 0) {
+    if ((leg.debit || 0) < 0 || (leg.credit || 0) < 0 || (leg.creditHeld || 0) < 0) {
       throw new Error('Ledger debit and credit amounts cannot be negative');
     }
   }
+  // creditHeld is a credit that lands in the user's Held Balance instead of
+  // their Available Balance (e.g. a settlement payout that must sit pending
+  // for the 24-hour contest reporting window before it becomes withdrawable).
+  // It still counts toward the double-entry balance check below — the value
+  // really did leave the debited account — it is simply parked in a
+  // non-liquid bucket of the same wallet rather than credited as spendable.
   const totalDebit = legs.reduce((s, l) => s + (l.debit || 0), 0);
-  const totalCredit = legs.reduce((s, l) => s + (l.credit || 0), 0);
+  const totalCredit = legs.reduce((s, l) => s + (l.credit || 0) + (l.creditHeld || 0), 0);
   if (Math.round(totalDebit * 100) !== Math.round(totalCredit * 100)) {
     throw new Error(`Unbalanced ledger legs: debit=${totalDebit} credit=${totalCredit}`);
   }
@@ -34,7 +40,7 @@ export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletT
         });
       }
       const newAvailable = (wallet.available_balance || 0) - (leg.debit || 0) + (leg.credit || 0);
-      const newHeld = (wallet.held_balance || 0) + (leg.heldDelta || 0);
+      const newHeld = (wallet.held_balance || 0) + (leg.heldDelta || 0) + (leg.creditHeld || 0);
       const newTotal = newAvailable + newHeld;
       if (newAvailable < -0.001 || newHeld < -0.001 || newTotal < -0.001) {
         throw new Error('Ledger posting would create a negative user balance');
@@ -63,7 +69,7 @@ export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletT
       const accounts = await base44.asServiceRole.entities.SystemLedgerAccount.filter({ account_name: leg.ledgerAccount });
       let acct = accounts[0];
       if (!acct) acct = await base44.asServiceRole.entities.SystemLedgerAccount.create({ account_name: leg.ledgerAccount, balance: 0 });
-      const newBalance = (acct.balance || 0) - (leg.debit || 0) + (leg.credit || 0);
+      const newBalance = (acct.balance || 0) - (leg.debit || 0) + (leg.credit || 0) + (leg.creditHeld || 0);
       if (['contest_clearing', 'suspense', 'platform_revenue'].includes(leg.ledgerAccount) && newBalance < -0.001) {
         throw new Error(`Ledger posting would overdraw protected account: ${leg.ledgerAccount}`);
       }
@@ -81,6 +87,11 @@ export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletT
     }
   }
   const createdEntries = await base44.asServiceRole.entities.LedgerEntry.bulkCreate(entries);
+
+  return await finishPosting(base44, { legs, walletTransactionId, actor, actorId, triggerEvent, groupId, correlationId, matchId, gameId, externalRefType, externalRefId, createdEntries });
+}
+
+async function finishPosting(base44, { legs, walletTransactionId, actor, actorId, triggerEvent, groupId, correlationId, matchId, gameId, externalRefType, externalRefId, createdEntries }) {
 
   // Normalize the user-facing transaction(s) and emit a provider-neutral
   // outbox record only after the balanced ledger posting has succeeded.
