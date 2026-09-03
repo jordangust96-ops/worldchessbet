@@ -22,8 +22,7 @@ function RealMoneyLaunchNotice({ onNotifyClick }) {
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-white">Real-money play is almost here</p>
         <p className="text-xs text-white/50 mt-1">
-          We're putting the finishing touches on real-money contests, and they'll be open soon. In the
-          meantime, you can get everything set up below.{" "}
+          We're putting the finishing touches on real-money contests, and they'll be open soon.{" "}
           <button
             type="button"
             onClick={onNotifyClick}
