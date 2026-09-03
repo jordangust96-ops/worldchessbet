@@ -108,6 +108,7 @@ function getTransactionExplanation(tx, match) {
       : `You won this contest and ${amount} was added to your available balance. Platform service fees are separate from the prize.`,
     service_fee_charge: `The separate ${amount} platform service fee was reserved when the contest began. It is not deducted from the winner’s prize.`,
     service_fee_refund: `The ${amount} platform service fee was returned to your available balance.`,
+    withdrawal_fee: `A ${amount} fee applies to withdrawals under $${SMALL_WITHDRAWAL_THRESHOLD} to help cover bank transfer costs. Withdrawing your full available balance at once waives this fee.`,
   };
 
   return {
