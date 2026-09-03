@@ -78,20 +78,33 @@ Deno.serve(async (req) => {
   // burn through the provider's webhook retry budget (this is what was
   // happening: Seamless disables the endpoint after enough failed retries).
   if (isMerchantBalanceTransaction(body, eventType)) {
-    const base44 = createClientFromRequest(req);
-    await recordIntegrationEvent(base44, {
-      eventType: 'seamless.merchant_balance.transaction_status',
-      aggregateType: 'ledger_group', aggregateId: providerRef || idemKey,
-      correlationId: providerRef || idemKey, idempotencyKey: `audit:${idemKey}`,
-      actorType: 'system', status: providerStatus || 'received', amount: pickAmount(body),
-      result: 'merchant_balance_ignored',
-      eventData: {
-        provider_ref: providerRef, provider_status: providerStatus,
-        direction: body?.check?.direction || body?.direction || '',
-        description: body?.check?.description || body?.description || '',
-      },
+    // Best-effort audit write. A failure here (schema drift, transient DB
+    // error, etc.) must never turn a harmless, non-financial notification
+    // into a 500 that burns the provider's retry budget or a raw worker
+    // crash — Seamless only needs a 2xx to stop retrying this event.
+    let auditError = '';
+    try {
+      const base44 = createClientFromRequest(req);
+      await recordIntegrationEvent(base44, {
+        eventType: 'seamless.merchant_balance.transaction_status',
+        aggregateType: 'ledger_group', aggregateId: providerRef || idemKey,
+        correlationId: providerRef || idemKey, idempotencyKey: `audit:${idemKey}`,
+        actorType: 'system', status: providerStatus || 'received', amount: pickAmount(body),
+        result: 'merchant_balance_ignored',
+        eventData: {
+          provider_ref: providerRef, provider_status: providerStatus,
+          direction: body?.check?.direction || body?.direction || '',
+          description: body?.check?.description || body?.description || '',
+        },
+      });
+    } catch (e) {
+      auditError = String(e?.message || e);
+      console.error(JSON.stringify({ event: 'merchant_balance_audit_failed', provider_ref: providerRef, error: auditError }));
+    }
+    return Response.json({
+      received: true, applied: false, ignored: true, category: 'merchant_balance',
+      ...(auditError ? { audit_error: auditError } : {}),
     });
-    return Response.json({ received: true, applied: false, ignored: true, category: 'merchant_balance' });
   }
 
   const owner = crypto.randomUUID();
