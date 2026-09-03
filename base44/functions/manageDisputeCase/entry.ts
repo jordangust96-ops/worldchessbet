@@ -260,6 +260,26 @@ Deno.serve(async (req) => {
         }
         const targetUserId = payload.userId || disputeCase.winner_id;
         if (!targetUserId) return Response.json({ error: 'A target userId is required' }, { status: 400 });
+
+        // The automatic 24-hour pending-winnings hold (settleMatch /
+        // releasePendingWinnings) may already have this exact payout parked
+        // in Held Balance. Adopt it instead of attempting to move the same
+        // money into Held Balance a second time — which would either fail
+        // (insufficient Available Balance) or incorrectly hold unrelated funds.
+        const existingPendingPayout = (await base44.asServiceRole.entities.WalletTransaction.filter({
+          match_id: match.id, type: 'payout', user_id: targetUserId,
+        })).find((t) => t.payout_hold_status === 'held');
+
+        if (existingPendingPayout) {
+          actionType = 'hold_placed';
+          caseUpdates.hold_status = 'post_settlement_hold';
+          caseUpdates.held_amount = existingPendingPayout.amount;
+          caseUpdates.hold_target_user_id = targetUserId;
+          caseUpdates.hold_placed_at = new Date().toISOString();
+          noteContent = noteContent || `This contest's winnings ($${existingPendingPayout.amount.toFixed(2)}) were already held automatically pending the 24-hour report window — this case now formally controls that hold.`;
+          break;
+        }
+
         const amount = Number(payload.amount) > 0 ? Number(payload.amount) : (match.wager_amount || 0) * 2 * 0.9;
 
         const entry = await applyBalanceHold(base44, {
