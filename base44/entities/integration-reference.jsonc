@@ -5,7 +5,7 @@
     "provider_key": {
       "type": "string",
       "maxLength": 100,
-      "description": "Stable adapter/provider identifier. Use unassigned until a partner is selected."
+      "description": "Stable adapter/provider identifier, e.g. 'seamless_ach' (Seamless ACH v2 funding/deposits/withdrawals) or 'socure' (Socure identity + bank screening). Use 'unassigned' only for a reference type not yet routed to a partner."
     },
     "reference_type": {
       "type": "string",
