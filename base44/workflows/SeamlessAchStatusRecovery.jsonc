@@ -1,0 +1,45 @@
+{
+  "name": "Seamless ACH Status Recovery",
+  "description": "Every 15 minutes, uses saved Seamless check IDs to recover ACH deposit and withdrawal statuses when a webhook is delayed or lost. Per-transaction lookups back off and stop after 90 days.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "*/15 * * * *",
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "seamless_ach_status_recovery",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "reconcile_seamless_ach_statuses": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "reconcile-seamless-ach-statuses",
+            "args": {}
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Recover Seamless ACH Statuses",
+            "description": "Use the saved provider check_id as a conservative webhook fallback"
+          }
+        }
+      }
+    ]
+  }
+}
