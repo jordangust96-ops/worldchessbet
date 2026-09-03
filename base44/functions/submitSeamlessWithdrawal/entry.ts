@@ -226,7 +226,7 @@ Deno.serve(async (req) => {
     } catch (error) {
       const status = Number(error?.status || 0);
       if (status >= 400 && status < 500) {
-        const releaseGroupId = await releaseWithdrawalReservation(base44, tx, value, 'provider_rejected');
+        const releaseGroupId = await releaseWithdrawalReservation(base44, tx, totalDebitAmount, 'provider_rejected');
         await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, state: 'failed', release_ledger_group_id: releaseGroupId });
         await upsertOperationAudit(base44, { user_id: user.id, idempotency_key: idempotencyKey, wallet_transaction_id: tx.id, amount: value, status: 'released', reservation_ledger_group_id: reservationGroupId, attempts: 1, last_error_code: 'provider_rejected' });
         return Response.json({ error: 'Withdrawal submission failed', transaction_id: tx.id }, { status: 400 });
