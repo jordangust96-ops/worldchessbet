@@ -268,9 +268,15 @@ Deno.serve(async (req) => {
         // in Held Balance. Adopt it instead of attempting to move the same
         // money into Held Balance a second time — which would either fail
         // (insufficient Available Balance) or incorrectly hold unrelated funds.
+        // status:'completed' guards against a duplicate/failed settlement-
+        // election attempt (see settleMatch's createCanonicalSettlementTransaction)
+        // that still carries payout_hold_status:'held' from its own creation —
+        // that flag is never cleared on a losing/failed election candidate, so
+        // without this check a failed duplicate could be mistaken for the real
+        // held payout.
         const existingPendingPayout = (await base44.asServiceRole.entities.WalletTransaction.filter({
           match_id: match.id, type: 'payout', user_id: targetUserId,
-        })).find((t) => t.payout_hold_status === 'held');
+        })).find((t) => t.status === 'completed' && t.payout_hold_status === 'held');
 
         if (existingPendingPayout) {
           actionType = 'hold_placed';
@@ -386,7 +392,10 @@ Deno.serve(async (req) => {
         const payoutTransactions = disputeCase.match_id
           ? await base44.asServiceRole.entities.WalletTransaction.filter({ match_id: disputeCase.match_id, type: 'payout' })
           : [];
-        const pendingPayout = payoutTransactions.find((t) => t.payout_hold_status === 'held') || null;
+        // status:'completed' guards against the same duplicate-election hazard
+        // described above — never let a failed settlement attempt's stale
+        // payout_hold_status:'held' flag be mistaken for the real payout.
+        const pendingPayout = payoutTransactions.find((t) => t.status === 'completed' && t.payout_hold_status === 'held') || null;
         let pendingPayoutConsumed = false;
 
         const resolutionFields = {
