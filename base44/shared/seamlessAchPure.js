@@ -15,10 +15,17 @@ export const PATH_CREATE_CUSTOMER = '/user';
 export const PATH_VERIFIED_THIRD_PARTY_FUNDING_SOURCE = '/on-demand/funding-source';
 export const PATH_ACH_DEBIT = '/ach-debit';
 export const PATH_CHECK_SEND = '/check/send';
+export const PATH_CHECK = '/check';
 export const PATH_BALANCE_FROM_ACCOUNT = '/funding-source/add/balance/from-account';
 export const PATH_BALANCE_TO_ACCOUNT = '/funding-source/add/balance/to-account';
 
 // Amounts are sent to Seamless as fixed 2-decimal strings.
+export function buildCheckLookupPath(checkId) {
+  const id = String(checkId || '').trim();
+  if (!id) throw new Error('Seamless check_id required');
+  return `${PATH_CHECK}/${encodeURIComponent(id)}`;
+}
+
 export function formatAmount(value) {
   const n = Number(value);
   if (!Number.isFinite(n) || n <= 0) throw new Error('Invalid amount');
@@ -33,7 +40,7 @@ export function mapTransactionStatus(raw) {
   if (s === 'processed') return STATUS_COMPLETED;
   if (s === 'pending' || s === 'processing' || s === 'hold' || s === 'refund_pending') return STATUS_PENDING;
   if (
-    s === 'failed' || s === 'declined' || s === 'voided' || s === 'unpaid' ||
+    s === 'failed' || s === 'declined' || s === 'cancelled' || s === 'voided' || s === 'unpaid' ||
     s === 'expired' || s === 'refund_failed'
   ) return STATUS_FAILED;
   if (s === 'refunded' || s === 'returned' || s === 'return' || s === 'reversed') return STATUS_REVERSED;
