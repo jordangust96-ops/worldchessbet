@@ -337,11 +337,16 @@ Deno.serve(async (req) => {
       success: true,
       cancelled_invitations: openInvitations.length,
       payout_pending: payout,
+      payout_status: payoutStatus,
       held_for_compliance: !!user.withdrawal_hold,
       user: updatedUser,
     });
   } catch (error) {
     console.error(JSON.stringify({ event: 'backend_function_failed', error: error?.message || 'unknown_error' }));
     return Response.json({ error: 'internal_error' }, { status: 500 });
+  } finally {
+    if (lockedUserId && lockOwner) {
+      try { await releaseUserWalletLock(lockedUserId, lockOwner); } catch { /* TTL safely releases an unavailable store lock. */ }
+    }
   }
 });
