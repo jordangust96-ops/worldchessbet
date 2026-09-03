@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { postLedgerLegs } from '../../shared/ledger.ts';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
+import { REPORT_WINDOW_MS } from '../../shared/reportWindow.ts';
 
 const SETTLEMENT_ELECTION_DELAY_MS = 250;
 
@@ -54,6 +55,15 @@ async function createCanonicalSettlementTransaction(base44, { match, game, userI
     integration_status: 'pending',
     idempotency_key: idempotencyKey,
     schema_version: 1,
+    // Winnings are held pending, not paid out immediately — matching the
+    // 24-hour window players have to file a contest report (see
+    // submitContestReport / releasePendingWinnings). Set at creation, not
+    // after the ledger posting below, so the hold is tracked even if the
+    // posting itself later fails and requires manual reconciliation.
+    ...(type === 'payout' ? {
+      payout_hold_status: 'held',
+      payout_release_at: new Date(Date.now() + REPORT_WINDOW_MS).toISOString(),
+    } : {}),
   });
 
   // Base44 entity writes are not a compare-and-set primitive. Elect a single
