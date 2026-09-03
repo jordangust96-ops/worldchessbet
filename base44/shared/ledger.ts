@@ -9,7 +9,7 @@ import { recordIntegrationEvent } from './integrationEvents.ts';
 // self-balancing (debit_amount === credit_amount), always immutable, and
 // additive (a release/consumption never edits the original hold entry — it
 // always creates a new one).
-export async function applyBalanceHold(base44, { userId, amount, direction, matchId, actor = 'administrator', actorId = '', triggerEvent }) {
+export async function applyBalanceHold(base44, { userId, amount, direction, matchId, actor = 'administrator', actorId = '', triggerEvent, walletTransactionId = '' }) {
   if (amount <= 0) return null;
   const wallets = await base44.asServiceRole.entities.Wallet.filter({ user_id: userId });
   const wallet = wallets[0];
@@ -31,6 +31,7 @@ export async function applyBalanceHold(base44, { userId, amount, direction, matc
   return base44.asServiceRole.entities.LedgerEntry.create({
     user_id: userId,
     match_id: matchId || '',
+    wallet_transaction_id: walletTransactionId || '',
     ledger_account: 'user_account',
     transaction_type: direction === 'hold' ? 'investigation_hold' : 'investigation_hold_release',
     debit_amount: amount,
