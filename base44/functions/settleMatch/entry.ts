@@ -343,7 +343,7 @@ Deno.serve(async (req) => {
         // Double-entry: Debit Contest Reserve, Credit User Available Balance.
         try {
           await postLedgerLegs(base44, {
-            groupId: crypto.randomUUID(),
+            groupId: `match:${match.id}:match_settlement_draw:${entryTransaction.id}`,
             matchId: match.id,
             gameId: game.id,
             walletTransactionId: entryTransaction.id,
@@ -385,7 +385,7 @@ Deno.serve(async (req) => {
         // User Available Balance.
         try {
           await postLedgerLegs(base44, {
-            groupId: crypto.randomUUID(),
+            groupId: `match:${match.id}:service_fee_refund:${feeTransaction.id}`,
             matchId: match.id,
             gameId: game.id,
             walletTransactionId: feeTransaction.id,
@@ -533,7 +533,7 @@ Deno.serve(async (req) => {
       }
       try {
         await postLedgerLegs(base44, {
-          groupId: crypto.randomUUID(),
+          groupId: `match:${match.id}:match_settlement:${walletTransaction.id}`,
           matchId: match.id,
           gameId: game.id,
           walletTransactionId: walletTransaction.id,
