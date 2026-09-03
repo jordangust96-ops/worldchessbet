@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 import { requireAdminMfa } from '../../shared/mfa.ts';
+import { applyBalanceHold } from '../../shared/ledger.ts';
 
 const VALID_STATUSES = ['open', 'under_review', 'awaiting_information'];
 const VALID_ACTIONS = [
@@ -30,53 +31,11 @@ const VALID_RESOLUTION_TYPES = [
 ];
 const fmtCase = (n) => `CB-${String(n).padStart(6, '0')}`;
 
-// Moves funds between a user's Available and Held balances for an
-// administrative investigation hold (or its release/consumption). Unlike
-// contest settlement, this never moves value to another ledger account —
-// the total stays with the user, only its availability changes — so the
-// ledger entry is self-balancing (debit_amount === credit_amount), always
-// immutable, and additive (a release/consumption never edits the original
-// hold entry — it always creates a new one).
-async function applyBalanceHold(base44, { userId, amount, direction, matchId, admin, triggerEvent }) {
-  if (amount <= 0) return null;
-  const wallets = await base44.asServiceRole.entities.Wallet.filter({ user_id: userId });
-  const wallet = wallets[0];
-  if (!wallet) throw new Error('Wallet not found for this user');
-
-  const delta = direction === 'hold' ? amount : -amount;
-  const newAvailable = (wallet.available_balance || 0) - delta;
-  const newHeld = (wallet.held_balance || 0) + delta;
-  if (newAvailable < -0.01) throw new Error('Insufficient available balance to place this hold');
-
-  const newTotal = newAvailable + newHeld;
-  await base44.asServiceRole.entities.Wallet.update(wallet.id, {
-    available_balance: newAvailable,
-    held_balance: newHeld,
-    total_balance: newTotal,
-    balance: newAvailable,
-  });
-
-  return base44.asServiceRole.entities.LedgerEntry.create({
-    user_id: userId,
-    match_id: matchId || '',
-    ledger_account: 'user_account',
-    transaction_type: direction === 'hold' ? 'investigation_hold' : 'investigation_hold_release',
-    debit_amount: amount,
-    credit_amount: amount,
-    resulting_available_balance: newAvailable,
-    resulting_held_balance: newHeld,
-    resulting_total_balance: newTotal,
-    initiating_actor: 'administrator',
-    initiating_actor_id: admin.id,
-    trigger_event: triggerEvent,
-    external_reference_type: matchId ? 'match' : 'none',
-    external_reference_id: matchId || '',
-    ledger_group_id: crypto.randomUUID(),
-    correlation_id: matchId || userId,
-    currency: 'USD',
-    schema_version: 1,
-  });
-}
+// applyBalanceHold (moves funds between a user's Available and Held
+// balances for an administrative investigation hold, its release, or the
+// automatic pending-winnings hold this file also now manages) lives in
+// ../../shared/ledger.ts so releasePendingWinnings can share the exact same
+// accounting logic without duplicating it.
 
 // Debits/credits a user's balance for a contest reversal/void. Debits are
 // taken from Held Balance when `fromHeld` is true (the funds are already
