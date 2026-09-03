@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 import { REPORT_WINDOW_MS, CLOCK_SKEW_TOLERANCE_MS } from '../../shared/reportWindow.ts';
+import { buildFairPlayAnalysisEvidence } from '../../shared/fairPlayEvidence.ts';
 
 const VALID_CATEGORIES = ['fair_play', 'collusion', 'harassment', 'technical_issue', 'rules_violation', 'other'];
 
@@ -159,6 +160,15 @@ Deno.serve(async (req) => {
       visible_to_user: true,
     });
 
+    // If a Fair Play (Stockfish) analysis of the reported player already
+    // exists for this match, attach it now — previously CaseEvidence.
+    // fair_play_analysis was never populated by any code path, even for a
+    // fair_play-category report against an opponent who had already been
+    // screened.
+    const fairPlayAnalysis = opponentId
+      ? await buildFairPlayAnalysisEvidence(base44, { matchId, userId: opponentId, match })
+      : '';
+
     // Immutable Evidence Package — assembled once, at intake, from everything
     // the platform already knows about this contest. Never edited afterward;
     // future evidence (screenshots, fair-play analysis, etc.) can only be
@@ -184,6 +194,7 @@ Deno.serve(async (req) => {
       report_category: category,
       report_subcategory: subcategory || '',
       report_description: description.trim(),
+      fair_play_analysis: fairPlayAnalysis,
       captured_at: new Date().toISOString(),
       legal_hold: false,
     });
