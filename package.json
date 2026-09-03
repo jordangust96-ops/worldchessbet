@@ -17,6 +17,7 @@
     "test:dispute-traceability": "node scripts/validate-dispute-remedy-traceability.mjs",
     "test:funding-source-traceability": "node scripts/validate-funding-source-traceability.mjs",
     "test:integrity-flag-linkage": "node scripts/validate-integrity-flag-case-linkage.mjs",
+    "test:identity-reconciliation": "node scripts/validate-identity-verification-reconciliation.mjs",
     "test:ledger": "node scripts/validate-ledger-integrity.mjs",
     "test:jurisdiction": "node scripts/validate-jurisdiction-gates.mjs",
     "test:waitlist": "node scripts/validate-jurisdiction-waitlist.mjs",
