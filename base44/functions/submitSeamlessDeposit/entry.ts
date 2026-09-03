@@ -102,8 +102,9 @@ Deno.serve(async (req) => {
     if (!bank) {
       return Response.json({ error: 'Link and verify a bank account first', action: 'bank_link_required' }, { status: 400 });
     }
+    let complianceEvidence;
     try {
-      await extendComplianceEvidenceRetention(base44, {
+      complianceEvidence = await extendComplianceEvidenceRetention(base44, {
         userId: user.id,
         fundingSourceId: bank.source_id,
         requireAchAuthorization: true,
@@ -152,6 +153,13 @@ Deno.serve(async (req) => {
         idempotency_key: idempotencyKey,
         correlation_id: '',
         schema_version: 1,
+        // The specific bank account and its active debit authorization used
+        // for THIS deposit — captured now, not re-derived later by looking
+        // up the user's current primary bank account (which requireAchAuthorization
+        // above already confirms was authorized at request time, but
+        // is_primary/the authorization itself can both change afterward).
+        funding_source_id: bank.source_id,
+        ach_authorization_id: complianceEvidence?.authorization_id || '',
       });
       operation = await saveDepositOperation(user.id, idempotencyKey, { ...operation, wallet_transaction_id: pending.id, state: 'new' });
     }
