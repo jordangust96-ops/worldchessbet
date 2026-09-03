@@ -14,6 +14,7 @@ import { claimWebhookEvent, finishWebhookEvent } from '../../shared/seamlessAtom
 // Read-only provider lookups feed the same exactly-once ledger transitions as webhooks.
 const INITIAL_DELAY_MS = 15 * 60 * 1000;
 const MAX_LOOKUP_AGE_MS = 90 * 24 * 60 * 60 * 1000;
+const POST_SETTLEMENT_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const BACKOFF_MS = [
   30 * 60 * 1000,
   60 * 60 * 1000,
@@ -41,10 +42,13 @@ function nextLookupAt(attemptCount: number, nowMs: number) {
 }
 
 function terminalTrackerState(status: string) {
-  if (status === 'completed') return 'settled';
   if (status === 'reversed') return 'reversed';
   if (status === 'failed') return 'failed';
   return '';
+}
+
+function isClosedTrackerState(state: unknown) {
+  return ['failed', 'reversed', 'manual_review', 'settled'].includes(String(state || ''));
 }
 
 function extractProviderStatus(data: any) {
@@ -355,8 +359,8 @@ Deno.serve(async (req) => {
       submitted,
       uncertain,
       submitting,
-      activeTrackers,
-      retryableTrackers,
+      settled,
+      trackers,
     ] = await Promise.all([
       base44.asServiceRole.entities.WalletTransaction.filter(
         { status: 'pending', integration_status: 'submitted' },
@@ -373,27 +377,26 @@ Deno.serve(async (req) => {
         'created_date',
         FETCH_LIMIT
       ),
-      base44.asServiceRole.entities.SeamlessStatusReconciliation.filter(
-        { state: 'active' },
-        '-updated_date',
-        FETCH_LIMIT * 2
+      base44.asServiceRole.entities.WalletTransaction.filter(
+        { status: 'completed', integration_status: 'settled' },
+        '-created_date',
+        FETCH_LIMIT
       ),
-      base44.asServiceRole.entities.SeamlessStatusReconciliation.filter(
-        { state: 'retryable_error' },
+      base44.asServiceRole.entities.SeamlessStatusReconciliation.list(
         '-updated_date',
-        FETCH_LIMIT * 2
+        FETCH_LIMIT * 4
       ),
     ]);
 
     const trackerByTransaction = new Map();
-    for (const tracker of [...activeTrackers, ...retryableTrackers]) {
+    for (const tracker of trackers) {
       if (!trackerByTransaction.has(tracker.wallet_transaction_id)) {
         trackerByTransaction.set(tracker.wallet_transaction_id, tracker);
       }
     }
 
     const byId = new Map();
-    for (const tx of [...submitted, ...uncertain, ...submitting]) {
+    for (const tx of [...submitted, ...uncertain, ...submitting, ...settled]) {
       if (['deposit', 'withdrawal'].includes(tx.type)) byId.set(tx.id, tx);
     }
 
@@ -402,9 +405,13 @@ Deno.serve(async (req) => {
         const createdAt = timeMs(tx.created_date);
         if (!createdAt || nowMs - createdAt < INITIAL_DELAY_MS) return false;
         const tracker = trackerByTransaction.get(tx.id);
+        if (isClosedTrackerState(tracker?.state)) return false;
         return !tracker?.next_check_at || timeMs(tracker.next_check_at) <= nowMs;
       })
-      .sort((a, b) => timeMs(a.created_date) - timeMs(b.created_date))
+      .sort((a, b) => {
+        const priority = Number(a.status === 'completed') - Number(b.status === 'completed');
+        return priority || timeMs(a.created_date) - timeMs(b.created_date);
+      })
       .slice(0, BATCH_LIMIT);
 
     const summary = {
@@ -429,7 +436,6 @@ Deno.serve(async (req) => {
         {
           provider_key: SEAMLESS_PROVIDER_KEY,
           wallet_transaction_id: candidate.id,
-          status: 'submitted',
         },
         '-effective_at',
         10
@@ -439,6 +445,26 @@ Deno.serve(async (req) => {
         !String(ref.external_reference_id).startsWith('chessbet-')
       ) || null;
       const providerRef = cleanText(providerRefRecord?.external_reference_id, 255);
+
+      if (ageMs > MAX_LOOKUP_AGE_MS && candidate.status === 'completed') {
+        tracker = await upsertTracker(base44, tracker, {
+          wallet_transaction_id: candidate.id,
+          provider_reference_id: providerRef,
+          state: 'settled',
+          provider_status: tracker?.provider_status || '',
+          normalized_status: 'completed',
+          attempt_count: Number(tracker?.attempt_count || 0),
+          first_seen_at: firstSeenAt,
+          last_checked_at: tracker?.last_checked_at || '',
+          next_check_at: nowIso,
+          completed_at: nowIso,
+          last_error_code: '',
+          description: 'Post-settlement monitoring window completed without a recovered return.',
+        });
+        trackerByTransaction.set(candidate.id, tracker);
+        summary.settled += 1;
+        continue;
+      }
 
       if (!providerRef || ageMs > MAX_LOOKUP_AGE_MS) {
         tracker = await upsertTracker(base44, tracker, {
@@ -527,6 +553,7 @@ Deno.serve(async (req) => {
 
         const refreshed = await base44.asServiceRole.entities.WalletTransaction.get(candidate.id);
         const terminalState = terminalTrackerState(refreshed.status);
+        const isSettled = refreshed.status === 'completed';
         const normalizedStatus = mapTransactionStatus(providerStatus);
         tracker = await upsertTracker(base44, tracker, {
           wallet_transaction_id: candidate.id,
@@ -537,16 +564,23 @@ Deno.serve(async (req) => {
           attempt_count: attemptCount,
           first_seen_at: firstSeenAt,
           last_checked_at: nowIso,
-          next_check_at: terminalState ? nowIso : nextLookupAt(attemptCount, nowMs),
+          next_check_at: terminalState
+            ? nowIso
+            : isSettled
+              ? new Date(nowMs + POST_SETTLEMENT_INTERVAL_MS).toISOString()
+              : nextLookupAt(attemptCount, nowMs),
           completed_at: terminalState ? nowIso : '',
           last_error_code: '',
           description: terminalState
             ? 'Terminal ACH status recovered through the Seamless single-check endpoint.'
-            : 'Awaiting a terminal ACH status; the next lookup is rate-limited by backoff.',
+            : isSettled
+              ? 'ACH settled; checking daily during the bounded return-monitoring window.'
+              : 'Awaiting a terminal ACH status; the next lookup is rate-limited by backoff.',
         });
         trackerByTransaction.set(candidate.id, tracker);
         summary.checked += 1;
         if (terminalState) summary[terminalState] += 1;
+        else if (isSettled) summary.settled += 1;
         else summary.pending += 1;
       } catch (error) {
         const providerHttpStatus = Number((error as any)?.status || 0);
