@@ -145,7 +145,8 @@
       "enum": [
         "held",
         "released",
-        "consumed"
+        "consumed",
+        "void"
       ],
       "description": "Only meaningful for type 'payout'. Set at creation to 'held': the winner's payout is credited into Held, not Available, Balance pending the 24-hour contest report window. 'released' once releasePendingWinnings (no report filed) or an admin resolving a filed report (manageDisputeCase, non-reversing resolution) moves it to Available Balance. 'consumed' if an admin's contest_reversed/contest_voided resolution debited it directly out of Held Balance instead. Absent on transactions created before this hold existed \u2014 those were released immediately at settlement, the prior behavior."
     },
