@@ -499,7 +499,10 @@ Deno.serve(async (req) => {
           if (contestClearingNet > 0) legs.push({ ledgerAccount: 'contest_clearing', debit: 0, credit: contestClearingNet, transactionType: 'reversal' });
           else if (contestClearingNet < 0) legs.push({ ledgerAccount: 'contest_clearing', debit: -contestClearingNet, credit: 0, transactionType: 'reversal' });
 
-          const entries = await postRemedyLegs(base44, { matchId: match.id, admin, triggerEvent: 'contest_reversal', legs });
+          const entries = await postRemedyLegs(base44, {
+            matchId: match.id, admin, triggerEvent: 'contest_reversal', legs,
+            groupId: `dispute:${disputeCase.id}:contest_reversal`,
+          });
 
           if (pendingPayoutCoversThis) {
             await base44.asServiceRole.entities.WalletTransaction.update(pendingPayout.id, { payout_hold_status: 'consumed' });
@@ -592,7 +595,10 @@ Deno.serve(async (req) => {
             if (contestClearingNet > 0) legs.push({ ledgerAccount: 'contest_clearing', debit: 0, credit: contestClearingNet, transactionType: 'reversal' });
             else if (contestClearingNet < 0) legs.push({ ledgerAccount: 'contest_clearing', debit: -contestClearingNet, credit: 0, transactionType: 'reversal' });
 
-            entries.push(...(await postRemedyLegs(base44, { matchId: match.id, admin, triggerEvent: 'contest_void', legs })));
+            entries.push(...(await postRemedyLegs(base44, {
+              matchId: match.id, admin, triggerEvent: 'contest_void', legs,
+              groupId: `dispute:${disputeCase.id}:contest_void`,
+            })));
             if (pendingPayoutCoversThis) {
               await base44.asServiceRole.entities.WalletTransaction.update(pendingPayout.id, { payout_hold_status: 'consumed' });
               pendingPayoutConsumed = true;
