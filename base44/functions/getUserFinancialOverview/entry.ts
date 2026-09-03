@@ -10,11 +10,12 @@ Deno.serve(async (req) => {
     if (!admin) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     if (admin.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 });
 
-    const [users, wallets, feeCharges, feeRefunds] = await Promise.all([
+    const [users, wallets, feeCharges, feeRefunds, withdrawalFees] = await Promise.all([
       base44.asServiceRole.entities.User.list('-created_date', 1000),
       base44.asServiceRole.entities.Wallet.list('-created_date', 1000),
       base44.asServiceRole.entities.WalletTransaction.filter({ launch_epoch: 2, type: 'service_fee_charge' }, '-created_date', 5000),
       base44.asServiceRole.entities.WalletTransaction.filter({ launch_epoch: 2, type: 'service_fee_refund' }, '-created_date', 5000),
+      base44.asServiceRole.entities.WalletTransaction.filter({ launch_epoch: 2, type: 'withdrawal_fee' }, '-created_date', 5000),
     ]);
 
     const walletByUser = {};
@@ -28,6 +29,9 @@ Deno.serve(async (req) => {
     }
     for (const t of feeRefunds) {
       feesByUser[t.user_id] = (feesByUser[t.user_id] || 0) - (t.amount || 0);
+    }
+    for (const t of withdrawalFees) {
+      feesByUser[t.user_id] = (feesByUser[t.user_id] || 0) + (t.amount || 0);
     }
 
     const rows = users.map((u) => {
