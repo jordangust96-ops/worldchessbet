@@ -204,7 +204,9 @@ const guardSrc = await read('src/components/JurisdictionAccessGuard.jsx');
 ok(guardSrc.includes('promptEligible'), 'guard surfaces promptEligible');
 ok(guardSrc.includes('JurisdictionWaitlistOptIn'), 'guard renders the opt-in component');
 ok(/promptEligible=\{decision\.promptEligible\}/.test(guardSrc) || /promptElligible=\{decision\.promptEligible\}/.test(guardSrc), 'guard passes promptElligible to UnavailableScreen');
-ok(guardSrc.includes("<Outlet />"), 'guard still renders <Outlet /> when allowed');
+// See the matching comment in validate-jurisdiction-gates.mjs: the guard's
+// Outlet legitimately carries a context prop now, so match the tag loosely.
+ok(/<Outlet\b/.test(guardSrc), 'guard still renders <Outlet /> (optionally with props) when allowed');
 ok(/triggerEvent:\s*["']app_access["']/.test(guardSrc), 'guard still triggers getCurrentJurisdiction with app_access');
 ok(!/Retry/.test(guardSrc), 'guard still has no retry button');
 ok(!/setTimeout|setInterval/.test(guardSrc), 'guard still has no timer');
