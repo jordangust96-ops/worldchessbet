@@ -1,0 +1,45 @@
+{
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "*/5 * * * *",
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "pending_winnings_release_sweep",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "release_pending_winnings": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "releasePendingWinnings",
+            "args": {}
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Release Pending Winnings",
+            "description": "Move eligible payouts from Held to Available Balance once the 24-hour contest report window has passed with no open report or Fair Play flag"
+          }
+        }
+      }
+    ]
+  },
+  "name": "Pending Winnings Release Sweep",
+  "description": "Every 5 minutes, releases winner payouts whose 24-hour contest reporting window has passed with no report filed and no open Fair Play / settlement flag, moving them from Held to Available Balance."
+}
