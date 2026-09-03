@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { requireAdminMfa } from '../../shared/mfa.ts';
 import { applyBalanceHold } from '../../shared/ledger.ts';
+import { buildFairPlayAnalysisEvidence } from '../../shared/fairPlayEvidence.ts';
 
 // Admin-only actions on an existing IntegrityFlag. Every action writes an
 // immutable IntegrityAuditLog entry. No action here ever automatically bans
@@ -142,6 +143,10 @@ Deno.serve(async (req) => {
         match_id: flag.match_id,
         game_id: game?.id || match.game_id || '',
         contest_record_id: contestRecord?.id || '',
+        // Structured link back to the flag this case was opened from —
+        // previously the only trace of this relationship was a free-text
+        // mention of the flag id inside report_description/DisputeCaseNote.
+        integrity_flag_id: flagId,
         reporting_user_id: admin.id,
         reported_user_id: flag.user_id,
         reporting_user_username: admin.full_name || admin.email || 'Admin',
@@ -176,6 +181,15 @@ Deno.serve(async (req) => {
         visible_to_user: false,
       });
 
+      // engine_assistance_suspected flags are the one flag type backed by
+      // an actual FairPlayAnalysis (Stockfish) record — attach it to the
+      // evidence package now instead of leaving CaseEvidence.fair_play_analysis
+      // permanently unpopulated, which it was for every case regardless of
+      // origin before this fix.
+      const fairPlayAnalysis = flag.flag_type === 'engine_assistance_suspected'
+        ? await buildFairPlayAnalysisEvidence(base44, { matchId: flag.match_id, userId: flag.user_id, match })
+        : '';
+
       const evidence = await base44.asServiceRole.entities.CaseEvidence.create({
         case_id: disputeCase.id,
         case_number: caseNumber,
@@ -196,13 +210,18 @@ Deno.serve(async (req) => {
         report_category: 'fair_play',
         report_subcategory: 'Automated Fair Play Screening',
         report_description: reportDescription,
+        fair_play_analysis: fairPlayAnalysis,
         captured_at: new Date().toISOString(),
         legal_hold: false,
       });
       await base44.asServiceRole.entities.DisputeCase.update(disputeCase.id, { evidence_id: evidence.id });
 
       newStatus = 'under_review';
+      // Reciprocal structured link (DisputeCase.integrity_flag_id is set
+      // above) — recorded on the same flagUpdates the end of this handler
+      // already writes via IntegrityFlag.update, so no extra write.
       flagUpdates.status = newStatus;
+      flagUpdates.dispute_case_id = disputeCase.id;
       auditNotes = auditNotes || `Opened Dispute Case #CB-${String(caseNumber).padStart(6, '0')} from this flag.`;
     } else if (action === 'mark_action_taken') {
       newStatus = 'action_taken';
