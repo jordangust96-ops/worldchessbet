@@ -228,6 +228,16 @@ Deno.serve(async (req) => {
 
     const updatedFlag = await base44.asServiceRole.entities.IntegrityFlag.update(flagId, flagUpdates);
 
+    // Clearing a fair-play flag that was itself the only thing holding a
+    // match's pending winnings (an autonomous, unreported flag — see
+    // releasePendingWinnings) must actually release those funds, or they
+    // stay held indefinitely with nothing left to release them.
+    if (action === 'mark_cleared' && flag.flag_type === 'engine_assistance_suspected' && flag.match_id) {
+      await releaseMatchPendingPayoutIfUnblocked(base44, { matchId: flag.match_id, admin }).catch((error) => {
+        console.error(JSON.stringify({ event: 'pending_payout_release_on_clear_failed', flag_id: flagId, error: error?.message || 'unknown_error' }));
+      });
+    }
+
     await base44.asServiceRole.entities.IntegrityAuditLog.create({
       flag_id: flagId,
       admin_id: admin.id,
