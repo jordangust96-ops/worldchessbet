@@ -56,10 +56,17 @@ Deno.serve(async (req) => {
       ]);
       const hasOpenCase = openCases.some((c) => !['resolved', 'closed'].includes(c.status));
       if (hasOpenCase) continue;
+      // A 'monitor'-band engine_assistance_suspected flag (severity 'low')
+      // is a soft signal — not, by itself, grounds to hold a payout
+      // indefinitely. A 'review'-band flag (always severity 'medium' from
+      // requestFairPlayAnalysis) is what actually warrants holding it, same
+      // as settlement_reconciliation_required (always warrants holding,
+      // regardless of severity — it means the settlement itself is unresolved).
       const hasOpenFairPlayFlag = flags.some(
         (f) =>
-          ['engine_assistance_suspected', 'settlement_reconciliation_required'].includes(f.flag_type) &&
-          ['open', 'under_review'].includes(f.status)
+          ['open', 'under_review'].includes(f.status) &&
+          (f.flag_type === 'settlement_reconciliation_required' ||
+            (f.flag_type === 'engine_assistance_suspected' && f.severity !== 'low'))
       );
       if (hasOpenFairPlayFlag) continue;
 
