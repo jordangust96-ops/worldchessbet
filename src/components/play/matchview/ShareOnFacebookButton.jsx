@@ -33,12 +33,16 @@ export default function ShareOnFacebookButton({ match, game, winnerName, opponen
 
   const handleShare = async () => {
     setSharing(true);
+    // Opened synchronously, inside the click handler's own gesture, before
+    // any await — most browsers (Safari in particular) block window.open
+    // calls that happen only after an async render/download completes. The
+    // already-open tab is simply redirected once the share URL is ready.
+    const shareWindow = window.open("", "_blank");
     try {
       await downloadCard();
-      window.open(
-        `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(SITE_URL)}&quote=${encodeURIComponent(postText)}`,
-        "_blank"
-      );
+      const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(SITE_URL)}&quote=${encodeURIComponent(postText)}`;
+      if (shareWindow) shareWindow.location.href = shareUrl;
+      else window.open(shareUrl, "_blank");
       toast({
         title: "Victory card downloaded",
         description: "Attach the downloaded image to your post on Facebook.",
