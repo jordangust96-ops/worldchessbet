@@ -6,7 +6,7 @@ import {
 } from '../../shared/seamlessAch.ts';
 import { postLedgerLegs } from '../../shared/ledger.ts';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
-import { claimWebhookEvent, finishWebhookEvent } from '../../shared/seamlessAtomicStore.ts';
+import { claimWebhookEvent, finishWebhookEvent, atomicStoreEnabled, checkAtomicStoreHealth } from '../../shared/seamlessAtomicStore.ts';
 
 function pickCheckId(body) { return body?.check?.id || body?.check?.check_id || body?.check_id || body?.id || ''; }
 function pickSourceId(body) { return body?.source?.id || body?.source_id || body?.funding_source?.id || body?.funding_source_id || body?.fundingSourceId || ''; }
@@ -49,6 +49,17 @@ Deno.serve(async (req) => {
   // provider reference/event id. Acknowledge them after authentication instead
   // of collapsing every probe into the same financial idempotency record.
   if (eventType === 'endpoint.test') return Response.json({ received: true, test: true });
+  if (eventType === 'diagnostic.atomic_store_probe') {
+    const configured = atomicStoreEnabled();
+    let reachable = false;
+    let error = '';
+    if (configured) {
+      try { reachable = await checkAtomicStoreHealth(); } catch (e) { error = String(e?.message || e); }
+    } else {
+      error = 'not_configured';
+    }
+    return Response.json({ configured, reachable, error });
+  }
 
   const eventId = pickEventId(body);
   const providerRef = eventType.startsWith('funding-source.')
