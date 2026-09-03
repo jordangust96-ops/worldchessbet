@@ -11,7 +11,7 @@
     "typecheck": "tsc -p ./jsconfig.json",
     "preview": "vite preview",
     "test:integration": "node scripts/validate-integration-contract.mjs",
-    "test:seamless": "node scripts/validate-seamless.mjs && node scripts/validate-seamless-races.mjs",
+    "test:seamless": "node scripts/validate-seamless.mjs && node scripts/validate-seamless-races.mjs && node scripts/validate-seamless-status-recovery.mjs",
     "test:ledger": "node scripts/validate-ledger-integrity.mjs",
     "test:jurisdiction": "node scripts/validate-jurisdiction-gates.mjs",
     "test:waitlist": "node scripts/validate-jurisdiction-waitlist.mjs",
