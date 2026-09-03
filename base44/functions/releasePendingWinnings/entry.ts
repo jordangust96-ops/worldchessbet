@@ -28,8 +28,13 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
 
+    // status: 'completed' excludes any losing/failed settlement-election
+    // candidate that still carried a stale payout_hold_status of 'held' at
+    // creation time before settleMatch's canonical-transaction election
+    // resolved it (markSettlementAttempt now voids that field on the loser,
+    // but this filter is defense-in-depth against any legacy/pre-fix rows).
     const heldPayouts = await base44.asServiceRole.entities.WalletTransaction.filter(
-      { type: 'payout', payout_hold_status: 'held' },
+      { type: 'payout', status: 'completed', payout_hold_status: 'held' },
       '-created_date',
       200
     );
@@ -48,7 +53,7 @@ Deno.serve(async (req) => {
       // a case, or a previous sweep run could already have released this
       // exact transaction).
       const transaction = await base44.asServiceRole.entities.WalletTransaction.get(candidate.id);
-      if (!transaction || transaction.payout_hold_status !== 'held') continue;
+      if (!transaction || transaction.status !== 'completed' || transaction.payout_hold_status !== 'held') continue;
 
       const [openCases, flags] = await Promise.all([
         base44.asServiceRole.entities.DisputeCase.filter({ match_id: transaction.match_id }),
@@ -75,7 +80,7 @@ Deno.serve(async (req) => {
       // and this write (a case or flag could appear, or an admin could
       // resolve/consume this exact hold, in that window).
       const preCommit = await base44.asServiceRole.entities.WalletTransaction.get(transaction.id);
-      if (!preCommit || preCommit.payout_hold_status !== 'held') continue;
+      if (!preCommit || preCommit.status !== 'completed' || preCommit.payout_hold_status !== 'held') continue;
 
       await applyBalanceHold(base44, {
         userId: transaction.user_id,
@@ -84,6 +89,7 @@ Deno.serve(async (req) => {
         matchId: transaction.match_id,
         actor: 'system',
         triggerEvent: 'pending_winnings_auto_release',
+        walletTransactionId: transaction.id,
       });
       await base44.asServiceRole.entities.WalletTransaction.update(transaction.id, { payout_hold_status: 'released' });
       releasedIds.push(transaction.id);
