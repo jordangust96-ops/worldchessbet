@@ -144,7 +144,11 @@ Deno.serve(async (req) => {
     // Double-entry: Debit User Available Balance, Credit Contest Reserve.
     // The debited amount is simultaneously moved into the user's held balance.
     await postLedgerLegs(base44, {
-      groupId: crypto.randomUUID(),
+      // Deterministic, greppable ledger_group_id: every leg posted for a
+      // given financial event can be found from just the match id and the
+      // WalletTransaction it backs, without first looking up a random UUID
+      // via an admin diagnostic tool.
+      groupId: `match:${match.id}:match_entry:${entryTransaction.id}`,
       matchId: match.id,
       walletTransactionId: entryTransaction.id,
       actor: 'user',
@@ -171,7 +175,7 @@ Deno.serve(async (req) => {
     // Balance, Credit Suspense (pending — not yet recognized as revenue until
     // the match settles with a decisive result).
     await postLedgerLegs(base44, {
-      groupId: crypto.randomUUID(),
+      groupId: `match:${match.id}:service_fee_charge:${feeTransaction.id}`,
       matchId: match.id,
       walletTransactionId: feeTransaction.id,
       actor: 'user',
