@@ -75,6 +75,7 @@ Rules:
 | payout | credit |
 | service_fee_charge | reserve |
 | service_fee_refund | release |
+| withdrawal_fee | debit |
 
 Currency is currently `USD` and is explicit on all new integration records.
 
