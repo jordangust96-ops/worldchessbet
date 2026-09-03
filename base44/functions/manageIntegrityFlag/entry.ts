@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { requireAdminMfa } from '../../shared/mfa.ts';
+import { applyBalanceHold } from '../../shared/ledger.ts';
 
 // Admin-only actions on an existing IntegrityFlag. Every action writes an
 // immutable IntegrityAuditLog entry. No action here ever automatically bans
