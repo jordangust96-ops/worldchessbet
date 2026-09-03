@@ -115,8 +115,12 @@ Deno.serve(async (req) => {
     if (!Number.isFinite(value) || value <= 0 || value > MAX_AMOUNT) {
       return Response.json({ error: 'Invalid withdrawal amount' }, { status: 400 });
     }
-    const withdrawalFee = value < SMALL_WITHDRAWAL_THRESHOLD ? SMALL_WITHDRAWAL_FEE : 0;
-    const totalDebitAmount = value + withdrawalFee;
+    // The fee decision (including the full-balance waiver below) is finalized
+    // once, either right below when the withdrawal is first created, or read
+    // back from the persisted operation on a retry -- never recomputed against
+    // a wallet balance that this withdrawal's own reservation has since
+    // changed.
+    let withdrawalFee = 0;
     if (!IDEMPOTENCY_KEY.test(String(idempotencyKey || ''))) {
       return Response.json({ error: 'A valid withdrawal idempotency key is required' }, { status: 400 });
     }
