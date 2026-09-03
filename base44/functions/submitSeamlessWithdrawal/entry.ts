@@ -15,6 +15,8 @@ import {
 } from '../../shared/seamlessAtomicStore.ts';
 
 const MAX_AMOUNT = 10000;
+const SMALL_WITHDRAWAL_THRESHOLD = 10;
+const SMALL_WITHDRAWAL_FEE = 2.50;
 const IDEMPOTENCY_KEY = /^[A-Za-z0-9._:-]{16,128}$/;
 
 async function hasLedgerGroup(base44, groupId) {
