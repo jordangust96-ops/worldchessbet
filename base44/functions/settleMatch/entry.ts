@@ -130,9 +130,14 @@ async function classifySettlementPostingFailure(base44, transaction, match, game
 // On a decisive result, the winner receives 100% of the combined Contest
 // Entry Amounts (the full Contest Reserve) — no percentage is ever deducted
 // from the pot — and both players' pending Service Fees are simultaneously
-// recognized as Platform Revenue. On a draw, both the Entry Amount and the
-// Service Fee are fully refunded to each player; no Platform Revenue is
-// recognized.
+// recognized as Platform Revenue. The loser's held Entry Amount and Service
+// Fee are released (they are never returned to available balance — that
+// value is what funds the winner's payout and the recognized Service Fee
+// revenue), and this is reflected as its own 'wager_forfeit' WalletTransaction
+// so the loser has the same kind of clear, timestamped record of the outcome
+// that the winner and a drawn match's players already get. On a draw, both
+// the Entry Amount and the Service Fee are fully refunded to each player; no
+// Platform Revenue is recognized.
 
 Deno.serve(async (req) => {
   try {
@@ -186,7 +191,7 @@ Deno.serve(async (req) => {
       }
 
       const settlementTransactions = fundingTransactions.filter((transaction) =>
-        ['payout', 'wager_refund', 'service_fee_refund'].includes(transaction.type) &&
+        ['payout', 'wager_refund', 'wager_forfeit', 'service_fee_refund'].includes(transaction.type) &&
         transaction.status !== 'failed'
       );
       const ledgerEntries = await base44.asServiceRole.entities.LedgerEntry.filter({ match_id: match.id });
@@ -426,6 +431,27 @@ Deno.serve(async (req) => {
         });
       }
 
+      // The loser gets their own settlement-time transaction too — previously
+      // their held Entry Amount/Service Fee release was posted only as a
+      // zero-value LedgerEntry leg tied to the WINNER's WalletTransaction, so
+      // a losing player's Wallet history never showed a distinct record of
+      // the match ending. Elected the same way as the winner's payout so it's
+      // safe under a concurrent/retried settlement attempt.
+      let loserTransaction = null;
+      if (loserId) {
+        loserTransaction = await createCanonicalSettlementTransaction(base44, {
+          match,
+          game,
+          userId: loserId,
+          type: 'wager_forfeit',
+          amount: wagerAmount,
+          description: 'Contest entry forfeited — match was lost',
+        });
+        if (!loserTransaction) {
+          return Response.json({ error: 'duplicate_settlement_attempt' }, { status: 409 });
+        }
+      }
+
       // Double-entry: Debit Contest Reserve for the full pot; Credit Winner
       // Available Balance the ENTIRE pot (100% — no percentage deducted).
       // Separately, both players' pending Platform Service Fees move from
@@ -453,7 +479,19 @@ Deno.serve(async (req) => {
         { ledgerAccount: 'platform_revenue', debit: 0, credit: totalFee, transactionType: 'platform_fee' },
       );
       if (loserId) {
-        legs.push({ ledgerAccount: 'user_account', userId: loserId, debit: 0, credit: 0, heldDelta: -(wagerAmount + serviceFee), transactionType: 'match_settlement' });
+        // Tagged 'match_release' (not 'match_settlement') and posted under the
+        // loser's own WalletTransaction id — this leg releases their held
+        // funds without crediting anything back, distinct from the winner's
+        // credited settlement leg above.
+        legs.push({
+          ledgerAccount: 'user_account',
+          userId: loserId,
+          debit: 0,
+          credit: 0,
+          heldDelta: -(wagerAmount + serviceFee),
+          transactionType: 'match_release',
+          walletTransactionId: loserTransaction?.id,
+        });
       }
 
       if (appliedReconciliation) {
@@ -481,12 +519,17 @@ Deno.serve(async (req) => {
           match,
           game
         );
+        const loserTerminalStatus = loserTransaction
+          ? await classifySettlementPostingFailure(base44, loserTransaction, match, game)
+          : null;
         console.error(JSON.stringify({
           event: 'settlement_ledger_posting_failed',
           match_id: match.id,
           game_id: game.id,
           wallet_transaction_id: walletTransaction.id,
+          loser_wallet_transaction_id: loserTransaction?.id || '',
           terminal_status: terminalStatus,
+          loser_terminal_status: loserTerminalStatus,
           diagnostic,
         }));
         if (appliedReconciliation) {
