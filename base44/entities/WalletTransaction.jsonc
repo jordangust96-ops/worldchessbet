@@ -16,7 +16,8 @@
         "wager_forfeit",
         "service_fee_charge",
         "service_fee_refund",
-        "withdrawal_fee"
+        "withdrawal_fee",
+        "admin_reversal"
       ]
     },
     "amount": {
