@@ -32,6 +32,14 @@ Deno.serve(async (req) => {
     if (match.status === 'cancelling' || match.cancellation_operation_id) {
       return Response.json({ error: 'cancellation_in_progress' }, { status: 409 });
     }
+    if (match.start_operation_id) {
+      // finalizeMatchStart has already claimed this match for its
+      // both_ready -> in_progress transition — it is actively going live,
+      // not idle. Treat it the same as an already-started match rather than
+      // racing it: the transition finishes in a fraction of a second, and
+      // the match will be genuinely uncancellable moments later anyway.
+      return Response.json({ error: 'This match has already begun starting and can no longer be cancelled' }, { status: 409 });
+    }
 
     const cancellationOperationId = crypto.randomUUID();
     await base44.asServiceRole.entities.Match.update(match.id, {
@@ -42,6 +50,18 @@ Deno.serve(async (req) => {
     match = await base44.asServiceRole.entities.Match.get(match.id);
     if (match.cancellation_operation_id !== cancellationOperationId) {
       return Response.json({ error: 'cancellation_claim_lost' }, { status: 409 });
+    }
+    if (match.start_operation_id) {
+      // finalizeMatchStart won the race and claimed this match for a start
+      // transition during our own claim delay. Back off before any refund is
+      // posted, and hand the match back to 'both_ready' so the start
+      // transition can still complete rather than leaving it stranded
+      // mid-cancel with no refund and no game.
+      await base44.asServiceRole.entities.Match.update(match.id, {
+        status: 'both_ready',
+        cancellation_operation_id: '',
+      });
+      return Response.json({ error: 'This match has already begun starting and can no longer be cancelled' }, { status: 409 });
     }
 
     const refundTargets = [];
