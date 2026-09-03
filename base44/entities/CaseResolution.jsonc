@@ -95,12 +95,26 @@
       },
       "description": "Balancing Internal Ledger entries created to reverse the original settlement. The original entries are never modified."
     },
+    "reversal_wallet_transaction_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "WalletTransaction records (admin_reversal debit from the original winner, wager_refund credit to the original loser) created to reverse the original settlement, one per affected user, each tagged onto its corresponding reversal_ledger_entry_ids row via LedgerEntry.wallet_transaction_id."
+    },
     "void_ledger_entry_ids": {
       "type": "array",
       "items": {
         "type": "string"
       },
       "description": "Internal Ledger entries created to refund both participants for a voided contest."
+    },
+    "void_wallet_transaction_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "WalletTransaction records created to refund both participants for a voided contest (settled: an admin_reversal debit of the winner's payout plus a wager_refund credit per player; not-yet-settled: a wager_refund credit per depositing player), each tagged onto its corresponding void_ledger_entry_ids row via LedgerEntry.wallet_transaction_id."
     },
     "suspension_scope": {
       "type": "array",
