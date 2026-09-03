@@ -11,6 +11,7 @@ import { postLedgerLegs } from '../../shared/ledger.ts';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 import { claimWebhookEvent, finishWebhookEvent } from '../../shared/seamlessAtomicStore.ts';
 
+// Read-only provider lookups feed the same exactly-once ledger transitions as webhooks.
 const INITIAL_DELAY_MS = 15 * 60 * 1000;
 const MAX_LOOKUP_AGE_MS = 90 * 24 * 60 * 60 * 1000;
 const BACKOFF_MS = [
