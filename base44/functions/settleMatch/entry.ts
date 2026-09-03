@@ -32,7 +32,7 @@ async function markSettlementAttempt(base44, transaction, match, game, status) {
     // both also defensively require status:'completed' before treating a
     // payout as the real held one, but clearing it here at the source is
     // what keeps that invariant true rather than merely papering over it.
-    ...(transaction.type === 'payout' ? { payout_hold_status: '', payout_release_at: '' } : {}),
+    ...(transaction.type === 'payout' ? { payout_hold_status: 'void' } : {}),
   });
 }
 
