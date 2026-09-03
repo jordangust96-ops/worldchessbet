@@ -137,6 +137,20 @@
       "type": "integer",
       "default": 1,
       "minimum": 1
+    },
+    "payout_hold_status": {
+      "type": "string",
+      "enum": [
+        "held",
+        "released",
+        "consumed"
+      ],
+      "description": "Only meaningful for type 'payout'. Set at creation to 'held': the winner's payout is credited into Held, not Available, Balance pending the 24-hour contest report window. 'released' once releasePendingWinnings (no report filed) or an admin resolving a filed report (manageDisputeCase, non-reversing resolution) moves it to Available Balance. 'consumed' if an admin's contest_reversed/contest_voided resolution debited it directly out of Held Balance instead. Absent on transactions created before this hold existed \u2014 those were released immediately at settlement, the prior behavior."
+    },
+    "payout_release_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Only meaningful for type 'payout' with payout_hold_status 'held'. The earliest time releasePendingWinnings may release this payout to Available Balance \u2014 24 hours after settlement, matching the contest report deadline. Never released before this time, and never while a DisputeCase or open Fair Play / settlement integrity flag exists for the match."
     }
   },
   "required": [
