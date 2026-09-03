@@ -185,7 +185,7 @@ assert.match(walletTxSchemaSrc, /"wager_forfeit"/, 'WalletTransaction.type enum 
 assert.match(settleMatchSrc, /type: 'wager_forfeit'/, 'settleMatch creates a wager_forfeit transaction for the loser');
 assert.match(settleMatchSrc, /transactionType: 'match_release'/, "the loser's settlement leg is tagged match_release, not match_settlement");
 assert.match(settleMatchSrc, /walletTransactionId: loserTransaction\?\.id/, "the loser's leg is posted under their own transaction id");
-assert.match(settleMatchSrc, /'wager_forfeit'\]\.includes\(transaction\.type\)/, 'the stale-lease settlement-evidence check recognizes wager_forfeit as financial evidence');
+assert.match(settleMatchSrc, /\['payout', 'wager_refund', 'wager_forfeit', 'service_fee_refund'\]\.includes\(transaction\.type\)/, 'the stale-lease settlement-evidence check recognizes wager_forfeit as financial evidence');
 assert.match(ledgerSrc, /leg\.walletTransactionId \|\| walletTransactionId/, 'postLedgerLegs supports a per-leg walletTransactionId override');
 assert.match(ledgerSrc, /walletTransactionIds = \[\.\.\.new Set\(/, 'postLedgerLegs completes every distinct WalletTransaction referenced by a posting, not just the primary one');
 assert.match(ledgerSrc, /wager_forfeit: 'release'/, 'postLedgerLegs direction map covers wager_forfeit');
