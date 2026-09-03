@@ -261,7 +261,13 @@ Deno.serve(async (req) => {
       userId: user.id, walletTransactionId: tx.id, status: 'pending', amount: value, result: providerRef,
       eventData: { provider: SEAMLESS_PROVIDER_KEY, provider_ref: providerRef, label, transfer_speed: transferSpeed || 'standard' },
     });
-    return Response.json({ enabled: true, transaction_id: tx.id, provider_reference_id: providerRef, status: 'pending', transfer_speed: transferSpeed || 'standard' });
+    const response = { enabled: true, transaction_id: tx.id, provider_reference_id: providerRef, status: 'pending', transfer_speed: transferSpeed || 'standard' };
+    if (withdrawalFee > 0) {
+      response.withdrawal_amount = value;
+      response.withdrawal_fee = withdrawalFee;
+      response.total_debit_amount = totalDebitAmount;
+    }
+    return Response.json(response);
   } catch {
     return Response.json({ error: 'Unable to submit withdrawal' }, { status: 503 });
   } finally {
