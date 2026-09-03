@@ -27,6 +27,14 @@
       "type": "string",
       "description": "Related match ID if applicable"
     },
+    "funding_source_id": {
+      "type": "string",
+      "description": "Only meaningful for type 'deposit'/'withdrawal'. The SeamlessBankAccount.source_id of the specific bank account actually used for this transaction, captured at creation time. SeamlessBankAccount.is_primary can change later (a re-link, or the user adding a second verified account) \u2014 this field is what lets a disputed or historical transaction always be traced back to the exact account that moved the money, instead of re-deriving 'the user's primary bank account' at investigation time and possibly getting the wrong one."
+    },
+    "ach_authorization_id": {
+      "type": "string",
+      "description": "Only meaningful for type 'deposit'/'withdrawal'. The AchDebitAuthorization.id (from extendComplianceEvidenceRetention's return value) that authorized funding_source_id for this transaction, captured at creation time \u2014 so Proof of Authorization for this specific transaction can always be produced, even after the authorization is later superseded or revoked."
+    },
     "description": {
       "type": "string"
     },
