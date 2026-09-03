@@ -19,6 +19,7 @@
     "test:match-lifecycle": "node scripts/validate-match-start-race.mjs",
     "test:gameplay": "node scripts/validate-game-end-race.mjs",
     "test:settlement": "node scripts/validate-settlement-transparency.mjs",
+    "test:pending-winnings": "node scripts/validate-pending-winnings.mjs",
     "test:launch": "node scripts/validate-launch-readiness.mjs"
   },
   "dependencies": {
