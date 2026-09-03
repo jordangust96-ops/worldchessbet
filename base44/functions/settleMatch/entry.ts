@@ -414,42 +414,42 @@ Deno.serve(async (req) => {
         });
       }
 
-      const walletTransaction = await createCanonicalSettlementTransaction(base44, {
-        match,
-        game,
-        userId: winnerId,
-        type: 'payout',
-        amount: pot,
-        description: 'Contest winnings payout — full combined entry amounts',
-      });
-      if (!walletTransaction) {
+      // The loser gets their own settlement-time transaction too — previously
+      // their held Entry Amount/Service Fee release was posted only as a
+      // zero-value LedgerEntry leg tied to the WINNER's WalletTransaction, so
+      // a losing player's Wallet history never showed a distinct record of
+      // the match ending. Elected the same way as the winner's payout (each
+      // independently, against its own idempotency key) and run concurrently
+      // with it — both are read-only with respect to each other — so this
+      // second election doesn't add its own 250ms to "Finalizing match
+      // result..." on top of the winner's.
+      const [walletTransaction, loserTransaction] = await Promise.all([
+        createCanonicalSettlementTransaction(base44, {
+          match,
+          game,
+          userId: winnerId,
+          type: 'payout',
+          amount: pot,
+          description: 'Contest winnings payout — full combined entry amounts',
+        }),
+        loserId
+          ? createCanonicalSettlementTransaction(base44, {
+              match,
+              game,
+              userId: loserId,
+              type: 'wager_forfeit',
+              amount: wagerAmount,
+              description: 'Contest entry forfeited — match was lost',
+            })
+          : Promise.resolve(null),
+      ]);
+      if (!walletTransaction || (loserId && !loserTransaction)) {
         return Response.json({ error: 'duplicate_settlement_attempt' }, { status: 409 });
       }
       if (appliedReconciliation) {
         await base44.asServiceRole.entities.SettlementReconciliation.update(appliedReconciliation.id, {
           notes: `${appliedReconciliation.notes || ''}\nLatest stage: payout_created (${walletTransaction.id})`.trim(),
         });
-      }
-
-      // The loser gets their own settlement-time transaction too — previously
-      // their held Entry Amount/Service Fee release was posted only as a
-      // zero-value LedgerEntry leg tied to the WINNER's WalletTransaction, so
-      // a losing player's Wallet history never showed a distinct record of
-      // the match ending. Elected the same way as the winner's payout so it's
-      // safe under a concurrent/retried settlement attempt.
-      let loserTransaction = null;
-      if (loserId) {
-        loserTransaction = await createCanonicalSettlementTransaction(base44, {
-          match,
-          game,
-          userId: loserId,
-          type: 'wager_forfeit',
-          amount: wagerAmount,
-          description: 'Contest entry forfeited — match was lost',
-        });
-        if (!loserTransaction) {
-          return Response.json({ error: 'duplicate_settlement_attempt' }, { status: 409 });
-        }
       }
 
       // Double-entry: Debit Contest Reserve for the full pot; Credit Winner
