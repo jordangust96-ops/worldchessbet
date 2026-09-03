@@ -373,6 +373,20 @@ Deno.serve(async (req) => {
         const match = disputeCase.match_id ? await base44.asServiceRole.entities.Match.get(disputeCase.match_id) : null;
         const contestRecord = await findContestRecord(base44, disputeCase.match_id);
 
+        // The automatic 24-hour pending-winnings hold (settleMatch /
+        // releasePendingWinnings) holds the winner's payout in Held Balance
+        // independently of any admin-placed hold above — the sweep never
+        // releases a payout while this case is open. Resolving the case is
+        // what finally decides its fate: contest_reversed/contest_voided
+        // consume it directly from Held Balance below; every other
+        // resolution type releases it to Available Balance once the case
+        // concludes, matching the existing no_violation hold-release logic.
+        const payoutTransactions = disputeCase.match_id
+          ? await base44.asServiceRole.entities.WalletTransaction.filter({ match_id: disputeCase.match_id, type: 'payout' })
+          : [];
+        const pendingPayout = payoutTransactions.find((t) => t.payout_hold_status === 'held') || null;
+        let pendingPayoutConsumed = false;
+
         const resolutionFields = {
           case_id: caseId,
           case_number: disputeCase.case_number,
@@ -417,7 +431,8 @@ Deno.serve(async (req) => {
           const payout = contestRecord.winner_payout || 0;
           const entryAmount = contestRecord.entry_amount || 0;
           const fee = contestRecord.platform_fee || 0;
-          const holdCoversThis = disputeCase.hold_status === 'post_settlement_hold' && disputeCase.hold_target_user_id === winnerId;
+          const pendingPayoutCoversThis = !!pendingPayout && pendingPayout.user_id === winnerId;
+          const holdCoversThis = pendingPayoutCoversThis || (disputeCase.hold_status === 'post_settlement_hold' && disputeCase.hold_target_user_id === winnerId);
 
           const legs = [];
           if (winnerId && payout > 0) {
@@ -436,6 +451,10 @@ Deno.serve(async (req) => {
 
           const entries = await postRemedyLegs(base44, { matchId: match.id, admin, triggerEvent: 'contest_reversal', legs });
 
+          if (pendingPayoutCoversThis) {
+            await base44.asServiceRole.entities.WalletTransaction.update(pendingPayout.id, { payout_hold_status: 'consumed' });
+            pendingPayoutConsumed = true;
+          }
           if (holdCoversThis) {
             caseUpdates.hold_status = 'released';
             caseUpdates.hold_released_at = new Date().toISOString();
@@ -455,7 +474,8 @@ Deno.serve(async (req) => {
             const payout = contestRecord.winner_payout || 0;
             const entryAmount = contestRecord.entry_amount || 0;
             const fee = contestRecord.platform_fee || 0;
-            const holdCoversThis = disputeCase.hold_status === 'post_settlement_hold' && disputeCase.hold_target_user_id === winnerId;
+            const pendingPayoutCoversThis = !!pendingPayout && pendingPayout.user_id === winnerId;
+            const holdCoversThis = pendingPayoutCoversThis || (disputeCase.hold_status === 'post_settlement_hold' && disputeCase.hold_target_user_id === winnerId);
 
             const legs = [];
             if (winnerId) legs.push({ ledgerAccount: 'user_account', userId: winnerId, debit: payout, credit: entryAmount, fromHeld: holdCoversThis, transactionType: 'reversal' });
@@ -466,6 +486,10 @@ Deno.serve(async (req) => {
             else if (contestClearingNet < 0) legs.push({ ledgerAccount: 'contest_clearing', debit: -contestClearingNet, credit: 0, transactionType: 'reversal' });
 
             entries.push(...(await postRemedyLegs(base44, { matchId: match.id, admin, triggerEvent: 'contest_void', legs })));
+            if (pendingPayoutCoversThis) {
+              await base44.asServiceRole.entities.WalletTransaction.update(pendingPayout.id, { payout_hold_status: 'consumed' });
+              pendingPayoutConsumed = true;
+            }
             if (holdCoversThis) {
               caseUpdates.hold_status = 'released';
               caseUpdates.hold_released_at = new Date().toISOString();
@@ -478,7 +502,7 @@ Deno.serve(async (req) => {
             for (const playerId of [match.player1_id, match.player2_id].filter(Boolean)) {
               const entry = await applyBalanceHold(base44, {
                 userId: playerId, amount: match.wager_amount || 0, direction: 'release',
-                matchId: match.id, admin, triggerEvent: 'contest_void',
+                matchId: match.id, actor: 'administrator', actorId: admin.id, triggerEvent: 'contest_void',
               });
               if (entry) entries.push(entry);
             }
@@ -513,6 +537,20 @@ Deno.serve(async (req) => {
           resolutionFields.referral_destination = payload.referralDestination || '';
           resolutionFields.referral_reference_number = payload.referralReferenceNumber || '';
           effectsSummary = 'This case has been referred for external review.';
+        }
+
+        // Any pending-winnings hold not already consumed by a reversal/void
+        // above is released now that the case has concluded — no_violation,
+        // account_suspended/closed, funds_forfeited (data-model only per its
+        // own comment above), and referred all leave the contest result and
+        // its payout standing.
+        if (pendingPayout && !pendingPayoutConsumed) {
+          await applyBalanceHold(base44, {
+            userId: pendingPayout.user_id, amount: pendingPayout.amount, direction: 'release',
+            matchId: disputeCase.match_id, actor: 'administrator', actorId: admin.id, triggerEvent: 'pending_winnings_release',
+          });
+          await base44.asServiceRole.entities.WalletTransaction.update(pendingPayout.id, { payout_hold_status: 'released' });
+          effectsSummary = `${effectsSummary} The pending winnings hold on this contest was released to Available Balance.`.trim();
         }
 
         await base44.asServiceRole.entities.CaseResolution.create(resolutionFields);
