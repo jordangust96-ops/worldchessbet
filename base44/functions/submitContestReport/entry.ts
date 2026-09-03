@@ -1,8 +1,8 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
+import { REPORT_WINDOW_MS, CLOCK_SKEW_TOLERANCE_MS } from '../../shared/reportWindow.ts';
 
 const VALID_CATEGORIES = ['fair_play', 'collusion', 'harassment', 'technical_issue', 'rules_violation', 'other'];
-const WALLET_REPORT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 function serverTimestampMs(value) {
   if (!value) return NaN;
@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
       }
       const createdAtMs = serverTimestampMs(sourceTransaction.created_date);
       const ageMs = Date.now() - createdAtMs;
-      if (!Number.isFinite(ageMs) || ageMs < -5 * 60 * 1000 || ageMs > WALLET_REPORT_WINDOW_MS) {
+      if (!Number.isFinite(ageMs) || ageMs < -CLOCK_SKEW_TOLERANCE_MS || ageMs > REPORT_WINDOW_MS) {
         return Response.json(
           { error: 'The 24-hour reporting window for this wallet transaction has closed.' },
           { status: 409 }
@@ -80,6 +80,24 @@ Deno.serve(async (req) => {
       opponentId ? base44.asServiceRole.entities.User.get(opponentId).catch(() => null) : Promise.resolve(null),
     ]);
     const contestRecord = contestRecords[0] || null;
+
+    // Enforce the same 24-hour window uniformly for every report against a
+    // settled contest, not just ones opened from a specific wallet
+    // transaction above — this is also the window releasePendingWinnings
+    // uses to decide whether a winner's payout can leave Held Balance, so a
+    // report must never be able to arrive after that money has already been
+    // released. A contest still in progress (match.status !== 'completed')
+    // has no completion time yet and is unaffected.
+    if (!transactionId && match.status === 'completed' && contestRecord?.settlement_timestamp) {
+      const settledAtMs = serverTimestampMs(contestRecord.settlement_timestamp);
+      const ageMs = Date.now() - settledAtMs;
+      if (Number.isFinite(settledAtMs) && ageMs > REPORT_WINDOW_MS) {
+        return Response.json(
+          { error: 'The 24-hour reporting window for this contest has closed.' },
+          { status: 409 }
+        );
+      }
+    }
 
     // Sequential, permanent Case ID.
     const [latest] = await base44.asServiceRole.entities.DisputeCase.list('-case_number', 1);
