@@ -13,6 +13,7 @@
         "wager_lock",
         "wager_refund",
         "payout",
+        "wager_forfeit",
         "service_fee_charge",
         "service_fee_refund"
       ]
