@@ -1,5 +1,55 @@
 import { recordIntegrationEvent } from './integrationEvents.ts';
 
+// Moves funds between a user's Available and Held balances. Used for
+// administrative investigation holds/releases (manageDisputeCase) and for
+// the automatic pending-winnings hold's system-initiated release
+// (releasePendingWinnings, manageDisputeCase's case-resolution cleanup).
+// This never moves value to another ledger account — the total stays with
+// the user, only its availability changes — so the ledger entry is
+// self-balancing (debit_amount === credit_amount), always immutable, and
+// additive (a release/consumption never edits the original hold entry — it
+// always creates a new one).
+export async function applyBalanceHold(base44, { userId, amount, direction, matchId, actor = 'administrator', actorId = '', triggerEvent }) {
+  if (amount <= 0) return null;
+  const wallets = await base44.asServiceRole.entities.Wallet.filter({ user_id: userId });
+  const wallet = wallets[0];
+  if (!wallet) throw new Error('Wallet not found for this user');
+
+  const delta = direction === 'hold' ? amount : -amount;
+  const newAvailable = (wallet.available_balance || 0) - delta;
+  const newHeld = (wallet.held_balance || 0) + delta;
+  if (newAvailable < -0.01) throw new Error('Insufficient available balance to place this hold');
+
+  const newTotal = newAvailable + newHeld;
+  await base44.asServiceRole.entities.Wallet.update(wallet.id, {
+    available_balance: newAvailable,
+    held_balance: newHeld,
+    total_balance: newTotal,
+    balance: newAvailable,
+  });
+
+  return base44.asServiceRole.entities.LedgerEntry.create({
+    user_id: userId,
+    match_id: matchId || '',
+    ledger_account: 'user_account',
+    transaction_type: direction === 'hold' ? 'investigation_hold' : 'investigation_hold_release',
+    debit_amount: amount,
+    credit_amount: amount,
+    resulting_available_balance: newAvailable,
+    resulting_held_balance: newHeld,
+    resulting_total_balance: newTotal,
+    initiating_actor: actor,
+    initiating_actor_id: actorId || '',
+    trigger_event: triggerEvent,
+    external_reference_type: matchId ? 'match' : 'none',
+    external_reference_id: matchId || '',
+    ledger_group_id: crypto.randomUUID(),
+    correlation_id: matchId || userId,
+    currency: 'USD',
+    schema_version: 1,
+  });
+}
+
 // Shared Internal Ledger posting helper, used by every backend function that
 // moves money (deposits, withdrawals, contest entries/settlements, account
 // closure, promotional credits, etc.). Posts a balanced set of Ledger
