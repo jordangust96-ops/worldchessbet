@@ -158,6 +158,7 @@ export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletT
     wager_forfeit: 'release',
     service_fee_charge: 'reserve',
     service_fee_refund: 'release',
+    withdrawal_fee: 'debit',
   };
   const requiresExternalRail = ['deposit', 'withdrawal', 'account_closure_disbursement'].includes(triggerEvent);
   const walletTransactionIds = [...new Set(
