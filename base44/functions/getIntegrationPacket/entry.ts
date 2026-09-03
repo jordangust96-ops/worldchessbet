@@ -273,7 +273,12 @@ Deno.serve(async (req) => {
       contract: 'chessbet.funds_flow.integration_packet',
       schema_version: 1,
       generated_at: new Date().toISOString(),
-      provider_key: 'unassigned',
+      // ChessBet now has two live partners covering different concerns
+      // (Seamless for funds movement, Socure for identity/bank screening),
+      // so a single static provider_key is no longer accurate. Report the
+      // distinct provider_key values actually present on this packet's own
+      // integration references instead of a hardcoded placeholder.
+      provider_keys: [...new Set(integrationReferences.map((reference) => reference.provider_key).filter(Boolean))],
       canonical_ids: {
         player_ids: participantIds,
         match_id: canonicalMatchId || '',
