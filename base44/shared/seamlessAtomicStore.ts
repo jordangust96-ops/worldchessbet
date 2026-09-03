@@ -1,6 +1,11 @@
-// Server-only atomic claim store for Seamless financial operations. Upstash Redis
+// Server-only atomic claim store for financial operations. Upstash Redis
 // executes each Lua EVAL atomically, allowing independent per-user/event locks
 // across Base44 function instances. No browser code imports this module.
+// Named for its original Seamless deposit/withdrawal callers, but
+// acquireUserWalletLock/releaseUserWalletLock key only on user id and are
+// deliberately shared by any function that debits/credits a user's Wallet —
+// lockWager (contest entry) included — so two money-movement paths for the
+// same user, Seamless or not, always serialize against one another.
 const PREFIX = 'chessbet:seamless:v1';
 const OP_TTL_SECONDS = 60 * 60 * 24 * 90;
 const EVENT_TTL_SECONDS = 60 * 60 * 24 * 90;
