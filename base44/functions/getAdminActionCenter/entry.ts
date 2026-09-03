@@ -10,7 +10,13 @@ const BAND_LABEL = {
 };
 
 function sideEvidence(analysis, match, userId) {
-  if (!analysis || analysis.status !== 'completed' || !match || !userId) return null;
+  // 'manual_review' IS a finished result, not an in-progress one —
+  // requestFairPlayAnalysis stores a 'review'-band side under that status
+  // specifically (never 'completed'), so excluding it here would hide
+  // evidence for exactly the highest-stakes cases this feed exists to
+  // surface. Only queued/processing/awaiting_analyzer/failed have no usable
+  // result yet.
+  if (!analysis || !['completed', 'manual_review'].includes(analysis.status) || !match || !userId) return null;
   const side = match.player1_id === userId ? 'white' : match.player2_id === userId ? 'black' : null;
   if (!side) return null;
 
@@ -31,8 +37,8 @@ function sideEvidence(analysis, match, userId) {
 function fairPlayRecommendation(evidence) {
   if (!evidence) {
     return {
-      recommendation: 'Run or retry automated screening, then perform a manual evidence review.',
-      rationale: 'No completed screening result is available for the reported player in this contest.',
+      recommendation: 'Run automated screening, then perform a manual evidence review.',
+      rationale: 'No finished screening result is available for the reported player in this contest.',
     };
   }
 
@@ -45,7 +51,7 @@ function fairPlayRecommendation(evidence) {
 
   if (evidence.band === 'review') {
     return {
-      recommendation: 'Continue an integrity investigation before resolving the case.',
+      recommendation: 'Continue an integrity investigation before clearing this item, opening a case, or taking any other action.',
       rationale: 'Automated screening produced a review-level signal. Examine the screening reasons, match replay, timing, and related history before deciding whether action is warranted.',
     };
   }
