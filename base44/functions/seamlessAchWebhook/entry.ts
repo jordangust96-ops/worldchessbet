@@ -40,6 +40,20 @@ async function hasLedgerGroup(base44, groupId) {
   return (await base44.asServiceRole.entities.LedgerEntry.filter({ ledger_group_id: groupId }, '-created_date', 1)).length > 0;
 }
 
+// Seamless sends its own secret directly in Authorization (no "Bearer "
+// scheme -- see verifySeamlessWebhookAuth above, which is what actually
+// authenticates this request). createClientFromRequest, however, throws on
+// any non-empty Authorization header that isn't "Bearer <token>" shaped,
+// regardless of whether a user token is even needed. Every handler below
+// only ever uses base44.asServiceRole, so the incoming Authorization header
+// is never needed for identity -- strip it before handing the request to the
+// SDK so a provider's own auth scheme can never crash client construction.
+function serviceClientForWebhook(req) {
+  const headers = new Headers(req.headers);
+  headers.delete('authorization');
+  return createClientFromRequest({ headers });
+}
+
 Deno.serve(async (req) => {
   if (!verifySeamlessWebhookAuth(req.headers.get('authorization'))) return new Response('Unauthorized', { status: 401 });
 
@@ -84,7 +98,7 @@ Deno.serve(async (req) => {
     // crash — Seamless only needs a 2xx to stop retrying this event.
     let auditError = '';
     try {
-      const base44 = createClientFromRequest(req);
+      const base44 = serviceClientForWebhook(req);
       await recordIntegrationEvent(base44, {
         eventType: 'seamless.merchant_balance.transaction_status',
         aggregateType: 'ledger_group', aggregateId: providerRef || idemKey,
@@ -117,7 +131,7 @@ Deno.serve(async (req) => {
     }
     if (claim?.claim !== 'owned') return Response.json({ error: 'webhook_claim_failed' }, { status: 503 });
 
-    const base44 = createClientFromRequest(req);
+    const base44 = serviceClientForWebhook(req);
     let result;
     if (eventType.startsWith('funding-source.')) {
       result = await handleFundingSource(base44, body, eventType, idemKey);
