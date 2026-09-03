@@ -1,0 +1,45 @@
+{
+  "name": "Identity Verification Reconciliation Sweep",
+  "description": "Every 30 minutes, re-syncs each verified user's denormalized identity_verification_status/account_state against the underlying SocureIdentityVerification record it was set from, downgrading eligibility if they ever disagree.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "*/30 * * * *",
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "identity_verification_reconciliation_sweep",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "reconcile_identity_verification": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "reconcileIdentityVerification",
+            "args": {}
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Reconcile Identity Verification Status",
+            "description": "Re-sync User.identity_verification_status/account_state against SocureIdentityVerification; downgrade on drift"
+          }
+        }
+      }
+    ]
+  }
+}
