@@ -161,7 +161,8 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
   const bankScreeningStatus = verifiedBank?.socure_status || "not_started";
   const bankScreened = bankScreeningStatus === "verified";
   const transferDirectionEnabled = direction === 'deposit' ? depositsEnabled : withdrawalsEnabled;
-  const canSubmit = !ineligible && !!verifiedBank && bankScreened && !busy && parseFloat(amount) > 0 && transferDirectionEnabled;
+  const meetsMinimum = direction === 'deposit' ? parsedAmount >= MIN_DEPOSIT_AMOUNT : parsedAmount > 0;
+  const canSubmit = !ineligible && !!verifiedBank && bankScreened && !busy && meetsMinimum && transferDirectionEnabled;
 
   if (loading) {
     return (
