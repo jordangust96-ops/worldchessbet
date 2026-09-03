@@ -88,6 +88,7 @@ Deno.serve(async (req) => {
           winner_id: sideToMove === 'w' ? match.player2_id : match.player1_id,
           end_reason: 'timeout',
           completed_at: new Date().toISOString(),
+          draw_offered_by: '',
           [timeField]: 0,
         }
       : {
@@ -96,8 +97,20 @@ Deno.serve(async (req) => {
           winner_id: '',
           end_reason: 'timeout_vs_insufficient_material',
           completed_at: new Date().toISOString(),
+          draw_offered_by: '',
           [timeField]: 0,
         };
+
+    // Re-validate immediately before committing: a resignation, a draw
+    // acceptance, or the side-to-move's own in-flight move may have already
+    // resolved or advanced this game since the read above. Game.update is a
+    // merge-patch, not compare-and-set, so without this a stale timeout
+    // claim could silently overwrite a correct, already-committed outcome.
+    const preCommitGame = await base44.asServiceRole.entities.Game.get(gameId);
+    if (!preCommitGame || preCommitGame.status === 'completed' || preCommitGame.fen !== game.fen) {
+      return Response.json({ game: preCommitGame || game });
+    }
+
     const updatedGame = await base44.asServiceRole.entities.Game.update(gameId, timeoutUpdates);
     return Response.json({ game: updatedGame });
   } catch (error) {
