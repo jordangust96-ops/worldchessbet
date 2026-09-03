@@ -263,7 +263,7 @@ Deno.serve(async (req) => {
         const amount = Number(payload.amount) > 0 ? Number(payload.amount) : (match.wager_amount || 0) * 2 * 0.9;
 
         const entry = await applyBalanceHold(base44, {
-          userId: targetUserId, amount, direction: 'hold', matchId: match.id, admin, triggerEvent: 'investigation_hold',
+          userId: targetUserId, amount, direction: 'hold', matchId: match.id, actor: 'administrator', actorId: admin.id, triggerEvent: 'investigation_hold',
         });
 
         actionType = 'hold_placed';
@@ -285,7 +285,7 @@ Deno.serve(async (req) => {
         let entry = null;
         if (amount > 0) {
           entry = await applyBalanceHold(base44, {
-            userId: targetUserId, amount, direction: 'hold', matchId: disputeCase.match_id, admin, triggerEvent: 'account_restriction',
+            userId: targetUserId, amount, direction: 'hold', matchId: disputeCase.match_id, actor: 'administrator', actorId: admin.id, triggerEvent: 'account_restriction',
           });
         }
         await base44.asServiceRole.entities.User.update(targetUserId, { account_state: 'suspended' });
@@ -317,7 +317,7 @@ Deno.serve(async (req) => {
           const amount = disputeCase.held_amount || 0;
           if (targetUserId && amount > 0) {
             const entry = await applyBalanceHold(base44, {
-              userId: targetUserId, amount, direction: 'release', matchId: disputeCase.match_id, admin, triggerEvent: 'investigation_hold_release',
+              userId: targetUserId, amount, direction: 'release', matchId: disputeCase.match_id, actor: 'administrator', actorId: admin.id, triggerEvent: 'investigation_hold_release',
             });
             caseUpdates.hold_ledger_entry_ids = [...(disputeCase.hold_ledger_entry_ids || []), entry.id];
           }
@@ -379,7 +379,7 @@ Deno.serve(async (req) => {
             } else if (disputeCase.hold_target_user_id && disputeCase.held_amount > 0) {
               const entry = await applyBalanceHold(base44, {
                 userId: disputeCase.hold_target_user_id, amount: disputeCase.held_amount, direction: 'release',
-                matchId: disputeCase.match_id, admin, triggerEvent: 'investigation_hold_release',
+                matchId: disputeCase.match_id, actor: 'administrator', actorId: admin.id, triggerEvent: 'investigation_hold_release',
               });
               caseUpdates.hold_ledger_entry_ids = [...(disputeCase.hold_ledger_entry_ids || []), entry.id];
             }
