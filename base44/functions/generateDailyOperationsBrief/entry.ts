@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
     const userTotalSum = wallets.reduce((s, w) => s + (w.available_balance || 0) + (w.held_balance || 0), 0);
     const revenue = ledgerAccounts.find((a) => a.account_name === 'platform_revenue')?.balance || 0;
     const suspense = ledgerAccounts.find((a) => a.account_name === 'suspense')?.balance || 0;
-    // Sum across ALL settlement-account rows regardless of transaction_type.
+    // Sum across all launch-era settlement-account rows regardless of transaction_type.
     // Deposits post a debit (credit_amount: 0) and withdrawals post a credit
     // (debit_amount: 0); reversal rows swap the two and so net out exactly, and
     // any future settlement-account activity is incorporated transparently.
