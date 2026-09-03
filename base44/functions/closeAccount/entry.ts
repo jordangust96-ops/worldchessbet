@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
         });
 
         await postLedgerLegs(base44, {
-          groupId: crypto.randomUUID(),
+          groupId: `match:${match.id}:account_closure_match_cancelled:${walletTransaction.id}`,
           matchId: match.id,
           walletTransactionId: walletTransaction.id,
           actor: 'user',
