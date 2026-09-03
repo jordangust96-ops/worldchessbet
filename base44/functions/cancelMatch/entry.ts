@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
       // Double-entry: Debit Contest Reserve, Credit User Available Balance;
       // releases the corresponding held amount back to available.
       await postLedgerLegs(base44, {
-        groupId: crypto.randomUUID(),
+        groupId: `match:${match.id}:match_cancelled:${entryTransaction.id}`,
         matchId: match.id,
         walletTransactionId: entryTransaction.id,
         actor: 'user',
@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
       // Separate double-entry: Debit Suspense (never recognized), Credit
       // User Available Balance.
       await postLedgerLegs(base44, {
-        groupId: crypto.randomUUID(),
+        groupId: `match:${match.id}:service_fee_refund:${feeTransaction.id}`,
         matchId: match.id,
         walletTransactionId: feeTransaction.id,
         actor: 'user',
