@@ -16,12 +16,11 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 // that is no longer valid, with nothing in the system able to tell. This
 // sweep is the safety net: it never assumes "nothing changes it", it checks.
 //
-// Fails safe in one direction only: it can downgrade a user OUT of
-// 'verified' when the record it was verified from no longer says 'verified'
-// (or no longer exists), but it never promotes a user INTO 'verified' --
-// that stays the exclusive job of socureIdentityWebhook, which alone
-// captures the compliance evidence (encrypted provider report, retention)
-// a passing decision requires.
+// It fails safe by default: a user is promoted only from an accepted record
+// with encrypted webhook evidence, or from a separately auditable
+// administrator reconciliation of an accepted provider-console case. Any
+// other mismatch can only downgrade eligibility; it never invents a passing
+// provider decision.
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
