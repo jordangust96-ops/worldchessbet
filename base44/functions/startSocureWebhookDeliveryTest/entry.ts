@@ -26,6 +26,30 @@ Deno.serve(async (req) => {
     const config = identityConfig();
     if (!config.enabled) return Response.json({ enabled: false, reason: 'Identity verification is not enabled.' });
 
+    const now = Date.now();
+    const activeTests = await base44.asServiceRole.entities.SocureIdentityVerification.filter(
+      {
+        user_id: user.id,
+        status: 'pending',
+        description: 'Controlled production Socure webhook-delivery verification. This record does not change the user eligibility snapshot.',
+      },
+      '-created_date',
+      10,
+    );
+    const activeTest = activeTests.find((row: any) =>
+      row.hosted_redirect_uri && Number.isFinite(Date.parse(row.expires_at || '')) && Date.parse(row.expires_at) > now
+    );
+    if (activeTest) {
+      return Response.json({
+        enabled: true,
+        status: 'pending',
+        verification_id: activeTest.id,
+        evaluation_id: activeTest.provider_evaluation_id,
+        redirect_uri: activeTest.hosted_redirect_uri,
+        reused: true,
+      });
+    }
+
     const requestedAt = new Date();
     verification = await base44.asServiceRole.entities.SocureIdentityVerification.create({
       user_id: user.id,
