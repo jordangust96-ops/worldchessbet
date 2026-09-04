@@ -35,12 +35,46 @@ export default function SocureIdentityVerificationPanel({
   // "in progress" indefinitely until the user manually reloads. Mirrors the
   // poll pattern already used by SeamlessFundingPanel for bank-link status.
   const [liveStatus, setLiveStatus] = useState(status);
+  const [pendingExpiresAt, setPendingExpiresAt] = useState("");
+  const [clock, setClock] = useState(Date.now());
   const pollAttempts = useRef(0);
 
   useEffect(() => {
     setLiveStatus(status);
     pollAttempts.current = 0;
   }, [status]);
+
+  useEffect(() => {
+    if (liveStatus !== "pending") {
+      setPendingExpiresAt("");
+      return;
+    }
+
+    let cancelled = false;
+    const loadPendingSession = async () => {
+      try {
+        const me = await base44.auth.me();
+        const rows = await base44.entities.SocureIdentityVerification.filter(
+          { user_id: me.id, status: "pending" },
+          "-created_date",
+          1
+        );
+        if (!cancelled) setPendingExpiresAt(rows[0]?.expires_at || "");
+      } catch {
+        // Fail closed in the UI: keep the pending state instead of reopening a
+        // potentially already-completed hosted session.
+      }
+    };
+    loadPendingSession();
+    return () => { cancelled = true; };
+  }, [liveStatus]);
+
+  useEffect(() => {
+    const expiresAtMs = Date.parse(pendingExpiresAt || "");
+    if (!Number.isFinite(expiresAtMs) || expiresAtMs <= Date.now()) return;
+    const timer = setTimeout(() => setClock(Date.now()), expiresAtMs - Date.now() + 250);
+    return () => clearTimeout(timer);
+  }, [pendingExpiresAt, clock]);
 
   useEffect(() => {
     if (liveStatus !== "pending" || pollAttempts.current >= 10) return;
@@ -146,6 +180,32 @@ export default function SocureIdentityVerificationPanel({
     );
   }
 
+  const pendingExpiresAtMs = Date.parse(pendingExpiresAt || "");
+  const pendingSessionActive =
+    liveStatus === "pending" &&
+    (!Number.isFinite(pendingExpiresAtMs) || pendingExpiresAtMs > clock);
+  const displayedStatus =
+    liveStatus === "pending" && !pendingSessionActive ? "expired" : liveStatus;
+
+  if (pendingSessionActive) {
+    return (
+      <div className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.05] p-4">
+        <div className="flex items-start gap-3">
+          <div className="h-9 w-9 rounded-lg bg-[#C9A84C]/10 flex items-center justify-center shrink-0">
+            <Loader2 size={18} className="text-[#C9A84C] animate-spin" />
+          </div>
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]">Step 1</p>
+            <p className="text-sm font-medium text-white mt-0.5">Identity verification in progress</p>
+            <p className="text-xs text-white/50 mt-1">
+              We’re waiting for Socure’s result. This page updates automatically; please do not restart the verification while this session is active.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const start = async () => {
     setBusy(true);
     setError("");
@@ -193,11 +253,11 @@ export default function SocureIdentityVerificationPanel({
         <div className="min-w-0 flex-1">
           <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]">Step 1</p>
           <p className="text-sm font-medium text-white mt-0.5">Verify your identity</p>
-          <p className="text-xs text-white/50 mt-1">{COPY[liveStatus] || COPY.not_started}</p>
+          <p className="text-xs text-white/50 mt-1">{COPY[displayedStatus] || COPY.not_started}</p>
         </div>
       </div>
       <Button onClick={start} disabled={busy} className="w-full mt-4 h-10 rounded-xl gold-gradient text-black font-bold disabled:opacity-40">
-        {busy ? <><Loader2 size={15} className="animate-spin mr-2" /> Starting…</> : "Verify identity"}
+        {busy ? <><Loader2 size={15} className="animate-spin mr-2" /> Starting…</> : displayedStatus === "expired" ? "Start a new verification" : "Verify identity"}
       </Button>
       {error && <p className="mt-3 text-xs text-red-400 flex items-center gap-1.5"><AlertTriangle size={13} /> {error}</p>}
     </div>
