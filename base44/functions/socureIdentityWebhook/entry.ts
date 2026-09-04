@@ -18,7 +18,12 @@ Deno.serve(async (req) => {
   let config;
   try {
     config = identityConfig();
-  } catch {
+  } catch (err) {
+    // TEMP DIAGNOSTIC (2026-09-04, remove once webhook auth is confirmed
+    // working): never logs secret values, only which required field is
+    // missing/invalid, to distinguish "config incomplete" from an auth
+    // mismatch without exposing SOCURE_IDENTITY_* secret contents.
+    console.error('socureIdentityWebhook: identityConfig() threw', { message: (err as Error)?.message });
     return new Response('Unauthorized', { status: 401 });
   }
   // identityConfig() returns { enabled: false } (rather than throwing) when
@@ -27,11 +32,28 @@ Deno.serve(async (req) => {
   // string "Bearer undefined", which is a guessable bypass. Fail closed here
   // instead of falling through to that comparison.
   if (!config.enabled) {
+    // TEMP DIAGNOSTIC (2026-09-04, remove once webhook auth is confirmed working)
+    console.error('socureIdentityWebhook: identity verification disabled (SOCURE_IDENTITY_ENABLED not true)');
     return new Response('Unauthorized', { status: 401 });
   }
 
   const authorization = req.headers.get('authorization') || '';
   if (!constantTimeEqual(authorization, `Bearer ${config.webhookToken}`)) {
+    // TEMP DIAGNOSTIC (2026-09-04, remove once webhook auth is confirmed
+    // working): logs only lengths and prefix/suffix shape, never the actual
+    // token or header value, so a mismatch (wrong value, extra whitespace,
+    // a duplicated "Bearer " prefix, etc.) is distinguishable without ever
+    // exposing SOCURE_IDENTITY_WEBHOOK_TOKEN or the received header.
+    console.error('socureIdentityWebhook: bearer token mismatch', {
+      receivedHeaderPresent: authorization.length > 0,
+      receivedHeaderLength: authorization.length,
+      receivedStartsWithBearerSpace: authorization.startsWith('Bearer '),
+      receivedHasDoubleBearer: authorization.startsWith('Bearer Bearer '),
+      expectedHeaderLength: `Bearer ${config.webhookToken}`.length,
+      configuredTokenLength: config.webhookToken.length,
+      configuredTokenHasLeadingOrTrailingWhitespace: config.webhookToken !== config.webhookToken.trim(),
+      configuredTokenStartsWithBearer: /^bearer\s/i.test(config.webhookToken),
+    });
     return new Response('Unauthorized', { status: 401 });
   }
 
