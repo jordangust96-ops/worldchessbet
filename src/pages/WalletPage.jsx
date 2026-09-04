@@ -51,6 +51,7 @@ export default function WalletPage() {
   const [accountState, setAccountState] = useState("verified");
   const [identityStatus, setIdentityStatus] = useState("not_started");
   const [fullName, setFullName] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -139,6 +140,7 @@ export default function WalletPage() {
     setAccountState(me.account_state || "verified");
     setIdentityStatus(me.identity_verification_status || "not_started");
     setFullName(me.full_name || me.name || "");
+    setIsAdmin(me.role === "admin");
     // The wallet is always created by the backend (ensureWallet, as
     // the service role) so there is exactly one per user. Never create a
     // wallet from the client — that previously produced a duplicate wallet
@@ -245,6 +247,7 @@ export default function WalletPage() {
           onNameSaved={setFullName}
           wallet={wallet}
           onRefresh={loadData}
+          isAdmin={isAdmin}
         />
 
         <SeamlessFundingPanel
