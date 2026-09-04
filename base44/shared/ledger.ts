@@ -181,6 +181,15 @@ export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletT
         initiating_actor: actor,
         initiating_actor_id: actorId || '',
         processed_at: new Date().toISOString(),
+        retention_until: (() => {
+          const activityAt = new Date().toISOString();
+          const deadline = new Date(activityAt);
+          deadline.setUTCFullYear(deadline.getUTCFullYear() + 2);
+          const existing = Date.parse(current.retention_until || '');
+          return Number.isFinite(existing) && existing > deadline.getTime()
+            ? current.retention_until
+            : deadline.toISOString();
+        })(),
         integration_status: requiresExternalRail ? 'unrouted' : 'internal_complete',
         idempotency_key: current.idempotency_key || `ledger:${groupId}`,
         schema_version: 1,
