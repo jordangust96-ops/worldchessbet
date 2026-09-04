@@ -8,6 +8,9 @@ const storage = isNode
 	}
 	: window.localStorage;
 const viteEnv = /** @type {Record<string, string | undefined>} */ (/** @type {any} */ (import.meta).env || {});
+// The custom production domain does not always receive Vite's injected app ID.
+// Keep the SDK bound to this ChessBet app so provider logins cannot emit app_id=null.
+const FALLBACK_BASE44_APP_ID = "6a4ed72536c51cb3280d2bc6";
 
 const toSnakeCase = (str) => {
 	return str.replace(/([A-Z])/g, '_$1').toLowerCase();
@@ -47,7 +50,7 @@ const getAppParams = () => {
 		storage.removeItem('token');
 	}
 	return {
-		appId: getAppParamValue("app_id", { defaultValue: viteEnv.VITE_BASE44_APP_ID }),
+		appId: getAppParamValue("app_id", { defaultValue: viteEnv.VITE_BASE44_APP_ID || FALLBACK_BASE44_APP_ID }),
 		token: getAppParamValue("access_token", { removeFromUrl: true }),
 		fromUrl: getAppParamValue("from_url", { defaultValue: window.location.href }),
 		functionsVersion: getAppParamValue("functions_version", { defaultValue: viteEnv.VITE_BASE44_FUNCTIONS_VERSION }),
