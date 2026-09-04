@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { AlertTriangle, CheckCircle2, Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
@@ -37,11 +37,9 @@ export default function SocureIdentityVerificationPanel({
   const [liveStatus, setLiveStatus] = useState(status);
   const [pendingExpiresAt, setPendingExpiresAt] = useState("");
   const [clock, setClock] = useState(Date.now());
-  const pollAttempts = useRef(0);
 
   useEffect(() => {
     setLiveStatus(status);
-    pollAttempts.current = 0;
   }, [status]);
 
   useEffect(() => {
@@ -77,26 +75,29 @@ export default function SocureIdentityVerificationPanel({
   }, [pendingExpiresAt, clock]);
 
   useEffect(() => {
-    if (liveStatus !== "pending" || pollAttempts.current >= 10) return;
-    const timer = setTimeout(async () => {
-      pollAttempts.current += 1;
+    if (liveStatus !== "pending") return;
+    const expiresAtMs = Date.parse(pendingExpiresAt || "");
+    if (Number.isFinite(expiresAtMs) && expiresAtMs <= Date.now()) return;
+
+    const poll = async () => {
       try {
         const me = await base44.auth.me();
         const next = me?.identity_verification_status || "pending";
-        if (next !== liveStatus) {
+        if (next !== "pending") {
           setLiveStatus(next);
           // Let the Wallet page refresh account state, wallet, and the funding
           // panel's own status once verification actually resolves, instead of
           // only updating this panel's local copy.
-          if (next !== "pending") onRefresh?.();
+          onRefresh?.();
         }
       } catch {
-        // Transient failure; the next scheduled attempt (or a manual reload)
-        // will pick up the latest status.
+        // A transient failure does not reopen or restart the hosted session.
       }
-    }, 8000);
-    return () => clearTimeout(timer);
-  }, [liveStatus, onRefresh]);
+    };
+
+    const timer = setInterval(poll, 8000);
+    return () => clearInterval(timer);
+  }, [liveStatus, pendingExpiresAt, onRefresh]);
 
   const saveLegalName = async () => {
     if (!firstName.trim() || !lastName.trim()) {
