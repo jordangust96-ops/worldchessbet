@@ -24,7 +24,11 @@ Deno.serve(async (req) => {
     // missing/invalid, to distinguish "config incomplete" from an auth
     // mismatch without exposing SOCURE_IDENTITY_* secret contents.
     console.error('socureIdentityWebhook: identityConfig() threw', { message: (err as Error)?.message });
-    return new Response('Unauthorized', { status: 401 });
+    // TEMP DIAGNOSTIC (2026-09-04, remove once webhook auth is confirmed
+    // working): surface the same non-secret diagnostic in the response body
+    // too, since Socure's dashboard displays the response body of a failed
+    // test but Base44's log viewer does not reliably surface console output.
+    return Response.json({ error: 'Unauthorized', diagnostic_branch: 'identityConfig_threw', message: (err as Error)?.message }, { status: 401 });
   }
   // identityConfig() returns { enabled: false } (rather than throwing) when
   // SOCURE_IDENTITY_ENABLED is off, with no webhookToken present. Without this
@@ -34,7 +38,8 @@ Deno.serve(async (req) => {
   if (!config.enabled) {
     // TEMP DIAGNOSTIC (2026-09-04, remove once webhook auth is confirmed working)
     console.error('socureIdentityWebhook: identity verification disabled (SOCURE_IDENTITY_ENABLED not true)');
-    return new Response('Unauthorized', { status: 401 });
+    // TEMP DIAGNOSTIC (2026-09-04, remove once webhook auth is confirmed working)
+    return Response.json({ error: 'Unauthorized', diagnostic_branch: 'config_disabled' }, { status: 401 });
   }
 
   const authorization = req.headers.get('authorization') || '';
@@ -54,7 +59,21 @@ Deno.serve(async (req) => {
       configuredTokenHasLeadingOrTrailingWhitespace: config.webhookToken !== config.webhookToken.trim(),
       configuredTokenStartsWithBearer: /^bearer\s/i.test(config.webhookToken),
     });
-    return new Response('Unauthorized', { status: 401 });
+    // TEMP DIAGNOSTIC (2026-09-04, remove once webhook auth is confirmed
+    // working): same non-secret diagnostic fields, also in the response body,
+    // since Socure's dashboard shows the response body on a failed re-test.
+    return Response.json({
+      error: 'Unauthorized',
+      diagnostic_branch: 'bearer_token_mismatch',
+      receivedHeaderPresent: authorization.length > 0,
+      receivedHeaderLength: authorization.length,
+      receivedStartsWithBearerSpace: authorization.startsWith('Bearer '),
+      receivedHasDoubleBearer: authorization.startsWith('Bearer Bearer '),
+      expectedHeaderLength: `Bearer ${config.webhookToken}`.length,
+      configuredTokenLength: config.webhookToken.length,
+      configuredTokenHasLeadingOrTrailingWhitespace: config.webhookToken !== config.webhookToken.trim(),
+      configuredTokenStartsWithBearer: /^bearer\s/i.test(config.webhookToken),
+    }, { status: 401 });
   }
 
   const body = await req.json().catch(() => null);
