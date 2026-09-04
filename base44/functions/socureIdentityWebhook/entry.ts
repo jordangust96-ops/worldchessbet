@@ -18,17 +18,8 @@ Deno.serve(async (req) => {
   let config;
   try {
     config = identityConfig();
-  } catch (err) {
-    // TEMP DIAGNOSTIC (2026-09-04, remove once webhook auth is confirmed
-    // working): never logs secret values, only which required field is
-    // missing/invalid, to distinguish "config incomplete" from an auth
-    // mismatch without exposing SOCURE_IDENTITY_* secret contents.
-    console.error('socureIdentityWebhook: identityConfig() threw', { message: (err as Error)?.message });
-    // TEMP DIAGNOSTIC (2026-09-04, remove once webhook auth is confirmed
-    // working): surface the same non-secret diagnostic in the response body
-    // too, since Socure's dashboard displays the response body of a failed
-    // test but Base44's log viewer does not reliably surface console output.
-    return Response.json({ error: 'Unauthorized', diagnostic_branch: 'identityConfig_threw', message: (err as Error)?.message }, { status: 401 });
+  } catch {
+    return new Response('Unauthorized', { status: 401 });
   }
   // identityConfig() returns { enabled: false } (rather than throwing) when
   // SOCURE_IDENTITY_ENABLED is off, with no webhookToken present. Without this
@@ -36,62 +27,12 @@ Deno.serve(async (req) => {
   // string "Bearer undefined", which is a guessable bypass. Fail closed here
   // instead of falling through to that comparison.
   if (!config.enabled) {
-    // TEMP DIAGNOSTIC (2026-09-04, remove once webhook auth is confirmed working)
-    console.error('socureIdentityWebhook: identity verification disabled (SOCURE_IDENTITY_ENABLED not true)');
-    // TEMP DIAGNOSTIC (2026-09-04, remove once webhook auth is confirmed working):
-    // never logs the raw secret value, only its shape (presence/length/case),
-    // to distinguish "secret not set in this environment" from "set to a
-    // near-miss value" (e.g. "True", " true", "1") without exposing it.
-    const rawEnabledValue = Deno.env.get('SOCURE_IDENTITY_ENABLED');
-    return Response.json({
-      error: 'Unauthorized',
-      diagnostic_branch: 'config_disabled',
-      enabledSecretIsSet: rawEnabledValue !== undefined,
-      enabledSecretLength: rawEnabledValue === undefined ? null : rawEnabledValue.length,
-      enabledSecretLowercaseMatchesTrue: rawEnabledValue === undefined ? null : rawEnabledValue.trim().toLowerCase() === 'true',
-      enabledSecretHasWhitespace: rawEnabledValue === undefined ? null : rawEnabledValue !== rawEnabledValue.trim(),
-    }, { status: 401 });
+    return new Response('Unauthorized', { status: 401 });
   }
 
   const authorization = req.headers.get('authorization') || '';
   if (!constantTimeEqual(authorization, `Bearer ${config.webhookToken}`)) {
-    // TEMP DIAGNOSTIC (2026-09-04, remove once webhook auth is confirmed
-    // working): logs only lengths and prefix/suffix shape, never the actual
-    // token or header value, so a mismatch (wrong value, extra whitespace,
-    // a duplicated "Bearer " prefix, etc.) is distinguishable without ever
-    // exposing SOCURE_IDENTITY_WEBHOOK_TOKEN or the received header.
-    console.error('socureIdentityWebhook: bearer token mismatch', {
-      receivedHeaderPresent: authorization.length > 0,
-      receivedHeaderLength: authorization.length,
-      receivedStartsWithBearerSpace: authorization.startsWith('Bearer '),
-      receivedHasDoubleBearer: authorization.startsWith('Bearer Bearer '),
-      expectedHeaderLength: `Bearer ${config.webhookToken}`.length,
-      configuredTokenLength: config.webhookToken.length,
-      configuredTokenHasLeadingOrTrailingWhitespace: config.webhookToken !== config.webhookToken.trim(),
-      configuredTokenStartsWithBearer: /^bearer\s/i.test(config.webhookToken),
-    });
-    // TEMP DIAGNOSTIC (2026-09-04, remove once webhook auth is confirmed
-    // working): same non-secret shape info, but packed into one short, plain
-    // alphanumeric string (no words resembling "token"/"bearer"/"auth"),
-    // because Socure's dashboard truncates/withholds response bodies it
-    // pattern-matches as possibly containing sensitive data -- the prior,
-    // more verbosely-labeled JSON version was withheld with "response
-    // truncated for security concerns". Format: "recvLen,expLen,cfgLen,ws,dup"
-    // where ws=1 if the configured value has leading/trailing whitespace and
-    // dup=1 if the received header has a duplicated prefix.
-    // Bare plain-text body, no JSON wrapper keys at all: Socure's dashboard
-    // truncated even the short single-field JSON version above ("response
-    // truncated for security concerns"), cutting off after roughly the first
-    // ~30 raw characters regardless of content -- so this must fit in that
-    // budget on its own. Format: "recvLen,expLen,cfgLen,ws,dup" (see above).
-    const diag = [
-      authorization.length,
-      `Bearer ${config.webhookToken}`.length,
-      config.webhookToken.length,
-      config.webhookToken !== config.webhookToken.trim() ? 1 : 0,
-      authorization.startsWith('Bearer Bearer ') ? 1 : 0,
-    ].join(',');
-    return new Response(diag, { status: 401 });
+    return new Response('Unauthorized', { status: 401 });
   }
 
   const body = await req.json().catch(() => null);
