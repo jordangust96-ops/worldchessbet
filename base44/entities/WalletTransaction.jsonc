@@ -109,6 +109,11 @@
       "format": "date-time",
       "description": "Server timestamp when the internal ledger posting completed."
     },
+    "retention_until": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Minimum two-year transaction retention deadline, calculated from the recorded transaction activity. A scheduled enforcement sweep stamps legacy rows and may only extend this deadline; records are not eligible for deletion through the application."
+    },
     "integration_status": {
       "type": "string",
       "enum": [
@@ -189,10 +194,6 @@
         "role": "admin"
       }
     },
-    "delete": {
-      "user_condition": {
-        "role": "admin"
-      }
-    }
+    "delete": false
   }
 }
