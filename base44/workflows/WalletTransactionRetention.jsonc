@@ -1,0 +1,45 @@
+{
+  "name": "Wallet Transaction Retention Enforcement",
+  "description": "Every 15 minutes, stamps or extends each production WalletTransaction's minimum two-year retention deadline. It never deletes or archives records; deletion is separately denied by WalletTransaction RLS.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "*/15 * * * *",
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "wallet_transaction_retention_enforcement",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "enforce_wallet_transaction_retention": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "enforceWalletTransactionRetention",
+            "args": {}
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Enforce Wallet Transaction Retention",
+            "description": "Stamp or extend the two-year retention deadline without deleting records"
+          }
+        }
+      }
+    ]
+  }
+}
