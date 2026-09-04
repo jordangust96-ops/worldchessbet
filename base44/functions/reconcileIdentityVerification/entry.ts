@@ -26,8 +26,8 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
 
-    const verifiedUsers = await base44.asServiceRole.entities.User.filter(
-      { identity_verification_status: 'verified' },
+    const socureUsers = await base44.asServiceRole.entities.User.filter(
+      { identity_verification_provider: 'socure' },
       '-updated_date',
       500
     );
@@ -35,14 +35,9 @@ Deno.serve(async (req) => {
     let checked = 0;
     const driftedIds: string[] = [];
 
-    for (const user of verifiedUsers) {
+    for (const user of socureUsers) {
       checked += 1;
-
-      // Already fails isSocureIdentityVerified's own AND-of-fields check on
-      // its own terms -- nothing for this sweep to additionally correct.
-      if (user.identity_verification_provider !== 'socure' || !user.identity_provider_reference) {
-        continue;
-      }
+      if (!user.identity_provider_reference) continue;
 
       const matches = await base44.asServiceRole.entities.SocureIdentityVerification.filter(
         { provider_evaluation_id: user.identity_provider_reference },
@@ -51,29 +46,71 @@ Deno.serve(async (req) => {
       );
       const verification = matches[0] || null;
 
-      // In sync: the record of record still says 'verified'.
-      if (verification && verification.status === 'verified') continue;
-
-      // Either the record of record no longer says 'verified' (revoked,
-      // corrected, re-reviewed), or the reference no longer resolves to
-      // anything at all -- both mean this User snapshot is no longer
-      // trustworthy and must never keep granting eligibility.
-      const newIdentityStatus = verification?.status || 'failed';
-      const userUpdates: Record<string, unknown> = {
-        identity_verification_status: newIdentityStatus,
-      };
-      // account_state governs a much wider set of restrictions than identity
-      // alone (suspended/closed can come from a dispute or compliance hold
-      // unrelated to identity verification) -- only ever move it here when
-      // it is currently 'verified', never overriding a suspension/closure
-      // this sweep did not cause and has no context to reverse.
-      if (user.account_state === 'verified') {
-        userUpdates.account_state = 'provisional';
+      // A promotion is permitted only when the verification record itself is an
+      // accepted Socure result and its evidence is retained, or when an
+      // administrator has recorded an explicit provider-console reconciliation.
+      // This prevents a plain client-side or data-only status change from
+      // becoming an eligibility grant.
+      let trustedAcceptance =
+        verification?.status === 'verified' &&
+        verification?.provider_decision === 'ACCEPT' &&
+        !!verification?.provider_report_ciphertext;
+      if (!trustedAcceptance && verification?.status === 'verified' && verification?.provider_decision === 'ACCEPT') {
+        const reconciliations = await base44.asServiceRole.entities.IntegrationEvent.filter(
+          { idempotency_key: `socure.identity.console-reconcile:${verification.id}` },
+          '-created_date',
+          1
+        );
+        trustedAcceptance = reconciliations.length > 0;
       }
+
+      if (trustedAcceptance) {
+        const needsPromotion =
+          user.identity_verification_status !== 'verified' ||
+          user.account_state === 'provisional';
+        if (needsPromotion) {
+          await base44.asServiceRole.entities.User.update(user.id, {
+            identity_verification_status: 'verified',
+            identity_verification_provider: 'socure',
+            identity_provider_reference: verification.provider_evaluation_id,
+            identity_verified_at: user.identity_verified_at || verification.completed_at || new Date().toISOString(),
+            // Never override a compliance suspension/closure; only normalize a
+            // provisional account whose accepted verification is now trusted.
+            account_state: user.account_state === 'provisional' ? 'verified' : user.account_state,
+          });
+          driftedIds.push(user.id);
+          await base44.asServiceRole.entities.IntegrationEvent.create({
+            event_type: 'identity.socure_snapshot_reconciled',
+            occurred_at: new Date().toISOString(),
+            aggregate_type: 'user',
+            aggregate_id: user.id,
+            correlation_id: verification.id,
+            idempotency_key: `socure.identity.snapshot-reconcile:${verification.id}`,
+            actor_type: 'system',
+            user_id: user.id,
+            status: 'verified',
+            result: 'ACCEPT',
+            event_data_json: JSON.stringify({
+              provider: 'socure',
+              verification_id: verification.id,
+              evaluation_id: verification.provider_evaluation_id,
+              evidence_source: verification.provider_report_ciphertext ? 'encrypted_webhook_report' : 'administrator_console_reconciliation',
+            }),
+            description: 'User identity snapshot reconciled to an accepted Socure verification record.',
+          });
+        }
+        continue;
+      }
+
+      // Pending/rejected/failed records do not promote a user. Only correct a
+      // stale positive snapshot, never lower unrelated account restrictions.
+      if (user.identity_verification_status !== 'verified') continue;
+      const newIdentityStatus = verification?.status || 'failed';
+      const userUpdates: Record<string, unknown> = { identity_verification_status: newIdentityStatus };
+      if (user.account_state === 'verified') userUpdates.account_state = 'provisional';
 
       await base44.asServiceRole.entities.User.update(user.id, userUpdates);
       driftedIds.push(user.id);
-
       await base44.asServiceRole.entities.IntegrityFlag.create({
         user_id: user.id,
         flag_type: 'manual',
