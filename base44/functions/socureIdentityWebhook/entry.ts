@@ -38,8 +38,19 @@ Deno.serve(async (req) => {
   if (!config.enabled) {
     // TEMP DIAGNOSTIC (2026-09-04, remove once webhook auth is confirmed working)
     console.error('socureIdentityWebhook: identity verification disabled (SOCURE_IDENTITY_ENABLED not true)');
-    // TEMP DIAGNOSTIC (2026-09-04, remove once webhook auth is confirmed working)
-    return Response.json({ error: 'Unauthorized', diagnostic_branch: 'config_disabled' }, { status: 401 });
+    // TEMP DIAGNOSTIC (2026-09-04, remove once webhook auth is confirmed working):
+    // never logs the raw secret value, only its shape (presence/length/case),
+    // to distinguish "secret not set in this environment" from "set to a
+    // near-miss value" (e.g. "True", " true", "1") without exposing it.
+    const rawEnabledValue = Deno.env.get('SOCURE_IDENTITY_ENABLED');
+    return Response.json({
+      error: 'Unauthorized',
+      diagnostic_branch: 'config_disabled',
+      enabledSecretIsSet: rawEnabledValue !== undefined,
+      enabledSecretLength: rawEnabledValue === undefined ? null : rawEnabledValue.length,
+      enabledSecretLowercaseMatchesTrue: rawEnabledValue === undefined ? null : rawEnabledValue.trim().toLowerCase() === 'true',
+      enabledSecretHasWhitespace: rawEnabledValue === undefined ? null : rawEnabledValue !== rawEnabledValue.trim(),
+    }, { status: 401 });
   }
 
   const authorization = req.headers.get('authorization') || '';
