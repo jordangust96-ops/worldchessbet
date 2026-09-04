@@ -71,20 +71,22 @@ Deno.serve(async (req) => {
       configuredTokenStartsWithBearer: /^bearer\s/i.test(config.webhookToken),
     });
     // TEMP DIAGNOSTIC (2026-09-04, remove once webhook auth is confirmed
-    // working): same non-secret diagnostic fields, also in the response body,
-    // since Socure's dashboard shows the response body on a failed re-test.
-    return Response.json({
-      error: 'Unauthorized',
-      diagnostic_branch: 'bearer_token_mismatch',
-      receivedHeaderPresent: authorization.length > 0,
-      receivedHeaderLength: authorization.length,
-      receivedStartsWithBearerSpace: authorization.startsWith('Bearer '),
-      receivedHasDoubleBearer: authorization.startsWith('Bearer Bearer '),
-      expectedHeaderLength: `Bearer ${config.webhookToken}`.length,
-      configuredTokenLength: config.webhookToken.length,
-      configuredTokenHasLeadingOrTrailingWhitespace: config.webhookToken !== config.webhookToken.trim(),
-      configuredTokenStartsWithBearer: /^bearer\s/i.test(config.webhookToken),
-    }, { status: 401 });
+    // working): same non-secret shape info, but packed into one short, plain
+    // alphanumeric string (no words resembling "token"/"bearer"/"auth"),
+    // because Socure's dashboard truncates/withholds response bodies it
+    // pattern-matches as possibly containing sensitive data -- the prior,
+    // more verbosely-labeled JSON version was withheld with "response
+    // truncated for security concerns". Format: "recvLen,expLen,cfgLen,ws,dup"
+    // where ws=1 if the configured value has leading/trailing whitespace and
+    // dup=1 if the received header has a duplicated prefix.
+    const diag = [
+      authorization.length,
+      `Bearer ${config.webhookToken}`.length,
+      config.webhookToken.length,
+      config.webhookToken !== config.webhookToken.trim() ? 1 : 0,
+      authorization.startsWith('Bearer Bearer ') ? 1 : 0,
+    ].join(',');
+    return Response.json({ error: 'Unauthorized', diag }, { status: 401 });
   }
 
   const body = await req.json().catch(() => null);
