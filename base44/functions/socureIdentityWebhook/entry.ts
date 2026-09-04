@@ -4,14 +4,10 @@ import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 import { encryptComplianceJson } from '../../shared/complianceEvidence.ts';
 import { complianceRetentionUntil } from '../../shared/achAuthorization.js';
 
-// Whether this webhook's body actually contains Socure's *complete* DocV
-// report is a question about Socure's real payload shape for the
-// Hosted Predictive DocV workflow, which is not yet provisioned
-// (SOCURE_IDENTITY_ENABLED is currently false and SOCURE_IDENTITY_WORKFLOW is
-// unconfirmed) -- that is intentionally NOT guessed at here. What IS fixed
-// below, independent of the payload shape, is that a decision is only ever
-// applied to a verification that is still open/awaiting one; see the guard
-// after the event-id dedup check.
+// The handler stores the received provider payload only after AES-GCM
+// encryption, then applies the decision only while the verification is still
+// open. This protects against delayed or replayed callbacks overwriting an
+// already-finalized verification.
 const OPEN_IDENTITY_VERIFICATION_STATES = new Set(['pending', 'review_required']);
 
 Deno.serve(async (req) => {
