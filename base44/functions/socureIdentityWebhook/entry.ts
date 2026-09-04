@@ -79,6 +79,11 @@ Deno.serve(async (req) => {
     // truncated for security concerns". Format: "recvLen,expLen,cfgLen,ws,dup"
     // where ws=1 if the configured value has leading/trailing whitespace and
     // dup=1 if the received header has a duplicated prefix.
+    // Bare plain-text body, no JSON wrapper keys at all: Socure's dashboard
+    // truncated even the short single-field JSON version above ("response
+    // truncated for security concerns"), cutting off after roughly the first
+    // ~30 raw characters regardless of content -- so this must fit in that
+    // budget on its own. Format: "recvLen,expLen,cfgLen,ws,dup" (see above).
     const diag = [
       authorization.length,
       `Bearer ${config.webhookToken}`.length,
@@ -86,7 +91,7 @@ Deno.serve(async (req) => {
       config.webhookToken !== config.webhookToken.trim() ? 1 : 0,
       authorization.startsWith('Bearer Bearer ') ? 1 : 0,
     ].join(',');
-    return Response.json({ error: 'Unauthorized', diag }, { status: 401 });
+    return new Response(diag, { status: 401 });
   }
 
   const body = await req.json().catch(() => null);
