@@ -19,6 +19,7 @@ export default function SocureIdentityVerificationPanel({
   onNameSaved,
   wallet,
   onRefresh,
+  isAdmin = false,
 }) {
   const initialParts = fullName.trim().split(/\s+/).filter(Boolean);
   const [firstName, setFirstName] = useState(initialParts[0] || "");
@@ -26,6 +27,7 @@ export default function SocureIdentityVerificationPanel({
   const [savedFullName, setSavedFullName] = useState(fullName.trim());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [deliveryTestBusy, setDeliveryTestBusy] = useState(false);
   const hasLegalName = savedFullName.split(/\s+/).filter(Boolean).length >= 2;
 
   // The status shown to the user. Starts from the page-load value but is kept
@@ -169,14 +171,43 @@ export default function SocureIdentityVerificationPanel({
   }
 
   if (liveStatus === "verified") {
+    const startControlledDeliveryTest = async () => {
+      setDeliveryTestBusy(true);
+      setError("");
+      try {
+        const { data } = await base44.functions.invoke("startSocureWebhookDeliveryTest", {
+          confirmation: "SOCURE_WEBHOOK_DELIVERY_TEST",
+        });
+        if (!data?.redirect_uri) throw new Error("Unable to start the controlled delivery test.");
+        window.location.assign(data.redirect_uri);
+      } catch (err) {
+        setError(err?.message || "Unable to start the controlled delivery test.");
+      } finally {
+        setDeliveryTestBusy(false);
+      }
+    };
+
     return (
-      <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.05] p-4 flex items-center gap-3">
-        <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
-        <div>
-          <p className="text-[10px] uppercase tracking-widest text-emerald-300/70">Step 1</p>
-          <p className="text-sm font-medium text-emerald-200 mt-0.5">Identity verified</p>
-          <p className="text-xs text-emerald-200/60 mt-0.5">You can continue to bank connection.</p>
+      <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.05] p-4">
+        <div className="flex items-center gap-3">
+          <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-emerald-300/70">Step 1</p>
+            <p className="text-sm font-medium text-emerald-200 mt-0.5">Identity verified</p>
+            <p className="text-xs text-emerald-200/60 mt-0.5">You can continue to bank connection.</p>
+          </div>
         </div>
+        {isAdmin && (
+          <Button
+            variant="outline"
+            onClick={startControlledDeliveryTest}
+            disabled={deliveryTestBusy}
+            className="w-full mt-4 h-9 border-emerald-400/30 bg-transparent text-emerald-100 hover:bg-emerald-400/10"
+          >
+            {deliveryTestBusy ? <><Loader2 size={15} className="animate-spin mr-2" /> Starting delivery test…</> : "Run controlled Socure delivery test"}
+          </Button>
+        )}
+        {error && <p className="mt-3 text-xs text-red-400 flex items-center gap-1.5"><AlertTriangle size={13} /> {error}</p>}
       </div>
     );
   }
