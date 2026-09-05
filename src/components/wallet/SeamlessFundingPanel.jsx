@@ -103,9 +103,6 @@ export default function SeamlessFundingPanel({
     try {
       const { data } = await base44.functions.invoke("getSeamlessWalletState", {});
       setState(data);
-      const readyBank = data?.banks?.some(
-        (bank) => bank.status === "verified" && bank.socure_status === "verified"
-      );
       onJourneyStateChange?.({ bankStarted: !!data?.banks?.length });
       setError("");
     } catch (e) {
