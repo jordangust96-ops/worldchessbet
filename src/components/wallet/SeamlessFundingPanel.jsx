@@ -106,11 +106,7 @@ export default function SeamlessFundingPanel({
       const readyBank = data?.banks?.some(
         (bank) => bank.status === "verified" && bank.socure_status === "verified"
       );
-      onJourneyStateChange?.({
-        bankStarted: !!data?.banks?.length,
-        bankReady: !!readyBank,
-        depositComplete: !!data?.has_completed_deposit,
-      });
+      onJourneyStateChange?.({ bankStarted: !!data?.banks?.length });
       setError("");
     } catch (e) {
       setError(e?.message || "Unable to load funding status");
