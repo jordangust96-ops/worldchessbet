@@ -63,13 +63,13 @@ export default function VerifiedThirdPartyFundingSourceForm({
       setConfirmAccountNumber("");
       setConsentAccepted(false);
       if (data?.enrollment?.state === "verified") {
-        setMessage("Your bank account is verified and ready.");
+        setMessage("Your bank is connected and ready.");
       } else if (data?.human_review_required) {
         setMessage("This bank account needs review before it can be used.");
       } else if (data?.reconciliation_required) {
         setMessage("We need to reconcile this request before you try again. Contact support.");
       } else {
-        setMessage("Your bank enrollment is being processed.");
+        setMessage("Your bank connection is being processed.");
       }
       if (onComplete) await onComplete();
     } catch (error) {
@@ -77,7 +77,7 @@ export default function VerifiedThirdPartyFundingSourceForm({
       setMessage(
         data?.error === "signature_mismatch"
           ? "Your electronic signature must exactly match your verified legal name."
-          : data?.error || error?.message || "We couldn't verify this bank account."
+          : data?.error || error?.message || "We couldn't connect this bank account."
       );
     } finally {
       setBusy(false);
@@ -89,8 +89,7 @@ export default function VerifiedThirdPartyFundingSourceForm({
       <div className="flex items-start gap-2 text-xs text-white/55">
         <ShieldCheck size={16} className="mt-0.5 shrink-0 text-[#C9A84C]" />
         <span>
-          ChessBet will screen this account with Socure before asking SeamlessChex
-          to create a verified funding source.
+          Enter the bank account you want to use with ChessBet. We'll securely confirm it before transfers are enabled.
         </span>
       </div>
 
@@ -192,7 +191,7 @@ export default function VerifiedThirdPartyFundingSourceForm({
         disabled={!valid || busy}
         className="w-full h-11 rounded-xl gold-gradient text-black font-bold disabled:opacity-40"
       >
-        {busy ? <><Loader2 size={15} className="animate-spin mr-2" /> Verifying bank…</> : "Authorize & verify bank"}
+        {busy ? <><Loader2 size={15} className="animate-spin mr-2" /> Connecting bank…</> : "Connect bank"}
       </Button>
       {message && <p className="text-xs text-center text-white/60">{message}</p>}
     </div>
