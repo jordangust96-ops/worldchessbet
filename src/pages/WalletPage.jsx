@@ -52,7 +52,7 @@ export default function WalletPage() {
   const [identityStatus, setIdentityStatus] = useState("not_started");
   const [fullName, setFullName] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
-  const [fundingJourney, setFundingJourney] = useState({ bankStarted: false, bankReady: false, depositComplete: false });
+  const [fundingJourney, setFundingJourney] = useState({ bankStarted: false });
 
   useEffect(() => {
     loadData();
