@@ -30,7 +30,13 @@ const TX_STATUS = {
 };
 
 function BankRow({ bank }) {
-  const s = BANK_STATUS[bank.status] || BANK_STATUS.added;
+  let displayStatus = bank.status;
+  if (bank.status === "verified" && bank.socure_status !== "verified") {
+    displayStatus = ["failed", "review_required"].includes(bank.socure_status)
+      ? "verification_failed"
+      : "pending_verification";
+  }
+  const s = BANK_STATUS[displayStatus] || BANK_STATUS.added;
   const Icon = s.icon;
   return (
     <div className="flex items-center justify-between rounded-xl bg-white/[0.03] border border-white/5 px-4 py-3">
@@ -291,7 +297,7 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           placeholder={direction === "deposit" ? "Amount to fund" : "Amount to withdraw"}
-          disabled={ineligible || !verifiedBank || !bankScreened || !transferDirectionEnabled}
+          disabled={ineligible || !bankReady || !transferDirectionEnabled}
           className="w-full h-12 px-4 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder:text-white/20 text-sm focus:border-[#C9A84C]/50 focus:outline-none disabled:opacity-40"
         />
         {direction === "deposit" && (
@@ -303,7 +309,7 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
           <button
             type="button"
             onClick={() => setAmount(String((wallet.available_balance || 0).toFixed(2)))}
-            disabled={ineligible || !verifiedBank || !bankScreened || !transferDirectionEnabled}
+            disabled={ineligible || !bankReady || !transferDirectionEnabled}
             className="w-full text-[11px] text-[#C9A84C] text-center hover:underline disabled:opacity-40 disabled:pointer-events-none"
           >
             Withdraw full balance (${(wallet.available_balance || 0).toFixed(2)}) — no fee
