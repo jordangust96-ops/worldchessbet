@@ -203,21 +203,23 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
         </p>
       )}
 
-      {/* Step 2: authorization, Socure screening, then Seamless verified source creation. */}
+      {/* Step 2: connect a bank. Provider screening and verification remain internal to this step. */}
       <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4 space-y-3">
         <div>
           <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]">Step 2</p>
-          <h4 className="text-sm font-semibold text-white mt-1">Authorize & verify a bank</h4>
+          <h4 className="text-sm font-semibold text-white mt-1">Connect your bank</h4>
           <p className="text-xs text-white/45 mt-1">
             {!identityVerified
-              ? "Verify your identity before adding a funding account."
-              : verifiedBank
-                ? "Your bank account passed Socure screening and is verified with Seamless."
-                : !thirdPartyFundingEnabled
-                  ? "Verified bank linking is being prepared pending provider approval."
-                  : !bankScreeningEnabled
-                    ? "Bank account screening is temporarily unavailable."
-                    : "Authorize ACH transfers and verify the account you'll use with ChessBet."}
+              ? "Complete Step 1 before connecting a bank."
+              : bankReady
+                ? "Your bank is connected and ready to use with ChessBet."
+                : verifiedBank
+                  ? "We're securely confirming your bank account. This page updates automatically."
+                  : !thirdPartyFundingEnabled
+                    ? "Bank connection is temporarily unavailable."
+                    : !bankScreeningEnabled
+                      ? "Bank connection is temporarily unavailable."
+                      : "Add the bank account you'll use to deposit and withdraw funds."}
           </p>
         </div>
 
@@ -232,49 +234,27 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
             onComplete={load}
           />
         ) : (
-          <p className="text-xs text-white/30 text-center py-2">No verified funding account yet.</p>
+          <p className="text-xs text-white/30 text-center py-2">No bank connected yet.</p>
         )}
       </div>
 
-      {/* Step 3 is evidence-only: enrollment itself already ran Socure first. */}
-      {verifiedBank && (
-        <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4 space-y-3">
-          <div>
-            <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]">Step 3</p>
-            <h4 className="text-sm font-semibold text-white mt-1">Bank screening</h4>
-            <p className="text-xs text-white/45 mt-1">
-              {bankScreened
-                ? "Socure Account Intelligence accepted this account before it was added to Seamless."
-                : bankScreeningStatus === "processing"
-                  ? "Bank screening is in progress."
-                  : "This account needs review before transfers can be enabled."}
-            </p>
-          </div>
-          {bankScreened && (
-            <div className="flex items-center gap-2 text-sm text-emerald-300">
-              <CheckCircle2 size={16} /> Socure screening complete
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Step 4: existing server-side transfer gates remain authoritative. */}
+      {/* Step 3: existing server-side transfer gates remain authoritative. */}
       <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4 space-y-3">
         <div>
-          <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]">Step 4</p>
-          <h4 className="text-sm font-semibold text-white mt-1">Fund account</h4>
+          <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]">Step 3</p>
+          <h4 className="text-sm font-semibold text-white mt-1">Deposit into your ChessBet wallet</h4>
           <p className="text-xs text-white/45 mt-1">
             {!identityVerified
-                ? "Complete identity verification first."
-              : !verifiedBank
-                ? "Connect and verify a bank before transferring funds."
-                : !bankScreened
-                  ? "Complete bank account screening before transfers."
-                  : direction === "deposit" && !depositsEnabled
-                    ? "Account funding is temporarily unavailable."
-                    : direction === "withdrawal" && !withdrawalsEnabled
-                      ? "Withdrawals are temporarily unavailable."
-                      : "Your identity, bank connection, and screening are ready."}
+              ? "Complete Step 1 first."
+              : !bankReady
+                ? "Complete Step 2 first."
+                : direction === "deposit" && !depositsEnabled
+                  ? "Deposits are temporarily unavailable."
+                  : direction === "withdrawal" && !withdrawalsEnabled
+                    ? "Withdrawals are temporarily unavailable."
+                    : direction === "deposit"
+                      ? "Add funds from your connected bank to your ChessBet wallet."
+                      : "Withdraw available funds back to your connected bank."}
           </p>
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -285,13 +265,13 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
                 ? "gold-gradient text-black"
                 : "bg-white/[0.05] text-white/70 border border-white/10"
             }`}
-            disabled={ineligible || !verifiedBank || !bankScreened || !depositsEnabled}
+            disabled={ineligible || !bankReady || !depositsEnabled}
           >
-            <Plus size={16} className="mr-2" /> Fund Account
+            <Plus size={16} className="mr-2" /> Deposit
           </Button>
           <Button
             onClick={() => setDirection("withdrawal")}
-            disabled={ineligible || !verifiedBank || !bankScreened || !withdrawalsEnabled || (wallet && (wallet.available_balance || 0) <= 0)}
+            disabled={ineligible || !bankReady || !withdrawalsEnabled || (wallet && (wallet.available_balance || 0) <= 0)}
             className={`h-12 rounded-2xl font-bold disabled:opacity-30 ${
               direction === "withdrawal"
                 ? "gold-gradient text-black"
@@ -353,10 +333,10 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
         >
           {busy ? (
             <><Loader2 size={16} className="animate-spin mr-2" /> Submitting...</>
-          ) : verifiedBank && bankScreened ? (
-            direction === "deposit" ? "Fund via Seamless ACH" : "Withdraw via Seamless ACH"
+          ) : bankReady ? (
+            direction === "deposit" ? "Deposit to ChessBet wallet" : "Withdraw to bank"
           ) : (
-            "Connect & screen a bank first"
+            "Complete bank connection first"
           )}
         </Button>
         {direction === "withdrawal" && wallet && (
