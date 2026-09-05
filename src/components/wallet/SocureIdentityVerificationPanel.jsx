@@ -20,6 +20,7 @@ export default function SocureIdentityVerificationPanel({
   wallet,
   onRefresh,
   isAdmin = false,
+  bankConnectionComplete = false,
 }) {
   const initialParts = fullName.trim().split(/\s+/).filter(Boolean);
   const [firstName, setFirstName] = useState(initialParts[0] || "");
@@ -194,7 +195,11 @@ export default function SocureIdentityVerificationPanel({
           <div>
             <p className="text-[10px] uppercase tracking-widest text-emerald-300/70">Step 1</p>
             <p className="text-sm font-medium text-emerald-200 mt-0.5">Identity verified</p>
-            <p className="text-xs text-emerald-200/60 mt-0.5">You can continue to bank connection.</p>
+            <p className="text-xs text-emerald-200/60 mt-0.5">
+              {bankConnectionComplete
+                ? "Identity verification complete."
+                : "Identity verification complete. Next, connect your bank."}
+            </p>
           </div>
         </div>
         {isAdmin && (
