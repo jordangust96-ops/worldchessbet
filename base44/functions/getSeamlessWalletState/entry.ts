@@ -43,12 +43,15 @@ Deno.serve(async (req) => {
     // postLedgerLegs to the raw triggerEvent on settlement), so it is never a
     // stable filter value once a transaction leaves its initial instant. `type`
     // and `launch_epoch` are set once at creation and never changed afterward.
-    const [deposits, withdrawals] = await Promise.all([
+    const [deposits, withdrawals, completedDeposits] = await Promise.all([
       base44.asServiceRole.entities.WalletTransaction.filter(
         { launch_epoch: 2, user_id: user.id, type: 'deposit' }, '-created_date', 10
       ),
       base44.asServiceRole.entities.WalletTransaction.filter(
         { launch_epoch: 2, user_id: user.id, type: 'withdrawal' }, '-created_date', 10
+      ),
+      base44.asServiceRole.entities.WalletTransaction.filter(
+        { launch_epoch: 2, user_id: user.id, type: 'deposit', status: 'completed' }, '-created_date', 1
       ),
     ]);
     const recent = [...deposits, ...withdrawals]
@@ -61,6 +64,7 @@ Deno.serve(async (req) => {
       withdrawals_enabled: withdrawalsEnabled,
       third_party_funding_enabled: thirdPartyFundingEnabled,
       bank_screening_enabled: bankScreeningEnabled,
+      has_completed_deposit: completedDeposits.length > 0,
       identity_verified: isSocureIdentityVerified(user),
       legal_name: legalNameFromUser(user)?.fullName || '',
       identity_status: user.identity_verification_status || 'not_started',
