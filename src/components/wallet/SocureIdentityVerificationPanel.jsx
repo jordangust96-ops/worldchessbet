@@ -132,9 +132,9 @@ export default function SocureIdentityVerificationPanel({
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]">Step 1</p>
-            <p className="text-sm font-medium text-white mt-0.5">Confirm your legal name</p>
+            <p className="text-sm font-medium text-white mt-0.5">Verify your identity</p>
             <p className="text-xs text-white/50 mt-1">
-              Use the first and last name shown on your identity and bank records.
+              First, confirm your legal first and last name exactly as it appears on your identity and bank records.
             </p>
           </div>
         </div>
