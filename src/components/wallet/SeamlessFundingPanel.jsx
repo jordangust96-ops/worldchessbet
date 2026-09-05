@@ -83,7 +83,13 @@ function TxRow({ tx }) {
   );
 }
 
-export default function SeamlessFundingPanel({ wallet, accountState, withdrawalHold, onRefresh }) {
+export default function SeamlessFundingPanel({
+  wallet,
+  accountState,
+  withdrawalHold,
+  onRefresh,
+  onJourneyStateChange,
+}) {
   const [state, setState] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
@@ -97,13 +103,20 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
     try {
       const { data } = await base44.functions.invoke("getSeamlessWalletState", {});
       setState(data);
+      const readyBank = data?.banks?.some(
+        (bank) => bank.status === "verified" && bank.socure_status === "verified"
+      );
+      onJourneyStateChange?.({
+        bankReady: !!readyBank,
+        depositComplete: !!data?.has_completed_deposit,
+      });
       setError("");
     } catch (e) {
       setError(e?.message || "Unable to load funding status");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onJourneyStateChange]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -111,7 +124,10 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
   // Stop after ten inexpensive refreshes; later visits reload server state.
   useEffect(() => {
     const hasPending =
-      state?.banks?.some((b) => ["added", "pending_verification"].includes(b.status)) ||
+      state?.banks?.some((b) =>
+        ["added", "pending_verification"].includes(b.status) ||
+        (b.status === "verified" && ["not_started", "processing"].includes(b.socure_status))
+      ) ||
       state?.recent?.some((t) => t.status === "pending");
     if (!hasPending || pollAttempts.current >= 10) return;
     const timer = setTimeout(() => {
@@ -172,6 +188,7 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
   const bankScreeningStatus = verifiedBank?.socure_status || "not_started";
   const bankScreened = bankScreeningStatus === "verified";
   const bankReady = !!verifiedBank && bankScreened;
+  const depositComplete = !!state?.has_completed_deposit;
   const transferDirectionEnabled = direction === 'deposit' ? depositsEnabled : withdrawalsEnabled;
   const meetsMinimum = direction === 'deposit' ? parsedAmount >= MIN_DEPOSIT_AMOUNT : parsedAmount > 0;
   const canSubmit = !ineligible && bankReady && !busy && meetsMinimum && transferDirectionEnabled;
@@ -213,7 +230,9 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
       <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4 space-y-3">
         <div>
           <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]">Step 2</p>
-          <h4 className="text-sm font-semibold text-white mt-1">Connect your bank</h4>
+          <h4 className="text-sm font-semibold text-white mt-1">
+            {bankReady ? "Bank connected" : "Connect your bank"}
+          </h4>
           <p className="text-xs text-white/45 mt-1">
             {!identityVerified
               ? "Complete Step 1 before connecting a bank."
@@ -247,20 +266,28 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
       {/* Step 3: existing server-side transfer gates remain authoritative. */}
       <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4 space-y-3">
         <div>
-          <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]">Step 3</p>
-          <h4 className="text-sm font-semibold text-white mt-1">Deposit into your ChessBet wallet</h4>
+          <p className={`text-[10px] uppercase tracking-widest ${depositComplete ? "text-emerald-300/70" : "text-[#C9A84C]"}`}>
+            {depositComplete ? "Step 3 · Complete" : "Step 3"}
+          </p>
+          <h4 className="text-sm font-semibold text-white mt-1">
+            {depositComplete ? "ChessBet wallet funded" : "Deposit into your ChessBet wallet"}
+          </h4>
           <p className="text-xs text-white/45 mt-1">
             {!identityVerified
               ? "Complete Step 1 first."
               : !bankReady
                 ? "Complete Step 2 first."
-                : direction === "deposit" && !depositsEnabled
-                  ? "Deposits are temporarily unavailable."
-                  : direction === "withdrawal" && !withdrawalsEnabled
-                    ? "Withdrawals are temporarily unavailable."
-                    : direction === "deposit"
-                      ? "Add funds from your connected bank to your ChessBet wallet."
-                      : "Withdraw available funds back to your connected bank."}
+                : direction === "withdrawal" && !withdrawalsEnabled
+                  ? "Withdrawals are temporarily unavailable."
+                  : direction === "withdrawal"
+                    ? "Withdraw available funds back to your connected bank."
+                    : depositComplete && !depositsEnabled
+                      ? "Your wallet has been funded successfully. Additional deposits are temporarily unavailable."
+                      : depositComplete
+                        ? "Your wallet has been funded successfully. You can deposit more anytime."
+                        : !depositsEnabled
+                          ? "Deposits are temporarily unavailable."
+                          : "Add funds from your connected bank to your ChessBet wallet."}
           </p>
         </div>
         <div className="grid grid-cols-2 gap-3">
