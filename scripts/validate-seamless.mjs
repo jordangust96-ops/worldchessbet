@@ -386,7 +386,10 @@ ok(!/profile,\s*\n\s*banks,/.test(walletStateSrc), 'wallet state does not return
 const fundingPanelSrc = await read('src/components/wallet/SeamlessFundingPanel.jsx');
 ok(fundingPanelSrc.includes('pollAttempts.current >= 10'), 'wallet polling is bounded');
 ok(fundingPanelSrc.includes("const transferDirectionEnabled = direction === 'deposit' ? depositsEnabled : withdrawalsEnabled"), 'funding input follows independent direction switches');
-ok(fundingPanelSrc.includes('Verify your identity before adding a funding account.'), 'wallet explains progressive identity gate');
+ok(fundingPanelSrc.includes('Complete Step 1 before connecting a bank.'), 'wallet explains progressive identity gate');
+ok(fundingPanelSrc.includes('bankStarted: !!data?.banks?.length'), 'wallet synchronizes Step 1 copy once bank connection has started');
+ok(fundingPanelSrc.includes('Step 3 · Complete'), 'wallet renders a completed funding milestone after a settled deposit');
+ok(walletStateSrc.includes('has_completed_deposit: completedDeposits.length > 0'), 'wallet completion state comes from persisted completed deposits');
 ok(fundingPanelSrc.includes('VerifiedThirdPartyFundingSourceForm'), 'wallet uses ChessBet-owned consent and enrollment');
 ok(!fundingPanelSrc.includes('createSeamlessBankLinkUrl'), 'wallet no longer starts the hosted Plaid-style bank link');
 
