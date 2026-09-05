@@ -107,6 +107,7 @@ export default function SeamlessFundingPanel({
         (bank) => bank.status === "verified" && bank.socure_status === "verified"
       );
       onJourneyStateChange?.({
+        bankStarted: !!data?.banks?.length,
         bankReady: !!readyBank,
         depositComplete: !!data?.has_completed_deposit,
       });
@@ -129,7 +130,11 @@ export default function SeamlessFundingPanel({
         (b.status === "verified" && ["not_started", "processing"].includes(b.socure_status))
       ) ||
       state?.recent?.some((t) => t.status === "pending");
-    if (!hasPending || pollAttempts.current >= 10) return;
+    if (!hasPending) {
+      pollAttempts.current = 0;
+      return;
+    }
+    if (pollAttempts.current >= 10) return;
     const timer = setTimeout(() => {
       pollAttempts.current += 1;
       load();
