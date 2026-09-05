@@ -13,7 +13,7 @@ import TransactionPagination from "@/components/wallet/TransactionPagination";
 import ReportContestButton from "@/components/disputes/ReportContestButton";
 
 const typeConfig = {
-  deposit: { icon: ArrowDownLeft, color: "text-green-400", bg: "bg-green-500/10", label: "Fund Account" },
+  deposit: { icon: ArrowDownLeft, color: "text-green-400", bg: "bg-green-500/10", label: "Deposit" },
   withdrawal: { icon: ArrowUpRight, color: "text-red-400", bg: "bg-red-500/10", label: "Withdraw Funds" },
   wager_lock: { icon: Minus, color: "text-orange-400", bg: "bg-orange-500/10", label: "Contest Entry Reserved" },
   wager_refund: { icon: Plus, color: "text-blue-400", bg: "bg-blue-500/10", label: "Contest Entry Refund" },
