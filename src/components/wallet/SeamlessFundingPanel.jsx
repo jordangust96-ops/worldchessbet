@@ -13,9 +13,9 @@ import VerifiedThirdPartyFundingSourceForm from "./VerifiedThirdPartyFundingSour
 // have independent server-only feature switches.
 
 const BANK_STATUS = {
-  verified: { label: "Verified", color: "text-emerald-400", icon: CheckCircle2 },
-  pending_verification: { label: "Verification in progress", color: "text-amber-400", icon: Clock },
-  added: { label: "Connection submitted", color: "text-amber-400", icon: Clock },
+  verified: { label: "Connected", color: "text-emerald-400", icon: CheckCircle2 },
+  pending_verification: { label: "Connecting", color: "text-amber-400", icon: Clock },
+  added: { label: "Connecting", color: "text-amber-400", icon: Clock },
   verification_failed: { label: "Needs attention", color: "text-red-400", icon: XCircle },
   verification_expired: { label: "Reconnect required", color: "text-red-400", icon: XCircle },
   deleted: { label: "Removed", color: "text-white/40", icon: XCircle },
@@ -165,9 +165,10 @@ export default function SeamlessFundingPanel({ wallet, accountState, withdrawalH
   const verifiedBank = state?.banks?.find((b) => b.status === "verified");
   const bankScreeningStatus = verifiedBank?.socure_status || "not_started";
   const bankScreened = bankScreeningStatus === "verified";
+  const bankReady = !!verifiedBank && bankScreened;
   const transferDirectionEnabled = direction === 'deposit' ? depositsEnabled : withdrawalsEnabled;
   const meetsMinimum = direction === 'deposit' ? parsedAmount >= MIN_DEPOSIT_AMOUNT : parsedAmount > 0;
-  const canSubmit = !ineligible && !!verifiedBank && bankScreened && !busy && meetsMinimum && transferDirectionEnabled;
+  const canSubmit = !ineligible && bankReady && !busy && meetsMinimum && transferDirectionEnabled;
 
   if (loading) {
     return (
