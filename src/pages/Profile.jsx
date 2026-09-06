@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import Logo from "@/components/Logo";
 import LegalSection from "@/components/profile/LegalSection";
+import MyRatingSection from "@/components/profile/MyRatingSection";
 import DeleteAccountButton from "@/components/profile/DeleteAccountButton";
 import AdminToolsSection from "@/components/profile/AdminToolsSection";
 import FoundingPlayerBadge from "@/components/profile/FoundingPlayerBadge";
@@ -178,6 +179,8 @@ export default function Profile() {
             </div>
           )}
         </div>
+
+        {user?.id && <MyRatingSection key={user.id} />}
 
         {/* Account Info */}
         <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-5 space-y-5">
