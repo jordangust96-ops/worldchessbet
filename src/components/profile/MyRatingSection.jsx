@@ -149,6 +149,22 @@ export default function MyRatingSection({ onSummaryChange }) {
             {selected?.status === "provisional" && (
               <p>You're warming up: {selected.games_rated} of {threshold} confirmed {LABELS[pool]} games played. {remaining} more and your rating goes official.</p>
             )}
+            {(selected?.status === "unrated" || selected?.status === "provisional") && (
+              <div className="space-y-1.5">
+                <div className="flex flex-wrap gap-1.5" role="img" aria-label={`${gamesCompleted} of ${threshold} confirmed ${LABELS[pool]} games completed`}>
+                  {Array.from({ length: threshold }, (_, index) => index + 1).map((gameNumber) => {
+                    const done = gameNumber <= gamesCompleted;
+                    return (
+                      <div key={gameNumber} aria-hidden="true"
+                        className={`w-7 h-7 rounded-md border flex items-center justify-center text-[10px] font-bold transition-colors ${done ? "bg-[#C9A84C]/20 border-[#C9A84C]/50 text-[#C9A84C]" : "border-white/15 text-white/30"}`}>
+                        {done ? <Check size={12} /> : gameNumber}
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-white/40">{gamesCompleted} of {threshold} games completed.</p>
+              </div>
+            )}
             {selected?.status === "established" && !history?.entries?.length && (
               <p>Your {LABELS[pool]} rating is established and updates after every confirmed game.</p>
             )}
