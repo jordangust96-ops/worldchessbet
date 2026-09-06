@@ -4,23 +4,17 @@
 // rating processing FAILS CLOSED and simply retries later; gameplay, contest
 // settlement, wallets, payouts, and fair-play processing are never affected.
 //
-// Prefer dedicated rating Redis credentials when configured. During launch,
-// ChessBet may safely reuse the already-configured Seamless Upstash transport;
-// keys are isolated under their own prefix and never overlap financial locks.
+// Ratings use dedicated Redis credentials only. They never fall back to the
+// financial/Seamless atomic store, so shadow-rating traffic cannot consume the
+// same Upstash quota or transport relied on by launch-critical wallet locks.
+// If dedicated rating Redis is unavailable, rating processing fails closed and
+// the immutable ContestRecord backlog is retried later without losing games.
 const PREFIX = 'chessbet:ratings:v1';
 const LOCK_TTL_MS = 5 * 60 * 1000;
 
 function config() {
-  const url = (
-    Deno.env.get('RATING_ATOMIC_REDIS_REST_URL') ||
-    Deno.env.get('SEAMLESS_ATOMIC_REDIS_REST_URL') ||
-    ''
-  ).trim().replace(/\/$/, '');
-  const token = (
-    Deno.env.get('RATING_ATOMIC_REDIS_REST_TOKEN') ||
-    Deno.env.get('SEAMLESS_ATOMIC_REDIS_REST_TOKEN') ||
-    ''
-  ).trim();
+  const url = (Deno.env.get('RATING_ATOMIC_REDIS_REST_URL') || '').trim().replace(/\/$/, '');
+  const token = (Deno.env.get('RATING_ATOMIC_REDIS_REST_TOKEN') || '').trim();
   if (!url || !token) throw new Error('Rating atomic store is not configured');
   return { url, token };
 }
