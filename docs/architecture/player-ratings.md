@@ -35,7 +35,7 @@ A contest cannot be rated until all of the following are true:
 4. There is no unresolved DisputeCase for the match.
 5. There is no unresolved match-linked IntegrityFlag (rating is intentionally stricter than payout release).
 6. No resolved case has reversed or voided the contest.
-7. For a decisive result, the canonical payout transaction is completed and `payout_hold_status` is `released`.
+7. For a decisive result, the winner's own canonical payout transaction is completed and `payout_hold_status` is `released`.
 8. For a draw, there is no payout requirement; the 24-hour/dispute/integrity gates still apply.
 
 The scheduled `Rating Finalization Sweep` runs every 15 minutes. Delay has no data-loss consequence because ContestRecord is the durable backlog.
@@ -64,11 +64,11 @@ Singleton admin-only configuration and safety controls. Includes processing/publ
 
 ## Concurrency and failure behavior
 
-A server-only global Redis lease serializes rating mutations. Rating keys use the isolated `chessbet:ratings:v1` prefix. Dedicated rating Redis credentials are preferred when present; otherwise the already-configured Seamless Upstash transport may be reused without sharing any financial keys.
+A server-only global Redis lease serializes rating mutations. Rating keys use the isolated `chessbet:ratings:v1` prefix and require dedicated `RATING_ATOMIC_REDIS_REST_URL` / `RATING_ATOMIC_REDIS_REST_TOKEN` credentials. Ratings never fall back to ChessBet's financial/Seamless Redis transport.
 
 If the atomic store is unavailable, rating processing performs no writes and retries later. This cannot block or alter financial or gameplay flows.
 
-A temporarily unresolved contest blocks only rating chains that depend on either participant's unresolved rating state; unrelated players can continue processing.
+A temporarily unresolved contest blocks only rating chains that depend on either participant's unresolved rating state; unrelated players can continue processing. The sweep pages the complete ContestRecord backlog with no fixed scan ceiling, while limiting actual rating applications to 25 contests per invocation.
 
 ## Reversals / voids after rating
 
@@ -76,14 +76,17 @@ The 24-hour finality gate makes this exceptional, but administrative override re
 
 `Rating Correction On Dispute Resolution` runs only after a DisputeCase resolves as `contest_reversed` or `contest_voided`:
 
-1. The contest's RatingOperation is invalidated.
+1. Every completed RatingOperation whose match has a resolved reversal/void is excluded from the canonical replay and marked invalidated.
 2. Normal rating processing is fail-closed with `rebuild_in_progress`.
-3. A new global rating generation is deterministically replayed from all remaining completed RatingOperations in original rating-eligible order.
-4. New immutable RatingEvents are written for the new generation.
-5. PlayerRating materialized states switch to the new generation only after replay events have been created/verified.
-6. Old RatingEvents remain untouched for audit history.
+3. Any non-completed old-generation operation is marked `superseded_by_rebuild`; after the rebuild it can be safely re-prepared from the new canonical state rather than becoming stranded.
+4. A new global rating generation is deterministically replayed from the complete, paginated set of remaining completed RatingOperations in original rating-eligible order.
+5. New immutable RatingEvents are written for the new generation.
+6. PlayerRating materialized states switch to the new generation only after replay events have been created/verified.
+7. A monotonic rebuild request counter fences concurrent reversals/voids. If a newer request arrives during replay, materialization, or final commit, the pipeline keeps the rebuild guard armed and rotates to a fresh generation.
+8. If an immutable partial rebuild generation conflicts with a retry, that generation is abandoned rather than overwritten; the retry automatically rotates to a fresh generation.
+9. Old RatingEvents remain untouched for audit history.
 
-A failed rebuild leaves `rebuild_in_progress=true`; the scheduled rating sweep attempts to resume the rebuild instead of processing new ratings against uncertain state.
+A failed rebuild leaves `rebuild_in_progress=true`; the scheduled rating sweep attempts to resume the rebuild instead of processing new ratings against uncertain state. Rebuild source reads are fully paginated rather than silently truncated at a fixed row limit.
 
 ## UI
 
