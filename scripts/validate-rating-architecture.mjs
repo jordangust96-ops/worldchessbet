@@ -84,3 +84,4 @@ assert.match(correctionWorkflow, /contest_voided/);
 assert.equal(pkg.scripts['test:ratings'], 'node scripts/validate-ratings.mjs && node scripts/validate-rating-architecture.mjs');
 
 console.log('Rating architecture hardening/isolation/finality/recovery validation passed.');
+await import('./validate-my-rating.mjs');
