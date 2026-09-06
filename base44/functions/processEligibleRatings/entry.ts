@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { calculateSequentialGame, roundRatingNumber } from '../../shared/glicko2.js';
+import { REPORT_WINDOW_MS } from '../../shared/reportWindow.ts';
 import {
   evaluateContestRatingEligibility,
   loadRatingConfig,
@@ -12,7 +13,6 @@ import {
 } from '../../shared/ratingAtomicStore.ts';
 
 const PAGE_SIZE = 500;
-const MAX_SCAN = 5000;
 const MAX_APPLY_PER_RUN = 25;
 const STATE_EPSILON = 0.000001;
 
@@ -199,9 +199,10 @@ async function ensureRatingEvent(base44: any, {
 
 async function applyPreparedOperation(base44: any, operation: any, contestRecord: any, defaults: any) {
   if (operation.status === 'completed' || operation.status === 'invalidated') return operation;
-  if (operation.status === 'recovery_required') {
-    throw new RatingStateConflict(`operation_recovery_required:${operation.id}`);
-  }
+  // `recovery_required` is intentionally retryable. The persisted before/after
+  // snapshots let reconcilePlayerState prove whether each side is still at the
+  // before state or has already advanced to the after state, so an unambiguous
+  // half-applied operation can self-heal on the next sweep.
   if (Number(operation.generation || 0) !== defaults.generation) {
     throw new RatingStateConflict(`operation_generation_mismatch:${operation.id}`);
   }
