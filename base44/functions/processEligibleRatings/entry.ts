@@ -274,7 +274,22 @@ async function prepareOperation(base44: any, contestRecord: any, eligibility: an
   const operationKey = `rating-operation:${contestRecord.id}`;
   const existing = await base44.asServiceRole.entities.RatingOperation.filter({ operation_key: operationKey });
   if (existing.length > 1) throw new RatingStateConflict(`duplicate_rating_operation:${operationKey}`);
-  if (existing[0]) return existing[0];
+  const existingOperation = existing[0] || null;
+
+  // Completed operations remain the one durable contest-processing record.
+  // A contest-reversal invalidation is permanent. `superseded_by_rebuild`,
+  // however, means an old-generation operation was in-flight when a rebuild
+  // reset materialized state; it is safe and necessary to re-prepare that same
+  // row from the new canonical generation rather than strand both players.
+  if (existingOperation?.status === 'completed') return existingOperation;
+  if (existingOperation?.status === 'invalidated' && existingOperation.invalidated_reason !== 'superseded_by_rebuild') {
+    return existingOperation;
+  }
+  const needsFreshSnapshot = !!existingOperation && (
+    existingOperation.status === 'invalidated' ||
+    Number(existingOperation.generation || 0) !== defaults.generation
+  );
+  if (existingOperation && !needsFreshSnapshot) return existingOperation;
 
   const [p1Row, p2Row] = await Promise.all([
     getSinglePlayerRating(base44, contestRecord.white_player_id, contestRecord.time_control),
@@ -296,8 +311,7 @@ async function prepareOperation(base44: any, contestRecord: any, eligibility: an
   };
   const p1After = calculateSequentialGame(p1, p2, player1Score, options);
   const p2After = calculateSequentialGame(p2, p1, player2Score, options);
-
-  return base44.asServiceRole.entities.RatingOperation.create({
+  const payload = {
     operation_key: operationKey,
     status: 'prepared',
     generation: defaults.generation,
@@ -327,8 +341,18 @@ async function prepareOperation(base44: any, contestRecord: any, eligibility: an
     settlement_timestamp: contestRecord.settlement_timestamp,
     rating_eligible_at: eligibility.eligibleAt,
     prepared_at: new Date().toISOString(),
+    completed_at: '',
+    invalidated_at: '',
+    invalidated_reason: '',
+    player1_event_id: '',
+    player2_event_id: '',
+    last_error: '',
     attempt_count: 0,
-  });
+  };
+
+  return existingOperation
+    ? base44.asServiceRole.entities.RatingOperation.update(existingOperation.id, payload)
+    : base44.asServiceRole.entities.RatingOperation.create(payload);
 }
 
 Deno.serve(async (req) => {
