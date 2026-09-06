@@ -387,11 +387,15 @@ Deno.serve(async (req) => {
     const blockedPlayers = new Set<string>();
     let stop = false;
 
-    for (let skip = 0; skip < MAX_SCAN && !stop && applied < MAX_APPLY_PER_RUN; skip += PAGE_SIZE) {
+    // Page through the entire durable ContestRecord backlog. There is no hard
+    // scan ceiling: old already-rated rows may make discovery O(N), but they
+    // can never cause newer contests to become permanently unreachable.
+    for (let skip = 0; !stop && applied < MAX_APPLY_PER_RUN; skip += PAGE_SIZE) {
       const page = await base44.asServiceRole.entities.ContestRecord.list('settlement_timestamp', PAGE_SIZE, skip);
       if (!page.length) break;
 
       for (const contestRecord of page) {
+        if (applied >= MAX_APPLY_PER_RUN) break;
         scanned += 1;
         const settlementMs = new Date(contestRecord.settlement_timestamp || 0).getTime();
         const historyStartMs = new Date(config.history_start_at || 0).getTime();
@@ -400,7 +404,7 @@ Deno.serve(async (req) => {
         // Ascending settlement order is a hard invariant for sequential
         // ratings. Once we reach a record whose 24h window cannot have closed,
         // no later record can be eligible in this run either.
-        if (Date.now() < settlementMs + 24 * 60 * 60 * 1000) {
+        if (Date.now() < settlementMs + REPORT_WINDOW_MS) {
           stop = true;
           break;
         }
@@ -415,13 +419,8 @@ Deno.serve(async (req) => {
           continue;
         }
         const existingOperation = existingOps[0] || null;
-        if (existingOperation?.status === 'completed' || existingOperation?.status === 'invalidated') continue;
-        if (existingOperation?.status === 'recovery_required') {
-          errors.push(`recovery_required:${existingOperation.id}`);
-          blockedPlayers.add(contestRecord.white_player_id);
-          blockedPlayers.add(contestRecord.black_player_id);
-          continue;
-        }
+        if (existingOperation?.status === 'completed') continue;
+        if (existingOperation?.status === 'invalidated' && existingOperation.invalidated_reason !== 'superseded_by_rebuild') continue;
 
         // If an earlier unresolved contest prevents either player's canonical
         // state from being known, this contest must wait too. Propagate the
@@ -449,7 +448,10 @@ Deno.serve(async (req) => {
         }
 
         try {
-          const operation = existingOperation || await prepareOperation(base44, contestRecord, eligibility, defaults);
+          // Always pass through prepareOperation. It is idempotent for a
+          // current prepared/applying/recovery row, and refreshes any stale
+          // old-generation operation that a rebuild marked as superseded.
+          const operation = await prepareOperation(base44, contestRecord, eligibility, defaults);
           await applyPreparedOperation(base44, operation, contestRecord, defaults);
           applied += 1;
         } catch (error) {
