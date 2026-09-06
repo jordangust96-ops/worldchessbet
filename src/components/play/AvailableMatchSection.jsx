@@ -224,6 +224,18 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
                   ? `${current.gamesPlayed} Games • ${current.winPercentage}% Win Rate`
                   : "New Player"}
               </p>
+              <p className="text-xs text-white/50">
+                Rating:{" "}
+                <span className="font-semibold text-white/70">
+                  {current.ratingStatus === "established" && Number.isFinite(current.rating)
+                    ? Number(current.rating).toLocaleString()
+                    : current.ratingStatus === "provisional"
+                      ? "Provisional"
+                      : current.ratingStatus === "updating"
+                        ? "Updating"
+                        : "Unavailable"}
+                </span>
+              </p>
             </div>
           </div>
 
