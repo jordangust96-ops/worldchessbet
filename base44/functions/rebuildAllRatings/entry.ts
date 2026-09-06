@@ -169,7 +169,7 @@ Deno.serve(async (req) => {
   try {
     base44 = createClientFromRequest(req);
     const body = await req.json().catch(() => ({}));
-    const explicitRequestMatchId = String(body?.matchId || '');
+    const explicitRequestMatchId = body?.resume === true ? '' : String(body?.matchId || '');
     config = await loadRatingConfig(base44);
     if (!config) return Response.json({ error: 'rating_config_missing' }, { status: 503 });
 
