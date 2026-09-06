@@ -175,7 +175,7 @@ function files(directory) {
 }
 const terms = /PlayerRating|RatingEvent|RatingOperation|RatingSystemConfig|processEligibleRatings|rebuildAllRatings|getMyRating|myRatingRead|ratingPolicy|ratingAtomicStore|glicko2|MyRatingSection/;
 for (const path of files('base44/functions').filter((p) =>
-  !/^base44\/functions\/(processEligibleRatings|rebuildAllRatings|getMyRating)\//.test(p))) {
+  !/^base44\/functions\/(processEligibleRatings|rebuildAllRatings|getMyRating|getAvailableMatches)\//.test(p))) {
   assert.doesNotMatch(read(path), terms, path);
 }
 for (const path of files('src').filter((p) => /\.(jsx?|tsx?)$/.test(p) &&
@@ -183,3 +183,4 @@ for (const path of files('src').filter((p) => /\.(jsx?|tsx?)$/.test(p) &&
   assert.doesNotMatch(read(path), terms, path);
 }
 console.log('My Rating privacy, canonical history, pagination, auth, failure isolation: ' + assertions + ' assertions passed.');
+await import('./validate-public-match-ratings.mjs');
