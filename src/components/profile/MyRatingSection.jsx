@@ -105,7 +105,7 @@ export default function MyRatingSection() {
         ) : (
           <div className="space-y-3">
             {data?.status === "paused" && <p>New rating calculations are paused. Any rating shown is your last confirmed rating.</p>}
-            {selected?.status === "unrated" && <p>No rated {LABELS[pool]} games yet. Eligible results appear after the reporting window and any reviews are complete.</p>}
+            {selected?.status === "unrated" && <p>No rated {LABELS[pool]} games yet. ChessBet is tracking eligible results toward your first provisional rating; confirmed results appear after the reporting window and any reviews are complete.</p>}
             {selected?.status === "provisional" && <p>Your {LABELS[pool]} rating is provisional while ChessBet builds it from your first {threshold} confirmed rated games. It becomes established when your {threshold}th game in this time control is rated.</p>}
             {history?.entries?.length > 0 && (
               <div className="space-y-3">
