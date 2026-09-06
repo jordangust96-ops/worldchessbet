@@ -95,6 +95,10 @@
     "algorithm_version": {
       "type": "string"
     },
+    "settlement_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
     "rating_eligible_at": {
       "type": "string",
       "format": "date-time"
