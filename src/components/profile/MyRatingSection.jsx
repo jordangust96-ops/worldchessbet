@@ -145,7 +145,7 @@ export default function MyRatingSection({ onSummaryChange }) {
         ) : (
           <div className="space-y-3">
             {data?.status === "paused" && <p>New ratings are paused right now — showing your last confirmed number.</p>}
-            {selected?.status === "unrated" && <p>No rated {LABELS[pool]} games yet. Play one to start the clock — it'll show up here once it's confirmed.</p>}
+            {selected?.status === "unrated" && <p>No rated {LABELS[pool]} games yet. Play {threshold} confirmed games to establish your rating.</p>}
             {selected?.status === "provisional" && (
               <p>You're warming up: {selected.games_rated} of {threshold} confirmed {LABELS[pool]} games played. {remaining} more and your rating goes official.</p>
             )}
