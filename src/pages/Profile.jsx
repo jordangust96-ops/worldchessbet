@@ -182,7 +182,7 @@ export default function Profile() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
           {[
           { icon: Swords, label: "Played", value: stats.played },
           { icon: Trophy, label: "Won", value: stats.won },
@@ -198,6 +198,27 @@ export default function Profile() {
               <p className="text-[10px] text-white/40 uppercase tracking-wider">{label}</p>
             </div>
           )}
+          <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4 text-center">
+            <BarChart3 size={18} className="text-[#C9A84C] mx-auto mb-2" />
+            <p className="text-lg font-bold text-white">
+              {!ratingSummary || ratingSummary.loading ? (
+                <Loader2 size={16} className="animate-spin mx-auto" />
+              ) : ratingSummary.error || !ratingSummary.status || ["coming_soon", "unavailable", "updating"].includes(ratingSummary.status) ? (
+                "—"
+              ) : typeof ratingSummary.rating === "number" ? (
+                ratingSummary.rating.toLocaleString()
+              ) : (
+                "Provisional"
+              )}
+            </p>
+            <p className="text-[10px] text-white/40 uppercase tracking-wider">
+              {ratingSummary?.pool ? `${ratingSummary.pool.charAt(0).toUpperCase()}${ratingSummary.pool.slice(1)} Rating` : "ChessBet Rating"}
+            </p>
+            {ratingSummary && !ratingSummary.loading && !ratingSummary.error &&
+              (ratingSummary.status === "unrated" || ratingSummary.status === "provisional") && (
+              <p className="mt-0.5 text-[9px] text-white/30">{ratingSummary.gamesRated}/{ratingSummary.threshold} games</p>
+            )}
+          </div>
         </div>
 
         {user?.id && <MyRatingSection key={user.id} />}
