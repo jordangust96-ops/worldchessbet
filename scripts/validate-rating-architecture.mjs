@@ -28,9 +28,10 @@ assert.match(policy, /contest_voided/);
 // Crash/concurrency safety and deterministic player-specific history.
 assert.match(processor, /RatingOperation\.create/);
 assert.match(processor, /PlayerRating\.update/);
-assert.ok(
-  processor.indexOf('RatingOperation.create') < processor.lastIndexOf('PlayerRating.update'),
-  'operation preparation must exist before materialized rating mutation paths'
+assert.match(
+  processor,
+  /const operation = existingOperation \|\| await prepareOperation\([\s\S]*?await applyPreparedOperation\(base44, operation/,
+  'runtime sweep must prepare/recover the contest operation before applying materialized player ratings'
 );
 assert.match(processor, /rating-event:\$\{userId\}:\$\{operation\.game_id\}:\$\{generation\}/);
 assert.match(atomic, /chessbet:ratings:v1/);
