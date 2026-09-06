@@ -60,6 +60,14 @@
       "type": "number",
       "default": 0
     },
+    "rebuild_reason_match_id": {
+      "type": "string",
+      "description": "Match whose post-rating reversal/void triggered the currently pending rebuild."
+    },
+    "rebuild_last_error": {
+      "type": "string",
+      "maxLength": 2000
+    },
     "last_rebuild_started_at": {
       "type": "string",
       "format": "date-time"
