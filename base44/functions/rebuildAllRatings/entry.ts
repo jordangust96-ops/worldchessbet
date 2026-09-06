@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { calculateSequentialGame, roundRatingNumber } from '../../shared/glicko2.js';
+import { REPORT_WINDOW_MS } from '../../shared/reportWindow.ts';
 import { loadRatingConfig, ratingDefaults } from '../../shared/ratingPolicy.ts';
 import {
   acquireRatingProcessingLock,
@@ -7,11 +8,19 @@ import {
   releaseRatingProcessingLock,
 } from '../../shared/ratingAtomicStore.ts';
 
-const MAX_ROWS = 5000;
+const PAGE_SIZE = 500;
 const EPSILON = 0.000001;
 
+class RebuildGenerationConflict extends Error {}
+
 function keyFor(userId: string, timeControl: string) {
-  return `${userId}:${timeControl}`;
+  return JSON.stringify([userId, timeControl]);
+}
+
+function parseKey(key: string) {
+  const parsed = JSON.parse(key);
+  if (!Array.isArray(parsed) || parsed.length !== 2) throw new Error('invalid_rating_state_key');
+  return [String(parsed[0]), String(parsed[1])];
 }
 
 function defaultState(defaults: any) {
@@ -29,6 +38,48 @@ function defaultState(defaults: any) {
 
 function closeEnough(a: number, b: number) {
   return Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= EPSILON;
+}
+
+async function listAll(entity: any, sort: string | null = 'created_date') {
+  const rows: any[] = [];
+  for (let skip = 0; ; skip += PAGE_SIZE) {
+    const page = await entity.list(sort, PAGE_SIZE, skip);
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) break;
+  }
+  return rows;
+}
+
+async function loadInvalidatedMatchIds(base44: any) {
+  const cases = await listAll(base44.asServiceRole.entities.DisputeCase, 'created_date');
+  return new Set(
+    cases
+      .filter((row: any) => row.status === 'resolved' && ['contest_reversed', 'contest_voided'].includes(row.resolution_type))
+      .map((row: any) => String(row.match_id || ''))
+      .filter(Boolean)
+  );
+}
+
+async function rotateTargetGeneration(base44: any, config: any, message: string) {
+  const latest = await loadRatingConfig(base44);
+  if (!latest) return null;
+  const nextTarget = Math.max(
+    Number(latest.current_generation || 0) + 1,
+    Number(latest.rebuild_target_generation || config?.rebuild_target_generation || 0) + 1
+  );
+  return base44.asServiceRole.entities.RatingSystemConfig.update(latest.id, {
+    rebuild_in_progress: true,
+    rebuild_target_generation: nextTarget,
+    rebuild_last_error: message.slice(0, 2000),
+  });
+}
+
+async function newerRebuildRequestArrived(base44: any, capturedRequestCounter: number) {
+  const latest = await loadRatingConfig(base44);
+  return {
+    latest,
+    changed: !!latest && Number(latest.rebuild_request_counter || 0) !== capturedRequestCounter,
+  };
 }
 
 async function ensureRebuildEvent(base44: any, {
@@ -54,17 +105,21 @@ async function ensureRebuildEvent(base44: any, {
       !closeEnough(Number(row.rating_after), after.rating) ||
       !closeEnough(Number(row.rating_deviation_before), before.ratingDeviation) ||
       !closeEnough(Number(row.rating_deviation_after), after.ratingDeviation) ||
+      !closeEnough(Number(row.volatility_before), before.volatility) ||
+      !closeEnough(Number(row.volatility_after), after.volatility) ||
       Number(row.games_rated_before || 0) !== before.gamesRated ||
       Number(row.games_rated_after || 0) !== after.gamesRated
     ) {
-      throw new Error(`rebuild_event_conflict:${idempotencyKey}`);
+      // RatingEvent is intentionally immutable. Never fight a stale partial
+      // generation: abandon that generation and replay into a fresh one.
+      throw new RebuildGenerationConflict(`rebuild_event_conflict:${idempotencyKey}`);
     }
     return row;
   }
 
   const eligibleAt = operation.rating_eligible_at || '';
   const settlementTimestamp = operation.settlement_timestamp || (
-    eligibleAt ? new Date(new Date(eligibleAt).getTime() - 24 * 60 * 60 * 1000).toISOString() : new Date().toISOString()
+    eligibleAt ? new Date(new Date(eligibleAt).getTime() - REPORT_WINDOW_MS).toISOString() : new Date().toISOString()
   );
 
   return base44.asServiceRole.entities.RatingEvent.create({
@@ -108,31 +163,33 @@ Deno.serve(async (req) => {
   let lockHeld = false;
   let config: any = null;
   let base44: any = null;
+  let capturedRequestCounter = 0;
+  let targetGeneration = 0;
+
   try {
     base44 = createClientFromRequest(req);
     const body = await req.json().catch(() => ({}));
+    const explicitRequestMatchId = String(body?.matchId || '');
     config = await loadRatingConfig(base44);
     if (!config) return Response.json({ error: 'rating_config_missing' }, { status: 503 });
 
-    const requestedMatchId = String(body?.matchId || config.rebuild_reason_match_id || '');
-    if (!requestedMatchId && config.rebuild_in_progress !== true) {
+    const wasInProgress = config.rebuild_in_progress === true;
+    if (!explicitRequestMatchId && !wasInProgress) {
       return Response.json({ accepted: true, rebuild: false, reason: 'no_rebuild_requested' });
     }
 
-    const targetGeneration = config.rebuild_in_progress === true && Number(config.rebuild_target_generation) > Number(config.current_generation || 0)
+    targetGeneration = wasInProgress && Number(config.rebuild_target_generation) > Number(config.current_generation || 0)
       ? Number(config.rebuild_target_generation)
       : Number(config.current_generation || 0) + 1;
 
-    // Set the fail-closed guard before waiting for the global lock. A rating
-    // sweep already in flight may finish its current work, but no new sweep
-    // will start; the rebuild then deterministically includes every completed
-    // operation except the invalidated contest(s).
+    const nextRequestCounter = Number(config.rebuild_request_counter || 0) + (explicitRequestMatchId ? 1 : 0);
     await base44.asServiceRole.entities.RatingSystemConfig.update(config.id, {
       rebuild_in_progress: true,
       rebuild_target_generation: targetGeneration,
-      rebuild_reason_match_id: requestedMatchId || config.rebuild_reason_match_id || '',
+      rebuild_request_counter: nextRequestCounter,
+      rebuild_reason_match_id: explicitRequestMatchId || config.rebuild_reason_match_id || '',
       rebuild_last_error: '',
-      last_rebuild_started_at: config.rebuild_in_progress === true
+      last_rebuild_started_at: wasInProgress
         ? (config.last_rebuild_started_at || new Date().toISOString())
         : new Date().toISOString(),
     });
@@ -143,53 +200,85 @@ Deno.serve(async (req) => {
     }
 
     config = await loadRatingConfig(base44);
-    const reasonMatchId = requestedMatchId || String(config?.rebuild_reason_match_id || '');
+    if (!config) throw new Error('rating_config_missing_after_lock');
+    targetGeneration = Number(config.rebuild_target_generation || targetGeneration);
+    capturedRequestCounter = Number(config.rebuild_request_counter || 0);
+    const reasonMatchId = explicitRequestMatchId || String(config.rebuild_reason_match_id || '');
 
-    if (reasonMatchId) {
-      const targetOperations = await base44.asServiceRole.entities.RatingOperation.filter({ match_id: reasonMatchId });
-      for (const operation of targetOperations) {
-        if (operation.status === 'invalidated') continue;
+    // No fixed row ceiling: rebuilds must either consume the complete durable
+    // source or fail closed. Silent partial replay is never acceptable.
+    const allOperations = await listAll(base44.asServiceRole.entities.RatingOperation, 'rating_eligible_at');
+    const invalidatedMatchIds = await loadInvalidatedMatchIds(base44);
+
+    const requestedOperations = reasonMatchId
+      ? allOperations.filter((operation: any) => operation.match_id === reasonMatchId)
+      : [];
+    if (explicitRequestMatchId && !wasInProgress && requestedOperations.length === 0) {
+      await base44.asServiceRole.entities.RatingSystemConfig.update(config.id, {
+        rebuild_in_progress: false,
+        rebuild_target_generation: Number(config.current_generation || 0),
+        rebuild_reason_match_id: '',
+        rebuild_last_error: '',
+        last_rebuild_completed_at: new Date().toISOString(),
+      });
+      return Response.json({ accepted: true, rebuild: false, reason: 'contest_was_never_rated' });
+    }
+
+    // Invalidate every resolved reversed/voided contest, not only the match
+    // that happened to trigger this invocation. This makes concurrent dispute
+    // resolutions converge on the same canonical source set.
+    for (const operation of allOperations) {
+      if (invalidatedMatchIds.has(String(operation.match_id || ''))) {
+        if (operation.status !== 'invalidated' || operation.invalidated_reason !== 'contest_reversed_or_voided') {
+          await base44.asServiceRole.entities.RatingOperation.update(operation.id, {
+            status: 'invalidated',
+            invalidated_at: new Date().toISOString(),
+            invalidated_reason: 'contest_reversed_or_voided',
+            last_error: '',
+          });
+        }
+        continue;
+      }
+
+      // Any old-generation operation that never reached completed is not part
+      // of canonical history. Rebuild materialization below resets its players
+      // to the state derived only from completed operations. Mark it superseded
+      // so the normal sweep can safely re-prepare the same contest afterward.
+      if (['prepared', 'applying', 'recovery_required'].includes(operation.status)) {
         await base44.asServiceRole.entities.RatingOperation.update(operation.id, {
           status: 'invalidated',
           invalidated_at: new Date().toISOString(),
-          invalidated_reason: 'contest_reversed_or_voided',
+          invalidated_reason: 'superseded_by_rebuild',
           last_error: '',
         });
       }
-
-      if (!targetOperations.length && config.rebuild_in_progress === true) {
-        // The contest never reached the rating ledger; there is nothing to
-        // correct. Clear the guard without touching any current rating state.
-        await base44.asServiceRole.entities.RatingSystemConfig.update(config.id, {
-          rebuild_in_progress: false,
-          rebuild_target_generation: Number(config.current_generation || 0),
-          rebuild_reason_match_id: '',
-          rebuild_last_error: '',
-          last_rebuild_completed_at: new Date().toISOString(),
-        });
-        return Response.json({ accepted: true, rebuild: false, reason: 'contest_was_never_rated' });
-      }
     }
 
-    const allOperations = await base44.asServiceRole.entities.RatingOperation.list('rating_eligible_at', MAX_ROWS);
     const sourceOperations = allOperations
-      .filter((operation: any) => operation.status === 'completed')
+      .filter((operation: any) => operation.status === 'completed' && !invalidatedMatchIds.has(String(operation.match_id || '')))
       .sort((a: any, b: any) =>
         String(a.rating_eligible_at || '').localeCompare(String(b.rating_eligible_at || '')) ||
         String(a.contest_record_id || '').localeCompare(String(b.contest_record_id || ''))
       );
 
-    const existingRatings = await base44.asServiceRole.entities.PlayerRating.list(null, MAX_ROWS);
+    const preReplayRequestCheck = await newerRebuildRequestArrived(base44, capturedRequestCounter);
+    if (preReplayRequestCheck.changed) {
+      const rotated = await rotateTargetGeneration(base44, config, 'rebuild_restarted_for_new_request_before_replay');
+      return Response.json({ accepted: true, deferred: true, reason: 'newer_rebuild_request', targetGeneration: rotated?.rebuild_target_generation }, { status: 202 });
+    }
+
+    const existingRatings = await listAll(base44.asServiceRole.entities.PlayerRating, 'created_date');
     const existingByKey = new Map<string, any>();
     const states = new Map<string, any>();
+    const defaults = ratingDefaults({ ...config, current_generation: targetGeneration });
+
     for (const row of existingRatings) {
       const key = keyFor(row.user_id, row.time_control);
       if (existingByKey.has(key)) throw new Error(`duplicate_player_rating:${key}`);
       existingByKey.set(key, row);
-      states.set(key, defaultState(ratingDefaults(config)));
+      states.set(key, defaultState(defaults));
     }
 
-    const defaults = ratingDefaults({ ...config, current_generation: targetGeneration });
     const options = {
       initialRating: defaults.rating,
       initialRatingDeviation: defaults.ratingDeviation,
@@ -208,7 +297,7 @@ Deno.serve(async (req) => {
       const p2AfterMath = calculateSequentialGame(p2Before, p1Before, Number(operation.player2_score), options);
       const settlementTimestamp = operation.settlement_timestamp || (
         operation.rating_eligible_at
-          ? new Date(new Date(operation.rating_eligible_at).getTime() - 24 * 60 * 60 * 1000).toISOString()
+          ? new Date(new Date(operation.rating_eligible_at).getTime() - REPORT_WINDOW_MS).toISOString()
           : ''
       );
       const p1After = {
@@ -258,16 +347,24 @@ Deno.serve(async (req) => {
       replayed += 1;
     }
 
-    // Materialize the rebuilt generation only after every immutable event for
-    // the target generation has been verified/created. If a crash occurs
-    // earlier, current PlayerRating rows stay on the previous generation and
-    // the next retry resumes against the same idempotent target events.
+    // A newer reversal/void may have landed while replay was creating immutable
+    // events. Do not materialize that stale source set. Rotate to a fresh
+    // generation; old partial events remain non-canonical audit records.
+    const preMaterializeRequestCheck = await newerRebuildRequestArrived(base44, capturedRequestCounter);
+    if (preMaterializeRequestCheck.changed) {
+      const rotated = await rotateTargetGeneration(base44, config, 'rebuild_restarted_for_new_request_before_materialize');
+      return Response.json({ accepted: true, deferred: true, reason: 'newer_rebuild_request', targetGeneration: rotated?.rebuild_target_generation }, { status: 202 });
+    }
+
+    // Materialize only after the complete source has replayed and every event
+    // for this generation exists. listAll above guarantees there is no silent
+    // 5,000-row truncation.
     const allKeys = new Set([...existingByKey.keys(), ...states.keys()]);
     for (const key of allKeys) {
       if (!(await renewRatingProcessingLock(owner))) throw new Error('rating_processing_lock_lost');
       const state = states.get(key) || defaultState(defaults);
       const existing = existingByKey.get(key);
-      const [userId, timeControl] = key.split(':');
+      const [userId, timeControl] = parseKey(key);
       const payload: any = {
         user_id: userId,
         time_control: timeControl,
@@ -287,6 +384,15 @@ Deno.serve(async (req) => {
       else if (state.gamesRated > 0) await base44.asServiceRole.entities.PlayerRating.create(payload);
     }
 
+    // Last-chance concurrency fence. If another rebuild request arrived during
+    // materialization, keep the fail-closed guard and immediately schedule a
+    // fresh generation. Normal rating processing cannot run in the interim.
+    const finalRequestCheck = await newerRebuildRequestArrived(base44, capturedRequestCounter);
+    if (finalRequestCheck.changed) {
+      const rotated = await rotateTargetGeneration(base44, config, 'rebuild_restarted_for_new_request_after_materialize');
+      return Response.json({ accepted: true, deferred: true, reason: 'newer_rebuild_request', targetGeneration: rotated?.rebuild_target_generation }, { status: 202 });
+    }
+
     await base44.asServiceRole.entities.RatingSystemConfig.update(config.id, {
       current_generation: targetGeneration,
       rebuild_in_progress: false,
@@ -303,10 +409,22 @@ Deno.serve(async (req) => {
       sourceOperations: sourceOperations.length,
       replayed,
       reasonMatchId,
+      requestCounter: capturedRequestCounter,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'rating_rebuild_failed';
     console.error(JSON.stringify({ event: 'rating_rebuild_failed', error: message }));
+
+    if (base44 && config?.id && error instanceof RebuildGenerationConflict) {
+      const rotated = await rotateTargetGeneration(base44, config, message).catch(() => null);
+      return Response.json({
+        accepted: true,
+        deferred: true,
+        reason: 'rebuild_generation_rotated',
+        targetGeneration: rotated?.rebuild_target_generation,
+      }, { status: 202 });
+    }
+
     if (base44 && config?.id) {
       await base44.asServiceRole.entities.RatingSystemConfig.update(config.id, {
         rebuild_in_progress: true,
