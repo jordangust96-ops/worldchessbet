@@ -369,7 +369,6 @@ Deno.serve(async (req) => {
     }
     if (config.rebuild_in_progress === true) {
       const rebuild = await base44.asServiceRole.functions.invoke('rebuildAllRatings', {
-        matchId: config.rebuild_reason_match_id || '',
         resume: true,
       }).catch((error: any) => ({ error: error?.message || 'rating_rebuild_resume_failed' }));
       return Response.json({ accepted: true, deferred: true, reason: 'rating_rebuild_in_progress', rebuild });
