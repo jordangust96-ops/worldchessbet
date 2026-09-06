@@ -1,0 +1,166 @@
+{
+  "name": "RatingOperation",
+  "type": "object",
+  "properties": {
+    "operation_key": {
+      "type": "string",
+      "description": "Deterministic one-operation-per-contest key."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "prepared",
+        "applying",
+        "completed",
+        "invalidated",
+        "recovery_required"
+      ],
+      "default": "prepared"
+    },
+    "generation": {
+      "type": "number",
+      "default": 0
+    },
+    "match_id": {
+      "type": "string"
+    },
+    "game_id": {
+      "type": "string"
+    },
+    "contest_record_id": {
+      "type": "string"
+    },
+    "time_control": {
+      "type": "string",
+      "enum": [
+        "blitz",
+        "rapid",
+        "classical"
+      ]
+    },
+    "player1_id": {
+      "type": "string"
+    },
+    "player2_id": {
+      "type": "string"
+    },
+    "player1_score": {
+      "type": "number"
+    },
+    "player2_score": {
+      "type": "number"
+    },
+    "player1_rating_before": {
+      "type": "number"
+    },
+    "player1_rd_before": {
+      "type": "number"
+    },
+    "player1_volatility_before": {
+      "type": "number"
+    },
+    "player1_games_before": {
+      "type": "number"
+    },
+    "player1_rating_after": {
+      "type": "number"
+    },
+    "player1_rd_after": {
+      "type": "number"
+    },
+    "player1_volatility_after": {
+      "type": "number"
+    },
+    "player2_rating_before": {
+      "type": "number"
+    },
+    "player2_rd_before": {
+      "type": "number"
+    },
+    "player2_volatility_before": {
+      "type": "number"
+    },
+    "player2_games_before": {
+      "type": "number"
+    },
+    "player2_rating_after": {
+      "type": "number"
+    },
+    "player2_rd_after": {
+      "type": "number"
+    },
+    "player2_volatility_after": {
+      "type": "number"
+    },
+    "algorithm_version": {
+      "type": "string"
+    },
+    "rating_eligible_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "prepared_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "invalidated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "invalidated_reason": {
+      "type": "string"
+    },
+    "player1_event_id": {
+      "type": "string"
+    },
+    "player2_event_id": {
+      "type": "string"
+    },
+    "last_error": {
+      "type": "string",
+      "maxLength": 2000
+    },
+    "attempt_count": {
+      "type": "number",
+      "default": 0
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000
+    }
+  },
+  "required": [
+    "operation_key",
+    "status",
+    "generation",
+    "match_id",
+    "game_id",
+    "contest_record_id",
+    "time_control",
+    "player1_id",
+    "player2_id",
+    "algorithm_version"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": false
+  }
+}
