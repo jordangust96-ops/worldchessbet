@@ -1,0 +1,45 @@
+{
+  "name": "Rating Finalization Sweep",
+  "description": "Shadow-only. Every 15 minutes, processes contests that are at least 24 hours past settlement and have no unresolved dispute/integrity review; decisive results also require the pending winnings payout to have been released.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "7,22,37,52 * * * *",
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "rating_finalization_sweep",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "process_eligible_ratings": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "processEligibleRatings",
+            "args": {}
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Process Final Ratings",
+            "description": "Apply shadow Glicko-2 ratings only after the contest's 24-hour finality gates have cleared"
+          }
+        }
+      }
+    ]
+  }
+}
