@@ -197,7 +197,7 @@ async function ensureRatingEvent(base44: any, {
   });
 }
 
-async function applyPreparedOperation(base44: any, operation: any, contestRecord: any, defaults: any) {
+async function applyPreparedOperation(base44: any, operation: any, contestRecord: any, defaults: any, lockOwner: string) {
   if (operation.status === 'completed' || operation.status === 'invalidated') return operation;
   // `recovery_required` is intentionally retryable. The persisted before/after
   // snapshots let reconcilePlayerState prove whether each side is still at the
@@ -214,6 +214,7 @@ async function applyPreparedOperation(base44: any, operation: any, contestRecord
   });
 
   try {
+    if (!(await renewRatingProcessingLock(lockOwner))) throw new Error('rating_processing_lock_lost');
     await reconcilePlayerState(base44, {
       operation,
       side: 'player1',
@@ -221,6 +222,7 @@ async function applyPreparedOperation(base44: any, operation: any, contestRecord
       defaults,
       contestRecord,
     });
+    if (!(await renewRatingProcessingLock(lockOwner))) throw new Error('rating_processing_lock_lost');
     await reconcilePlayerState(base44, {
       operation,
       side: 'player2',
@@ -229,6 +231,7 @@ async function applyPreparedOperation(base44: any, operation: any, contestRecord
       contestRecord,
     });
 
+    if (!(await renewRatingProcessingLock(lockOwner))) throw new Error('rating_processing_lock_lost');
     const [p1Event, p2Event] = await Promise.all([
       ensureRatingEvent(base44, {
         operation,
@@ -451,7 +454,7 @@ Deno.serve(async (req) => {
           // current prepared/applying/recovery row, and refreshes any stale
           // old-generation operation that a rebuild marked as superseded.
           const operation = await prepareOperation(base44, contestRecord, eligibility, defaults);
-          await applyPreparedOperation(base44, operation, contestRecord, defaults);
+          await applyPreparedOperation(base44, operation, contestRecord, defaults, owner);
           applied += 1;
         } catch (error) {
           const message = error instanceof Error ? error.message : 'rating_processing_failed';
