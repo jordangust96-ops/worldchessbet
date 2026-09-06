@@ -221,7 +221,7 @@ export default function Profile() {
           </div>
         </div>
 
-        {user?.id && <MyRatingSection key={user.id} />}
+        {user?.id && <MyRatingSection key={user.id} onSummaryChange={handleRatingSummary} />}
 
         {/* Account Info */}
         <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-5 space-y-5">
