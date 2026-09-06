@@ -1,0 +1,94 @@
+{
+  "name": "PlayerRating",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "ChessBet User ID this rating belongs to."
+    },
+    "time_control": {
+      "type": "string",
+      "enum": [
+        "blitz",
+        "rapid",
+        "classical"
+      ],
+      "description": "Independent rating pool. Each player can have one canonical row per time control."
+    },
+    "rating": {
+      "type": "number",
+      "description": "Current Glicko-2 rating value for this time control."
+    },
+    "rating_deviation": {
+      "type": "number",
+      "description": "Current Glicko-2 rating deviation (RD)."
+    },
+    "volatility": {
+      "type": "number",
+      "description": "Current Glicko-2 volatility."
+    },
+    "games_rated": {
+      "type": "number",
+      "default": 0
+    },
+    "provisional": {
+      "type": "boolean",
+      "default": true,
+      "description": "True until the configured number of rated games has been reached."
+    },
+    "generation": {
+      "type": "number",
+      "default": 0,
+      "description": "Must match RatingSystemConfig.current_generation for this row to be canonical."
+    },
+    "algorithm_version": {
+      "type": "string"
+    },
+    "last_match_id": {
+      "type": "string"
+    },
+    "last_game_id": {
+      "type": "string"
+    },
+    "last_contest_record_id": {
+      "type": "string"
+    },
+    "last_rated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000
+    }
+  },
+  "required": [
+    "user_id",
+    "time_control",
+    "rating",
+    "rating_deviation",
+    "volatility",
+    "games_rated",
+    "provisional",
+    "generation",
+    "algorithm_version"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": false
+  }
+}
