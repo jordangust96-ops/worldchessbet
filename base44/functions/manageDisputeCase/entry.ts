@@ -536,8 +536,7 @@ Deno.serve(async (req) => {
             caseUpdates.hold_status = 'released';
             caseUpdates.hold_released_at = new Date().toISOString();
           }
-          await updatePlayerStatsDelta(base44, winnerId, 'win');
-          await updatePlayerStatsDelta(base44, loserId, 'loss');
+          await reverseContestStats(base44, contestRecord);
 
           resolutionFields.fee_treatment = feeTreatment;
           resolutionFields.target_user_id = winnerId || '';
@@ -634,8 +633,7 @@ Deno.serve(async (req) => {
               caseUpdates.hold_status = 'released';
               caseUpdates.hold_released_at = new Date().toISOString();
             }
-            await updatePlayerStatsDelta(base44, winnerId, 'win');
-            await updatePlayerStatsDelta(base44, loserId, 'loss');
+            await reverseContestStats(base44, contestRecord);
             await base44.asServiceRole.entities.Match.update(match.id, { result: 'cancelled' });
           } else if (match) {
             // Not yet settled — simply refund each player's escrowed entry hold.
