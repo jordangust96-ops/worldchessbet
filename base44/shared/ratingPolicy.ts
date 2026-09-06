@@ -101,7 +101,7 @@ export async function evaluateContestRatingEligibility(base44: any, contestRecor
     if (![contestRecord.white_player_id, contestRecord.black_player_id].includes(contestRecord.winner_id)) {
       return { eligible: false, permanent: true, reason: 'invalid_winner' };
     }
-    const payout = payouts.find((p: any) => p.status === 'completed');
+    const payout = payouts.find((p: any) => p.status === 'completed' && p.user_id === contestRecord.winner_id);
     if (!payout) return { eligible: false, permanent: false, reason: 'payout_not_confirmed' };
     if (payout.payout_hold_status === 'consumed' || payout.payout_hold_status === 'void') {
       return { eligible: false, permanent: true, reason: 'payout_invalidated' };
