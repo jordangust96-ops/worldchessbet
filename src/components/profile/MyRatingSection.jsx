@@ -204,28 +204,12 @@ export default function MyRatingSection({ onSummaryChange }) {
         <div className="mt-3 space-y-3 text-sm leading-relaxed text-white/60">
           <p>We use Glicko-2, a rating system that weighs who you played, not just wins and losses.</p>
 
-          {selected?.status === "established" ? (
+          {selected?.status === "established" && (
             <div className="space-y-1.5">
               <p className="text-white">
                 Your {LABELS[pool]} rating: <span className="font-bold text-[#C9A84C]">{selected.rating}</span>
               </p>
               <p>It's established, so it now recalculates after every confirmed game instead of building toward a first number.</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <p>Your first {threshold} confirmed {LABELS[pool]} games set your rating. Here's where you're at:</p>
-              <div className="flex flex-wrap gap-1.5" role="img" aria-label={`${gamesCompleted} of ${threshold} confirmed ${LABELS[pool]} games completed`}>
-                {Array.from({ length: threshold }, (_, index) => index + 1).map((gameNumber) => {
-                  const done = gameNumber <= gamesCompleted;
-                  return (
-                    <div key={gameNumber} aria-hidden="true"
-                      className={`w-7 h-7 rounded-md border flex items-center justify-center text-[10px] font-bold transition-colors ${done ? "bg-[#C9A84C]/20 border-[#C9A84C]/50 text-[#C9A84C]" : "border-white/15 text-white/30"}`}>
-                      {done ? <Check size={12} /> : gameNumber}
-                    </div>
-                  );
-                })}
-              </div>
-              <p className="text-xs text-white/40">Provisional — {gamesCompleted} of {threshold} games completed.</p>
             </div>
           )}
 
