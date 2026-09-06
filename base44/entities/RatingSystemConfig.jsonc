@@ -60,6 +60,11 @@
       "type": "number",
       "default": 0
     },
+    "rebuild_request_counter": {
+      "type": "number",
+      "default": 0,
+      "description": "Monotonic counter incremented for each new reversal/void rebuild request. A rebuild only finalizes if no newer request arrived while it was running."
+    },
     "rebuild_reason_match_id": {
       "type": "string",
       "description": "Match whose post-rating reversal/void triggered the currently pending rebuild."
