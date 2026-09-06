@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, CheckCircle2 } from "lucide-react";
 
 const POOLS = ["blitz", "rapid", "classical"];
 const LABELS = { blitz: "Blitz", rapid: "Rapid", classical: "Classical" };
 const STATUS = {
   coming_soon: "Coming soon", unavailable: "Temporarily unavailable",
-  updating: "Updating", unrated: "Not yet rated",
+  updating: "Updating", unrated: "Unrated",
   provisional: "Provisional", established: "Established",
 };
 
@@ -55,6 +55,7 @@ export default function MyRatingSection() {
   const selected = data?.pools?.find((item) => item.time_control === pool);
   const history = data?.history?.time_control === pool ? data.history : null;
   const refresh = () => { setCursor(null); setAttempt((value) => value + 1); };
+  const remaining = threshold - (selected?.games_rated || 0);
 
   return (
     <section aria-labelledby="my-rating-title" className="rounded-2xl bg-white/[0.03] border border-white/5 p-5 space-y-4">
@@ -63,24 +64,35 @@ export default function MyRatingSection() {
         <h2 id="my-rating-title" className="text-base font-bold text-white">My Rating</h2>
       </div>
       <p className="text-sm text-white/60">
-        Your ChessBet skill rating, tracked separately for Blitz, Rapid, and Classical.
+        Your skill rating in Blitz, Rapid, and Classical — tracked separately for each.
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         {POOLS.map((timeControl) => {
           const item = data?.pools?.find((entry) => entry.time_control === timeControl);
+          const pct = item?.games_rated != null ? Math.min(100, Math.round((item.games_rated / threshold) * 100)) : 0;
           return (
             <button key={timeControl} type="button" aria-pressed={pool === timeControl}
               onClick={() => { setPool(timeControl); setCursor(null); }}
               className={`rounded-xl border p-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#C9A84C] ${pool === timeControl ? "border-[#C9A84C]/50 bg-[#C9A84C]/10" : "border-white/10 bg-white/[0.02]"}`}>
-              <span className="block text-sm font-semibold text-white">{LABELS[timeControl]}</span>
+              <div className="flex items-center justify-between gap-1">
+                <span className="block text-sm font-semibold text-white">{LABELS[timeControl]}</span>
+                {item?.status === "established" && <CheckCircle2 size={14} className="text-[#C9A84C]" aria-hidden="true" />}
+              </div>
               {typeof item?.rating === "number" && <span className="block mt-1 text-xl font-bold text-[#C9A84C]">{item.rating}</span>}
               <span className="block mt-1 text-xs text-white/60">
                 {loading ? "Loading…" : error ? "Unavailable" : STATUS[item?.status] || "Temporarily unavailable"}
               </span>
               {!loading && !error && typeof item?.games_rated === "number" && (
-                <span className="block mt-1 text-xs text-white/50">
-                  {item.status === "provisional" ? `${item.games_rated} of ${threshold} rated games` : `${item.games_rated} rated games`}
-                </span>
+                <div className="mt-2 space-y-1">
+                  <span className="block text-[11px] text-white/50">
+                    {item.status === "provisional" ? `${item.games_rated}/${threshold} games` : `${item.games_rated} rated games`}
+                  </span>
+                  {item.status === "provisional" && (
+                    <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+                      <div className="h-full rounded-full bg-[#C9A84C] transition-all" style={{ width: `${pct}%` }} />
+                    </div>
+                  )}
+                </div>
               )}
             </button>
           );
@@ -94,23 +106,28 @@ export default function MyRatingSection() {
             <Button type="button" variant="outline" size="sm" onClick={refresh}>Try again</Button>
           </div>
         ) : data?.status === "coming_soon" ? (
-          <p>Ratings are coming soon. Your rating and history will appear here when they're ready to share.</p>
+          <p>Ratings are coming soon — they'll show up here once they're ready.</p>
         ) : data?.status === "unavailable" ? (
-          <p>Rating status is temporarily unavailable. Please check again later.</p>
+          <p>Rating status is temporarily unavailable. Check back soon.</p>
         ) : data?.status === "updating" || selected?.status === "updating" ? (
           <div className="space-y-2">
-            <p>Your rating is being updated. Check back for your confirmed rating and history.</p>
+            <p>Your rating's being recalculated. Check back shortly.</p>
             <Button type="button" variant="outline" size="sm" onClick={refresh}>Check again</Button>
           </div>
         ) : (
           <div className="space-y-3">
-            {data?.status === "paused" && <p>New rating calculations are paused. Any rating shown is your last confirmed rating.</p>}
-            {selected?.status === "unrated" && <p>No rated {LABELS[pool]} games yet. ChessBet is tracking eligible results toward your first provisional rating; confirmed results appear after the reporting window and any reviews are complete.</p>}
-            {selected?.status === "provisional" && <p>Your {LABELS[pool]} rating is provisional while ChessBet builds it from your first {threshold} confirmed rated games. It becomes established when your {threshold}th game in this time control is rated.</p>}
+            {data?.status === "paused" && <p>New ratings are paused right now — showing your last confirmed number.</p>}
+            {selected?.status === "unrated" && <p>No rated {LABELS[pool]} games yet. Play one to start the clock — it'll show up here once it's confirmed.</p>}
+            {selected?.status === "provisional" && (
+              <p>You're warming up: {selected.games_rated} of {threshold} confirmed {LABELS[pool]} games played. {remaining} more and your rating goes official.</p>
+            )}
+            {selected?.status === "established" && !history?.entries?.length && (
+              <p>Your {LABELS[pool]} rating is established and updates after every confirmed game.</p>
+            )}
             {history?.entries?.length > 0 && (
               <div className="space-y-3">
                 <h3 className="text-sm font-semibold text-white">{LABELS[pool]} rating history</h3>
-                <p className="text-xs text-white/50">Newest first · dates show when games settled.</p>
+                <p className="text-xs text-white/50">Newest first.</p>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
                     <caption className="sr-only">{LABELS[pool]} rating changes by rated game</caption>
@@ -122,7 +139,7 @@ export default function MyRatingSection() {
                       <tr key={entry.game_number} className="border-t border-white/5">
                         <td className="py-2 pr-3">#{entry.game_number} · {new Date(entry.date).toLocaleDateString()}</td>
                         <td className="pr-3">{entry.result}</td><td className="pr-3 text-white">{entry.rating}</td>
-                        <td>{entry.change > 0 ? "+" : ""}{entry.change}</td>
+                        <td className={entry.change > 0 ? "text-emerald-400" : entry.change < 0 ? "text-red-400" : ""}>{entry.change > 0 ? "+" : ""}{entry.change}</td>
                       </tr>
                     ))}</tbody>
                   </table>
@@ -139,12 +156,12 @@ export default function MyRatingSection() {
       </div>
 
       <details className="border-t border-white/10 pt-3">
-        <summary className="cursor-pointer text-sm font-medium text-[#C9A84C] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#C9A84C]">How your rating works</summary>
+        <summary className="cursor-pointer text-sm font-medium text-[#C9A84C] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#C9A84C]">How ratings work</summary>
         <div className="mt-3 space-y-2 text-sm leading-relaxed text-white/60">
-          <p>ChessBet uses Glicko-2. It estimates your playing strength from game results and the strength of your opponents—not Stockfish or move-by-move analysis.</p>
-          <p>Your first {threshold} confirmed rated games in each time control establish your rating. You can see it from your first rated game as provisional; it becomes established when your {threshold}th game is rated. Early ratings can change more as the system learns your level.</p>
-          <p>Ratings update after the 24-hour reporting window and any required reviews are complete. Your game is scored after it is confirmed, rather than immediately when it ends.</p>
-          <p>Only your own confirmed rating history appears here. Ratings don't change your game result, wallet, or payouts.</p>
+          <p>We use Glicko-2, a rating system that weighs who you played, not just wins and losses.</p>
+          <p>Your first {threshold} confirmed games in a time control set a provisional rating. After that it's established, and moves more steadily game to game.</p>
+          <p>Games are scored once the 24-hour reporting window and any reviews wrap up — that's the short delay you'll sometimes see.</p>
+          <p>It's just for bragging rights: your rating never touches your game result, wallet, or payouts.</p>
         </div>
       </details>
     </section>
