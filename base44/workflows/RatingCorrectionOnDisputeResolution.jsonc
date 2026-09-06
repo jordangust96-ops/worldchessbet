@@ -1,0 +1,40 @@
+{
+  "name": "Rating Correction On Dispute Resolution",
+  "description": "Shadow-only safety net. If a previously settled contest is later reversed or voided, rebuild ratings asynchronously from the remaining canonical rated contests. Never blocks the dispute resolution itself.",
+  "trigger": {
+    "config": {
+      "trigger_type": "entity",
+      "entity_name": "DisputeCase",
+      "events": [
+        "update"
+      ]
+    },
+    "condition": "${ .trigger.data.status == \"resolved\" and .trigger.old_data.status != \"resolved\" and (.trigger.data.resolution_type == \"contest_reversed\" or .trigger.data.resolution_type == \"contest_voided\") }"
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "rating_correction_on_dispute_resolution",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "rebuild_ratings": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "rebuildAllRatings",
+            "args": {
+              "matchId": "${ .trigger.data.match_id }"
+            }
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Rebuild Shadow Ratings",
+            "description": "Invalidate the corrected contest's rating operation and rebuild the canonical rating generation"
+          }
+        }
+      }
+    ]
+  }
+}
