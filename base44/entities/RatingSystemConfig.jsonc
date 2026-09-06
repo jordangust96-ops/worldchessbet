@@ -1,0 +1,101 @@
+{
+  "name": "RatingSystemConfig",
+  "type": "object",
+  "properties": {
+    "config_key": {
+      "type": "string",
+      "description": "Singleton key. The production rating configuration uses 'primary'."
+    },
+    "processing_enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Master backend kill switch. When false, no new rating calculations are applied."
+    },
+    "public_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Reserved UI kill switch. Must remain false while ratings are shadow-only."
+    },
+    "history_start_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Only contests settled at or after this timestamp may enter ChessBet rating history. Prevents pre-rating test history from contaminating ratings."
+    },
+    "algorithm_version": {
+      "type": "string",
+      "default": "glicko2_sequential_v1"
+    },
+    "initial_rating": {
+      "type": "number",
+      "default": 1500
+    },
+    "initial_rating_deviation": {
+      "type": "number",
+      "default": 350
+    },
+    "initial_volatility": {
+      "type": "number",
+      "default": 0.06
+    },
+    "tau": {
+      "type": "number",
+      "default": 0.5
+    },
+    "provisional_games": {
+      "type": "number",
+      "default": 10,
+      "description": "Player-facing provisional threshold. Games are calculated from game one; visibility remains disabled until a future UI phase."
+    },
+    "current_generation": {
+      "type": "number",
+      "default": 0,
+      "description": "Canonical global rating-history generation. Increased only by a deterministic full rebuild after a rated contest is later reversed/voided."
+    },
+    "rebuild_in_progress": {
+      "type": "boolean",
+      "default": false,
+      "description": "Fail-closed guard. Normal rating processing stops while a correction rebuild is in progress."
+    },
+    "rebuild_target_generation": {
+      "type": "number",
+      "default": 0
+    },
+    "last_rebuild_started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_rebuild_completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000
+    }
+  },
+  "required": [
+    "config_key",
+    "processing_enabled",
+    "public_enabled",
+    "history_start_at",
+    "algorithm_version"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": false
+  }
+}
