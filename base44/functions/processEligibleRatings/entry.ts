@@ -323,6 +323,7 @@ async function prepareOperation(base44: any, contestRecord: any, eligibility: an
     player2_rd_after: p2After.ratingDeviation,
     player2_volatility_after: p2After.volatility,
     algorithm_version: defaults.algorithmVersion,
+    settlement_timestamp: contestRecord.settlement_timestamp,
     rating_eligible_at: eligibility.eligibleAt,
     prepared_at: new Date().toISOString(),
     attempt_count: 0,
@@ -342,7 +343,11 @@ Deno.serve(async (req) => {
       // enabled, but this function itself never exposes player data.
     }
     if (config.rebuild_in_progress === true) {
-      return Response.json({ accepted: true, deferred: true, reason: 'rating_rebuild_in_progress' });
+      const rebuild = await base44.asServiceRole.functions.invoke('rebuildAllRatings', {
+        matchId: config.rebuild_reason_match_id || '',
+        resume: true,
+      }).catch((error: any) => ({ error: error?.message || 'rating_rebuild_resume_failed' }));
+      return Response.json({ accepted: true, deferred: true, reason: 'rating_rebuild_in_progress', rebuild });
     }
 
     const defaults = ratingDefaults(config);
@@ -354,6 +359,7 @@ Deno.serve(async (req) => {
     let deferred = 0;
     let permanentSkips = 0;
     const errors: string[] = [];
+    const blockedPlayers = new Set<string>();
     let stop = false;
 
     for (let skip = 0; skip < MAX_SCAN && !stop && applied < MAX_APPLY_PER_RUN; skip += PAGE_SIZE) {
@@ -379,27 +385,36 @@ Deno.serve(async (req) => {
         });
         if (existingOps.length > 1) {
           errors.push(`duplicate_operation:${contestRecord.id}`);
-          stop = true;
-          break;
+          blockedPlayers.add(contestRecord.white_player_id);
+          blockedPlayers.add(contestRecord.black_player_id);
+          continue;
         }
         const existingOperation = existingOps[0] || null;
         if (existingOperation?.status === 'completed' || existingOperation?.status === 'invalidated') continue;
         if (existingOperation?.status === 'recovery_required') {
           errors.push(`recovery_required:${existingOperation.id}`);
-          stop = true;
-          break;
+          blockedPlayers.add(contestRecord.white_player_id);
+          blockedPlayers.add(contestRecord.black_player_id);
+          continue;
+        }
+
+        // If an earlier unresolved contest prevents either player's canonical
+        // state from being known, this contest must wait too. Propagate the
+        // block to the opponent, but keep processing unrelated player chains.
+        if (blockedPlayers.has(contestRecord.white_player_id) || blockedPlayers.has(contestRecord.black_player_id)) {
+          deferred += 1;
+          blockedPlayers.add(contestRecord.white_player_id);
+          blockedPlayers.add(contestRecord.black_player_id);
+          continue;
         }
 
         const eligibility = await evaluateContestRatingEligibility(base44, contestRecord, config);
         if (!eligibility.eligible) {
           if (eligibility.permanent) permanentSkips += 1;
-          else deferred += 1;
-          // Do not process later contests out of order for either participant
-          // if this one is only temporarily blocked. Global chronological
-          // order is deliberately conservative and deterministic.
-          if (!eligibility.permanent) {
-            stop = true;
-            break;
+          else {
+            deferred += 1;
+            blockedPlayers.add(contestRecord.white_player_id);
+            blockedPlayers.add(contestRecord.black_player_id);
           }
           continue;
         }
@@ -415,10 +430,11 @@ Deno.serve(async (req) => {
         } catch (error) {
           const message = error instanceof Error ? error.message : 'rating_processing_failed';
           errors.push(`${contestRecord.id}:${message}`.slice(0, 500));
-          // Never leapfrog a failed earlier contest; retry/recovery must restore
-          // deterministic order before any later contest is allowed through.
-          stop = true;
-          break;
+          // Never leapfrog a failed earlier contest for either participant.
+          // Unrelated player chains may continue safely in the same sweep.
+          blockedPlayers.add(contestRecord.white_player_id);
+          blockedPlayers.add(contestRecord.black_player_id);
+          continue;
         }
       }
 
