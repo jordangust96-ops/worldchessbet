@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Trophy, Swords, LogOut, Loader2, Crown, XCircle, Flag, ChevronRight, HelpCircle, BookOpen } from "lucide-react";
+import { Trophy, Swords, LogOut, Loader2, Crown, XCircle, Flag, ChevronRight, HelpCircle, BookOpen, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import Logo from "@/components/Logo";
@@ -26,6 +26,26 @@ export default function Profile() {
   const [loadError, setLoadError] = useState("");
   const [soundEnabled, setSoundEnabled] = useState(getStoredSoundPreference);
   const [savingSound, setSavingSound] = useState(false);
+  const [ratingSummary, setRatingSummary] = useState(null);
+
+  // MyRatingSection owns the actual rating fetch; this just mirrors its
+  // currently-selected pool so the hero card can match it without a second
+  // request. Guarded so identical summaries don't cause a re-render loop.
+  const handleRatingSummary = useCallback((summary) => {
+    setRatingSummary((previous) => {
+      if (previous &&
+        previous.pool === summary.pool &&
+        previous.loading === summary.loading &&
+        previous.error === summary.error &&
+        previous.status === summary.status &&
+        previous.rating === summary.rating &&
+        previous.gamesRated === summary.gamesRated &&
+        previous.threshold === summary.threshold) {
+        return previous;
+      }
+      return summary;
+    });
+  }, []);
 
   useEffect(() => {
     const load = async () => {
