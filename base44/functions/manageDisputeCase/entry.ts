@@ -153,6 +153,26 @@ async function updatePlayerStatsDelta(base44, playerId, outcomeDelta) {
   });
 }
 
+// Reverses the games_played/won/lost/win_percentage impact of one settled
+// contest for both participants. A decisive contest rolls back the winner's
+// win and the loser's loss via winner_id/loser_id. A drawn contest never has
+// winner_id/loser_id set (settleMatch's draw branch leaves them '' and
+// instead calls updatePlayerStats(playerId, 'draw') for both players — see
+// entry.ts's draw branch), so falling back to winner_id/loser_id here would
+// silently no-op and leave both players' games_played/win_percentage
+// permanently inflated by the reversed/voided draw. white_player_id/
+// black_player_id are always populated at settlement regardless of outcome,
+// so they're the reliable source of both participants in the draw case.
+async function reverseContestStats(base44, contestRecord) {
+  if (contestRecord.winner_id || contestRecord.loser_id) {
+    await updatePlayerStatsDelta(base44, contestRecord.winner_id, 'win');
+    await updatePlayerStatsDelta(base44, contestRecord.loser_id, 'loss');
+  } else {
+    await updatePlayerStatsDelta(base44, contestRecord.white_player_id, 'draw');
+    await updatePlayerStatsDelta(base44, contestRecord.black_player_id, 'draw');
+  }
+}
+
 async function findContestRecord(base44, matchId) {
   if (!matchId) return null;
   const records = await base44.asServiceRole.entities.ContestRecord.filter({ match_id: matchId });
