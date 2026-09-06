@@ -106,7 +106,7 @@ export default function MyRatingSection() {
           <div className="space-y-3">
             {data?.status === "paused" && <p>New rating calculations are paused. Any rating shown is your last confirmed rating.</p>}
             {selected?.status === "unrated" && <p>No rated {LABELS[pool]} games yet. Eligible results appear after the reporting window and any reviews are complete.</p>}
-            {selected?.status === "provisional" && <p>Your {LABELS[pool]} rating is still provisional. It becomes established after {threshold} rated games in this time control.</p>}
+            {selected?.status === "provisional" && <p>Your {LABELS[pool]} rating is provisional while ChessBet builds it from your first {threshold} confirmed rated games. It becomes established when your {threshold}th game in this time control is rated.</p>}
             {history?.entries?.length > 0 && (
               <div className="space-y-3">
                 <h3 className="text-sm font-semibold text-white">{LABELS[pool]} rating history</h3>
@@ -142,8 +142,8 @@ export default function MyRatingSection() {
         <summary className="cursor-pointer text-sm font-medium text-[#C9A84C] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#C9A84C]">How your rating works</summary>
         <div className="mt-3 space-y-2 text-sm leading-relaxed text-white/60">
           <p>ChessBet uses Glicko-2. It estimates your playing strength from game results and the strength of your opponents—not Stockfish or move-by-move analysis.</p>
-          <p>Your first {threshold} rated games in each time control help establish your rating. It starts provisional and becomes established when game {threshold} is rated. Early ratings can change more as the system learns your level.</p>
-          <p>Ratings update separately after the 24-hour reporting window and any required reviews are complete. Finishing a game doesn't update your rating immediately.</p>
+          <p>Your first {threshold} confirmed rated games in each time control establish your rating. You can see it from your first rated game as provisional; it becomes established when your {threshold}th game is rated. Early ratings can change more as the system learns your level.</p>
+          <p>Ratings update after the 24-hour reporting window and any required reviews are complete. Your game is scored after it is confirmed, rather than immediately when it ends.</p>
           <p>Only your own confirmed rating history appears here. Ratings don't change your game result, wallet, or payouts.</p>
         </div>
       </details>
