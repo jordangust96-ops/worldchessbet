@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { BarChart3, CheckCircle2 } from "lucide-react";
+import { BarChart3, CheckCircle2, Check } from "lucide-react";
 
 const POOLS = ["blitz", "rapid", "classical"];
 const LABELS = { blitz: "Blitz", rapid: "Rapid", classical: "Classical" };
@@ -11,13 +11,15 @@ const STATUS = {
   provisional: "Provisional", established: "Established",
 };
 
-export default function MyRatingSection() {
+export default function MyRatingSection({ onSummaryChange }) {
   const [pool, setPool] = useState("blitz");
   const [cursor, setCursor] = useState(null);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const autoSelectedRef = useRef(false);
+  const userSelectedRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -40,6 +42,17 @@ export default function MyRatingSection() {
       const result = response.data;
       if (!result || !Array.isArray(result.pools)) throw new Error("Invalid rating response");
       setData(result);
+      // Default the view to whichever time control the player has made the most
+      // progress in, unless they've already picked one themselves. Runs once.
+      if (!autoSelectedRef.current && !userSelectedRef.current) {
+        autoSelectedRef.current = true;
+        const mostProgressed = [...POOLS].sort((a, b) => {
+          const gamesA = result.pools.find((entry) => entry.time_control === a)?.games_rated || 0;
+          const gamesB = result.pools.find((entry) => entry.time_control === b)?.games_rated || 0;
+          return gamesB - gamesA;
+        })[0];
+        if (mostProgressed && mostProgressed !== pool) setPool(mostProgressed);
+      }
     }).catch(() => {
       if (active) setError(true);
     }).finally(() => {
@@ -56,6 +69,21 @@ export default function MyRatingSection() {
   const history = data?.history?.time_control === pool ? data.history : null;
   const refresh = () => { setCursor(null); setAttempt((value) => value + 1); };
   const remaining = threshold - (selected?.games_rated || 0);
+  const gamesCompleted = Math.max(0, Math.min(threshold, selected?.games_rated || 0));
+
+  // Report the currently-viewed pool's summary up to the profile page so its
+  // hero rating card can mirror this selection without a second data fetch.
+  useEffect(() => {
+    onSummaryChange?.({
+      pool,
+      loading,
+      error,
+      status: selected?.status,
+      rating: selected?.rating ?? null,
+      gamesRated: selected?.games_rated ?? 0,
+      threshold,
+    });
+  }, [onSummaryChange, pool, loading, error, selected, threshold]);
 
   return (
     <section aria-labelledby="my-rating-title" className="rounded-2xl bg-white/[0.03] border border-white/5 p-5 space-y-4">
@@ -72,7 +100,7 @@ export default function MyRatingSection() {
           const pct = item?.games_rated != null ? Math.min(100, Math.round((item.games_rated / threshold) * 100)) : 0;
           return (
             <button key={timeControl} type="button" aria-pressed={pool === timeControl}
-              onClick={() => { setPool(timeControl); setCursor(null); }}
+              onClick={() => { userSelectedRef.current = true; autoSelectedRef.current = true; setPool(timeControl); setCursor(null); }}
               className={`rounded-xl border p-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#C9A84C] ${pool === timeControl ? "border-[#C9A84C]/50 bg-[#C9A84C]/10" : "border-white/10 bg-white/[0.02]"}`}>
               <div className="flex items-center justify-between gap-1">
                 <span className="block text-sm font-semibold text-white">{LABELS[timeControl]}</span>
@@ -157,11 +185,35 @@ export default function MyRatingSection() {
 
       <details className="border-t border-white/10 pt-3">
         <summary className="cursor-pointer text-sm font-medium text-[#C9A84C] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#C9A84C]">How ratings work</summary>
-        <div className="mt-3 space-y-2 text-sm leading-relaxed text-white/60">
+        <div className="mt-3 space-y-3 text-sm leading-relaxed text-white/60">
           <p>We use Glicko-2, a rating system that weighs who you played, not just wins and losses.</p>
-          <p>Your first {threshold} confirmed games in a time control set a provisional rating. After that it's established, and moves more steadily game to game.</p>
+
+          {selected?.status === "established" ? (
+            <div className="space-y-1.5">
+              <p className="text-white">
+                Your {LABELS[pool]} rating: <span className="font-bold text-[#C9A84C]">{selected.rating}</span>
+              </p>
+              <p>It's established, so it now recalculates after every confirmed game instead of building toward a first number.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p>Your first {threshold} confirmed {LABELS[pool]} games set your rating. Here's where you're at:</p>
+              <div className="flex flex-wrap gap-1.5" role="img" aria-label={`${gamesCompleted} of ${threshold} confirmed ${LABELS[pool]} games completed`}>
+                {Array.from({ length: threshold }, (_, index) => index + 1).map((gameNumber) => {
+                  const done = gameNumber <= gamesCompleted;
+                  return (
+                    <div key={gameNumber} aria-hidden="true"
+                      className={`w-7 h-7 rounded-md border flex items-center justify-center text-[10px] font-bold transition-colors ${done ? "bg-[#C9A84C]/20 border-[#C9A84C]/50 text-[#C9A84C]" : "border-white/15 text-white/30"}`}>
+                      {done ? <Check size={12} /> : gameNumber}
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-white/40">Provisional — {gamesCompleted} of {threshold} games completed.</p>
+            </div>
+          )}
+
           <p>Games are scored once the 24-hour reporting window and any reviews wrap up — that's the short delay you'll sometimes see.</p>
-          <p>It's just for bragging rights: your rating never touches your game result, wallet, or payouts.</p>
         </div>
       </details>
     </section>
