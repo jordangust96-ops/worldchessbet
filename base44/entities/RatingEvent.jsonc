@@ -1,0 +1,163 @@
+{
+  "name": "RatingEvent",
+  "type": "object",
+  "properties": {
+    "operation_id": {
+      "type": "string",
+      "description": "RatingOperation that produced this immutable event."
+    },
+    "idempotency_key": {
+      "type": "string",
+      "description": "Deterministic per-user/per-game/per-generation key."
+    },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "game"
+      ],
+      "default": "game"
+    },
+    "generation": {
+      "type": "number",
+      "default": 0
+    },
+    "user_id": {
+      "type": "string"
+    },
+    "opponent_user_id": {
+      "type": "string"
+    },
+    "match_id": {
+      "type": "string"
+    },
+    "game_id": {
+      "type": "string"
+    },
+    "contest_record_id": {
+      "type": "string"
+    },
+    "time_control": {
+      "type": "string",
+      "enum": [
+        "blitz",
+        "rapid",
+        "classical"
+      ]
+    },
+    "color": {
+      "type": "string",
+      "enum": [
+        "white",
+        "black"
+      ]
+    },
+    "score": {
+      "type": "number",
+      "description": "1 win, 0.5 draw, 0 loss from this player's perspective."
+    },
+    "rating_before": {
+      "type": "number"
+    },
+    "rating_after": {
+      "type": "number"
+    },
+    "rating_delta": {
+      "type": "number"
+    },
+    "rating_deviation_before": {
+      "type": "number"
+    },
+    "rating_deviation_after": {
+      "type": "number"
+    },
+    "volatility_before": {
+      "type": "number"
+    },
+    "volatility_after": {
+      "type": "number"
+    },
+    "opponent_rating_before": {
+      "type": "number"
+    },
+    "opponent_rating_deviation_before": {
+      "type": "number"
+    },
+    "opponent_volatility_before": {
+      "type": "number"
+    },
+    "games_rated_before": {
+      "type": "number"
+    },
+    "games_rated_after": {
+      "type": "number"
+    },
+    "provisional_before": {
+      "type": "boolean"
+    },
+    "provisional_after": {
+      "type": "boolean"
+    },
+    "algorithm_version": {
+      "type": "string"
+    },
+    "settlement_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "rating_eligible_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "processed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "normal",
+        "rebuild"
+      ],
+      "default": "normal"
+    },
+    "rebuild_reason_match_id": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000
+    }
+  },
+  "required": [
+    "idempotency_key",
+    "event_type",
+    "generation",
+    "user_id",
+    "opponent_user_id",
+    "match_id",
+    "game_id",
+    "contest_record_id",
+    "time_control",
+    "score",
+    "rating_before",
+    "rating_after",
+    "rating_deviation_before",
+    "rating_deviation_after",
+    "volatility_before",
+    "volatility_after",
+    "games_rated_before",
+    "games_rated_after",
+    "algorithm_version",
+    "processed_at"
+  ],
+  "rls": {
+    "create": false,
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": false,
+    "delete": false
+  }
+}
