@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 import { publicAvailableMatchQuery } from '../../shared/marketplaceStats.ts';
+import { readPublicMatchRatings } from '../../shared/publicMatchRatings.js';
 
 Deno.serve(async (req) => {
   try {
@@ -16,11 +17,18 @@ Deno.serve(async (req) => {
       20
     );
 
-    // Games played and win percentage are read directly from the User
-    // entity (maintained by settleMatch on every completed match) — never
-    // recomputed from Match history here, to keep the marketplace fast.
-    const enriched = await Promise.all(
-      available.map(async (m) => {
+    // Ratings are presentation-only. A rating read failure must never hide,
+    // reorder, reject, or otherwise change an available public match.
+    const unavailableRatings = Object.fromEntries(
+      available.map((match) => [match.id, { ratingStatus: 'unavailable', rating: null }])
+    );
+    const [publicRatings, opponentDetails] = await Promise.all([
+      readPublicMatchRatings(base44.asServiceRole.entities, available)
+        .catch(() => unavailableRatings),
+      // Games played and win percentage are read directly from the User
+      // entity (maintained by settleMatch on every completed match) — never
+      // recomputed from Match history here, to keep the marketplace fast.
+      Promise.all(available.map(async (m) => {
         let name = 'Opponent';
         let gamesPlayed = 0;
         let winPercentage = 0;
@@ -38,9 +46,18 @@ Deno.serve(async (req) => {
         } catch (e) {
           // fallback to default name/stats
         }
-        return { ...m, opponentName: name, gamesPlayed, winPercentage, isFoundingPlayer };
-      })
-    );
+        return { name, gamesPlayed, winPercentage, isFoundingPlayer };
+      })),
+    ]);
+
+    const enriched = available.map((match, index) => ({
+      ...match,
+      opponentName: opponentDetails[index].name,
+      gamesPlayed: opponentDetails[index].gamesPlayed,
+      winPercentage: opponentDetails[index].winPercentage,
+      isFoundingPlayer: opponentDetails[index].isFoundingPlayer,
+      ...(publicRatings[match.id] || unavailableRatings[match.id]),
+    }));
 
     return Response.json({ matches: enriched });
   } catch (error) {
