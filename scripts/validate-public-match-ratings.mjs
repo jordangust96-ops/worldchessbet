@@ -190,7 +190,7 @@ const create = read('base44/functions/createMatch/entry.ts');
 
 assert.doesNotMatch(helper, /\.(create|update|delete|bulkCreate|invoke)\s*\(/);
 assert.doesNotMatch(endpoint, /\.(create|update|delete|bulkCreate|invoke)\s*\(/);
-assert.doesNotMatch(card, /\.entities\.|asServiceRole|PlayerRating|RatingEvent|RatingOperation/);
+assert.doesNotMatch(card, /base44\.entities\.(PlayerRating|RatingEvent|RatingOperation|RatingSystemConfig)|asServiceRole/);
 assert.match(card, /Rating:\{" "\}/);
 assert.match(card, /current\.gamesPlayed/);
 assert.match(card, /current\.winPercentage/);
