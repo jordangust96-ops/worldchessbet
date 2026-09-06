@@ -157,7 +157,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      if (!targetOperations.length && config.rebuild_in_progress === true && !body?.resume) {
+      if (!targetOperations.length && config.rebuild_in_progress === true) {
         // The contest never reached the rating ledger; there is nothing to
         // correct. Clear the guard without touching any current rating state.
         await base44.asServiceRole.entities.RatingSystemConfig.update(config.id, {
