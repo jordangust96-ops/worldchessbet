@@ -402,6 +402,17 @@ Deno.serve(async (req) => {
       last_rebuild_completed_at: new Date().toISOString(),
     });
 
+    // Close the last non-transactional race: a new dispute may increment the
+    // request counter after the pre-commit fence but before the config update
+    // above. Because the counter itself is never overwritten by finalization,
+    // re-read it while this worker still owns the global lock. If it changed,
+    // immediately re-arm the fail-closed rebuild guard for a fresh generation.
+    const postCommitRequestCheck = await newerRebuildRequestArrived(base44, capturedRequestCounter);
+    if (postCommitRequestCheck.changed) {
+      const rotated = await rotateTargetGeneration(base44, config, 'rebuild_rearmed_for_request_racing_final_commit');
+      return Response.json({ accepted: true, deferred: true, reason: 'newer_rebuild_request', targetGeneration: rotated?.rebuild_target_generation }, { status: 202 });
+    }
+
     return Response.json({
       accepted: true,
       rebuilt: true,
