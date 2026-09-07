@@ -7,7 +7,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 // touches funds, match outcomes, users, accounts, enforcement, compliance, or
 // external messaging, and never invokes settlement/payout/refund/withdrawal
 // functions. Deterministic (no AI gateway) so the founder brief is neutral
-// and reproducible. Safe to run from the scheduled workflow (no user session).
+// and reproducible. Scheduled workflows must authenticate as an admin.
 //
 // Idempotent per brief_date: re-runs on the same Detroit business day update the
 // existing DailyOperationsBrief and reuse open OperationsFindings by key.
@@ -28,17 +28,11 @@ const STUCK_MATCH_MS = 6 * 60 * 60 * 1000;
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
+    // Workflows and internal service calls carry a verified admin identity.
+    const caller = await base44.auth.me().catch(() => null);
+    if (!caller) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (caller.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 });
     const svc = base44.asServiceRole.entities;
-
-    // Allow manual admin invocation; scheduled runs have no user session.
-    try {
-      const user = await base44.auth.me();
-      if (user && user.role !== 'admin') {
-        return Response.json({ error: 'Forbidden' }, { status: 403 });
-      }
-    } catch {
-      // No user session (scheduled workflow) — allowed.
-    }
 
     const now = new Date();
     const briefDate = detroitDateString(now);
