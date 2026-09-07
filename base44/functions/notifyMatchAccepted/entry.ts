@@ -66,6 +66,9 @@ function buildEmailBody({ opponentName, wagerAmount, timeControlLabel, appUrl })
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
+    const caller = await base44.auth.me().catch(() => null);
+    if (!caller) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (caller.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 });
 
     const { matchId } = await req.json();
     if (!matchId) return Response.json({ error: 'matchId is required' }, { status: 400 });
