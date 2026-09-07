@@ -28,7 +28,8 @@
     "test:settlement": "node scripts/validate-settlement-transparency.mjs",
     "test:pending-winnings": "node scripts/validate-pending-winnings.mjs",
     "test:ratings": "node scripts/validate-ratings.mjs && node scripts/validate-rating-architecture.mjs",
-    "test:launch": "node scripts/validate-launch-readiness.mjs"
+    "test:launch": "node scripts/validate-launch-readiness.mjs",
+    "test:site-health": "node scripts/validate-site-health.mjs"
   },
   "dependencies": {
     "@base44/sdk": "^0.8.48",

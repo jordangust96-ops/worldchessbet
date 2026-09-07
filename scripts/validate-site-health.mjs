@@ -12,6 +12,7 @@ assert.equal(p.overall([{status:'healthy'},{status:'unknown'}]),'unknown');
 assert.equal(p.creditCheck({},now).status,'unknown');
 const credits={credit_observed_at:new Date(now).toISOString(),credit_cycle_started_at:'2026-08-20T00:00:00Z',credit_renews_at:'2026-09-20T00:00:00Z',credit_used:1000,credit_allowance:20000};
 assert.equal(p.creditCheck(credits,now).status,'healthy');
+assert.equal(p.creditCheck({...credits,credit_used:10563.9,pending_credit_allowance:10000},now).status,'warning');
 assert.equal(p.creditCheck({...credits,credit_used:19000},now).status,'warning');
 assert.equal(p.creditCheck({...credits,credit_used:20000},now).status,'critical');
 assert.equal(p.creditCheck({...credits,credit_observed_at:'2026-09-05T00:00:00Z'},now).status,'unknown');
@@ -42,7 +43,7 @@ function handler(name){
  Deno:{serve:fn=>serve=fn,env:{get:k=>env[k]}},Date:Clock,Response,Request,URL,AbortSignal,AbortController,
  setTimeout,clearTimeout,console:{log(){},warn(){},error(){}},
  fetch:async (url,options)=>{
-   url=String(url);
+   url=String(url);assert.equal(options.signal,undefined);assert.equal(options.redirect,'manual');
    if(url.includes('upstash.io')){assert.equal(options.body,'["PING"]');return Response.json({result:failRedis?'NO':'PONG'});}
    assert.equal(options.method,'GET');return url.includes('ondigitalocean')?Response.json({ok:true}):new Response('<html>ChessBet</html>');
  }};
