@@ -169,6 +169,8 @@ async function classifySettlementPostingFailure(base44, transaction, match, game
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
+    const caller = await base44.auth.me().catch(() => null);
+    if (!caller) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     const { gameId } = await req.json();
     if (!gameId) return Response.json({ error: 'gameId is required' }, { status: 400 });
 
@@ -181,6 +183,9 @@ Deno.serve(async (req) => {
 
     let match = await base44.asServiceRole.entities.Match.get(game.match_id);
     if (!match) return Response.json({ error: 'Match not found' }, { status: 404 });
+    if (caller.role !== 'admin' && ![match.player1_id, match.player2_id].includes(caller.id)) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     // Administrative pre-settlement hold — set only via a Dispute Case
     // (manageDisputeCase). While active, settlement is paused entirely and
@@ -190,12 +195,9 @@ Deno.serve(async (req) => {
       return Response.json({ held: true, match });
     }
 
-    // This function only ever applies the already-decided outcome of a
-    // completed Game (checked above) — it never trusts caller-supplied
-    // results — and the idempotency guard below ensures it can run at most
-    // once per match. That makes it safe to call regardless of who/what
-    // triggers it (the MatchSettlement workflow, or either player directly),
-    // so no caller-identity check is needed here.
+    // Only verified admins/workflows or this match's players may trigger
+    // settlement. Results still come exclusively from the completed Game;
+    // the existing funding, hold, and idempotency safeguards remain in force.
 
     // Idempotency guard — settlement must apply exactly once per match, even if
     // this function is retried or the trigger fires more than once.
