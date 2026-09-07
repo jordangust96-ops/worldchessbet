@@ -1,0 +1,35 @@
+{
+  "name": "GameHealthTelemetry",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "window_started_at": {
+      "type": "string"
+    },
+    "samples_json": {
+      "type": "string",
+      "maxLength": 18000
+    }
+  },
+  "required": [
+    "user_id",
+    "recorded_at",
+    "samples_json"
+  ],
+  "rls": {
+    "create": false,
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": false,
+    "delete": false
+  }
+}
