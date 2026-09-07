@@ -14,9 +14,47 @@ export default function Blog() {
   const [searchParams] = useSearchParams();
   const articleSlug = searchParams.get("post")?.trim();
   const isSoroArticle = Boolean(articleSlug);
-  const articleCanonicalUrl = isSoroArticle
-    ? `${SITE_URL}/blog?post=${encodeURIComponent(articleSlug)}`
-    : null;
+  // Soro navigates with pushState outside React Router. Keep one canonical
+  // owner for both article/list views and strip tracking parameters.
+  useEffect(() => {
+    const canonical = document.createElement("link");
+    canonical.rel = "canonical";
+    canonical.dataset.chessbetBlog = "true";
+    const ogUrl = document.createElement("meta");
+    ogUrl.setAttribute("property", "og:url");
+    ogUrl.dataset.chessbetBlog = "true";
+
+    const syncCanonical = () => {
+      if (window.location.pathname.replace(/\/$/, "").toLowerCase() !== "/blog") return;
+      const slug = new URLSearchParams(window.location.search).get("post")?.trim();
+      const url = slug
+        ? `${SITE_URL}/blog?post=${encodeURIComponent(slug)}`
+        : `${SITE_URL}/blog`;
+      if (canonical.getAttribute("href") !== url) canonical.setAttribute("href", url);
+      if (ogUrl.getAttribute("content") !== url) ogUrl.setAttribute("content", url);
+      document.head.querySelectorAll('link[rel="canonical"], meta[property="og:url"]').forEach((tag) => {
+        if (tag !== canonical && tag !== ogUrl) tag.remove();
+      });
+      if (!canonical.isConnected) document.head.appendChild(canonical);
+      if (!ogUrl.isConnected) document.head.appendChild(ogUrl);
+    };
+
+    syncCanonical();
+    const observer = new MutationObserver(syncCanonical);
+    observer.observe(document.head, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["href", "content"],
+    });
+    window.addEventListener("popstate", syncCanonical);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("popstate", syncCanonical);
+      canonical.remove();
+      ogUrl.remove();
+    };
+  }, []);
 
   useEffect(() => {
     if (document.getElementById(SORO_SCRIPT_ID)) return undefined;
@@ -37,14 +75,12 @@ export default function Blog() {
     <div className="min-h-screen bg-[#0A0A0A] px-5 py-10">
       {isSoroArticle ? (
         <Helmet>
-          <link rel="canonical" href={articleCanonicalUrl} />
-          <meta property="og:url" content={articleCanonicalUrl} />
+          <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
         </Helmet>
       ) : (
         <SEO
           title="Cash Chess Strategy & Fair-Play Insights | ChessBet Blog"
           description="Read ChessBet guides on head-to-head blitz, rapid, and classical chess, fair-play protection, contest rules, match strategy, and the path to cash-prize competition."
-          canonicalUrl={`${SITE_URL}/blog`}
         />
       )}
       <div className="max-w-5xl mx-auto space-y-6">
