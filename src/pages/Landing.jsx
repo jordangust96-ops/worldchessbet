@@ -251,6 +251,7 @@ export default function Landing() {
 
       <footer className="relative z-10 px-6 py-8 text-center border-t border-white/5">
         <nav aria-label="ChessBet information" className="mb-4 flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs">
+          <Link to="/about" className="text-white/55 hover:text-[#C9A84C]">About</Link>
           <Link to="/blog" className="text-white/55 hover:text-[#C9A84C]">Blog</Link>
           <Link to="/fair-play-integrity" className="text-white/55 hover:text-[#C9A84C]">Fair Play & Integrity</Link>
           <Link to="/official-rules" className="text-white/55 hover:text-[#C9A84C]">Official Rules</Link>
