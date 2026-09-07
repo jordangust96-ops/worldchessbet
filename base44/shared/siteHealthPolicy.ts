@@ -34,11 +34,13 @@ export function creditCheck(config: any, now: number) {
   const daysRemaining = (renewal - now) / 86400000;
   const estimatedRemainingNow = Math.max(0, remaining - perDay * Math.max(0, now - observed) / 86400000);
   const projectedExhaustion = perDay > 0 && estimatedRemainingNow / perDay < daysRemaining;
-  const status = used >= allowance ? 'critical' : remaining / allowance < 0.2 || projectedExhaustion ? 'warning' : 'healthy';
+  const nextCycleRisk = config.pending_credit_allowance > 0 && perDay * 30 > config.pending_credit_allowance;
+  const status = used >= allowance ? 'critical' : remaining / allowance < 0.2 || projectedExhaustion || nextCycleRisk ? 'warning' : 'healthy';
   return check('credits', 'Base44 shared credits', status,
     'Manually observed workspace usage: ' + used + ' / ' + allowance + '. ' +
     (projectedExhaustion ? 'At the cycle-average rate, credits may run out before renewal. ' : 'Current estimate fits this cycle. ') +
     (config.pending_credit_allowance > 0 && config.pending_credit_allowance < allowance ? 'A lower allowance of ' + config.pending_credit_allowance + ' is scheduled for the next cycle. ' : '') +
+    (nextCycleRisk ? 'The recent daily average would exceed the scheduled next-cycle allowance over 30 days. ' : '') +
     'Forecast is approximate and includes all workspace apps; it is not a gameplay capacity limit.', remaining, 'credits');
 }
 export function percentile(values: number[], fraction = 0.95) {
