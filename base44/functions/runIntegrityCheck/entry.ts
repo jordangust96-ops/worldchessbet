@@ -21,6 +21,9 @@ function plyCount(pgn) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
+    const caller = await base44.auth.me().catch(() => null);
+    if (!caller) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (caller.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 });
     const { matchId, gameId } = await req.json();
     if (!matchId || !gameId) {
       return Response.json({ error: 'matchId and gameId are required' }, { status: 400 });
