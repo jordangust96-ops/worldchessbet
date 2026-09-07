@@ -10,10 +10,16 @@ async function deadline<T>(work: Promise<T>, ms = 8000): Promise<T> {
   try { return await Promise.race([work, new Promise<T>((_, reject) => { timer = setTimeout(() => reject(new Error('monitor_timeout')), ms); })]); }
   finally { clearTimeout(timer!); }
 }
+async function timedFetch(url: string | URL, options: RequestInit) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 6000);
+  try { return await fetch(url, { ...options, signal: controller.signal }); }
+  finally { clearTimeout(timer); }
+}
 async function httpProbe(key: string, label: string, url: string, json = false) {
   const started = Date.now();
   try {
-    const response = await fetch(url, { method: 'GET', redirect: 'error', signal: AbortSignal.timeout(6000) });
+    const response = await timedFetch(url, { method: 'GET', redirect: 'error' });
     let valid = response.status === 200;
     if (json) {
       const data = await response.json().catch(() => null);
@@ -38,9 +44,9 @@ async function redisProbe(prefix: string, key: string, label: string) {
     const url = new URL(urlText);
     if (url.protocol !== 'https:' || !url.hostname.endsWith('.upstash.io') || url.username || url.password || url.port || url.search || url.hash)
       return check(key, label, 'critical', 'The configured Redis endpoint has an unsupported URL shape.');
-    const r = await fetch(url, { method: 'POST', redirect: 'error',
+    const r = await timedFetch(url, { method: 'POST', redirect: 'error',
       headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
-      body: JSON.stringify(['PING']), signal: AbortSignal.timeout(6000) });
+      body: JSON.stringify(['PING']) });
     const data = await r.json().catch(() => null), ms = Date.now() - started;
     const ok = r.ok && data?.result === 'PONG' && !data?.error;
     return check(key, label, !ok ? 'critical' : ms > 1000 ? 'warning' : 'healthy',
