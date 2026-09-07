@@ -39,7 +39,7 @@ function handler(name){
  let serve;
  const source=fs.readFileSync('base44/functions/'+name+'/entry.ts','utf8');
  const context={exports:{},require:id=>id.startsWith('npm:')?{createClientFromRequest:()=>sdk}:p,
- Deno:{serve:fn=>serve=fn,env:{get:k=>env[k]}},Date:Clock,Response,Request,URL,AbortSignal,
+ Deno:{serve:fn=>serve=fn,env:{get:k=>env[k]}},Date:Clock,Response,Request,URL,AbortSignal,AbortController,
  setTimeout,clearTimeout,console:{log(){},warn(){},error(){}},
  fetch:async (url,options)=>{
    url=String(url);
