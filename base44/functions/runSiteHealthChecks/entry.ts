@@ -16,6 +16,11 @@ async function timedFetch(url: string | URL, options: RequestInit) {
   try { return await fetch(url, { ...options, signal: controller.signal }); }
   finally { clearTimeout(timer); }
 }
+function probeFailure(error: any) {
+  const message = String(error?.message || '');
+  const category = /not defined|not a function|not supported|unsupported/i.test(message) ? 'monitor_runtime_unsupported' : error?.name === 'AbortError' ? 'timeout' : error?.name === 'TypeError' ? 'request_type_error' : 'request_failed';
+  return { category, status: category === 'monitor_runtime_unsupported' ? 'unknown' : 'critical' };
+}
 async function httpProbe(key: string, label: string, url: string, json = false) {
   const started = Date.now();
   try {
@@ -33,7 +38,7 @@ async function httpProbe(key: string, label: string, url: string, json = false) 
       !valid ? 'Health response failed validation (HTTP ' + response.status + ').' :
       'Valid response in ' + ms + ' ms. This is a lightweight availability check, not a full user journey.',
       null, '', ms);
-  } catch { return check(key, label, 'critical', 'The health request timed out, redirected unexpectedly, or failed.', null, '', Date.now() - started); }
+  } catch (error) { const failure = probeFailure(error); return check(key, label, failure.status, 'Health probe could not complete (' + failure.category + ').', null, '', Date.now() - started); }
 }
 async function redisProbe(prefix: string, key: string, label: string) {
   const started = Date.now();
@@ -52,7 +57,7 @@ async function redisProbe(prefix: string, key: string, label: string) {
     return check(key, label, !ok ? 'critical' : ms > 1000 ? 'warning' : 'healthy',
       ok ? 'Authenticated read-only PING succeeded in ' + ms + ' ms; no keys were changed.' : 'Authenticated read-only PING failed.',
       null, '', ms);
-  } catch { return check(key, label, 'critical', 'Redis health check failed or timed out.', null, '', Date.now() - started); }
+  } catch (error) { const failure = probeFailure(error); return check(key, label, failure.status, 'Redis health probe could not complete (' + failure.category + ').', null, '', Date.now() - started); }
 }
 async function collect(svc: any, config: any, previous: any, now: number) {
   const checks: any[] = [], since = new Date(now - 86400000).toISOString();
