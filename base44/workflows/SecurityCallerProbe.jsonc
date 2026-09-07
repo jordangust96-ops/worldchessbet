@@ -4,7 +4,7 @@
   "trigger": {
     "config": {
       "trigger_type": "scheduled",
-      "schedule_mode": "one-time",
+      "schedule_mode": "one_time",
       "one_time_date": "2099-01-01T00:00:00Z",
       "timezone": "UTC"
     }
