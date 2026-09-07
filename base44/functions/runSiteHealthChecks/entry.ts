@@ -11,14 +11,17 @@ async function deadline<T>(work: Promise<T>, ms = 8000): Promise<T> {
   finally { clearTimeout(timer!); }
 }
 async function timedFetch(url: string | URL, options: RequestInit) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 6000);
-  try { return await fetch(url, { ...options, signal: controller.signal }); }
-  finally { clearTimeout(timer); }
+  // Base44's fetch bridge does not accept every native RequestInit option.
+  // Bound the wait without passing an AbortSignal across that bridge.
+  return await deadline((async () => {
+    const response = await fetch(String(url), { ...options, redirect: 'manual' });
+    const text = await response.text();
+    return { status: response.status, ok: response.ok, text: async () => text, json: async () => JSON.parse(text) };
+  })(), 6000);
 }
 function probeFailure(error: any) {
   const message = String(error?.message || '');
-  const category = /not defined|not a function|not supported|unsupported/i.test(message) ? 'monitor_runtime_unsupported' : error?.name === 'AbortError' ? 'timeout' : error?.name === 'TypeError' ? 'request_type_error' : 'request_failed';
+  const category = /not defined|not a function|not supported|unsupported/i.test(message) ? 'monitor_runtime_unsupported' : /monitor_timeout/.test(message) || error?.name === 'AbortError' ? 'timeout' : error?.name === 'TypeError' ? 'request_type_error_' + ['redirect', 'signal', 'url', 'header', 'fetch', 'argument', 'serialize'].filter(word => message.toLowerCase().includes(word)).join('_') : 'request_failed';
   return { category, status: category === 'monitor_runtime_unsupported' ? 'unknown' : 'critical' };
 }
 async function httpProbe(key: string, label: string, url: string, json = false) {
