@@ -45,3 +45,9 @@ Pause collection in Base44 Dashboard → Workflows → Site Health Monitoring �
 At 15-minute cadence this is approximately 2,880 workflow executions per 30 days. This is a run count, not a fixed credit charge. Base44 bills a fraction of an integration credit per workflow function step, with additional charges for built-in email; confirm actual consumption in Usage: https://docs.base44.com/Building-your-app/Creating-workflows
 
 Pre-change checkpoint: 6a9f0f4b9e7c6399d8634a67 (commit 9a0d8939b76737b9ce35dc3fbb014f90935786ee).
+
+## Final persisted verification
+
+At 20:04:07 UTC (4:04 PM Detroit), a real workflow run persisted status warning, with healthy website (262 ms), financial Redis (176 ms), rating Redis (175 ms), and analyzer (244 ms). The only measured warnings were the projected next-cycle credit shortfall and four overdue pending Socure records. No active games or analyzer backlog were observed. This supersedes the incorrect initial connection alert. DigitalOcean separately reported UP in all four regions; its email alerts are still not enabled. Anonymous requests to each protected monitoring API returned HTTP 401. The coarse public endpoint subsequently returned HTTP 200 with status ok.
+
+Final code checkpoint: 6a9f182271a7ec06353f17c9 (commit 2bff05b370f078da80cf0543e3e0fea3f113854c). Preview visual verification is blocked by MFA/code-request rate limiting. No frontend publication was performed.
