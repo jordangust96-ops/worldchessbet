@@ -1,0 +1,73 @@
+{
+  "name": "SiteHealthConfig",
+  "type": "object",
+  "properties": {
+    "key": {
+      "type": "string"
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": false
+    },
+    "alerts_enabled": {
+      "type": "boolean",
+      "default": false
+    },
+    "alert_email": {
+      "type": "string",
+      "format": "email"
+    },
+    "credit_allowance": {
+      "type": "number"
+    },
+    "credit_used": {
+      "type": "number"
+    },
+    "credit_cycle_started_at": {
+      "type": "string"
+    },
+    "credit_renews_at": {
+      "type": "string"
+    },
+    "credit_observed_at": {
+      "type": "string"
+    },
+    "pending_credit_allowance": {
+      "type": "number"
+    },
+    "external_monitor_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "configured"
+      ]
+    },
+    "digitalocean_alert_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "configured"
+      ]
+    },
+    "tested_concurrent_players": {
+      "type": "number"
+    },
+    "notes": {
+      "type": "string",
+      "maxLength": 2000
+    }
+  },
+  "required": [
+    "key"
+  ],
+  "rls": {
+    "create": false,
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": false,
+    "delete": false
+  }
+}
