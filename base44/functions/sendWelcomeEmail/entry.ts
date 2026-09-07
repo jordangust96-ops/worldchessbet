@@ -62,8 +62,13 @@ function buildChessBetEmailHtml({ appUrl, headerTitle, headerSubtitle, bodyHtml,
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
+    const caller = await base44.auth.me().catch(() => null);
+    if (!caller) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     const { userId } = await req.json();
     if (!userId) return Response.json({ error: 'userId is required' }, { status: 400 });
+    if (caller.role !== 'admin' && caller.id !== userId) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const user = await base44.asServiceRole.entities.User.get(userId);
     if (!user) return Response.json({ error: 'User not found' }, { status: 404 });
