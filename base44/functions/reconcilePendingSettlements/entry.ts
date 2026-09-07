@@ -9,6 +9,9 @@ const STALE_LEASE_MS = 2 * 60 * 1000;
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
+    const caller = await base44.auth.me().catch(() => null);
+    if (!caller) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (caller.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 });
     // Always prioritize claimed settlements so active live matches can never
     // crowd an abandoned settlement out of the recovery batch. The remaining
     // capacity checks recently-updated in-progress matches for a missed
