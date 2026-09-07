@@ -1,3 +1,4 @@
+import { healthSummary } from "../../shared/siteHealthPolicy.ts";
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 
 // Daily founder operations briefing for the chessbet_operations intelligence path.
@@ -240,6 +241,9 @@ Deno.serve(async (req) => {
       }
     }
 
+    const healthRows = await svc.SiteHealthSnapshot.filter({ key: "current" }, "-checked_at", 1).catch(() => []);
+    const siteHealth = healthSummary(healthRows[0], now.getTime());
+
     // --- Compose brief ---
     const criticalApprovals = findings.filter((f) => f.status === 'human_approval_required' && (f.priority === 'critical' || f.priority === 'high')).length;
     const moneyExceptions = findings.filter((f) => f.category === 'settlement_ledger').length;
@@ -251,7 +255,7 @@ Deno.serve(async (req) => {
     lines.push('');
     lines.push(`Generated: ${now.toISOString()} (run_mode: live, America/Detroit 09:00)`);
     lines.push('');
-    if (!materialExceptionsFound && stuckMatches.length === 0) {
+    if (!materialExceptionsFound && stuckMatches.length === 0 && siteHealth.status === "healthy") {
       lines.push('## No material exceptions found.');
       lines.push('');
     }
@@ -270,11 +274,13 @@ Deno.serve(async (req) => {
         lines.push(`- [${f.priority}] ${f.title} — ${f.status}${f.is_approval_required ? ' (human approval required)' : ''}`);
       }
     }
+    lines.push("## Site health: " + siteHealth.status);
+    lines.push("Observed: " + (healthRows[0]?.checked_at || "not recorded") + ". " + siteHealth.summary);
     const summaryMarkdown = lines.join('\n');
 
     const headline = materialExceptionsFound
       ? `${criticalApprovals} critical/high approval(s) required, ${moneyExceptions} money/ledger exception(s)`
-      : 'No material exceptions found';
+      : siteHealth.status !== "healthy" ? "Site health: " + siteHealth.status + "; review monitoring coverage" : 'No material exceptions found';
 
     // --- Update-or-create the daily brief (idempotent per brief_date) ---
     let briefId;
