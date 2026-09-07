@@ -1,5 +1,4 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
-import { secrets } from 'base44:runtime';
 import { buildChessBetEmailHtml } from '../../shared/emailTemplate.ts';
 import { isLocationApproved } from '../../shared/jurisdictionRegions.js';
 
@@ -7,14 +6,9 @@ import { isLocationApproved } from '../../shared/jurisdictionRegions.js';
 // a pending preference only when its selected location is now explicitly
 // allowed by the central server jurisdiction policy (isLocationApproved).
 //
-// Authorization (enforced BEFORE any service-role read, write, or email):
-//   - (a) an authenticated admin user, OR
-//   - (b) an exact, timing-safe match of args.run_token against the
-//         JURISDICTION_PROCESSOR_RUN_TOKEN server secret (the scheduled
-//         workflow passes this token in its args).
-//   - Everyone else — including a no-session request with no/invalid token —
-//     receives 403 Forbidden and NO service-role work runs. The token is never
-//     logged or returned in any response.
+// Authorization precedes every service-role read, write, or email.
+// Only authenticated admins (including verified Base44 workflows) may run it.
+// Missing sessions and authentication failures are denied.
 //
 // State machine (at-most-once send):
 //   - selects ONLY rows where status === 'pending' && is_active === true
@@ -29,49 +23,13 @@ import { isLocationApproved } from '../../shared/jurisdictionRegions.js';
 
 const MAX_BATCH = 50;
 
-// Fixed-length, constant-time string comparison. Avoids early-exit timing
-// leakage on the token compare; length mismatch returns false immediately
-// (token lengths are not secret). No external dependency.
-function timingSafeStringEqual(a, b) {
-  const enc = new TextEncoder();
-  const ea = enc.encode(String(a));
-  const eb = enc.encode(String(b));
-  if (ea.length !== eb.length) return false;
-  let diff = 0;
-  for (let i = 0; i < ea.length; i++) diff |= ea[i] ^ eb[i];
-  return diff === 0;
-}
-
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
 
-    // --- Authorization (precedes any service-role read/write/email) ---
-    let body = {};
-    try {
-      const parsed = await req.json();
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) body = parsed;
-    } catch {
-      body = {};
-    }
-    const presentedToken = typeof body.run_token === 'string' ? body.run_token : '';
-    const expectedToken = secrets.get('JURISDICTION_PROCESSOR_RUN_TOKEN') || '';
-
-    let authorized = false;
-    if (expectedToken && presentedToken) {
-      authorized = timingSafeStringEqual(presentedToken, expectedToken);
-    }
-    if (!authorized) {
-      try {
-        const user = await base44.auth.me();
-        if (user && user.role === 'admin') authorized = true;
-      } catch {
-        // No resolvable session, or a non-admin session: stays unauthorized.
-      }
-    }
-    if (!authorized) {
-      return Response.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const caller = await base44.auth.me().catch(() => null);
+    if (!caller) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (caller.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 });
 
     // --- Authorized. Service-role work happens only below this point. ---
     const svc = base44.asServiceRole.entities;
