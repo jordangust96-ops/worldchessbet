@@ -142,7 +142,7 @@ async function collect(svc: any, config: any, previous: any, now: number) {
   checks.push(check('digitalocean_metrics', 'DigitalOcean resource alerts', 'unknown',
     config.digitalocean_alert_status === 'configured' ? 'Native resource alerts are configured separately. Live CPU and memory readings are not imported into this dashboard.' : 'Native CPU/memory alerts still need the requested mailbox verified. Live infrastructure metrics are not connected.'));
   checks.push(check('external_monitor', 'Independent uptime monitoring', config.external_monitor_status === 'configured' ? 'healthy' : 'unknown',
-    config.external_monitor_status === 'configured' ? 'Independent monitoring was configured. This records setup, not its latest probe result; check DigitalOcean for current external observations.' : 'Independent alert delivery is not yet verified. Check DigitalOcean's website monitor; a Base44 outage can also stop this collector. No independent collector-heartbeat alert is configured.'));
+    config.external_monitor_status === 'configured' ? 'Independent monitoring was configured. This records setup, not its latest probe result; check DigitalOcean for current external observations.' : 'Independent alert delivery is not yet verified. Check the DigitalOcean website monitor; a Base44 outage can also stop this collector. No independent collector-heartbeat alert is configured.'));
   return checks.sort((a, b) => a.key.localeCompare(b.key));
 }
 Deno.serve(async (req) => {
