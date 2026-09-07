@@ -73,7 +73,7 @@ export default function AdminSiteHealth() {
         </div>
         {loading && <div role="status" className="mt-8 text-white/60"><Loader2 className="mr-2 inline animate-spin" size={18} /> Reading monitoring data…</div>}
         {error && <p role="alert" className="mt-6 rounded-xl border border-red-500/30 p-4 text-red-300">{error}</p>}
-        {!loading && data && <>
+        {!loading && !error && data && <>
           <section className={"mt-6 rounded-2xl border bg-white/[0.025] p-5 " + (tones[data.status] || tones.unknown)}>
             <h2 className="text-lg font-bold capitalize">{data.status === "unknown" ? "Coverage incomplete" : data.status}</h2>
             <p className="mt-2 text-sm">{data.summary}</p>

@@ -63,7 +63,7 @@ export function telemetryChecks(records: any[], activeGames: number | null, now:
     const status = ratio >= 0.1 && count >= 20 ? 'critical' : throttled >= 3 || (failures >= 3 && ratio >= 0.02) || (count >= 20 && slow / count >= 0.05) ? 'warning' : 'healthy';
     return check(key, name + ' responsiveness', status,
       count + ' browser-reported calls; ' + failures + ' network/server failures, ' + throttled +
-      ' rate limits, ' + slow + ' responses over 2 seconds. Rolling 15-minute sample; client-reported and potentially incomplete.',
+      ' rate limits, ' + slow + ' responses over 2 seconds. Latest per-player samples reported within 15 minutes; client-reported and potentially incomplete.',
       count, 'sampled calls');
   });
 }

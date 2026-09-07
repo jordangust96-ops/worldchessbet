@@ -90,12 +90,12 @@ async function collect(svc: any, config: any, previous: any, now: number) {
         expired + ' sampled active games have clocks overdue by over 10 minutes. ' + (rows.length >= 501 ? 'Scan limit reached; count is a lower bound. ' : '') +
         'Investigate the timeout workflow; the monitor never changes a game result.', expired, 'games');
     }),
-    async () => read('analyzer_backlog', 'Fair-play analysis backlog', () => svc.FairPlayAnalysis.filter({ status: { $in: ['queued', 'processing', 'awaiting_analyzer'] }, created_date: { $gte: since } }, 'created_date', 501), rows => {
+    async () => read('analyzer_backlog', 'Fair-play analysis backlog', () => svc.FairPlayAnalysis.filter({ status: { $in: ['queued', 'processing', 'awaiting_analyzer'] } }, 'created_date', 501), rows => {
       const overdue = rows.filter(r => now - timeMs(r.created_date) > 15 * 60000).length;
       const prior = parseJson(previous?.checks_json, []).find((c: any) => c.key === 'analyzer_backlog');
       const growth = prior?.value != null && rows.length > prior.value;
       return check('analyzer_backlog', 'Fair-play analysis backlog', overdue > 0 || rows.length >= 501 ? 'warning' : 'healthy',
-        rows.length + ' pending analyses created in the last 24 hours; ' + overdue + ' older than 15 minutes. ' +
+        rows.length + ' pending analyses; ' + overdue + ' older than 15 minutes. ' +
         (growth ? 'Backlog increased since the previous check. ' : '') +
         (rows.length >= 501 ? 'Scan limit reached; count is a lower bound.' : ''), rows.length, 'analyses');
     }),
