@@ -6,6 +6,8 @@ import Logo from "@/components/Logo";
 import SEO from "@/components/seo/SEO";
 import { SITE_URL } from "@/lib/seoConfig";
 
+const BLOG_TITLE = "Cash Chess Strategy & Fair-Play Insights | ChessBet Blog";
+const BLOG_DESCRIPTION = "Read ChessBet guides on head-to-head blitz, rapid, and classical chess, fair-play protection, contest rules, match strategy, and the path to cash-prize competition.";
 const SORO_SCRIPT_ID = "soro-blog-widget";
 const SORO_EMBED_URL = "https://app.trysoro.com/api/embed/1ff2aa86-7de2-4a37-b949-e27846ab155b";
 
@@ -37,6 +39,19 @@ export default function Blog() {
       });
       if (!canonical.isConnected) document.head.appendChild(canonical);
       if (!ogUrl.isConnected) document.head.appendChild(ogUrl);
+      // Soro restores the pre-embed title when returning from a deep link.
+      // That can be the SPA's homepage fallback rather than the blog title.
+      if (!slug) {
+        if (document.title !== BLOG_TITLE) document.title = BLOG_TITLE;
+        let description = document.head.querySelector('meta[name="description"]');
+        if (!description) {
+          description = document.createElement("meta");
+          description.name = "description";
+          description.setAttribute("data-rh", "true");
+          document.head.appendChild(description);
+        }
+        if (description.content !== BLOG_DESCRIPTION) description.content = BLOG_DESCRIPTION;
+      }
     };
 
     syncCanonical();
@@ -79,8 +94,8 @@ export default function Blog() {
         </Helmet>
       ) : (
         <SEO
-          title="Cash Chess Strategy & Fair-Play Insights | ChessBet Blog"
-          description="Read ChessBet guides on head-to-head blitz, rapid, and classical chess, fair-play protection, contest rules, match strategy, and the path to cash-prize competition."
+          title={BLOG_TITLE}
+          description={BLOG_DESCRIPTION}
         />
       )}
       <div className="max-w-5xl mx-auto space-y-6">
