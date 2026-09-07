@@ -31,7 +31,8 @@ let clock=now, user={id:'admin',role:'admin'}, rows={}, writes=[], emails=[], fa
 class Clock extends Date {constructor(...args){super(...(args.length?args:[clock]));}static now(){return clock;}}
 const entities=new Proxy({}, {get:(_,name)=>({
  filter:async ()=>rows[name]||[],
- create:async data=>{assert.ok(['SiteHealthSnapshot','GameHealthTelemetry'].includes(name),'unexpected mutation '+name);const r={...data,id:name+'1'}; rows[name]=[r];writes.push({name,data});return r;},
+ list:async ()=>rows[name]||[],
+ create:async data=>{assert.ok(['SiteHealthSnapshot','GameHealthTelemetry','DailyOperationsBrief','OperationsFinding'].includes(name),'unexpected mutation '+name);const r={...data,id:name+'1'}; rows[name]=[r];writes.push({name,data});return r;},
  update:async (id,data)=>{assert.ok(['SiteHealthSnapshot','GameHealthTelemetry','SiteHealthConfig'].includes(name),'unexpected mutation '+name);const r={...(rows[name]?.[0]||{}),...data,id};rows[name]=[r];writes.push({name,data});return r;}
 })});
 const sdk={auth:{me:async()=>user},asServiceRole:{entities,integrations:{Core:{SendEmail:async data=>{emails.push(data);if(failMail)throw Error('mail failure');return {};}}}}};
@@ -83,4 +84,7 @@ assert.equal(calls.length,1);
 rejectError={response:{status:429}};await assert.rejects(client.functions.invoke('getGameClock',payload),e=>e===rejectError);rejectError=null;
 clock+=121000;await client.functions.invoke('gameHeartbeat',payload);await new Promise(resolve=>setTimeout(resolve,0));
 const sent=calls.find(c=>c[0]==='recordGameHealth');assert.ok(sent);assert.ok(!JSON.stringify(sent).includes('private'));assert.ok(!JSON.stringify(sent).includes('e4'));
+user={id:'admin',role:'admin'};
+const brief=await(await handler('generateDailyOperationsBrief')(request())).json();
+assert.match(brief.headline,/Site health: unknown/);assert.ok(rows.DailyOperationsBrief[0].summary_markdown.includes('## Site health: unknown'));
 console.log('PASS: stale/unknown, credits, gameplay thresholds, authorization, collection persistence, alert cooldown/recovery, bounded telemetry, public redaction, original gameplay behavior. No live provider calls or email sent.');
