@@ -1,0 +1,64 @@
+{
+  "name": "SiteHealthSnapshot",
+  "type": "object",
+  "properties": {
+    "key": {
+      "type": "string"
+    },
+    "checked_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "healthy",
+        "warning",
+        "critical",
+        "unknown"
+      ]
+    },
+    "checks_json": {
+      "type": "string",
+      "maxLength": 90000
+    },
+    "history_json": {
+      "type": "string",
+      "maxLength": 90000
+    },
+    "last_alert_attempt_at": {
+      "type": "string"
+    },
+    "last_alert_sent_at": {
+      "type": "string"
+    },
+    "last_alert_signature": {
+      "type": "string",
+      "maxLength": 3000
+    },
+    "alert_delivery": {
+      "type": "string",
+      "enum": [
+        "not_sent",
+        "accepted",
+        "failed_or_unknown"
+      ]
+    },
+    "last_digest_date": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "key"
+  ],
+  "rls": {
+    "create": false,
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": false,
+    "delete": false
+  }
+}
