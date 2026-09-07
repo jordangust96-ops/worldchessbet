@@ -1,0 +1,32 @@
+{
+  "name": "Security Caller Probe",
+  "description": "Temporary read-only authentication verification. No data reads, writes, email, or provider calls.",
+  "trigger": {
+    "config": {
+      "trigger_type": "scheduled",
+      "schedule_mode": "one-time",
+      "one_time_date": "2099-01-01T00:00:00Z",
+      "timezone": "UTC"
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "security_caller_probe",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "probe": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "securityCallerProbe",
+            "args": {}
+          },
+          "then": "end"
+        }
+      }
+    ]
+  }
+}
