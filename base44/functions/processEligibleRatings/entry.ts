@@ -363,6 +363,9 @@ Deno.serve(async (req) => {
   let lockHeld = false;
   try {
     const base44 = createClientFromRequest(req);
+    const caller = await base44.auth.me().catch(() => null);
+    if (!caller) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (caller.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 });
     const config = await loadRatingConfig(base44);
     if (!config) return Response.json({ accepted: false, reason: 'rating_config_missing' }, { status: 503 });
     if (config.processing_enabled !== true) return Response.json({ accepted: true, disabled: true });
