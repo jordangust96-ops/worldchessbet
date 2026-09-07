@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
+import { webcrypto } from 'node:crypto';
 
 let assertions = 0;
 function check(actual, expected, label) {
@@ -14,6 +15,7 @@ const names = [
   'generateDailyOperationsBrief', 'awardFoundingPlayerOnSignup',
   'notifyMatchAccepted', 'sendWelcomeEmail', 'settleMatch',
   'reconcilePendingSettlements', 'processJurisdictionApprovalNotifications',
+  'rebuildAllRatings', 'processEligibleRatings', 'runIntegrityCheck', 'runPostSettlementJobs',
 ];
 async function exercise(name, caller, body = {}, overrides = {}) {
   let handler;
@@ -49,7 +51,8 @@ async function exercise(name, caller, body = {}, overrides = {}) {
     createClientFromRequest: () => client,
     Deno: { serve: fn => { handler = fn; }, env: { get: () => 'https://example.invalid' } },
     console: { log() {}, error() {}, warn() {} },
-    Response, Request, TextEncoder, URL, Intl, Date,
+    Response, Request, TextEncoder, URL, Intl, Date, crypto: webcrypto,
+    loadRatingConfig: async base44 => base44.asServiceRole.entities.RatingSystemConfig.filter({}),
     REPORT_WINDOW_MS: 86400000,
     FOUNDING_PLAYER_CAP: 250,
     ensureUserWallet: async () => ({ id: 'wallet-fixture' }),
@@ -101,12 +104,12 @@ for (const actor of [participant, admin]) {
   check(result.status, 200, 'self/admin welcome access preserved');
   check(result.body, { alreadySent: true }, 'welcome idempotency preserved');
 }
-for (const name of ['awardFoundingPlayerOnSignup', 'notifyMatchAccepted', 'settleMatch', 'sendWelcomeEmail']) {
+for (const name of ['awardFoundingPlayerOnSignup', 'notifyMatchAccepted', 'settleMatch', 'sendWelcomeEmail', 'runIntegrityCheck', 'runPostSettlementJobs']) {
   const result = await exercise(name, admin, {});
   check(result.status, 400, name + ': admin reaches input validation');
   check(result.calls, [], name + ': empty admin request has no side effects');
 }
-for (const name of ['generateDailyOperationsBrief', 'reconcilePendingSettlements', 'processJurisdictionApprovalNotifications']) {
+for (const name of ['generateDailyOperationsBrief', 'reconcilePendingSettlements', 'processJurisdictionApprovalNotifications', 'rebuildAllRatings', 'processEligibleRatings']) {
   const result = await exercise(name, admin);
   check(result.status, 500, name + ': test deliberately stops at first authorized I/O');
   assert.ok(result.calls.length > 0, name + ': admin/workflow allowed through gate');
