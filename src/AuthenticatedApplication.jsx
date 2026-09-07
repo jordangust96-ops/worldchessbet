@@ -38,6 +38,7 @@ const MyReports = lazy(() => import("@/pages/MyReports"));
 const AdminSiteActivity = lazy(() => import("@/pages/AdminSiteActivity"));
 const AdminUserFinancials = lazy(() => import("@/pages/AdminUserFinancials"));
 const AdminActionCenter = lazy(() => import("@/pages/AdminActionCenter"));
+const AdminSiteHealth = lazy(() => import("@/pages/AdminSiteHealth"));
 
 const AppLayout = lazy(() => import("@/components/layout/AppLayout"));
 const MfaGuard = lazy(() => import("@/components/MfaGuard"));
@@ -104,6 +105,7 @@ function RoutedApplication() {
                   <Route path="/admin/terms-of-service" element={<TermsOfServiceAdmin />} />
                   <Route path="/admin/official-rules" element={<OfficialRulesAdmin />} />
                   <Route path="/admin/actions" element={<AdminActionCenter />} />
+                  <Route path="/admin/health" element={<AdminSiteHealth />} />
                   <Route path="/admin/integrity" element={<IntegrityReviewQueue />} />
                   <Route path="/admin/integrity/:userId" element={<AdminUserIntegrity />} />
                   <Route path="/admin/game-settings" element={<AdminGameSettings />} />
