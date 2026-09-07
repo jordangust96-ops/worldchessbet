@@ -168,6 +168,9 @@ Deno.serve(async (req) => {
 
   try {
     base44 = createClientFromRequest(req);
+    const caller = await base44.auth.me().catch(() => null);
+    if (!caller) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (caller.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 });
     const body = await req.json().catch(() => ({}));
     const explicitRequestMatchId = body?.resume === true ? '' : String(body?.matchId || '');
     config = await loadRatingConfig(base44);
