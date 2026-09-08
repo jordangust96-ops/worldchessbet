@@ -4,6 +4,7 @@ import {
   seamlessConfig, seamlessRequest, buildCreateCustomerBody,
   PATH_CREATE_CUSTOMER, SEAMLESS_PROVIDER_KEY,
 } from '../../shared/seamlessAch.ts';
+import { seamlessThirdPartyFundingEnabled } from '../../shared/seamlessFundingConfig.ts';
 import { legalNameFromUser } from '../../shared/legalName.ts';
 
 // Idempotently ensures a Seamless ACH customer exists for the authenticated
@@ -13,13 +14,13 @@ import { legalNameFromUser } from '../../shared/legalName.ts';
 // profile. Fails closed on missing or invalid provider configuration.
 Deno.serve(async (req) => {
   try {
-    // Resolve config up front so the function fails closed if secrets are
-    // missing/invalid — before any entity work.
-    const cfg = seamlessConfig();
-
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!seamlessThirdPartyFundingEnabled()) {
+      return Response.json({ enabled: false, reason: 'Bank connection will be available when funding opens.' }, { status: 409 });
+    }
+    const cfg = seamlessConfig();
     if (!isSocureIdentityVerified(user) || user.withdrawal_hold) {
       return Response.json({ error: 'Verified account required for bank linking' }, { status: 403 });
     }
