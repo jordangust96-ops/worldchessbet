@@ -68,6 +68,28 @@ export function formatHealthEmail(checks: any[], checkedAt: string, digest = fal
   return { subject: 'ChessBet health: ' + status.toUpperCase() + (digest ? ' — daily summary' : recovered ? ' — recovery' : ' — ' + attention.length + ' need attention'), body };
 }
 
+// Bound serialized size as well as entry count: the storage bridge can reject
+// a growing string before the schema's declared maxLength is reached.
+export const HISTORY_JSON_BUDGET = 16000;
+export function boundedHealthHistory(previous: unknown, latest: any) {
+  const source = Array.isArray(previous) ? previous : [];
+  const compact = [...source.slice(-23), latest].filter(h => h && typeof h === 'object').map(h => ({
+    at: h.at, status: h.status,
+    values: Object.fromEntries(Object.entries(h.values || {}).map(([key, value]: [string, any]) => [
+      key, { status: value?.status,
+        ...(value?.value != null ? { value: value.value } : {}),
+        ...(value?.latency_ms != null ? { latency_ms: value.latency_ms } : {}) },
+    ])),
+  }));
+  while (compact.length > 1 && JSON.stringify(compact).length > HISTORY_JSON_BUDGET) compact.shift();
+  if (JSON.stringify(compact).length > HISTORY_JSON_BUDGET) {
+    // The full current checks remain in checks_json even if one future history
+    // entry becomes unusually large. Never truncate JSON or fail collection.
+    return [{ at: latest.at, status: latest.status, values: {}, history_details_omitted: true }];
+  }
+  return compact;
+}
+
 export const STALE_MS = 35 * 60_000;
 export const ALERT_COOLDOWN_MS = 60 * 60_000;
 export function parseJson(value: unknown, fallback: any) {
