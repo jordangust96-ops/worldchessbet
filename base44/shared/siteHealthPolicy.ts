@@ -1,3 +1,73 @@
+
+/** Email-safe HTML: explicit block spacing survives clients that collapse raw newlines. */
+export function formatHealthEmail(checks: any[], checkedAt: string, digest = false, recovered = false) {
+  const escape = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]!));
+  const status = overall(checks);
+  const themes: Record<string, { title: string; color: string; background: string }> = {
+    critical: { title: 'CRITICAL — Immediate attention', color: '#991b1b', background: '#fef2f2' },
+    warning: { title: 'WARNING — Needs attention', color: '#92400e', background: '#fffbeb' },
+    unknown: { title: 'UNKNOWN — Verification needed', color: '#334155', background: '#f1f5f9' },
+    healthy: { title: 'HEALTHY — Measured checks passed', color: '#166534', background: '#f0fdf4' },
+  };
+  const theme = themes[status] || themes.unknown;
+  const attention = checks.filter(c => c.status === 'critical' || c.status === 'warning')
+    .sort((a, b) => (a.status === 'critical' ? 0 : 1) - (b.status === 'critical' ? 0 : 1));
+  const unknown = checks.filter(c => c.status === 'unknown');
+  const healthy = checks.filter(c => c.status === 'healthy');
+  let checked = checkedAt;
+  const timestamp = new Date(checkedAt);
+  if (Number.isFinite(timestamp.getTime())) checked = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Detroit', month: 'short', day: 'numeric', year: 'numeric',
+    hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
+  }).format(timestamp);
+  const actions: Record<string, string> = {
+    credits: 'Review Base44 Usage and the upcoming credit allowance.',
+    socure_overdue: 'Reconcile the saved sessions with existing Socure results.',
+    socure_failures: 'Review the failed verification requests and their error records.',
+    stalled_games: 'Review overdue clocks and the timeout workflow.',
+    analyzer_backlog: 'Check the analyzer queue and recent processing times.',
+    analyzer_failed: 'Review the failed analysis records and analyzer logs.',
+    integration_failures: 'Review failed delivery records.',
+    seamless_recovery: 'Review the recorded recovery exceptions.',
+    public_site: 'Check the public website and DigitalOcean uptime monitor.',
+    financial_redis: 'Check the financial Redis service and connection configuration.',
+    rating_redis: 'Check the rating Redis service and connection configuration.',
+    analyzer_http: 'Check the analyzer health endpoint and DigitalOcean app status.',
+  };
+  const cards = (items: any[], compact = false) => items.map(c => {
+    const color = (themes[c.status] || themes.unknown).color;
+    return '<tr><td style="padding:14px 0;border-bottom:1px solid #e2e8f0;">' +
+      '<p style="margin:0 0 6px;font-size:16px;font-weight:bold;">' + escape(c.label) +
+      ' <span style="font-size:12px;color:' + color + ';">[' + escape(c.status.toUpperCase()) + ']</span></p>' +
+      '<p style="margin:0;font-size:14px;line-height:1.6;color:#475569;">' + escape(c.summary) + '</p>' +
+      (!compact && actions[c.key] ? '<p style="margin:8px 0 0;font-size:14px;line-height:1.5;"><strong>Next step:</strong> ' + escape(actions[c.key]) + '</p>' : '') +
+      '</td></tr>';
+  }).join('');
+  const section = (title: string, items: any[], empty: string, compact = false) =>
+    '<h2 style="margin:28px 0 4px;font-size:19px;line-height:1.4;">' + title + ' (' + items.length + ')</h2>' +
+    (items.length ? '<table role="presentation" width="100%" cellspacing="0" cellpadding="0">' + cards(items, compact) + '</table>' :
+      '<p style="margin:10px 0;font-size:14px;line-height:1.6;color:#475569;">' + empty + '</p>');
+  const kind = digest ? 'Daily summary' : recovered ? 'Recovery update' : 'Health alert';
+  const body = '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>' +
+    '<body style="margin:0;padding:16px;background:#f3f4f6;color:#0f172a;font-family:Arial,Helvetica,sans-serif;">' +
+    '<table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center">' +
+    '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border:1px solid #e2e8f0;"><tr><td style="padding:24px;">' +
+    '<p style="margin:0 0 12px;font-size:14px;color:#475569;">CHESSBET · ' + kind + '</p>' +
+    '<table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td style="padding:20px;background:' + theme.background + ';border-left:5px solid ' + theme.color + ';">' +
+    '<p style="margin:0 0 6px;font-size:12px;font-weight:bold;color:' + theme.color + ';">OVERALL HEALTH</p>' +
+    '<h1 style="margin:0;font-size:26px;line-height:1.3;color:' + theme.color + ';">' + escape(theme.title) + '</h1>' +
+    '<p style="margin:12px 0 0;font-size:14px;line-height:1.6;color:#334155;">' + attention.length + ' need attention · ' + unknown.length + ' unverified · ' + healthy.length + ' passed</p></td></tr></table>' +
+    '<p style="margin:12px 0 0;font-size:13px;line-height:1.5;color:#64748b;">Checked ' + escape(checked) + ' (Detroit time)</p>' +
+    (recovered ? '<p style="margin:16px 0;padding:12px;background:#f0fdf4;font-size:14px;line-height:1.6;">Previously alerted checks recovered. Any unverified checks below still need confirmation.</p>' : '') +
+    section('Needs attention', attention, 'No warning or critical findings in this report.') +
+    section('Not yet verified', unknown, 'No unknown checks in this report.', true) +
+    section('Checks passed', healthy, 'No checks are confirmed healthy in this report.', true) +
+    '<p style="margin:28px 0 18px;"><a href="https://worldchessbet.com/admin/health" style="display:inline-block;padding:13px 18px;background:#0f172a;color:#ffffff;text-decoration:none;font-size:15px;font-weight:bold;">Open Site Health dashboard</a></p>' +
+    '<p style="margin:0;font-size:12px;line-height:1.6;color:#64748b;">This is a snapshot, not a capacity guarantee. Unknown means insufficient evidence, not confirmed downtime. Monitoring observes and reports; it does not change games, money, accounts, or infrastructure.</p>' +
+    '</td></tr></table></td></tr></table></body></html>';
+  return { subject: 'ChessBet health: ' + status.toUpperCase() + (digest ? ' — daily summary' : recovered ? ' — recovery' : ' — ' + attention.length + ' need attention'), body };
+}
+
 export const STALE_MS = 35 * 60_000;
 export const ALERT_COOLDOWN_MS = 60 * 60_000;
 export function parseJson(value: unknown, fallback: any) {
