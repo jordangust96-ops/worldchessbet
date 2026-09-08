@@ -15,7 +15,7 @@ import { legalNameFromUser } from '../../shared/legalName.ts';
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
+    const user = await base44.auth.me().catch(() => null);
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     if (!seamlessThirdPartyFundingEnabled()) {
       return Response.json({ enabled: false, reason: 'Bank connection will be available when funding opens.' }, { status: 409 });

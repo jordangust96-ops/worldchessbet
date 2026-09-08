@@ -23,7 +23,7 @@ function configured(name: string) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const admin = await base44.auth.me();
+    const admin = await base44.auth.me().catch(() => null);
     if (!admin) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     if (admin.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 });
 
