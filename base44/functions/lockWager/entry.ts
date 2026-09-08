@@ -1,3 +1,4 @@
+import { paidContestsEnabled } from '../../shared/seamlessFundingConfig.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { postLedgerLegs } from '../../shared/ledger.ts';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
@@ -36,6 +37,9 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!paidContestsEnabled()) {
+      return Response.json({ eligible: false, error: 'Paid contests are not available yet.', reason: 'Paid contests are not available yet.', action: 'paid_contests_disabled' }, { status: 409 });
+    }
     userId = user.id;
 
     // Only Verified accounts may enter paid contests (Provisional/Suspended/
