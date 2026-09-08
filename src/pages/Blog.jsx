@@ -46,11 +46,11 @@ export default function Blog() {
         let description = document.head.querySelector('meta[name="description"]');
         if (!description) {
           description = document.createElement("meta");
-          description.name = "description";
+          description.setAttribute("name", "description");
           description.setAttribute("data-rh", "true");
           document.head.appendChild(description);
         }
-        if (description.content !== BLOG_DESCRIPTION) description.content = BLOG_DESCRIPTION;
+        if (description.getAttribute("content") !== BLOG_DESCRIPTION) description.setAttribute("content", BLOG_DESCRIPTION);
       }
     };
 
