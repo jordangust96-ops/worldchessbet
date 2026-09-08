@@ -1,3 +1,4 @@
+import { paidContestsEnabled } from '../../shared/seamlessFundingConfig.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 import { getPlatformServiceFee, PLATFORM_FEE_SCHEDULE_VERSION, requiresManualFeeApproval } from '../../shared/platformFee.ts';
@@ -21,6 +22,9 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!paidContestsEnabled()) {
+      return Response.json({ eligible: false, error: 'Paid contests are not available yet.', reason: 'Paid contests are not available yet.', action: 'paid_contests_disabled' }, { status: 409 });
+    }
 
     const { wagerAmount, timeControl, isPrivate } = await req.json();
     const wager = Number(wagerAmount);
