@@ -147,6 +147,7 @@ async function collect(svc: any, config: any, previous: any, now: number) {
 }
 Deno.serve(async (req) => {
   let ownsRun = false;
+  let stage = 'authenticate';
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me().catch(() => null);
@@ -157,6 +158,7 @@ Deno.serve(async (req) => {
     if (running) return Response.json({ skipped: true, reason: 'run_in_progress' });
     running = true; ownsRun = true;
     const svc = base44.asServiceRole.entities;
+    stage = 'read_config_and_snapshot';
     const [configs, snapshots] = await Promise.all([
       svc.SiteHealthConfig.filter({ key: 'current' }, '-updated_date', 1),
       svc.SiteHealthSnapshot.filter({ key: 'current' }, '-checked_at', 1),
@@ -166,7 +168,9 @@ Deno.serve(async (req) => {
     const now = Date.now();
     if (persist && previous && now - timeMs(previous.checked_at) < 12 * 60000)
       return Response.json({ skipped: true, reason: 'minimum_collection_interval' });
+    stage = 'collect_checks';
     const checks = await collect(svc, config, previous, now);
+    stage = 'build_snapshot';
     const status = overall(checks), checkedAt = new Date().toISOString();
     if (!persist) return Response.json({ status, checked_at: checkedAt, checks, persisted: false, email_sent: false });
     const history = parseJson(previous?.history_json, []).slice(-23);
@@ -191,9 +195,11 @@ Deno.serve(async (req) => {
       payload.alert_delivery = 'failed_or_unknown';
       if (digest) payload.last_digest_date = date;
     }
+    stage = 'save_snapshot';
     let saved = previous ? await svc.SiteHealthSnapshot.update(previous.id, payload) : await svc.SiteHealthSnapshot.create(payload);
     let emailAccepted = false;
     if (send) {
+      stage = 'format_email';
       const email = formatHealthEmail(checks, checkedAt, digest, notification.recovered);
       try {
         await base44.asServiceRole.integrations.Core.SendEmail({
@@ -210,8 +216,17 @@ Deno.serve(async (req) => {
     }
     console.log(JSON.stringify({ event: 'site_health_check', status, checks: checks.length, persisted: true, email_accepted: emailAccepted }));
     return Response.json({ status, checked_at: checkedAt, checks, persisted: true, email_accepted: emailAccepted, snapshot_id: saved.id });
-  } catch {
-    console.error(JSON.stringify({ event: 'site_health_collection_failed' }));
-    return Response.json({ error: 'Health collection failed; previous data must be treated as stale after 35 minutes.' }, { status: 503 });
+  } catch (error: any) {
+    // Classify locally; never log raw SDK errors, response bodies or credentials.
+    const detail = String(error?.message || '') + JSON.stringify(error?.response?.data || error?.data || {});
+    const reason = /20000|20,000/.test(detail) ? 'field_limit_20000' :
+      /too long|max.?length|string_too_long/i.test(detail) ? 'field_length_limit' :
+      /validation|validate/i.test(detail) ? 'validation_failed' :
+      /rate.?limit|429/i.test(detail) ? 'rate_limited' :
+      /unauthorized|forbidden|401|403/i.test(detail) ? 'access_denied' :
+      /timeout|timed out/i.test(detail) ? 'timeout' : 'unexpected_error';
+    const diagnostic = { event: 'site_health_collection_failed', stage, reason };
+    console.error(JSON.stringify(diagnostic));
+    return Response.json({ error: 'Health collection failed. Check the reported stage; previous observations may be stale.', stage, reason }, { status: 503 });
   } finally { if (ownsRun) running = false; }
 });
