@@ -1,3 +1,4 @@
+import { seamlessThirdPartyFundingEnabled } from '../../shared/seamlessFundingConfig.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 import {
@@ -71,6 +72,9 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!seamlessThirdPartyFundingEnabled()) {
+      return Response.json({ enabled: false, reason: 'Bank connection will be available when funding opens.' }, { status: 409 });
+    }
     const body = await req.json();
 
     // No Socure network request is possible while the separate server-only

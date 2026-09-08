@@ -1,5 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import {
+  seamlessProviderApproved,
+  paidContestsEnabled,
   seamlessDepositsEnabled,
   seamlessThirdPartyFundingEnabled,
   seamlessWithdrawalsEnabled,
@@ -60,6 +62,8 @@ Deno.serve(async (req) => {
 
     return Response.json({
       enabled: true,
+      provider_approved: seamlessProviderApproved(),
+      paid_contests_enabled: paidContestsEnabled(),
       deposits_enabled: depositsEnabled,
       withdrawals_enabled: withdrawalsEnabled,
       third_party_funding_enabled: thirdPartyFundingEnabled,

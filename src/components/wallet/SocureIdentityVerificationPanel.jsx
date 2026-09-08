@@ -21,6 +21,7 @@ export default function SocureIdentityVerificationPanel({
   onRefresh,
   isAdmin = false,
   bankConnectionStarted = false,
+  bankConnectionAvailable = false,
 }) {
   const initialParts = fullName.trim().split(/\s+/).filter(Boolean);
   const [firstName, setFirstName] = useState(initialParts[0] || "");
@@ -198,7 +199,9 @@ export default function SocureIdentityVerificationPanel({
             <p className="text-xs text-emerald-200/60 mt-0.5">
               {bankConnectionStarted
                 ? "Identity verification complete."
-                : "Identity verification complete. Next, connect your bank."}
+                : bankConnectionAvailable
+                  ? "Identity verification complete. Next, connect your bank."
+                  : "Identity verification complete. Bank connection will be available when funding opens."}
             </p>
           </div>
         </div>

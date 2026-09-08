@@ -41,7 +41,8 @@ assert.ok(setLegalName.includes('base44.asServiceRole.entities.User.update(user.
 assert.ok(!setLegalName.includes('body?.userId'));
 assert.ok(register.includes('Legal first name') && register.includes('Legal last name'));
 assert.ok(register.includes('setFundingLegalName'));
-assert.ok(identityPanel.includes('Confirm your legal name'));
+assert.ok(identityPanel.includes('autoComplete="given-name"') && identityPanel.includes('autoComplete="family-name"'), 'legal name fields remain available');
+assert.ok(identityPanel.includes('onClick={saveLegalName}') && identityPanel.includes('disabled={busy || !firstName.trim() || !lastName.trim()}'), 'legal name cannot submit incomplete or duplicate input');
 assert.ok(identityPanel.includes('setFundingLegalName'));
 assert.ok(identityStart.includes('legalNameFromUser(user)'));
 assert.ok(ensureCustomer.includes('legalNameFromUser(user)'));

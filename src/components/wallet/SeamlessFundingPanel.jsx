@@ -103,7 +103,7 @@ export default function SeamlessFundingPanel({
     try {
       const { data } = await base44.functions.invoke("getSeamlessWalletState", {});
       setState(data);
-      onJourneyStateChange?.({ bankStarted: !!data?.banks?.length });
+      onJourneyStateChange?.({ bankStarted: !!data?.banks?.length, bankConnectionAvailable: !!data?.third_party_funding_enabled && !!data?.bank_screening_enabled });
       setError("");
     } catch (e) {
       setError(e?.message || "Unable to load funding status");
@@ -239,9 +239,9 @@ export default function SeamlessFundingPanel({
                 : verifiedBank
                   ? "We're securely confirming your bank account. This page updates automatically."
                   : !thirdPartyFundingEnabled
-                    ? "Bank connection is temporarily unavailable."
+                    ? "Bank connection will be available when funding opens."
                     : !bankScreeningEnabled
-                      ? "Bank connection is temporarily unavailable."
+                      ? "Bank connection will be available when funding opens."
                       : "Add the bank account you'll use to deposit and withdraw funds."}
           </p>
         </div>
