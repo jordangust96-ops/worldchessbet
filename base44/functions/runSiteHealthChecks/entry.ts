@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
-import { check, overall, creditCheck, parseJson, telemetryChecks, timeMs, shouldNotify } from '../../shared/siteHealthPolicy.ts';
+import { check, overall, creditCheck, parseJson, telemetryChecks, timeMs, shouldNotify, formatHealthEmail } from '../../shared/siteHealthPolicy.ts';
 
 // Single scheduled writer. No agent tool can invoke this collector. No
 // transactions, identity evaluations, analysis jobs, financial Redis keys,
@@ -194,17 +194,12 @@ Deno.serve(async (req) => {
     let saved = previous ? await svc.SiteHealthSnapshot.update(previous.id, payload) : await svc.SiteHealthSnapshot.create(payload);
     let emailAccepted = false;
     if (send) {
-      const relevant = digest ? checks : checks.filter(c => c.status !== 'healthy');
-      const bodyText = ['ChessBet health report', 'Checked: ' + checkedAt, 'Overall: ' + status,
-        notification.recovered ? 'Previously alerted checks recovered. Any unknown checks still require verification.' : '',
-        ...relevant.map(c => c.label + ' [' + c.status + ']: ' + c.summary),
-        'Review: https://worldchessbet.com/admin/health',
-        'Monitoring is observational. No money, gameplay, account, provider settings, or infrastructure changes were made.'].filter(Boolean).join('\n\n');
+      const email = formatHealthEmail(checks, checkedAt, digest, notification.recovered);
       try {
         await base44.asServiceRole.integrations.Core.SendEmail({
           to: 'hello@worldchessbet.com',
-          subject: 'ChessBet health: ' + (digest ? 'daily summary' : notification.recovered ? 'recovery' : status),
-          body: bodyText,
+          subject: email.subject,
+          body: email.body,
         });
         emailAccepted = true;
         saved = await svc.SiteHealthSnapshot.update(saved.id, { last_alert_sent_at: checkedAt, alert_delivery: 'accepted' });
