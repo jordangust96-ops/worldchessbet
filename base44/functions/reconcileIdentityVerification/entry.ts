@@ -24,6 +24,9 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
+    const caller = await base44.auth.me().catch(() => null);
+    if (!caller) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (caller.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 });
 
     const socureUsers = await base44.asServiceRole.entities.User.filter(
       { identity_verification_provider: 'socure' },
@@ -39,11 +42,11 @@ Deno.serve(async (req) => {
       if (!user.identity_provider_reference) continue;
 
       const matches = await base44.asServiceRole.entities.SocureIdentityVerification.filter(
-        { provider_evaluation_id: user.identity_provider_reference },
+        { user_id: user.id, provider_evaluation_id: user.identity_provider_reference },
         '-created_date',
         1
       );
-      const verification = matches[0] || null;
+      const verification = matches.find((record) => record.user_id === user.id && record.provider_evaluation_id === user.identity_provider_reference) || null;
 
       // A promotion is permitted only when the verification record itself is an
       // accepted Socure result and its evidence is retained, or when an
@@ -104,7 +107,7 @@ Deno.serve(async (req) => {
       // Pending/rejected/failed records do not promote a user. Only correct a
       // stale positive snapshot, never lower unrelated account restrictions.
       if (user.identity_verification_status !== 'verified') continue;
-      const newIdentityStatus = verification?.status || 'failed';
+      const newIdentityStatus = verification?.status === 'verified' ? 'review_required' : verification?.status || 'failed';
       const userUpdates: Record<string, unknown> = { identity_verification_status: newIdentityStatus };
       if (user.account_state === 'verified') userUpdates.account_state = 'provisional';
 

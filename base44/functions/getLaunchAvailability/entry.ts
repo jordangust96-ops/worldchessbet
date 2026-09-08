@@ -1,0 +1,10 @@
+import { paidContestsEnabled, seamlessDepositsEnabled, seamlessThirdPartyFundingEnabled, seamlessWithdrawalsEnabled } from '../../shared/seamlessFundingConfig.ts';
+
+// Public, read-only availability. No provider requests, account information,
+// configuration details, or secret references are exposed.
+Deno.serve(() => Response.json({
+  paid_contests_enabled: paidContestsEnabled(),
+  deposits_enabled: seamlessDepositsEnabled(),
+  withdrawals_enabled: seamlessWithdrawalsEnabled(),
+  bank_connection_enabled: seamlessThirdPartyFundingEnabled(),
+}, { headers: { 'Cache-Control': 'no-store' } }));

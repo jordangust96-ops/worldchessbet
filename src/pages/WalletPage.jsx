@@ -52,7 +52,7 @@ export default function WalletPage() {
   const [identityStatus, setIdentityStatus] = useState("not_started");
   const [fullName, setFullName] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
-  const [fundingJourney, setFundingJourney] = useState({ bankStarted: false });
+  const [fundingJourney, setFundingJourney] = useState({ bankStarted: false, bankConnectionAvailable: false });
 
   useEffect(() => {
     loadData();
@@ -250,6 +250,7 @@ export default function WalletPage() {
           onRefresh={loadData}
           isAdmin={isAdmin}
           bankConnectionStarted={fundingJourney.bankStarted}
+          bankConnectionAvailable={fundingJourney.bankConnectionAvailable}
         />
 
         <SeamlessFundingPanel
