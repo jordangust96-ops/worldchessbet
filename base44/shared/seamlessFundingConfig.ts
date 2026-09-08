@@ -6,20 +6,31 @@ function enabled(name: string) {
   return (Deno.env.get(name) || '').trim().toLowerCase() === 'true';
 }
 
+// Set only after Seamless's final integration contract and acceptance tests.
+// Keep approval set during ordinary rollback; use direction switches instead
+// so stopping new deposits never accidentally blocks required withdrawals.
+export function seamlessProviderApproved() {
+  return enabled('SEAMLESS_PROVIDER_APPROVED');
+}
+
+export function paidContestsEnabled() {
+  return seamlessProviderApproved() && enabled('PAID_CONTESTS_ENABLED');
+}
+
 export function seamlessDepositsEnabled() {
-  return enabled('SEAMLESS_DEPOSITS_ENABLED');
+  return seamlessProviderApproved() && enabled('SEAMLESS_DEPOSITS_ENABLED');
 }
 
 export function seamlessWithdrawalsEnabled() {
-  return enabled('SEAMLESS_WITHDRAWALS_ENABLED');
+  return seamlessProviderApproved() && enabled('SEAMLESS_WITHDRAWALS_ENABLED');
 }
 
 export function seamlessRtpPayoutsEnabled() {
-  return enabled('SEAMLESS_RTP_PAYOUTS_ENABLED');
+  return seamlessProviderApproved() && enabled('SEAMLESS_RTP_PAYOUTS_ENABLED');
 }
 
 // Separate provider-approval gate for ChessBet-owned bank verification. This
 // remains false when absent so the unapproved endpoint is never called.
 export function seamlessThirdPartyFundingEnabled() {
-  return enabled('SEAMLESS_THIRD_PARTY_FUNDING_ENABLED');
+  return seamlessProviderApproved() && enabled('SEAMLESS_THIRD_PARTY_FUNDING_ENABLED');
 }
