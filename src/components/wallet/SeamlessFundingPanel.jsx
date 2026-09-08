@@ -271,7 +271,9 @@ export default function SeamlessFundingPanel({
             {depositComplete ? "ChessBet wallet funded" : "Deposit into your ChessBet wallet"}
           </h4>
           <p className="text-xs text-white/45 mt-1">
-            {!identityVerified
+            {!depositsEnabled && !withdrawalsEnabled
+              ? "Bank transfers are currently unavailable."
+              : !identityVerified
               ? "Complete Step 1 first."
               : !bankReady
                 ? "Complete Step 2 first."

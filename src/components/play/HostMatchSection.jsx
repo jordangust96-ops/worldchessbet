@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Loader2, Wallet, Lock } from "lucide-react";
@@ -32,6 +32,15 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled =
   const [timeControl, setTimeControl] = useState("rapid");
   const [hosting, setHosting] = useState(false);
   const [hostError, setHostError] = useState("");
+  const [availability, setAvailability] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    base44.functions.invoke("getLaunchAvailability", {}).then(({ data }) => {
+      if (!cancelled) setAvailability(data);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+  const launchClosed = availability?.paid_contests_enabled !== true;
 
   const selectedTimeControl = TIME_CONTROLS.find((tc) => tc.value === timeControl);
   const noFunds = balance <= 0;
@@ -39,7 +48,7 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled =
   const canAffordTotal = financials.totalCharge !== null && balance >= financials.totalCharge;
 
   const handleHost = async (isPrivate) => {
-    if (!wagerValue || !userId || !canAffordTotal) return;
+    if (launchClosed || !wagerValue || !userId || !canAffordTotal) return;
     setHosting(true);
     setHostError("");
     try {
@@ -77,13 +86,13 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled =
 
   return (
     <div className="space-y-3 lg:space-y-2">
-      {noFunds && !disabled && (
+      {(noFunds || launchClosed) && !disabled && (
         <div className="rounded-xl bg-[#C9A84C]/10 border border-[#C9A84C]/20 p-3 flex items-center gap-2.5">
           <Wallet size={15} className="text-[#C9A84C] shrink-0" />
           <p className="text-xs text-[#C9A84C]/80 leading-snug">
-            Add funds to create a challenge.{" "}
+            {launchClosed ? "Paid contests will open after launch." : availability?.deposits_enabled ? "Add funds to create a challenge." : "Deposits are currently unavailable."}{" "}
             <Link to="/wallet" className="underline font-semibold hover:text-[#C9A84C]">
-              Fund Wallet
+              {!launchClosed && availability?.deposits_enabled ? "Fund Wallet" : "View Wallet"}
             </Link>
           </p>
         </div>
@@ -97,7 +106,7 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled =
         </div>
       )}
 
-      <div className={`space-y-5 lg:space-y-2 ${disabled || noFunds || jurisdictionBlocked ? "opacity-40 pointer-events-none" : ""}`}>
+      <div className={`space-y-5 lg:space-y-2 ${disabled || launchClosed || noFunds || jurisdictionBlocked ? "opacity-40 pointer-events-none" : ""}`}>
         <div>
           <h3 className="text-base lg:text-sm font-bold text-white">Create a Challenge</h3>
           <p className="text-xs text-white/40 mt-0.5 lg:hidden">Choose an entry amount and time control.</p>
@@ -123,7 +132,7 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled =
                     <button
                       key={amount}
                       onClick={() => canAfford && setWagerValue(amount)}
-                      disabled={!canAfford || disabled}
+                      disabled={!canAfford || disabled || launchClosed}
                       className={`h-12 lg:h-8 rounded-xl font-bold text-sm lg:text-xs transition-all ${
                         isActive
                           ? "gold-gradient text-black"
@@ -194,7 +203,7 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled =
         <div className="space-y-2 lg:space-y-1.5">
           <Button
             onClick={() => handleHost(false)}
-            disabled={!wagerValue || hosting || disabled || noFunds || jurisdictionBlocked || !canAffordTotal}
+            disabled={!wagerValue || hosting || disabled || launchClosed || noFunds || jurisdictionBlocked || !canAffordTotal}
             className="w-full h-12 lg:h-9 lg:text-sm rounded-2xl font-bold gold-gradient text-black hover:opacity-90 disabled:opacity-30 transition-opacity"
           >
             {hosting ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
@@ -202,7 +211,7 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled =
           </Button>
           <Button
             onClick={() => handleHost(true)}
-            disabled={!wagerValue || hosting || disabled || noFunds || jurisdictionBlocked || !canAffordTotal}
+            disabled={!wagerValue || hosting || disabled || launchClosed || noFunds || jurisdictionBlocked || !canAffordTotal}
             variant="outline"
             className="w-full h-12 lg:h-9 lg:text-sm rounded-2xl font-bold border-white/10 text-white/70 hover:bg-white/5 hover:text-white disabled:opacity-30 transition-colors"
           >
