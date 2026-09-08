@@ -41,4 +41,21 @@ eq(response.headers.get('Cache-Control'),'no-store','availability not cached');
 const availability = await response.json();
 eq(Object.values(availability).every(v=>v===false),true,'public availability fails closed');
 eq(Object.keys(availability).length,4,'only public availability fields exposed');
+
+for (const name of ['reconcileIdentityVerification','reconcile-seamless-ach-statuses','enforceWalletTransactionRetention']) {
+  for (const [caller,status] of [[null,401],[{role:'user'},403]]) {
+    let effects=0;
+    const unexpected=()=>{effects++;throw new Error('Unexpected privileged access');};
+    const sdk={auth:{me:async()=>caller},asServiceRole:new Proxy({}, {get:unexpected})};
+    const path='base44/functions/'+name+'/entry.ts';
+    const source=await readFile(new URL('../'+path,import.meta.url),'utf8');
+    const deps={};
+    for(const match of source.matchAll(/from ['"]([^'"]+)['"]/g)) deps[match[1]]=new Proxy({}, {get:()=>unexpected});
+    deps['npm:@base44/sdk@0.8.38']={createClientFromRequest:()=>sdk};
+    const {handler}=await loadBackend(path,deps);
+    eq((await handler(new Request('https://test.invalid'))).status,status,name+' caller boundary');
+    eq(effects,0,name+' rejected before privileged reads');
+  }
+}
+
 console.log('Launch boundary checks passed: '+checks+' assertions; actual handlers, no network or records.');

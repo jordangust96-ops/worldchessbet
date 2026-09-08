@@ -352,8 +352,11 @@ Deno.serve(async (req) => {
   const nowIso = now.toISOString();
 
   try {
-    seamlessConfig();
     const base44 = createClientFromRequest(req);
+    const caller = await base44.auth.me().catch(() => null);
+    if (!caller) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (caller.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 });
+    seamlessConfig();
 
     const [
       submitted,

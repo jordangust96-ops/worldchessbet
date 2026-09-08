@@ -17,6 +17,9 @@ function twoYearDeadline(transaction: any) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
+    const caller = await base44.auth.me().catch(() => null);
+    if (!caller) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (caller.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 });
     let checked = 0;
     let stamped = 0;
     let skippedInvalidDate = 0;
