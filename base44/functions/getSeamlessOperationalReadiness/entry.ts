@@ -1,5 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import {
+  seamlessProviderApproved,
+  paidContestsEnabled,
   seamlessDepositsEnabled,
   seamlessWithdrawalsEnabled,
   seamlessRtpPayoutsEnabled,
@@ -9,6 +11,8 @@ import {
   atomicStoreEnabled,
   checkAtomicStoreHealth,
 } from '../../shared/seamlessAtomicStore.ts';
+
+import { socureConfig } from '../../shared/socure.ts';
 
 function configured(name: string) {
   return !!(Deno.env.get(name) || '').trim();
@@ -58,14 +62,30 @@ Deno.serve(async (req) => {
       identityWorkflowConfigured &&
       complianceEvidenceConfigured;
     const thirdPartyFundingEnabled = seamlessThirdPartyFundingEnabled();
+    let bankScreeningConfigured = false;
+    try { bankScreeningConfigured = socureConfig().enabled === true; } catch { /* fail closed */ }
+    const configurationReady = providerConfigured && atomicConfigured && atomicReachable && identityConfigured && bankScreeningConfigured;
+    const blockers = [
+      !seamlessProviderApproved() && 'provider_approval_pending',
+      !providerConfigured && 'provider_configuration_incomplete',
+      !atomicReachable && 'atomic_store_unavailable',
+      !identityConfigured && 'identity_configuration_incomplete',
+      !bankScreeningConfigured && 'bank_screening_configuration_incomplete',
+      !thirdPartyFundingEnabled && 'bank_enrollment_disabled',
+      !seamlessDepositsEnabled() && 'deposits_disabled',
+      !seamlessWithdrawalsEnabled() && 'withdrawals_disabled',
+      !paidContestsEnabled() && 'paid_contests_disabled',
+    ].filter(Boolean);
 
     return Response.json({
-      ready:
-        providerConfigured &&
-        atomicConfigured &&
-        atomicReachable &&
-        identityConfigured &&
-        thirdPartyFundingEnabled,
+      // Configuration readiness is not proof of provider acceptance or delivery.
+      ready: configurationReady && blockers.length === 0,
+      readiness_scope: 'configuration_only',
+      configuration_ready: configurationReady,
+      provider_approved: seamlessProviderApproved(),
+      paid_contests_enabled: paidContestsEnabled(),
+      bank_screening_configured: bankScreeningConfigured,
+      blockers,
       environment,
       provider_configured: providerConfigured,
       atomic_store_configured: atomicConfigured,
