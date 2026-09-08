@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
-import { check, overall, creditCheck, parseJson, telemetryChecks, timeMs, shouldNotify, formatHealthEmail } from '../../shared/siteHealthPolicy.ts';
+import { check, overall, creditCheck, parseJson, telemetryChecks, timeMs, shouldNotify, formatHealthEmail, boundedHealthHistory } from '../../shared/siteHealthPolicy.ts';
 
 // Single scheduled writer. No agent tool can invoke this collector. No
 // transactions, identity evaluations, analysis jobs, financial Redis keys,
@@ -173,8 +173,8 @@ Deno.serve(async (req) => {
     stage = 'build_snapshot';
     const status = overall(checks), checkedAt = new Date().toISOString();
     if (!persist) return Response.json({ status, checked_at: checkedAt, checks, persisted: false, email_sent: false });
-    const history = parseJson(previous?.history_json, []).slice(-23);
-    history.push({ at: checkedAt, status, values: Object.fromEntries(checks.map(c => [c.key, { status: c.status, value: c.value, latency_ms: c.latency_ms }])) });
+    const history = boundedHealthHistory(parseJson(previous?.history_json, []),
+      { at: checkedAt, status, values: Object.fromEntries(checks.map(c => [c.key, { status: c.status, value: c.value, latency_ms: c.latency_ms }])) });
     const notification = shouldNotify(previous, checks, now);
     const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Detroit', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(now));
     const part = (type: string) => parts.find(p => p.type === type)?.value || '';
