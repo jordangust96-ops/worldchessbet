@@ -33,7 +33,7 @@ const entities=new Proxy({}, {get:(_,name)=>({
  filter:async ()=>rows[name]||[],
  list:async ()=>rows[name]||[],
  create:async data=>{assert.ok(['SiteHealthSnapshot','GameHealthTelemetry','DailyOperationsBrief','OperationsFinding'].includes(name),'unexpected mutation '+name);const r={...data,id:name+'1'}; rows[name]=[r];writes.push({name,data});return r;},
- update:async (id,data)=>{assert.ok(['SiteHealthSnapshot','GameHealthTelemetry','SiteHealthConfig'].includes(name),'unexpected mutation '+name);const r={...(rows[name]?.[0]||{}),...data,id};rows[name]=[r];writes.push({name,data});return r;}
+ update:async (id,data)=>{if(name==='SiteHealthSnapshot' && data.history_json?.length>20000)throw Error('history_json exceeds storage limit 20000');assert.ok(['SiteHealthSnapshot','GameHealthTelemetry','SiteHealthConfig'].includes(name),'unexpected mutation '+name);const r={...(rows[name]?.[0]||{}),...data,id};rows[name]=[r];writes.push({name,data});return r;}
 })});
 const sdk={auth:{me:async()=>user},asServiceRole:{entities,integrations:{Core:{SendEmail:async data=>{emails.push(data);if(failMail)throw Error('mail failure');return {};}}}}};
 const env={FAIR_PLAY_SCREENING_ENABLED:'true',FAIR_PLAY_ANALYZER_URL:'https://test.ondigitalocean.app',SEAMLESS_ATOMIC_REDIS_REST_URL:'https://test.upstash.io',SEAMLESS_ATOMIC_REDIS_REST_TOKEN:'mock',RATING_ATOMIC_REDIS_REST_URL:'https://ratings.upstash.io',RATING_ATOMIC_REDIS_REST_TOKEN:'mock'};
@@ -66,6 +66,26 @@ await collect(request({persist:true}));assert.equal(emails.length,1);
 clock+=15*60000;await collect(request({persist:true}));assert.equal(emails.length,1);
 clock+=60*60000;failRedis=false;await collect(request({persist:true}));assert.equal(emails.length,2);assert.match(emails[1].subject,/recovery/);
 assert.ok(JSON.stringify(rows.SiteHealthSnapshot).length<90000);
+// Regression: history must remain persistable across many scheduled runs,
+// including a legacy snapshot already close to the observed failure boundary.
+rows.SiteHealthConfig[0].alerts_enabled=false;
+const legacyValues=Object.fromEntries(Array.from({length:24},(_,i)=>['check_'+i,{status:'healthy',value:null,latency_ms:null}]));
+rows.SiteHealthSnapshot[0].history_json=JSON.stringify(Array.from({length:23},()=>({at:new Date(clock).toISOString(),status:'healthy',values:legacyValues})));
+for(let i=0;i<400;i++){
+ clock+=15*60000;
+ const run=await collect(request({persist:true}));
+ assert.equal(run.status,200);
+ const data=await run.json();assert.equal(data.persisted,true);
+ const saved=rows.SiteHealthSnapshot[0];
+ assert.ok(saved.history_json.length<=p.HISTORY_JSON_BUDGET);
+ const history=JSON.parse(saved.history_json);
+ assert.ok(history.length<=24);assert.equal(history.at(-1).at,saved.checked_at);
+ assert.equal(history.at(-1).values.active_games.value,0);
+}
+const huge={at:new Date(clock).toISOString(),status:'warning',values:{huge:{status:'warning',value:'x'.repeat(20001)}}};
+assert.equal(p.boundedHealthHistory([],huge)[0].history_details_omitted,true);
+assert.ok(JSON.stringify(p.boundedHealthHistory({},huge)).length<p.HISTORY_JSON_BUDGET);
+
 const record=handler('recordGameHealth');user={id:'player',role:'user'};
 result=await(await record(request({samples:[{...sample,game_id:'must-not-save'}]}))).json();
 assert.equal(result.accepted,true);assert.ok(!rows.GameHealthTelemetry[0].samples_json.includes('must-not-save'));
