@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Plus, ArrowUpRight, Loader2, CheckCircle2, Clock, AlertTriangle,
-  XCircle, Link2, RefreshCw,
+  XCircle, Link2, RefreshCw, Trash2, Check, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { base44 } from "@/api/base44Client";
 import SeamlessPlaidBankLink from "./SeamlessPlaidBankLink";
 
@@ -28,28 +32,55 @@ const TX_STATUS = {
   reversed: { label: "Reversed", color: "text-red-400", icon: RefreshCw },
 };
 
-function BankRow({ bank }) {
+function BankRow({ bank, busy, onMakePrimary, onDisconnect }) {
   const s = BANK_STATUS[bank.status] || BANK_STATUS.added;
   const Icon = s.icon;
+  const isVerified = bank.status === "verified";
   return (
-    <div className="flex items-center justify-between rounded-xl bg-white/[0.03] border border-white/5 px-4 py-3">
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="h-9 w-9 rounded-lg bg-white/[0.04] flex items-center justify-center shrink-0">
-          <Link2 size={16} className="text-white/50" />
+    <div className="rounded-xl bg-white/[0.03] border border-white/5 px-4 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="h-9 w-9 rounded-lg bg-white/[0.04] flex items-center justify-center shrink-0">
+            <Link2 size={16} className="text-white/50" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm text-white/90 truncate">
+              {bank.account_name || "Bank account"}
+              {bank.account_mask ? ` ending in ${bank.account_mask}` : ""}
+            </p>
+            {bank.is_primary && (
+              <span className="text-[10px] uppercase tracking-wider text-[#C9A84C]">Primary</span>
+            )}
+          </div>
         </div>
-        <div className="min-w-0">
-          <p className="text-sm text-white/90 truncate">
-            {bank.account_name || "Bank account"}
-            {bank.account_mask ? ` ending in ${bank.account_mask}` : ""}
-          </p>
-          {bank.is_primary && (
-            <span className="text-[10px] uppercase tracking-wider text-[#C9A84C]">Primary</span>
-          )}
-        </div>
+        <span className={`flex items-center gap-1.5 text-xs font-medium ${s.color} shrink-0`}>
+          <Icon size={14} /> {s.label}
+        </span>
       </div>
-      <span className={`flex items-center gap-1.5 text-xs font-medium ${s.color} shrink-0`}>
-        <Icon size={14} /> {s.label}
-      </span>
+      {isVerified && (
+        <div className="mt-3 flex justify-end gap-2 border-t border-white/5 pt-3">
+          {!bank.is_primary && (
+            <button
+              type="button"
+              onClick={() => onMakePrimary(bank)}
+              disabled={!!busy}
+              className="flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-xs text-white/65 hover:border-[#C9A84C]/40 hover:text-[#C9A84C] disabled:opacity-40"
+            >
+              {busy === `primary:${bank.id}` ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+              Use this bank
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => onDisconnect(bank)}
+            disabled={!!busy}
+            className="flex items-center gap-1.5 rounded-lg border border-red-500/20 px-3 py-1.5 text-xs text-red-300/75 hover:border-red-400/40 hover:text-red-300 disabled:opacity-40"
+          >
+            {busy === `disconnect:${bank.id}` ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+            Disconnect
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -88,6 +119,8 @@ export default function SeamlessFundingPanel({
   const [error, setError] = useState("");
   const [amount, setAmount] = useState("");
   const [direction, setDirection] = useState("deposit");
+  const [showBankLink, setShowBankLink] = useState(false);
+  const [bankToDisconnect, setBankToDisconnect] = useState(null);
   const depositRequestKey = useRef("");
   const withdrawalRequestKey = useRef("");
   const pollAttempts = useRef(0);
@@ -146,6 +179,28 @@ export default function SeamlessFundingPanel({
       setError(typeof serverMessage === "string" && serverMessage
         ? serverMessage
         : "We couldn't submit that request. Please try again or contact support.");
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const manageBank = async (action, bank) => {
+    const busyKey = action === "set_primary" ? `primary:${bank.id}` : `disconnect:${bank.id}`;
+    setBusy(busyKey);
+    setError("");
+    try {
+      await base44.functions.invoke("manageSeamlessBankAccount", {
+        action,
+        bankId: bank.id,
+      });
+      setBankToDisconnect(null);
+      await load();
+      if (onRefresh) onRefresh();
+    } catch (e) {
+      const serverMessage = e?.response?.data?.error;
+      setError(typeof serverMessage === "string" && serverMessage
+        ? serverMessage
+        : "We couldn't update that bank account. Please try again.");
     } finally {
       setBusy("");
     }
@@ -233,7 +288,15 @@ export default function SeamlessFundingPanel({
 
         {state?.banks?.length > 0 && (
           <div className="space-y-2">
-            {state.banks.map((bank) => <BankRow key={bank.id} bank={bank} />)}
+            {state.banks.map((bank) => (
+              <BankRow
+                key={bank.id}
+                bank={bank}
+                busy={busy}
+                onMakePrimary={(selected) => manageBank("set_primary", selected)}
+                onDisconnect={setBankToDisconnect}
+              />
+            ))}
           </div>
         )}
         {!bankReady && !bankPending && hostedPlaidEnabled && !accountRestricted ? (
@@ -246,6 +309,26 @@ export default function SeamlessFundingPanel({
         ) : !bankReady && !bankPending ? (
           <p className="text-xs text-white/30 text-center py-2">No bank connected yet.</p>
         ) : null}
+
+        {bankReady && hostedPlaidEnabled && !accountRestricted && (
+          <button
+            type="button"
+            onClick={() => setShowBankLink((value) => !value)}
+            disabled={!!busy || effectiveWithdrawalHold}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-3 py-2.5 text-xs font-medium text-white/60 hover:border-[#C9A84C]/40 hover:text-[#C9A84C] disabled:opacity-40"
+          >
+            {showBankLink ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            {showBankLink ? "Close bank connection form" : "Change or add a bank account"}
+          </button>
+        )}
+        {bankReady && showBankLink && hostedPlaidEnabled && !accountRestricted && (
+          <SeamlessPlaidBankLink
+            legalName={state?.legal_name || ""}
+            hasWithdrawableBalance={(wallet?.available_balance || 0) > 0}
+            disabled={effectiveWithdrawalHold}
+            onComplete={load}
+          />
+        )}
       </div>
 
       {/* Step 2: transfer gates remain authoritative on the server. */}
@@ -368,6 +451,33 @@ export default function SeamlessFundingPanel({
           </p>
         )}
       </div>
+
+      <AlertDialog
+        open={!!bankToDisconnect}
+        onOpenChange={(open) => !open && setBankToDisconnect(null)}
+      >
+        <AlertDialogContent className="border-white/10 bg-[#151515] text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Disconnect this bank account?</AlertDialogTitle>
+            <AlertDialogDescription className="text-white/55">
+              ChessBet will remove the account from Seamless and revoke its ACH authorization.
+              You can reconnect this bank or add a different bank later. A bank with a transfer
+              in progress cannot be disconnected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-white/10 bg-transparent text-white hover:bg-white/5">
+              Keep connected
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => bankToDisconnect && manageBank("disconnect", bankToDisconnect)}
+              className="bg-red-600 text-white hover:bg-red-500"
+            >
+              Disconnect bank
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Recent Seamless transactions */}
       {state?.recent?.length > 0 && (
