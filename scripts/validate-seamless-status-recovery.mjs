@@ -64,13 +64,12 @@ assert.deepEqual(schema.rls.read, { user_condition: { role: 'admin' } });
 assert.equal(schema.rls.delete, false);
 
 const consent = await read('base44/shared/achAuthorization.js');
-const enrollment = await read('base44/functions/createVerifiedSeamlessFundingSource/entry.ts');
-assert.match(consent, /draft-2026-09-03-v2/,
-  'authorization remains marked draft while Seamless Risk review is pending');
-assert.ok(
-  enrollment.indexOf('if (!seamlessThirdPartyFundingEnabled())') <
-  enrollment.indexOf('SeamlessFundingSourceEnrollment.create'),
-  'third-party funding remains inert until explicit provider approval'
-);
+const hostedLink = await read('base44/functions/createSeamlessBankLinkUrl/entry.ts');
+assert.match(consent, /seamless-hosted-plaid-2026-09-09-v1/,
+  'hosted Plaid authorization is versioned');
+assert.match(hostedLink, /seamlessHostedPlaidEnabled\(\)/,
+  'hosted bank verification fails closed when provider configuration is absent');
+assert.match(hostedLink, /AchDebitAuthorization\.create/,
+  'authorization is retained before the hosted bank flow begins');
 
 console.log('Seamless ACH status recovery verification passed.');
