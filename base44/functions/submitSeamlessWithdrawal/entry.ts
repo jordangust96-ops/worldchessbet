@@ -3,7 +3,6 @@ import { seamlessWithdrawalsEnabled, seamlessRtpPayoutsEnabled } from '../../sha
 import { extendComplianceEvidenceRetention } from '../../shared/complianceEvidence.ts';
 import { isSeamlessPlaidVerified } from '../../shared/identityEligibility.js';
 import { legalNameFromUser } from '../../shared/legalName.ts';
-import { isSeamless hosted PlaidBankVerificationAccepted, latestSeamless hosted PlaidBankVerification } from '../../shared/socureBankEligibility.js';
 import {
   seamlessConfig, seamlessRequest, seamlessBaseUrl, buildWithdrawalBody,
   PATH_CHECK_SEND, SEAMLESS_PROVIDER_KEY,
@@ -104,12 +103,6 @@ Deno.serve(async (req) => {
     if (!screeningBank?.source_id) {
       return Response.json({ error: 'Link and verify a bank account first', action: 'bank_link_required' }, { status: 400 });
     }
-    const bankVerifications = await base44.asServiceRole.entities.Seamless hosted PlaidBankVerification.filter({ user_id: user.id, source_id: screeningBank.source_id });
-    const bankVerification = latestSeamless hosted PlaidBankVerification(bankVerifications, screeningBank.source_id);
-    if (!isSeamless hosted PlaidBankVerificationAccepted(bankVerification, screeningBank.source_id)) {
-      return Response.json({ error: 'Complete bank account screening before withdrawing.', action: 'bank_screening_required' }, { status: 403 });
-    }
-
     const { amount, idempotencyKey } = await req.json();
     const value = Number(amount);
     if (!Number.isFinite(value) || value <= 0 || value > MAX_AMOUNT) {
