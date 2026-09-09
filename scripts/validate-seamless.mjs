@@ -51,6 +51,13 @@ const stalePending = applyFundingSourceEvent(
 );
 assert.equal(stalePending.action, 'ignore');
 assert.equal(stalePending.status, 'verified');
+const lateAdded = applyFundingSourceEvent(
+  { status: 'verified', provider_event_at: '2026-09-09T12:00:00Z' },
+  { eventType: 'funding-source.added', timestamp: '2026-09-09T12:00:01Z' }
+);
+assert.equal(lateAdded.action, 'ignore');
+assert.equal(lateAdded.status, 'verified');
+assert.equal(lateAdded.reason, 'non_downgrade');
 const expired = applyFundingSourceEvent(
   { status: 'verified', provider_event_at: '2026-09-09T12:00:00Z' },
   { eventType: 'funding-source.verification-expired', timestamp: '2026-09-09T13:00:00Z' }
