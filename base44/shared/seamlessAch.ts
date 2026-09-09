@@ -4,6 +4,7 @@
 
 import {
   SEAMLESS_PROVIDER_KEY,
+  SEAMLESS_PLAID_PROVIDER_KEY,
   formatAmount,
   mapTransactionStatus,
   seamlessBaseUrl,
@@ -14,7 +15,6 @@ import {
   buildWithdrawalBody,
   buildCheckLookupPath,
   buildMerchantBalanceTransferBody,
-  buildVerifiedThirdPartyFundingSourceBody,
   constantTimeEqual,
   webhookIdempotencyKey,
   isMerchantBalanceTransaction,
@@ -27,11 +27,11 @@ import {
   PATH_CHECK,
   PATH_BALANCE_FROM_ACCOUNT,
   PATH_BALANCE_TO_ACCOUNT,
-  PATH_VERIFIED_THIRD_PARTY_FUNDING_SOURCE,
 } from './seamlessAchPure.js';
 
 export {
   SEAMLESS_PROVIDER_KEY,
+  SEAMLESS_PLAID_PROVIDER_KEY,
   formatAmount,
   mapTransactionStatus,
   seamlessBaseUrl,
@@ -42,7 +42,6 @@ export {
   buildWithdrawalBody,
   buildCheckLookupPath,
   buildMerchantBalanceTransferBody,
-  buildVerifiedThirdPartyFundingSourceBody,
   constantTimeEqual,
   webhookIdempotencyKey,
   isMerchantBalanceTransaction,
@@ -55,7 +54,6 @@ export {
   PATH_CHECK,
   PATH_BALANCE_FROM_ACCOUNT,
   PATH_BALANCE_TO_ACCOUNT,
-  PATH_VERIFIED_THIRD_PARTY_FUNDING_SOURCE,
 };
 
 // Resolve Seamless config from server secrets. Fails closed (throws) on any
