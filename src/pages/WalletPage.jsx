@@ -212,22 +212,23 @@ export default function WalletPage() {
         <div className="rounded-3xl bg-gradient-to-br from-[#1A1A1A] to-[#111] border border-white/5 p-6 text-center">
           <p className="text-xs uppercase tracking-widest text-white/40 mb-2">Total Balance</p>
           <h1 className="text-4xl font-extrabold text-white mb-1">
-            ${wallet?.balance?.toFixed(2)}
+            ${Number(wallet?.total_balance ?? wallet?.balance ?? 0).toFixed(2)}
           </h1>
-          <div className="flex items-center justify-center gap-6 mt-4">
+          <div className="mt-4 flex items-center justify-center gap-8">
             <div>
-              <p className="text-[10px] text-white/30 uppercase">Won</p>
-              <p className="text-sm font-bold text-[#C9A84C]">${stats.won.toFixed(2)}</p>
+              <p className="text-[10px] uppercase text-white/30">Available</p>
+              <p className="text-sm font-bold text-emerald-400">
+                ${Number(wallet?.available_balance ?? wallet?.balance ?? 0).toFixed(2)}
+              </p>
+              <p className="mt-0.5 text-[10px] text-white/25">Ready to play or withdraw</p>
             </div>
-            <div className="w-px h-6 bg-white/10" />
+            <div className="h-9 w-px bg-white/10" />
             <div>
-              <p className="text-[10px] text-white/30 uppercase">Lost</p>
-              <p className="text-sm font-bold text-red-400">${stats.lost.toFixed(2)}</p>
-            </div>
-            <div className="w-px h-6 bg-white/10" />
-            <div>
-              <p className="text-[10px] text-white/30 uppercase">Entered</p>
-              <p className="text-sm font-bold text-white/60">${stats.wagered.toFixed(2)}</p>
+              <p className="text-[10px] uppercase text-white/30">Clearing</p>
+              <p className="text-sm font-bold text-[#C9A84C]">
+                ${Number(wallet?.held_balance ?? 0).toFixed(2)}
+              </p>
+              <p className="mt-0.5 text-[10px] text-white/25">Not available yet</p>
             </div>
           </div>
         </div>
