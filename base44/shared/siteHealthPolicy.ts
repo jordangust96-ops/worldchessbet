@@ -22,8 +22,8 @@ export function formatHealthEmail(checks: any[], checkedAt: string, digest = fal
   }).format(timestamp);
   const actions: Record<string, string> = {
     credits: 'Review Base44 Usage and the upcoming credit allowance.',
-    socure_overdue: 'Reconcile the saved sessions with existing Socure results.',
-    socure_failures: 'Review the failed verification requests and their error records.',
+    seamless_bank_pending: 'Review pending bank records and verify that funding-source webhooks are arriving.',
+    seamless_bank_failures: 'Review failed or expired Seamless bank-verification records.',
     stalled_games: 'Review overdue clocks and the timeout workflow.',
     analyzer_backlog: 'Check the analyzer queue and recent processing times.',
     analyzer_failed: 'Review the failed analysis records and analyzer logs.',
