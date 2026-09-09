@@ -1,47 +1,183 @@
 {
   "name": "Match",
-  "type": "object",
   "properties": {
-    "player1_id": {
-      "type": "string",
-      "description": "User ID of player 1"
+    "accept_notification_sent": {
+      "default": false,
+      "description": "Set once the match-accepted notification has been sent, to guarantee it is only ever sent once per match. Written only by the notifyMatchAccepted backend function (service role) \u2014 never by any client.",
+      "type": "boolean"
     },
-    "player2_id": {
-      "type": "string",
-      "description": "User ID of player 2"
+    "acceptance_operation_id": {
+      "description": "Server-generated ownership token for an in-flight opponent reservation",
+      "rls": {
+        "read": false,
+        "write": false
+      },
+      "type": "string"
     },
-    "game_id": {
-      "type": "string",
-      "description": "ID of the associated Game entity (the chess game itself)"
+    "cancellation_operation_id": {
+      "description": "Server-generated ownership token for an in-flight cancellation/refund",
+      "rls": {
+        "read": false,
+        "write": false
+      },
+      "type": "string"
     },
-    "wager_amount": {
-      "type": "number",
-      "description": "Contest Entry Amount per player in USD; separate from the Platform Service Fee."
+    "chess_com_game_url": {
+      "description": "Chess.com game URL",
+      "type": "string"
     },
-    "platform_service_fee": {
-      "type": "number",
-      "description": "Fixed-dollar Platform Service Fee per player, disclosed and snapshotted when the contest is created. It is separate from the Contest Entry Amount and is never deducted from the winner award."
+    "completed_at": {
+      "format": "date-time",
+      "type": "string"
     },
-    "platform_fee_schedule_version": {
-      "type": "string",
-      "description": "Published Platform Service Fee schedule version used to determine platform_service_fee."
+    "creator_viewed_acceptance": {
+      "default": false,
+      "description": "Deprecated in favor of presence-based detection (User.last_active_at). No longer written by any client or backend function; retained only for historical records.",
+      "type": "boolean"
     },
-    "time_control": {
-      "type": "string",
-      "enum": [
-        "blitz",
-        "rapid",
-        "classical"
-      ],
-      "default": "rapid",
-      "description": "Match time control"
+    "description": {
+      "description": "Optional description",
+      "maxLength": 1000,
+      "type": "string"
     },
     "display_name": {
-      "type": "string",
-      "description": "Human-readable time control, e.g. 'Rapid (10+0)'"
+      "description": "Human-readable time control, e.g. 'Rapid (10+0)'",
+      "type": "string"
+    },
+    "game_id": {
+      "description": "ID of the associated Game entity (the chess game itself)",
+      "type": "string"
+    },
+    "invite_code": {
+      "description": "Unique, hard-to-guess token used to build the invitation link for private matches (e.g. /join/{invite_code}). Unused for public matches.",
+      "type": "string"
+    },
+    "is_private": {
+      "default": false,
+      "description": "Private matches are hidden from the public marketplace and are only joinable via their invite_code link",
+      "type": "boolean"
+    },
+    "launch_epoch": {
+      "default": 2,
+      "description": "Production data generation. Matches from launch onward use epoch 2; earlier pre-launch history is left unset so it stays gated out of every live contest path. Must remain declared: createMatch/acceptMatch/lockWager/certifyFairPlay/confirmMatchReadiness/finalizeMatchStart/cancelMatch/getOrCreateGame all gate on Number(match.launch_epoch) !== 2, and undeclared properties are silently dropped on write.",
+      "minimum": 2,
+      "type": "integer"
+    },
+    "notify_on_accept": {
+      "default": true,
+      "description": "Whether the host (player1) wants to be notified when an opponent accepts this challenge. Only relevant while the match is searching for an opponent. Only the host (created_by_id) can update this record client-side \u2014 the accepting opponent has no client-side write access to Match at all.",
+      "type": "boolean"
+    },
+    "platform_fee_schedule_version": {
+      "description": "Published Platform Service Fee schedule version used to determine platform_service_fee.",
+      "type": "string"
+    },
+    "platform_service_fee": {
+      "description": "Fixed-dollar Platform Service Fee per player, disclosed and snapshotted when the contest is created. It is separate from the Contest Entry Amount and is never deducted from the winner award.",
+      "type": "number"
+    },
+    "player1_certified": {
+      "default": false,
+      "description": "Whether player1 has certified Fair Play for this match. Required before player1's Entry Amount can be reserved.",
+      "type": "boolean"
+    },
+    "player1_certified_at": {
+      "description": "Timestamp player1 certified Fair Play, for audit purposes.",
+      "format": "date-time",
+      "type": "string"
+    },
+    "player1_deposited": {
+      "default": false,
+      "description": "Whether player1 has reserved their Entry Amount (moved from Available to Held Balance) during the Preparing Match phase.",
+      "type": "boolean"
+    },
+    "player1_funding_operation_id": {
+      "description": "Server-generated ownership token for player 1 funding",
+      "rls": {
+        "read": false,
+        "write": false
+      },
+      "type": "string"
+    },
+    "player1_id": {
+      "description": "User ID of player 1",
+      "type": "string"
+    },
+    "player2_certified": {
+      "default": false,
+      "description": "Whether player2 has certified Fair Play for this match. Required before player2's Entry Amount can be reserved.",
+      "type": "boolean"
+    },
+    "player2_certified_at": {
+      "description": "Timestamp player2 certified Fair Play, for audit purposes.",
+      "format": "date-time",
+      "type": "string"
+    },
+    "player2_deposited": {
+      "default": false,
+      "description": "Whether player2 has reserved their Entry Amount during the Preparing Match phase.",
+      "type": "boolean"
+    },
+    "player2_funding_operation_id": {
+      "description": "Server-generated ownership token for player 2 funding",
+      "rls": {
+        "read": false,
+        "write": false
+      },
+      "type": "string"
+    },
+    "player2_id": {
+      "description": "User ID of player 2",
+      "type": "string"
+    },
+    "preparation_started_at": {
+      "description": "Timestamp the shared Preparing Match phase began (set when the opponent joins). Used to enforce the preparation timeout \u2014 if both players are not fully ready within the timeout window, the match is automatically cancelled and any reserved funds released.",
+      "format": "date-time",
+      "type": "string"
+    },
+    "result": {
+      "description": "Match result",
+      "enum": [
+        "player1_win",
+        "player2_win",
+        "draw",
+        "cancelled"
+      ],
+      "type": "string"
+    },
+    "settlement_claimed_at": {
+      "description": "Server timestamp for the current settlement lease. Used only to recover abandoned pre-ledger attempts.",
+      "format": "date-time",
+      "rls": {
+        "read": false,
+        "write": false
+      },
+      "type": "string"
+    },
+    "settlement_hold": {
+      "default": false,
+      "description": "Set by an administrator (via a Dispute Case pre-settlement hold) to pause automatic settlement while an investigation is open. While true, settleMatch takes no action even after the Game completes \u2014 both players' funds remain in the Contest Clearing Account. Cleared only by the administrator releasing the hold, which resumes settlement.",
+      "type": "boolean"
+    },
+    "settlement_operation_id": {
+      "description": "Server-generated ownership token for an in-flight settlement",
+      "rls": {
+        "read": false,
+        "write": false
+      },
+      "type": "string"
+    },
+    "start_operation_id": {
+      "description": "Server-generated ownership token for an in-flight both_ready -> in_progress transition, claimed by finalizeMatchStart. Also checked (and respected) by checkPreparationTimeout and cancelMatch so a match already claimed to go live is never refunded and cancelled out from under it.",
+      "rls": {
+        "read": false,
+        "write": false
+      },
+      "type": "string"
     },
     "status": {
-      "type": "string",
+      "default": "searching",
+      "description": "'searching': host waiting for an opponent. 'preparing': an opponent has joined and the opponent slot is reserved \u2014 both players must independently certify Fair Play and reserve their Entry Amount in the shared Preparing Match screen. 'both_ready': transient status set the instant both players have certified and funded, while the Game is created/loaded. 'in_progress': gameplay is live. 'matched'/'deposited' are legacy values kept only for historical records and are no longer written by current flows.",
       "enum": [
         "searching",
         "matched",
@@ -55,156 +191,25 @@
         "cancelled",
         "disputed"
       ],
-      "default": "searching",
-      "description": "'searching': host waiting for an opponent. 'preparing': an opponent has joined and the opponent slot is reserved \u2014 both players must independently certify Fair Play and reserve their Entry Amount in the shared Preparing Match screen. 'both_ready': transient status set the instant both players have certified and funded, while the Game is created/loaded. 'in_progress': gameplay is live. 'matched'/'deposited' are legacy values kept only for historical records and are no longer written by current flows."
+      "type": "string"
+    },
+    "time_control": {
+      "default": "rapid",
+      "description": "Match time control",
+      "enum": [
+        "blitz",
+        "rapid",
+        "classical"
+      ],
+      "type": "string"
+    },
+    "wager_amount": {
+      "description": "Contest Entry Amount per player in USD; separate from the Platform Service Fee.",
+      "type": "number"
     },
     "winner_id": {
-      "type": "string",
-      "description": "User ID of the winner"
-    },
-    "chess_com_game_url": {
-      "type": "string",
-      "description": "Chess.com game URL"
-    },
-    "player1_deposited": {
-      "type": "boolean",
-      "default": false,
-      "description": "Whether player1 has reserved their Entry Amount (moved from Available to Held Balance) during the Preparing Match phase."
-    },
-    "player2_deposited": {
-      "type": "boolean",
-      "default": false,
-      "description": "Whether player2 has reserved their Entry Amount during the Preparing Match phase."
-    },
-    "player1_certified": {
-      "type": "boolean",
-      "default": false,
-      "description": "Whether player1 has certified Fair Play for this match. Required before player1's Entry Amount can be reserved."
-    },
-    "player2_certified": {
-      "type": "boolean",
-      "default": false,
-      "description": "Whether player2 has certified Fair Play for this match. Required before player2's Entry Amount can be reserved."
-    },
-    "player1_certified_at": {
-      "type": "string",
-      "format": "date-time",
-      "description": "Timestamp player1 certified Fair Play, for audit purposes."
-    },
-    "player2_certified_at": {
-      "type": "string",
-      "format": "date-time",
-      "description": "Timestamp player2 certified Fair Play, for audit purposes."
-    },
-    "preparation_started_at": {
-      "type": "string",
-      "format": "date-time",
-      "description": "Timestamp the shared Preparing Match phase began (set when the opponent joins). Used to enforce the preparation timeout \u2014 if both players are not fully ready within the timeout window, the match is automatically cancelled and any reserved funds released."
-    },
-    "result": {
-      "type": "string",
-      "enum": [
-        "player1_win",
-        "player2_win",
-        "draw",
-        "cancelled"
-      ],
-      "description": "Match result"
-    },
-    "completed_at": {
-      "type": "string",
-      "format": "date-time"
-    },
-    "is_private": {
-      "type": "boolean",
-      "default": false,
-      "description": "Private matches are hidden from the public marketplace and are only joinable via their invite_code link"
-    },
-    "invite_code": {
-      "type": "string",
-      "description": "Unique, hard-to-guess token used to build the invitation link for private matches (e.g. /join/{invite_code}). Unused for public matches."
-    },
-    "notify_on_accept": {
-      "type": "boolean",
-      "default": true,
-      "description": "Whether the host (player1) wants to be notified when an opponent accepts this challenge. Only relevant while the match is searching for an opponent. Only the host (created_by_id) can update this record client-side \u2014 the accepting opponent has no client-side write access to Match at all."
-    },
-    "accept_notification_sent": {
-      "type": "boolean",
-      "default": false,
-      "description": "Set once the match-accepted notification has been sent, to guarantee it is only ever sent once per match. Written only by the notifyMatchAccepted backend function (service role) \u2014 never by any client."
-    },
-    "creator_viewed_acceptance": {
-      "type": "boolean",
-      "default": false,
-      "description": "Deprecated in favor of presence-based detection (User.last_active_at). No longer written by any client or backend function; retained only for historical records."
-    },
-    "settlement_hold": {
-      "type": "boolean",
-      "default": false,
-      "description": "Set by an administrator (via a Dispute Case pre-settlement hold) to pause automatic settlement while an investigation is open. While true, settleMatch takes no action even after the Game completes \u2014 both players' funds remain in the Contest Clearing Account. Cleared only by the administrator releasing the hold, which resumes settlement."
-    },
-    "acceptance_operation_id": {
-      "type": "string",
-      "description": "Server-generated ownership token for an in-flight opponent reservation",
-      "rls": {
-        "read": false,
-        "write": false
-      }
-    },
-    "settlement_operation_id": {
-      "type": "string",
-      "description": "Server-generated ownership token for an in-flight settlement",
-      "rls": {
-        "read": false,
-        "write": false
-      }
-    },
-    "settlement_claimed_at": {
-      "type": "string",
-      "format": "date-time",
-      "description": "Server timestamp for the current settlement lease. Used only to recover abandoned pre-ledger attempts.",
-      "rls": {
-        "read": false,
-        "write": false
-      }
-    },
-    "cancellation_operation_id": {
-      "type": "string",
-      "description": "Server-generated ownership token for an in-flight cancellation/refund",
-      "rls": {
-        "read": false,
-        "write": false
-      }
-    },
-    "player1_funding_operation_id": {
-      "type": "string",
-      "description": "Server-generated ownership token for player 1 funding",
-      "rls": {
-        "read": false,
-        "write": false
-      }
-    },
-    "player2_funding_operation_id": {
-      "type": "string",
-      "description": "Server-generated ownership token for player 2 funding",
-      "rls": {
-        "read": false,
-        "write": false
-      }
-    },
-    "start_operation_id": {
-      "type": "string",
-      "description": "Server-generated ownership token for an in-flight both_ready -> in_progress transition, claimed by finalizeMatchStart. Also checked (and respected) by checkPreparationTimeout and cancelMatch so a match already claimed to go live is never refunded and cancelled out from under it.",
-      "rls": {
-        "read": false,
-        "write": false
-      }
-    },
-    "description": {
-      "type": "string",
-      "maxLength": 1000,
-      "description": "Optional description"
+      "description": "User ID of the winner",
+      "type": "string"
     }
   },
   "required": [
@@ -214,6 +219,11 @@
   ],
   "rls": {
     "create": false,
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
     "read": {
       "$or": [
         {
@@ -244,11 +254,7 @@
         }
       ]
     },
-    "update": false,
-    "delete": {
-      "user_condition": {
-        "role": "admin"
-      }
-    }
-  }
+    "update": false
+  },
+  "type": "object"
 }
