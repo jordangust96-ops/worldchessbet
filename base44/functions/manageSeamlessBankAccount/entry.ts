@@ -2,11 +2,11 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import {
   seamlessRequest,
   SEAMLESS_PLAID_PROVIDER_KEY,
+  PATH_REMOVE_FUNDING_SOURCE,
+  PATH_SET_PRIMARY_FUNDING_SOURCE,
 } from '../../shared/seamlessAch.ts';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 
-const PATH_REMOVE_FUNDING_SOURCE = '/funding-source/remove';
-const PATH_SET_PRIMARY_FUNDING_SOURCE = '/funding-source/set/primary';
 const ACTIVE_TRANSACTION_STATUSES = new Set(['pending', 'processing']);
 const ACTIVE_INTEGRATION_STATUSES = new Set([
   'pending', 'reserved', 'submitting', 'submitted', 'uncertain',
