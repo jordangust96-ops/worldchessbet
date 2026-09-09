@@ -201,6 +201,33 @@ async function syncHostedPlaidAccountState(base44, bank, profile, eventType, eve
   if (!user) return;
 
   if (bank.status === 'verified') {
+    const authorizations = await base44.asServiceRole.entities.AchDebitAuthorization.filter(
+      { user_id: user.id, status: 'active' }, '-accepted_at', 20
+    );
+    const candidate = authorizations.find((authorization) =>
+      authorization.provider_key === 'seamless_ach_plaid' &&
+      authorization.provider_user_id === profile.provider_user_id &&
+      (!authorization.funding_source_id || authorization.funding_source_id === bank.source_id)
+    );
+
+    // The provider's verified callback is necessary but not sufficient for
+    // ChessBet eligibility. It must bind to the signed authorization created
+    // before this hosted Plaid session; an orphan/provider-initiated source
+    // remains visible for support but cannot activate the account.
+    if (!candidate) return;
+
+    await base44.asServiceRole.entities.AchDebitAuthorization.update(candidate.id, {
+      funding_source_id: bank.source_id,
+      provider_event_id: eventId,
+      account_last_four: bank.account_mask || '',
+      bank_name: bank.account_name || '',
+      retention_until: candidate.retention_until || (() => {
+        const date = new Date(now);
+        date.setUTCFullYear(date.getUTCFullYear() + 2);
+        return date.toISOString();
+      })(),
+    });
+
     const userUpdates: Record<string, unknown> = {
       identity_verification_status: 'verified',
       identity_verification_provider: 'seamless_ach_plaid',
@@ -212,29 +239,13 @@ async function syncHostedPlaidAccountState(base44, bank, profile, eventType, eve
     }
     await base44.asServiceRole.entities.User.update(user.id, userUpdates);
 
-    const authorizations = await base44.asServiceRole.entities.AchDebitAuthorization.filter(
-      { user_id: user.id, status: 'active' }, '-accepted_at', 20
-    );
-    const candidate = authorizations.find((authorization) =>
-      authorization.provider_key === 'seamless_ach_plaid' &&
-      authorization.provider_user_id === profile.provider_user_id &&
-      (!authorization.funding_source_id || authorization.funding_source_id === bank.source_id)
-    );
-    if (candidate) {
-      await base44.asServiceRole.entities.AchDebitAuthorization.update(candidate.id, {
-        funding_source_id: bank.source_id,
-        provider_event_id: eventId,
-        account_last_four: bank.account_mask || '',
-        bank_name: bank.account_name || '',
-        retention_until: candidate.retention_until || (() => {
-          const date = new Date(now);
-          date.setUTCFullYear(date.getUTCFullYear() + 2);
-          return date.toISOString();
-        })(),
-      });
-    }
     for (const authorization of authorizations) {
-      if (authorization.id !== candidate?.id && !authorization.funding_source_id) {
+      if (
+        authorization.id !== candidate.id &&
+        authorization.provider_key === 'seamless_ach_plaid' &&
+        authorization.provider_user_id === profile.provider_user_id &&
+        !authorization.funding_source_id
+      ) {
         await base44.asServiceRole.entities.AchDebitAuthorization.update(authorization.id, {
           status: 'superseded',
           revoked_at: now,
