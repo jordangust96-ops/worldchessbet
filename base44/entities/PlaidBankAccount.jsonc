@@ -49,19 +49,13 @@
     "plaid_item_id"
   ],
   "rls": {
-    "create": {
-      "user_condition": {
-        "role": "admin"
-      }
-    },
+    "create": false,
     "read": {
-      "data.user_id": "{{user.id}}"
-    },
-    "update": {
       "user_condition": {
         "role": "admin"
       }
     },
+    "update": false,
     "delete": false
   }
 }
