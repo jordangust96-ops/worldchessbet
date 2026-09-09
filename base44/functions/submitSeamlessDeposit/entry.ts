@@ -55,9 +55,9 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Your account is not eligible for bank transfers' }, { status: 403 });
     }
 
-    const screeningBanks = await base44.asServiceRole.entities.SeamlessBankAccount.filter({ user_id: user.id, status: 'verified' });
-    const screeningBank = screeningBanks.find((item) => item.source_id && item.is_primary) || screeningBanks[0];
-    if (!screeningBank?.source_id) {
+    const verifiedBanks = await base44.asServiceRole.entities.SeamlessBankAccount.filter({ user_id: user.id, status: 'verified' });
+    const bank = verifiedBanks.find((item) => item.source_id && item.is_primary) || verifiedBanks[0];
+    if (!bank?.source_id) {
       return Response.json({ error: 'Link and verify a bank account first', action: 'bank_link_required' }, { status: 400 });
     }
     lockOwner = crypto.randomUUID();
@@ -86,15 +86,6 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'No Seamless customer profile', action: 'ensure_customer' }, { status: 400 });
     }
 
-    const bank = (
-      await base44.asServiceRole.entities.SeamlessBankAccount.filter({
-        user_id: user.id, status: 'verified',
-      })
-    ).find((b) => !!(b.source_id && b.is_primary)) ||
-      (await base44.asServiceRole.entities.SeamlessBankAccount.filter({ user_id: user.id, status: 'verified' }))[0];
-    if (!bank) {
-      return Response.json({ error: 'Link and verify a bank account first', action: 'bank_link_required' }, { status: 400 });
-    }
     let complianceEvidence;
     try {
       complianceEvidence = await extendComplianceEvidenceRetention(base44, {
@@ -104,7 +95,7 @@ Deno.serve(async (req) => {
       });
     } catch {
       return Response.json({
-        error: 'Required identity or ACH authorization evidence is unavailable.',
+        error: 'Required verified-bank or ACH authorization evidence is unavailable.',
         action: 'compliance_evidence_required',
       }, { status: 409 });
     }
