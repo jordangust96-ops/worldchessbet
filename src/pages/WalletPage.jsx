@@ -187,11 +187,11 @@ export default function WalletPage() {
   }
 
   return (
-    <div className="min-h-screen px-5 pt-8">
+    <div className="min-h-screen px-4 pb-24 pt-6 sm:px-6 sm:pt-8">
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="space-y-6"
+        className="mx-auto max-w-4xl space-y-5"
       >
         <Link to="/play" className="inline-block">
           <Logo size="sm" />
