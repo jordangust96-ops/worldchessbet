@@ -29,7 +29,7 @@ const [
 
 assert.match(fundingConfig, /seamlessHostedPlaidEnabled/);
 assert.match(createLink, /buildBankLinkUrl/);
-assert.match(createLink, /AchDebitAuthorization\.create/);
+assert.match(createLink, /entities\['ach-debit-authorization'\]\.create/);
 assert.match(createLink, /trustedAppOrigin/);
 assert.match(ensureCustomer, /PATH_CREATE_CUSTOMER/);
 assert.match(webhook, /'funding-source\.verified'/);
