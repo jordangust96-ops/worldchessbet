@@ -1,6 +1,6 @@
 import { paidContestsEnabled } from '../../shared/seamlessFundingConfig.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
-import { isSocureIdentityVerified } from '../../shared/identityEligibility.js';
+import { isSeamlessPlaidVerified } from '../../shared/identityEligibility.js';
 
 // Single authoritative eligibility pipeline for contest participation.
 // Both Host Match (createMatch) and Join Match (acceptMatch) — public and
@@ -9,7 +9,7 @@ import { isSocureIdentityVerified } from '../../shared/identityEligibility.js';
 // of this validation logic anywhere else.
 //
 // Checks run in a fixed, cost-aware order:
-//   1. Identity Verification (authoritative Socure server result)
+//   1. Identity Verification (authoritative Seamless hosted Plaid server result)
 //   2. Participation Restrictions (admin-applied withdrawal_hold)
 //   3. Available Balance Check (>= entryAmount)
 //   4. Jurisdiction Check (fresh or same-IP short-cache, server-side)
@@ -38,9 +38,9 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Invalid entry amount' }, { status: 400 });
     }
 
-    // 1. Identity Verification — only an authoritative Socure result is
+    // 1. Identity Verification — only an authoritative Seamless hosted Plaid result is
     // eligible for real-money contest activity.
-    if (!isSocureIdentityVerified(user)) {
+    if (!isSeamlessPlaidVerified(user)) {
       const reason =
         user.account_state === 'suspended'
           ? 'Your account is currently suspended and cannot enter paid contests.'
