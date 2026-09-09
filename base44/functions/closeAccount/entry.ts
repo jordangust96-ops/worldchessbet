@@ -131,8 +131,8 @@ Deno.serve(async (req) => {
         }
         if (!isSeamlessPlaidVerified(user)) {
           return Response.json({
-            error: 'Complete identity verification before closing an account with a remaining balance.',
-            action: 'identity_verification_required',
+            error: 'Connect and verify a bank before closing an account with a remaining balance.',
+            action: 'bank_verification_required',
             available_balance: payout,
           }, { status: 400 });
         }
@@ -154,7 +154,7 @@ Deno.serve(async (req) => {
           complianceEvidence = await extendComplianceEvidenceRetention(base44, { userId: user.id, fundingSourceId: bank.source_id, requireAchAuthorization: false });
         } catch {
           return Response.json({
-            error: 'Required retained identity evidence is unavailable.',
+            error: 'Required retained verified-bank evidence is unavailable.',
             action: 'compliance_evidence_required',
             available_balance: payout,
           }, { status: 409 });
