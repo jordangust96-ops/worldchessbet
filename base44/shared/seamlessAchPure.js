@@ -83,6 +83,21 @@ export function buildCreateCustomerBody({ firstName, lastName, email, phone }) {
   return body;
 }
 
+// Seamless has returned customer identifiers under both user_id and
+// customer_id, and some gateway responses wrap the payload. Normalize every
+// documented/observed shape so a successful provider create is never orphaned
+// merely because its response envelope changed.
+export function pickSeamlessCustomerId(payload) {
+  const candidates = [
+    payload?.user_id, payload?.customer_id, payload?.id,
+    payload?.userId, payload?.customerId,
+    payload?.data?.user_id, payload?.data?.customer_id, payload?.data?.id,
+    payload?.user?.user_id, payload?.user?.customer_id, payload?.user?.id,
+    payload?.result?.user_id, payload?.result?.customer_id, payload?.result?.id,
+  ];
+  return String(candidates.find((value) => value != null && String(value).trim()) || '').trim();
+}
+
 // Deposit: POST /ach-debit with sender = provider user id. Seamless v2
 // requires a non-empty sender name, so this fails before any provider request.
 export function buildDepositBody({ providerUserId, name, amount, description, label }) {
