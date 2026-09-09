@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 import { requireAdminMfa } from '../../shared/mfa.ts';
-import { applyBalanceHold } from '../../shared/ledger.ts';
+import { applyBalanceHold, postLedgerLegs } from '../../shared/ledger.ts';
 
 const VALID_STATUSES = ['open', 'under_review', 'awaiting_information'];
 const VALID_ACTIONS = [
@@ -44,98 +44,26 @@ const fmtCase = (n) => `CB-${String(n).padStart(6, '0')}`;
 // no balance ever goes negative. All legs across a call must balance
 // (sum debit === sum credit); every leg posts its own immutable LedgerEntry.
 async function postRemedyLegs(base44, { matchId, admin, triggerEvent, legs, groupId: explicitGroupId }) {
-  const totalDebit = legs.reduce((s, l) => s + (l.debit || 0), 0);
-  const totalCredit = legs.reduce((s, l) => s + (l.credit || 0), 0);
-  if (Math.round(totalDebit * 100) !== Math.round(totalCredit * 100)) {
-    throw new Error(`Unbalanced remedy legs: debit=${totalDebit} credit=${totalCredit}`);
-  }
-  // Deterministic, greppable ledger_group_id when the caller can supply one
-  // (a dispute case can only be resolved once, so `dispute:<caseId>:<event>`
-  // is guaranteed unique) — falls back to a random id for any future caller
-  // that can't guarantee that.
   const groupId = explicitGroupId || crypto.randomUUID();
-  const entries = [];
-  for (const leg of legs) {
-    if (leg.ledgerAccount === 'user_account') {
-      const wallets = await base44.asServiceRole.entities.Wallet.filter({ user_id: leg.userId });
-      const wallet = wallets[0];
-      if (!wallet) throw new Error('Wallet not found for user ' + leg.userId);
-
-      let debit = leg.debit || 0;
-      let availableDelta = -debit + (leg.credit || 0);
-      let heldDelta = leg.heldDelta || 0;
-      if (leg.fromHeld && debit > 0) {
-        debit = Math.min(debit, wallet.held_balance || 0);
-        availableDelta = leg.credit || 0;
-        heldDelta = (leg.heldDelta || 0) - debit;
-      } else if (debit > 0) {
-        debit = Math.min(debit, wallet.available_balance || 0);
-        availableDelta = -debit + (leg.credit || 0);
-      }
-
-      const newAvailable = (wallet.available_balance || 0) + availableDelta;
-      const newHeld = (wallet.held_balance || 0) + heldDelta;
-      const newTotal = newAvailable + newHeld;
-      await base44.asServiceRole.entities.Wallet.update(wallet.id, {
-        available_balance: newAvailable,
-        held_balance: newHeld,
-        total_balance: newTotal,
-        balance: newAvailable,
-      });
-      entries.push(
-        await base44.asServiceRole.entities.LedgerEntry.create({
-          user_id: leg.userId,
-          match_id: matchId || '',
-          wallet_transaction_id: leg.walletTransactionId || '',
-          ledger_account: 'user_account',
-          transaction_type: leg.transactionType,
-          debit_amount: debit,
-          credit_amount: leg.credit || 0,
-          resulting_available_balance: newAvailable,
-          resulting_held_balance: newHeld,
-          resulting_total_balance: newTotal,
-          initiating_actor: 'administrator',
-          initiating_actor_id: admin.id,
-          trigger_event: triggerEvent,
-          external_reference_type: 'match',
-          external_reference_id: matchId || '',
-          ledger_group_id: groupId,
-          correlation_id: matchId || groupId,
-          currency: 'USD',
-          schema_version: 1,
-          launch_epoch: 2,
-        })
-      );
-    } else {
-      const accounts = await base44.asServiceRole.entities.SystemLedgerAccount.filter({ account_name: leg.ledgerAccount });
-      let acct = accounts[0];
-      if (!acct) acct = await base44.asServiceRole.entities.SystemLedgerAccount.create({ account_name: leg.ledgerAccount, balance: 0 });
-      const newBalance = (acct.balance || 0) - (leg.debit || 0) + (leg.credit || 0);
-      await base44.asServiceRole.entities.SystemLedgerAccount.update(acct.id, { balance: newBalance });
-      entries.push(
-        await base44.asServiceRole.entities.LedgerEntry.create({
-          match_id: matchId || '',
-          wallet_transaction_id: leg.walletTransactionId || '',
-          ledger_account: leg.ledgerAccount,
-          transaction_type: leg.transactionType,
-          debit_amount: leg.debit || 0,
-          credit_amount: leg.credit || 0,
-          resulting_total_balance: newBalance,
-          initiating_actor: 'administrator',
-          initiating_actor_id: admin.id,
-          trigger_event: triggerEvent,
-          external_reference_type: 'match',
-          external_reference_id: matchId || '',
-          ledger_group_id: groupId,
-          correlation_id: matchId || groupId,
-          currency: 'USD',
-          schema_version: 1,
-          launch_epoch: 2,
-        })
-      );
-    }
-  }
-  return entries;
+  const normalizedLegs = legs.map((leg) => {
+    if (leg.ledgerAccount !== 'user_account' || !leg.fromHeld) return leg;
+    const debit = Number(leg.debit || 0);
+    return {
+      ...leg,
+      availableDelta: Number(leg.credit || 0),
+      heldDelta: Number(leg.heldDelta || 0) - debit,
+    };
+  });
+  return postLedgerLegs(base44, {
+    groupId,
+    matchId: matchId || '',
+    actor: 'administrator',
+    actorId: admin.id,
+    triggerEvent,
+    externalRefType: 'match',
+    externalRefId: matchId || '',
+    legs: normalizedLegs,
+  });
 }
 
 async function updatePlayerStatsDelta(base44, playerId, outcomeDelta) {
