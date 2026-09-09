@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Plus, Loader2, CheckCircle2, Clock, AlertTriangle,
-  XCircle, Link2, RefreshCw, Trash2, Check, ChevronUp,
+  XCircle, Link2, Trash2, Check, ChevronUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { base44 } from "@/api/base44Client";
 import SeamlessPlaidBankLink from "./SeamlessPlaidBankLink";
-import { getTransferFailureMessage } from "./transferFailureCopy";
 
 // Seamless ACH funding panel. Bank credentials are collected only inside the
 // Seamless-hosted Plaid flow. Verification, deposits, and withdrawals remain
@@ -24,13 +23,6 @@ const BANK_STATUS = {
   verification_expired: { label: "Reconnect required", color: "text-red-400", icon: XCircle },
   deleted: { label: "Removed", color: "text-white/40", icon: XCircle },
   error: { label: "Needs attention", color: "text-red-400", icon: XCircle },
-};
-
-const TX_STATUS = {
-  pending: { label: "Pending", color: "text-amber-400", icon: Clock },
-  completed: { label: "Completed", color: "text-emerald-400", icon: CheckCircle2 },
-  failed: { label: "Failed", color: "text-red-400", icon: XCircle },
-  reversed: { label: "Reversed", color: "text-red-400", icon: RefreshCw },
 };
 
 function BankRow({ bank, busy, onMakePrimary, onDisconnect }) {
@@ -85,34 +77,6 @@ function BankRow({ bank, busy, onMakePrimary, onDisconnect }) {
           </button>
         </div>
       )}
-    </div>
-  );
-}
-
-function TxRow({ tx }) {
-  const s = TX_STATUS[tx.status] || TX_STATUS.pending;
-  const Icon = s.icon;
-  const isDeposit = tx.type === "deposit";
-  const failed = tx.status === "failed";
-  return (
-    <div className="flex items-start justify-between gap-3 py-2.5 text-sm">
-      <div className="flex min-w-0 items-start gap-2">
-        <Icon size={14} className={`${s.color} mt-0.5 shrink-0`} />
-        <div className="min-w-0">
-          <p className="text-white/70">{isDeposit ? "Deposit" : "Withdrawal"}</p>
-          {failed && (
-            <p className="mt-0.5 text-[11px] leading-relaxed text-red-300/75">
-              {getTransferFailureMessage(tx)}
-            </p>
-          )}
-        </div>
-      </div>
-      <div className="flex shrink-0 items-center gap-2">
-        <span className={failed ? "text-white/45" : isDeposit ? "text-emerald-400" : "text-white/70"}>
-          {failed ? "" : isDeposit ? "+" : "-"}${Number(tx.amount || 0).toFixed(2)}
-        </span>
-        <span className={`text-xs ${s.color}`}>{s.label}</span>
-      </div>
     </div>
   );
 }
@@ -653,15 +617,6 @@ export default function SeamlessFundingPanel({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Recent Seamless transactions */}
-      {state?.recent?.length > 0 && (
-        <div className="rounded-2xl bg-white/[0.02] border border-white/5 p-4">
-          <h4 className="text-xs uppercase tracking-widest text-white/40 mb-2">Pending & Recent Transfers</h4>
-          <div className="divide-y divide-white/5">
-            {state.recent.map((tx) => <TxRow key={tx.id} tx={tx} />)}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
