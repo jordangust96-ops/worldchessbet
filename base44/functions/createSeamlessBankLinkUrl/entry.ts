@@ -70,19 +70,19 @@ Deno.serve(async (req) => {
     const attemptId = crypto.randomUUID();
     const acceptedAt = new Date().toISOString();
 
-    const existing = await base44.asServiceRole.entities.AchDebitAuthorization.filter(
+    const existing = await base44.asServiceRole.entities['ach-debit-authorization'].filter(
       { user_id: user.id, status: 'active' }, '-accepted_at', 20
     );
     for (const authorization of existing) {
       if (!authorization.funding_source_id) {
-        await base44.asServiceRole.entities.AchDebitAuthorization.update(authorization.id, {
+        await base44.asServiceRole.entities['ach-debit-authorization'].update(authorization.id, {
           status: 'superseded',
           revoked_at: acceptedAt,
         });
       }
     }
 
-    const authorization = await base44.asServiceRole.entities.AchDebitAuthorization.create({
+    const authorization = await base44.asServiceRole.entities['ach-debit-authorization'].create({
       user_id: user.id,
       signer_name: signerName,
       signature_method: 'authenticated_clickwrap',
