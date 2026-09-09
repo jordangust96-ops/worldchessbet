@@ -186,7 +186,16 @@
     "withdrawal_hold": {
       "type": "boolean",
       "default": false,
-      "description": "Set by an admin (via the Integrity Review Queue) to temporarily block this user's withdrawals while an integrity review is active. Never set automatically.",
+      "description": "Blocks deposits, withdrawals, and paid-contest entry while an integrity review or unresolved returned-ACH shortfall is active. Set only by trusted backend/admin paths; never by the browser.",
+      "rls": {
+        "write": false
+      }
+    },
+    "ach_return_balance_due": {
+      "type": "number",
+      "default": 0,
+      "minimum": 0,
+      "description": "Unrecovered amount from a returned ACH deposit after all available wallet funds were applied. While positive, withdrawal_hold remains active and paid contests are blocked.",
       "rls": {
         "write": false
       }
