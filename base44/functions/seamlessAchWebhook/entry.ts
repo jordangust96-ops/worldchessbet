@@ -509,6 +509,21 @@ async function handleFundingSource(base44, body, eventType, idemKey) {
     }
   }
 
+  if (eventType === 'funding-source.made-primary' && bank?.is_primary) {
+    const primaryBanks = await base44.asServiceRole.entities.SeamlessBankAccount.filter(
+      { user_id: bank.user_id, is_primary: true },
+      '-updated_date',
+      50
+    );
+    for (const other of primaryBanks) {
+      if (other.id !== bank.id) {
+        await base44.asServiceRole.entities.SeamlessBankAccount.update(other.id, {
+          is_primary: false,
+        });
+      }
+    }
+  }
+
   await syncHostedPlaidAccountState(base44, bank, profile, eventType, eventId || idemKey, now);
 
   await auditFundingSource(base44, {
