@@ -1,0 +1,45 @@
+{
+  "name": "Deposit Availability Release",
+  "description": "Every 15 minutes, rechecks due processed ACH deposits with Seamless and releases only confirmed deposits from clearing into spendable wallet funds.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "*/15 * * * *",
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "deposit_availability_release",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "release_due_deposits": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "releaseClearedDeposits",
+            "args": {}
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Release Cleared Deposits",
+            "description": "Freshly confirm provider status before making due ACH deposits available"
+          }
+        }
+      }
+    ]
+  }
+}
