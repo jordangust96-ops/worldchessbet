@@ -138,6 +138,25 @@ export async function releaseUserWalletLock(userId: string, owner: string) {
   await evalAtomic(RELEASE_LOCK, [key('wallet-lock', userId)], [owner]);
 }
 
+// One global ledger lease serializes journal creation and balance
+// materialization across every wallet and protected system account. Financial
+// volume is intentionally modest and correctness is more important than
+// parallel posting. The deterministic ledger_group_id remains the durable
+// idempotency key if a worker disappears after journaling but before all
+// derived balances have been refreshed.
+export async function acquireLedgerLock(owner: string) {
+  const acquired = await evalAtomic(
+    ACQUIRE_LOCK,
+    [key('ledger-lock', 'global')],
+    [owner, String(LOCK_TTL_MS)]
+  );
+  return Number(acquired) === 1;
+}
+
+export async function releaseLedgerLock(owner: string) {
+  await evalAtomic(RELEASE_LOCK, [key('ledger-lock', 'global')], [owner]);
+}
+
 async function claimPaymentOperation(kind: 'deposit' | 'withdrawal', userId: string, idempotencyKey: string, amount: number) {
   const recordKey = key(kind, `${userId}:${idempotencyKey}`);
   const proposed = JSON.stringify({ user_id: userId, idempotency_key: idempotencyKey, amount, state: 'new' });
