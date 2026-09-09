@@ -194,6 +194,89 @@ async function auditFundingSource(base44, {
   });
 }
 
+async function syncHostedPlaidAccountState(base44, bank, profile, eventType, eventId, now) {
+  if (!bank?.user_id || !bank?.source_id) return;
+
+  const user = await base44.asServiceRole.entities.User.get(bank.user_id);
+  if (!user) return;
+
+  if (bank.status === 'verified') {
+    const userUpdates: Record<string, unknown> = {
+      identity_verification_status: 'verified',
+      identity_verification_provider: 'seamless_ach_plaid',
+      identity_provider_reference: bank.source_id,
+      identity_verified_at: bank.verified_at || now,
+    };
+    if (!['suspended', 'closed'].includes(user.account_state || '')) {
+      userUpdates.account_state = 'verified';
+    }
+    await base44.asServiceRole.entities.User.update(user.id, userUpdates);
+
+    const authorizations = await base44.asServiceRole.entities.AchDebitAuthorization.filter(
+      { user_id: user.id, status: 'active' }, '-accepted_at', 20
+    );
+    const candidate = authorizations.find((authorization) =>
+      authorization.provider_key === 'seamless_ach_plaid' &&
+      authorization.provider_user_id === profile.provider_user_id &&
+      (!authorization.funding_source_id || authorization.funding_source_id === bank.source_id)
+    );
+    if (candidate) {
+      await base44.asServiceRole.entities.AchDebitAuthorization.update(candidate.id, {
+        funding_source_id: bank.source_id,
+        provider_event_id: eventId,
+        account_last_four: bank.account_mask || '',
+        bank_name: bank.account_name || '',
+        retention_until: candidate.retention_until || (() => {
+          const date = new Date(now);
+          date.setUTCFullYear(date.getUTCFullYear() + 2);
+          return date.toISOString();
+        })(),
+      });
+    }
+    for (const authorization of authorizations) {
+      if (authorization.id !== candidate?.id && !authorization.funding_source_id) {
+        await base44.asServiceRole.entities.AchDebitAuthorization.update(authorization.id, {
+          status: 'superseded',
+          revoked_at: now,
+        });
+      }
+    }
+    return;
+  }
+
+  if (!['verification_failed', 'verification_expired', 'deleted'].includes(bank.status)) return;
+
+  const authorizations = await base44.asServiceRole.entities.AchDebitAuthorization.filter(
+    { user_id: user.id, funding_source_id: bank.source_id, status: 'active' },
+    '-accepted_at',
+    20
+  );
+  for (const authorization of authorizations) {
+    await base44.asServiceRole.entities.AchDebitAuthorization.update(authorization.id, {
+      status: 'revoked',
+      revoked_at: now,
+      provider_event_id: eventId,
+    });
+  }
+
+  if (
+    user.identity_verification_provider === 'seamless_ach_plaid' &&
+    user.identity_provider_reference === bank.source_id
+  ) {
+    const verifiedBanks = await base44.asServiceRole.entities.SeamlessBankAccount.filter(
+      { user_id: user.id, status: 'verified' }, '-verified_at', 2
+    );
+    if (verifiedBanks.length === 0) {
+      const updates: Record<string, unknown> = {
+        identity_verification_status:
+          bank.status === 'verification_failed' ? 'failed' : 'expired',
+      };
+      if (user.account_state === 'verified') updates.account_state = 'provisional';
+      await base44.asServiceRole.entities.User.update(user.id, updates);
+    }
+  }
+}
+
 async function handleFundingSource(base44, body, eventType, idemKey) {
   const sourceId = pickSourceId(body);
   const providerUserId = pickCustomerId(body);
@@ -286,7 +369,7 @@ async function handleFundingSource(base44, body, eventType, idemKey) {
     if (initialStatus === 'verified') createFields.verified_at = providerEventAt || now;
     if (rtpEligible != null) createFields.rtp_eligibility_checked_at = providerEventAt || now;
     if (providerEventAt) createFields.provider_event_at = providerEventAt;
-    if (eventId) createFields.last_provider_event_id = eventId;
+    createFields.last_provider_event_id = eventId || idemKey;
     bank = await base44.asServiceRole.entities.SeamlessBankAccount.create(createFields);
   } else if (decision.action === 'apply' || decision.action === 'metadata') {
     const updates = {};
@@ -295,7 +378,7 @@ async function handleFundingSource(base44, body, eventType, idemKey) {
     if (decision.action === 'apply') {
       updates.status = decision.status;
       if (providerEventAt) updates.provider_event_at = providerEventAt;
-      if (eventId) updates.last_provider_event_id = eventId;
+      updates.last_provider_event_id = eventId || idemKey;
       if (decision.status === 'verified') updates.verified_at = providerEventAt || now;
       if (['verification_failed', 'verification_expired', 'deleted'].includes(decision.status)) {
         updates.is_primary = false;
@@ -303,7 +386,7 @@ async function handleFundingSource(base44, body, eventType, idemKey) {
     }
     if (decision.action === 'metadata') {
       if (decision.providerEventAt) updates.provider_event_at = decision.providerEventAt;
-      if (eventId) updates.last_provider_event_id = eventId;
+      updates.last_provider_event_id = eventId || idemKey;
     }
     if (accountName) updates.account_name = accountName;
     if (accountMask) updates.account_mask = accountMask;
@@ -317,6 +400,8 @@ async function handleFundingSource(base44, body, eventType, idemKey) {
       bank = await base44.asServiceRole.entities.SeamlessBankAccount.update(bank.id, updates);
     }
   }
+
+  await syncHostedPlaidAccountState(base44, bank, profile, eventType, eventId || idemKey, now);
 
   await auditFundingSource(base44, {
     eventType, idemKey, sourceId, providerUserId, bank, profile,
