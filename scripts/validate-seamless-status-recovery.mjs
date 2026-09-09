@@ -69,7 +69,7 @@ assert.match(consent, /seamless-hosted-plaid-2026-09-09-v1/,
   'hosted Plaid authorization is versioned');
 assert.match(hostedLink, /seamlessHostedPlaidEnabled\(\)/,
   'hosted bank verification fails closed when provider configuration is absent');
-assert.match(hostedLink, /AchDebitAuthorization\.create/,
+assert.match(hostedLink, /entities\['ach-debit-authorization'\]\.create/,
   'authorization is retained before the hosted bank flow begins');
 
 console.log('Seamless ACH status recovery verification passed.');
