@@ -42,7 +42,8 @@
         "admin_adjustment",
         "reversal",
         "investigation_hold",
-        "investigation_hold_release"
+        "investigation_hold_release",
+        "withdrawal_fee"
       ]
     },
     "debit_amount": {
