@@ -16,6 +16,8 @@ export const PATH_CREATE_CUSTOMER = '/user';
 export const PATH_ACH_DEBIT = '/ach-debit';
 export const PATH_CHECK_SEND = '/check/send';
 export const PATH_CHECK = '/check';
+export const PATH_ACCOUNT = '/account';
+export const PATH_BALANCE_CHECK = '/funding-source/check/balance';
 export const PATH_BALANCE_FROM_ACCOUNT = '/funding-source/add/balance/from-account';
 export const PATH_BALANCE_TO_ACCOUNT = '/funding-source/add/balance/to-account';
 export const PATH_REMOVE_FUNDING_SOURCE = '/funding-source/remove';
@@ -26,6 +28,12 @@ export function buildCheckLookupPath(checkId) {
   const id = String(checkId || '').trim();
   if (!id) throw new Error('Seamless check_id required');
   return `${PATH_CHECK}/${encodeURIComponent(id)}`;
+}
+
+export function buildMerchantBalanceLookupPath(userId) {
+  const id = String(userId || '').trim();
+  if (!id) throw new Error('Seamless merchant user_id required');
+  return `${PATH_BALANCE_CHECK}/${encodeURIComponent(id)}`;
 }
 
 export function formatAmount(value) {
