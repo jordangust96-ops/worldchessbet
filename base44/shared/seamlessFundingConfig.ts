@@ -29,6 +29,11 @@ export function seamlessRtpPayoutsEnabled() {
   return seamlessProviderApproved() && enabled('SEAMLESS_RTP_PAYOUTS_ENABLED');
 }
 
+// Temporary compatibility alias while callers migrate in this same change set.
+export function seamlessThirdPartyFundingEnabled() {
+  return seamlessHostedPlaidEnabled();
+}
+
 export function seamlessHostedPlaidEnabled() {
   const environment = (Deno.env.get('SEAMLESS_ACH_ENV') || '').trim().toLowerCase();
   return ['sandbox', 'production'].includes(environment) &&
