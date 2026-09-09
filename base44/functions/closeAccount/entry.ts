@@ -3,9 +3,9 @@ import { postLedgerLegs } from '../../shared/ledger.ts';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 import { seamlessWithdrawalsEnabled } from '../../shared/seamlessFundingConfig.ts';
 import { extendComplianceEvidenceRetention } from '../../shared/complianceEvidence.ts';
-import { isSocureIdentityVerified } from '../../shared/identityEligibility.js';
+import { isSeamlessPlaidVerified } from '../../shared/identityEligibility.js';
 import { legalNameFromUser } from '../../shared/legalName.ts';
-import { isSocureBankVerificationAccepted, latestSocureBankVerification } from '../../shared/socureBankEligibility.js';
+import { isSeamless hosted PlaidBankVerificationAccepted, latestSeamless hosted PlaidBankVerification } from '../../shared/socureBankEligibility.js';
 import {
   seamlessConfig, seamlessRequest, buildWithdrawalBody,
   PATH_CHECK_SEND, SEAMLESS_PROVIDER_KEY,
@@ -130,7 +130,7 @@ Deno.serve(async (req) => {
             available_balance: payout,
           }, { status: 409 });
         }
-        if (!isSocureIdentityVerified(user)) {
+        if (!isSeamlessPlaidVerified(user)) {
           return Response.json({
             error: 'Complete identity verification before closing an account with a remaining balance.',
             action: 'identity_verification_required',
@@ -146,9 +146,9 @@ Deno.serve(async (req) => {
             available_balance: payout,
           }, { status: 400 });
         }
-        const bankVerifications = await base44.asServiceRole.entities.SocureBankVerification.filter({ user_id: user.id, source_id: bank.source_id });
-        const bankVerification = latestSocureBankVerification(bankVerifications, bank.source_id);
-        if (!isSocureBankVerificationAccepted(bankVerification, bank.source_id)) {
+        const bankVerifications = await base44.asServiceRole.entities.Seamless hosted PlaidBankVerification.filter({ user_id: user.id, source_id: bank.source_id });
+        const bankVerification = latestSeamless hosted PlaidBankVerification(bankVerifications, bank.source_id);
+        if (!isSeamless hosted PlaidBankVerificationAccepted(bankVerification, bank.source_id)) {
           return Response.json({
             error: 'Complete bank account screening before closing an account with a remaining balance.',
             action: 'bank_screening_required',
