@@ -1,0 +1,45 @@
+{
+  "name": "Hourly Seamless Pooled Funds Reconciliation",
+  "description": "Hourly read-only comparison of the Seamless merchant available balance with all player wallet liabilities. Creates an internal critical finding on any shortfall.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "7 * * * *",
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "hourly_seamless_pooled_funds_reconciliation",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "reconcile_pooled_funds": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "reconcileSeamlessPooledFunds",
+            "args": {}
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Reconcile Seamless Pooled Funds",
+            "description": "Compare provider cash with internal wallet liabilities"
+          }
+        }
+      }
+    ]
+  }
+}
