@@ -3,11 +3,6 @@ export const SEAMLESS_PLAID_IDENTITY_PROVIDER = 'seamless_ach_plaid';
 // ChessBet treats only a verified Seamless funding source produced by the
 // hosted Plaid flow as the account-verification signal for money movement.
 // The webhook, never the browser callback, writes this snapshot.
-// Temporary compatibility alias while callers migrate in this same change set.
-export function isSocureIdentityVerified(user) {
-  return isSeamlessPlaidVerified(user);
-}
-
 export function isSeamlessPlaidVerified(user) {
   return !!user &&
     user.account_state === 'verified' &&
