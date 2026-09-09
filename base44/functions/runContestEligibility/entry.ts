@@ -9,7 +9,7 @@ import { isSeamlessPlaidVerified } from '../../shared/identityEligibility.js';
 // of this validation logic anywhere else.
 //
 // Checks run in a fixed, cost-aware order:
-//   1. Identity Verification (authoritative Seamless hosted Plaid server result)
+//   1. Account Verification (authoritative Seamless hosted Plaid server result)
 //   2. Participation Restrictions (admin-applied withdrawal_hold)
 //   3. Available Balance Check (>= entryAmount)
 //   4. Jurisdiction Check (fresh or same-IP short-cache, server-side)
@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Invalid entry amount' }, { status: 400 });
     }
 
-    // 1. Identity Verification — only an authoritative Seamless hosted Plaid result is
+    // 1. Account Verification — only an authoritative Seamless hosted Plaid result is
     // eligible for real-money contest activity.
     if (!isSeamlessPlaidVerified(user)) {
       const reason =
@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
           ? 'Your account is currently suspended and cannot enter paid contests.'
           : user.account_state === 'closed'
           ? 'This account is closed and cannot enter paid contests.'
-          : 'You must complete identity verification before you can enter a paid contest.';
+          : 'You must connect and verify a bank before you can enter a paid contest.';
       return Response.json({ eligible: false, reason });
     }
 
