@@ -18,6 +18,8 @@ export const PATH_CHECK_SEND = '/check/send';
 export const PATH_CHECK = '/check';
 export const PATH_BALANCE_FROM_ACCOUNT = '/funding-source/add/balance/from-account';
 export const PATH_BALANCE_TO_ACCOUNT = '/funding-source/add/balance/to-account';
+export const PATH_REMOVE_FUNDING_SOURCE = '/funding-source/remove';
+export const PATH_SET_PRIMARY_FUNDING_SOURCE = '/funding-source/set/primary';
 
 // Amounts are sent to Seamless as fixed 2-decimal strings.
 export function buildCheckLookupPath(checkId) {
@@ -244,14 +246,18 @@ export function applyFundingSourceEvent(current, event) {
     }
   }
 
-  if (currentStatus && !currentAt) {
-    if (['funding-source.added', 'funding-source.pending-verification'].includes(eventType) &&
-        ['verified', 'verification_failed', 'verification_expired', 'deleted'].includes(currentStatus)) {
-      return { action: 'ignore', status: currentStatus, providerEventAt: currentAt, reason: 'non_downgrade' };
-    }
-    if (eventType === 'funding-source.verified' && currentStatus === 'deleted') {
-      return { action: 'ignore', status: currentStatus, providerEventAt: currentAt, reason: 'non_resurrection' };
-    }
+  // "added" and "pending-verification" describe enrollment progress, not
+  // a new failure of an already-verified source. Providers can emit those
+  // callbacks a second later than "verified", so timestamp ordering alone is
+  // insufficient: never let them downgrade an advanced lifecycle state.
+  if (
+    ['funding-source.added', 'funding-source.pending-verification'].includes(eventType) &&
+    ['verified', 'verification_failed', 'verification_expired', 'deleted'].includes(currentStatus)
+  ) {
+    return { action: 'ignore', status: currentStatus, providerEventAt: currentAt, reason: 'non_downgrade' };
+  }
+  if (eventType === 'funding-source.verified' && currentStatus === 'deleted') {
+    return { action: 'ignore', status: currentStatus, providerEventAt: currentAt, reason: 'non_resurrection' };
   }
 
   if (metadataEvent) {
