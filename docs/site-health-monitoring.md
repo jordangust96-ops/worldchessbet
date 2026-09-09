@@ -18,7 +18,7 @@ The admin dashboard is implemented at /admin/health, linked from Profile → Adm
 - The collector retains 24 snapshots (about six hours) in one current record. Missing or older-than-35-minute observations are unknown.
 - An unauthenticated publicSiteHealth function returns only coarse availability and 503 for stale/missing/critical monitoring state. This endpoint is ready for a separate dead-man monitor; no independent heartbeat alert is configured yet.
 - Base44 cannot report its own complete outage by email. DigitalOcean's independent homepage check continues outside Base44, but its notification delivery is awaiting mailbox verification.
-- No financial, gameplay, account, provider configuration or infrastructure resource state is changed by health collection. Socure and Seamless checks read saved records; they do not prove end-to-end provider transaction or webhook delivery.
+- No financial, gameplay, account, provider configuration or infrastructure resource state is changed by health collection. Seamless checks read saved records; they do not prove end-to-end provider transaction or webhook delivery.
 
 ## DigitalOcean
 
@@ -36,7 +36,7 @@ npm run build passed. npm run test:site-health passed with mocked providers and 
 
 Full typecheck reports three existing errors in src/pages/Blog.jsx (Element.name/content typing), also present at the pre-change checkpoint. No monitoring-related type errors were reported.
 
-The first live run at 19:44 UTC exposed incompatible fetch options in the Base44 runtime and sent an incorrect connection-failure alert. The fetch bridge compatibility was corrected. The subsequent read-only live run at 19:48 UTC confirmed healthy website, both Redis stores and analyzer responses (154–266 ms); no email was sent by that verification. Four expired Socure sessions still marked pending were observed and left for review.
+The first live run at 19:44 UTC exposed incompatible fetch options in the Base44 runtime and sent an incorrect connection-failure alert. The fetch bridge compatibility was corrected. The subsequent read-only live run at 19:48 UTC confirmed healthy website, both Redis stores and analyzer responses (154–266 ms); no email was sent by that verification. Four legacy verification sessions still marked pending were observed and left as historical records.
 
 ## Operating controls
 
@@ -48,6 +48,6 @@ Pre-change checkpoint: 6a9f0f4b9e7c6399d8634a67 (commit 9a0d8939b76737b9ce35dc3f
 
 ## Final persisted verification
 
-At 20:04:07 UTC (4:04 PM Detroit), a real workflow run persisted status warning, with healthy website (262 ms), financial Redis (176 ms), rating Redis (175 ms), and analyzer (244 ms). The only measured warnings were the projected next-cycle credit shortfall and four overdue pending Socure records. No active games or analyzer backlog were observed. This supersedes the incorrect initial connection alert. DigitalOcean separately reported UP in all four regions; its email alerts are still not enabled. Anonymous requests to each protected monitoring API returned HTTP 401. The coarse public endpoint subsequently returned HTTP 200 with status ok.
+At 20:04:07 UTC (4:04 PM Detroit), a real workflow run persisted status warning, with healthy website (262 ms), financial Redis (176 ms), rating Redis (175 ms), and analyzer (244 ms). The only measured warnings were the projected next-cycle credit shortfall and four overdue legacy verification records. No active games or analyzer backlog were observed. This supersedes the incorrect initial connection alert. DigitalOcean separately reported UP in all four regions; its email alerts are still not enabled. Anonymous requests to each protected monitoring API returned HTTP 401. The coarse public endpoint subsequently returned HTTP 200 with status ok.
 
 Final code checkpoint: 6a9f182271a7ec06353f17c9 (commit 2bff05b370f078da80cf0543e3e0fea3f113854c). Preview visual verification is blocked by MFA/code-request rate limiting. No frontend publication was performed.
