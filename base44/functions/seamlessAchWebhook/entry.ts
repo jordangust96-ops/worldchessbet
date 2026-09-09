@@ -10,7 +10,7 @@ import { claimWebhookEvent, finishWebhookEvent } from '../../shared/seamlessAtom
 
 function pickCheckId(body) { return body?.check?.id || body?.check?.check_id || body?.check_id || body?.id || ''; }
 function pickSourceId(body) { return body?.source?.id || body?.source_id || body?.funding_source?.id || body?.funding_source_id || body?.fundingSourceId || ''; }
-function pickCustomerId(body) { return body?.customer_id || body?.user_id || body?.user?.id || body?.customer?.id || ''; }
+function pickCustomerId(body) { return body?.customer_id || body?.user_id || body?.user?.user_id || body?.user?.customer_id || body?.user?.id || body?.customer?.user_id || body?.customer?.id || ''; }
 function pickLabel(body) { return body?.check?.label || body?.label || body?.transaction?.label || ''; }
 function pickEventType(body) { return body?.event || body?.event_type || body?.type || ''; }
 function pickEventId(body) { return body?.event_id || body?.webhook_id || ''; }
@@ -67,7 +67,9 @@ Deno.serve(async (req) => {
   const eventId = pickEventId(body);
   const providerRef = eventType.startsWith('funding-source.')
     ? (pickSourceId(body) || pickCustomerId(body) || eventId)
-    : (pickCheckId(body) || pickSourceId(body) || pickLabel(body));
+    : eventType.startsWith('user.')
+      ? (pickCustomerId(body) || eventId)
+      : (pickCheckId(body) || pickSourceId(body) || pickLabel(body));
   const providerStatus = pickStatus(body);
   const idemKey = webhookIdempotencyKey({ eventId, providerRef, eventType, status: providerStatus, timestamp: body?.timestamp || '' });
 
@@ -122,6 +124,8 @@ Deno.serve(async (req) => {
     let result;
     if (eventType.startsWith('funding-source.')) {
       result = await handleFundingSource(base44, body, eventType, idemKey);
+    } else if (eventType === 'user.created' || eventType === 'user.changed') {
+      result = await handleCustomer(base44, body, eventType, idemKey);
     } else if (eventType === 'transaction.status' || eventType.startsWith('transaction.') || eventType === 'check.status' || eventType === 'status') {
       result = await handleTransaction(base44, body, eventType, idemKey, providerRef);
     } else {
@@ -142,6 +146,79 @@ Deno.serve(async (req) => {
     return Response.json({ error: 'webhook_processing_failed' }, { status: 500 });
   }
 });
+
+async function handleCustomer(base44, body, eventType, idemKey) {
+  const providerUserId = pickCustomerId(body);
+  const email = String(body?.user?.email || body?.customer?.email || body?.email || '').trim().toLowerCase();
+  const eventTime = normalizeProviderEventTime(body?.timestamp || body?.occurred_at || '') || new Date().toISOString();
+
+  const audit = async (status, result, userId = '', profileId = '') => {
+    await recordIntegrationEvent(base44, {
+      eventType: `seamless.${eventType}`,
+      aggregateType: 'user',
+      aggregateId: userId || providerUserId || idemKey,
+      correlationId: providerUserId || idemKey,
+      idempotencyKey: `audit:${idemKey}`,
+      actorType: 'system',
+      userId,
+      status,
+      result,
+      eventData: {
+        provider: SEAMLESS_PROVIDER_KEY,
+        provider_user_id: providerUserId,
+        profile_id: profileId,
+      },
+    });
+  };
+
+  if (!providerUserId || !email) {
+    await audit('unmatched', 'missing_customer_identity');
+    return { received: true, applied: false, unmatched: true };
+  }
+
+  const providerProfiles = await base44.asServiceRole.entities.SeamlessPaymentProfile.filter(
+    { provider_user_id: providerUserId }, '-created_date', 2
+  );
+  if (providerProfiles.length === 1) {
+    await audit('deduplicated', 'profile_exists', providerProfiles[0].user_id, providerProfiles[0].id);
+    return { received: true, applied: false, deduplicated: true };
+  }
+  if (providerProfiles.length > 1) {
+    await audit('conflict', 'duplicate_provider_profiles');
+    return { received: true, applied: false, unmatched: true };
+  }
+
+  const users = await base44.asServiceRole.entities.User.filter({ email }, '-created_date', 2);
+  if (users.length !== 1) {
+    await audit('unmatched', users.length > 1 ? 'ambiguous_email' : 'unknown_email');
+    return { received: true, applied: false, unmatched: true };
+  }
+
+  const user = users[0];
+  const userProfiles = await base44.asServiceRole.entities.SeamlessPaymentProfile.filter(
+    { user_id: user.id }, '-created_date', 2
+  );
+  if (userProfiles.some((profile) => profile.provider_user_id === providerUserId)) {
+    const profile = userProfiles.find((candidate) => candidate.provider_user_id === providerUserId);
+    await audit('deduplicated', 'profile_exists', user.id, profile.id);
+    return { received: true, applied: false, deduplicated: true };
+  }
+  if (userProfiles.some((profile) => profile.provider_user_id)) {
+    await audit('conflict', 'user_profile_conflict', user.id);
+    return { received: true, applied: false, unmatched: true };
+  }
+
+  const profile = await base44.asServiceRole.entities.SeamlessPaymentProfile.create({
+    user_id: user.id,
+    provider_user_id: providerUserId,
+    provider_key: SEAMLESS_PROVIDER_KEY,
+    status: 'created',
+    created_at: eventTime,
+    description: 'Recovered from authenticated Seamless customer webhook.',
+  });
+  await audit('created', 'profile_recovered', user.id, profile.id);
+  return { received: true, applied: true, profile_id: profile.id };
+}
 
 const FUNDING_SOURCE_EVENTS = new Set([
   'funding-source.added',
