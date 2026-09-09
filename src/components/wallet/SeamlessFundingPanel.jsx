@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
-  Plus, ArrowUpRight, Loader2, CheckCircle2, Clock, AlertTriangle,
-  XCircle, Link2, RefreshCw, Trash2, Check, ChevronDown, ChevronUp,
+  Plus, Loader2, CheckCircle2, Clock, AlertTriangle,
+  XCircle, Link2, RefreshCw, Trash2, Check, ChevronUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
