@@ -81,7 +81,6 @@ export default function SeamlessFundingPanel({
   accountState,
   withdrawalHold,
   onRefresh,
-  onJourneyStateChange,
 }) {
   const [state, setState] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -96,14 +95,13 @@ export default function SeamlessFundingPanel({
     try {
       const { data } = await base44.functions.invoke("getSeamlessWalletState", {});
       setState(data);
-      onJourneyStateChange?.({ bankStarted: !!data?.banks?.length, bankConnectionAvailable: !!data?.third_party_funding_enabled && !!data?.bank_screening_enabled });
       setError("");
     } catch (e) {
       setError(e?.message || "Unable to load funding status");
     } finally {
       setLoading(false);
     }
-  }, [onJourneyStateChange]);
+  }, []);
 
   useEffect(() => { load(); }, [load]);
 
@@ -111,10 +109,7 @@ export default function SeamlessFundingPanel({
   // Stop after ten inexpensive refreshes; later visits reload server state.
   useEffect(() => {
     const hasPending =
-      state?.banks?.some((b) =>
-        ["added", "pending_verification"].includes(b.status) ||
-        (b.status === "verified" && ["not_started", "processing"].includes(b.socure_status))
-      ) ||
+      state?.banks?.some((b) => ["added", "pending_verification"].includes(b.status)) ||
       state?.recent?.some((t) => t.status === "pending");
     if (!hasPending) {
       pollAttempts.current = 0;
