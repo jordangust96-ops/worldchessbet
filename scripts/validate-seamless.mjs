@@ -134,7 +134,7 @@ assert.match(hostedLink, /Disconnect bank/);
 assert.match(hostedLink, /Choose a transfer type/);
 assert.match(hostedLink, /\[10, 25, 50, 100\]/);
 assert.match(hostedLink, /"Add \$" \+ formattedAmount \+ " to wallet"/);
-assert.match(hostedLink, />Manage</);
+assert.match(hostedLink, /showBankManager \? "Done" : "Manage"/);
 assert.doesNotMatch(hostedLink, /<Plus[^>]*\/> Deposit/);
 assert.doesNotMatch(hostedLink, /Deposit to ChessBet wallet/);
 assert.match(deposit, /isSeamlessPlaidVerified\(user\)/);
