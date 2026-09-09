@@ -276,7 +276,7 @@ Deno.serve(async (req) => {
       schema_version: 1,
       generated_at: new Date().toISOString(),
       // ChessBet now has two live partners covering different concerns
-      // (Seamless for funds movement, Socure for identity/bank screening),
+      // (Seamless hosted Plaid for bank verification and Seamless for funds movement),
       // so a single static provider_key is no longer accurate. Report the
       // distinct provider_key values actually present on this packet's own
       // integration references instead of a hardcoded placeholder.
