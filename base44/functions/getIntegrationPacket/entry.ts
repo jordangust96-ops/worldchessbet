@@ -275,11 +275,9 @@ Deno.serve(async (req) => {
       contract: 'chessbet.funds_flow.integration_packet',
       schema_version: 1,
       generated_at: new Date().toISOString(),
-      // ChessBet now has two live partners covering different concerns
-      // (Seamless hosted Plaid for bank verification and Seamless for funds movement),
-      // so a single static provider_key is no longer accurate. Report the
-      // distinct provider_key values actually present on this packet's own
-      // integration references instead of a hardcoded placeholder.
+      // Report the distinct provider keys present on this packet's own
+      // integration references rather than a hardcoded placeholder. Seamless
+      // owns bank verification and funds movement in the active path.
       provider_keys: [...new Set(integrationReferences.map((reference) => reference.provider_key).filter(Boolean))],
       canonical_ids: {
         player_ids: participantIds,
