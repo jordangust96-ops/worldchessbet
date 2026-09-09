@@ -1,0 +1,110 @@
+{
+  "name": "LedgerJournalBatch",
+  "type": "object",
+  "properties": {
+    "ledger_group_id": {
+      "type": "string",
+      "maxLength": 255,
+      "description": "Deterministic idempotency key for the complete balanced posting."
+    },
+    "correlation_id": {
+      "type": "string",
+      "maxLength": 255
+    },
+    "wallet_transaction_id": {
+      "type": "string"
+    },
+    "match_id": {
+      "type": "string"
+    },
+    "game_id": {
+      "type": "string"
+    },
+    "trigger_event": {
+      "type": "string",
+      "maxLength": 128
+    },
+    "initiating_actor": {
+      "type": "string",
+      "enum": [
+        "user",
+        "system",
+        "administrator"
+      ]
+    },
+    "initiating_actor_id": {
+      "type": "string"
+    },
+    "external_reference_type": {
+      "type": "string"
+    },
+    "external_reference_id": {
+      "type": "string"
+    },
+    "total_debit": {
+      "type": "number"
+    },
+    "total_credit": {
+      "type": "number"
+    },
+    "leg_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "legs_json": {
+      "type": "string",
+      "maxLength": 50000,
+      "description": "Canonical complete set of balanced posting legs, committed in this single immutable record."
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "USD"
+      ],
+      "default": "USD"
+    },
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 1
+    },
+    "launch_epoch": {
+      "type": "integer",
+      "minimum": 2,
+      "default": 2
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000
+    }
+  },
+  "required": [
+    "ledger_group_id",
+    "correlation_id",
+    "trigger_event",
+    "initiating_actor",
+    "total_debit",
+    "total_credit",
+    "leg_count",
+    "legs_json",
+    "created_at"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": false,
+    "delete": false
+  }
+}
