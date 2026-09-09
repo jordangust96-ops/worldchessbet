@@ -1,14 +1,14 @@
-// Real Seamless ACH movement is deliberately opt-in in each direction. An
-// absent, misspelled, or non-true value keeps that direction disabled. The
-// switches remain independent so launch operations can stage and roll back
-// deposits and withdrawals separately after provider approval.
+// Real Seamless ACH movement remains opt-in by direction. Hosted Plaid bank
+// authorization is safe to expose whenever the approved Seamless environment
+// and both API keys are configured; it does not itself move money.
 function enabled(name: string) {
   return (Deno.env.get(name) || '').trim().toLowerCase() === 'true';
 }
 
-// Set only after Seamless's final integration contract and acceptance tests.
-// Keep approval set during ordinary rollback; use direction switches instead
-// so stopping new deposits never accidentally blocks required withdrawals.
+function configured(name: string) {
+  return !!(Deno.env.get(name) || '').trim();
+}
+
 export function seamlessProviderApproved() {
   return enabled('SEAMLESS_PROVIDER_APPROVED');
 }
@@ -29,8 +29,9 @@ export function seamlessRtpPayoutsEnabled() {
   return seamlessProviderApproved() && enabled('SEAMLESS_RTP_PAYOUTS_ENABLED');
 }
 
-// Separate provider-approval gate for ChessBet-owned bank verification. This
-// remains false when absent so the unapproved endpoint is never called.
-export function seamlessThirdPartyFundingEnabled() {
-  return seamlessProviderApproved() && enabled('SEAMLESS_THIRD_PARTY_FUNDING_ENABLED');
+export function seamlessHostedPlaidEnabled() {
+  const environment = (Deno.env.get('SEAMLESS_ACH_ENV') || '').trim().toLowerCase();
+  return ['sandbox', 'production'].includes(environment) &&
+    configured('SEAMLESS_ACH_PUBLIC_KEY') &&
+    configured('SEAMLESS_ACH_SECRET_KEY');
 }
