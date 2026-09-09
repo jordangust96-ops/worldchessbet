@@ -2,7 +2,7 @@ import { paidContestsEnabled } from '../../shared/seamlessFundingConfig.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { postLedgerLegs } from '../../shared/ledger.ts';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
-import { isSocureIdentityVerified } from '../../shared/identityEligibility.js';
+import { isSeamlessPlaidVerified } from '../../shared/identityEligibility.js';
 import { acquireUserWalletLock, releaseUserWalletLock } from '../../shared/seamlessAtomicStore.ts';
 
 // Reserves a player's Entry Amount into escrow during the shared Preparing
@@ -43,9 +43,9 @@ Deno.serve(async (req) => {
     userId = user.id;
 
     // Only Verified accounts may enter paid contests (Provisional/Suspended/
-    // Closed accounts cannot lock a wager. Only an authoritative Socure
+    // Closed accounts cannot lock a wager. Only an authoritative Seamless hosted Plaid
     // verification result is eligible for real-money contest activity.
-    if (!isSocureIdentityVerified(user)) {
+    if (!isSeamlessPlaidVerified(user)) {
       return Response.json({ error: 'Your account must be verified before you can enter a paid contest' }, { status: 403 });
     }
 
