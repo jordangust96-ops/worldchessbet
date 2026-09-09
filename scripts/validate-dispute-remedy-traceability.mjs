@@ -118,10 +118,10 @@ assert.match(disputeSrc, /caseUpdates\.wallet_transaction_ids = \[\.\.\.\(disput
 
 assert.match(disputeSrc, /walletTransactionId: pendingPayout\.id,/, 'the end-of-case pending-payout release also tags its ledger leg back to the original payout WalletTransaction');
 
-assert.match(disputeSrc, /wallet_transaction_id: leg\.walletTransactionId \|\| ''/, "postRemedyLegs threads each leg's walletTransactionId onto the LedgerEntry it creates");
+assert.match(ledgerSrc, /wallet_transaction_id: leg\.walletTransactionId \|\| walletTransactionId \|\| ''/, "the shared atomic ledger threads each remedy leg's WalletTransaction id onto its materialized LedgerEntry");
 
 assert.match(ledgerSrc, /walletTransactionId = ''/, 'applyBalanceHold accepts an optional walletTransactionId parameter');
-assert.match(ledgerSrc, /wallet_transaction_id: walletTransactionId \|\| ''/, 'applyBalanceHold tags the LedgerEntry it creates with the caller-supplied walletTransactionId');
+assert.match(ledgerSrc, /wallet_transaction_id: leg\.walletTransactionId \|\| walletTransactionId \|\| ''/, 'applyBalanceHold tags the LedgerEntry it creates with the caller-supplied walletTransactionId');
 
 assert.match(disputeCaseSchemaSrc, /"wallet_transaction_ids"/, 'DisputeCase already had a wallet_transaction_ids field — it is now actually populated by manageDisputeCase');
 assert.match(caseResolutionSchemaSrc, /"reversal_wallet_transaction_ids"/, 'CaseResolution schema carries reversal_wallet_transaction_ids alongside reversal_ledger_entry_ids');
