@@ -1,6 +1,6 @@
 {
-  "name": "Identity Verification Reconciliation Sweep",
-  "description": "Every 30 minutes, re-syncs each verified user's denormalized identity_verification_status/account_state against the underlying SocureIdentityVerification record it was set from, downgrading eligibility if they ever disagree.",
+  "name": "Hosted Bank Verification Reconciliation Sweep",
+  "description": "Every 30 minutes, re-syncs player eligibility against the webhook-evidenced Seamless hosted Plaid funding source, downgrading eligibility if they disagree.",
   "trigger": {
     "condition": null,
     "config": {
@@ -21,13 +21,13 @@
   "definition": {
     "document": {
       "dsl": "1.0.0",
-      "name": "identity_verification_reconciliation_sweep",
+      "name": "hosted_bank_verification_reconciliation_sweep",
       "version": "1.0",
       "namespace": "base44"
     },
     "do": [
       {
-        "reconcile_identity_verification": {
+        "reconcile_bank_verification": {
           "call": "invoke_backend_function",
           "with": {
             "function_name": "reconcileIdentityVerification",
@@ -35,8 +35,8 @@
           },
           "then": "end",
           "x-base44": {
-            "title": "Reconcile Identity Verification Status",
-            "description": "Re-sync User.identity_verification_status/account_state against SocureIdentityVerification; downgrade on drift"
+            "title": "Reconcile Hosted Bank Verification",
+            "description": "Re-sync player eligibility against webhook-verified SeamlessBankAccount records; downgrade on drift"
           }
         }
       }
