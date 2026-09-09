@@ -6,10 +6,10 @@ import {
   seamlessThirdPartyFundingEnabled,
   seamlessWithdrawalsEnabled,
 } from '../../shared/seamlessFundingConfig.ts';
-import { isSocureIdentityVerified } from '../../shared/identityEligibility.js';
+import { isSeamlessPlaidVerified } from '../../shared/identityEligibility.js';
 import { legalNameFromUser } from '../../shared/legalName.ts';
 import { socureConfig } from '../../shared/socure.ts';
-import { latestSocureBankVerification, publicSocureBankStatus } from '../../shared/socureBankEligibility.js';
+import { latestSeamless hosted PlaidBankVerification, publicSeamless hosted PlaidBankStatus } from '../../shared/socureBankEligibility.js';
 
 // Read-only view of the authenticated user's Seamless funding state for the
 // Wallet page. Reads ONLY our own stored records (SeamlessPaymentProfile,
@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
     const banks = await base44.asServiceRole.entities.SeamlessBankAccount.filter(
       { user_id: user.id }, '-added_at', 50
     );
-    const bankVerifications = await base44.asServiceRole.entities.SocureBankVerification.filter(
+    const bankVerifications = await base44.asServiceRole.entities.Seamless hosted PlaidBankVerification.filter(
       { user_id: user.id }, '-requested_at', 100
     );
 
@@ -69,14 +69,14 @@ Deno.serve(async (req) => {
       third_party_funding_enabled: thirdPartyFundingEnabled,
       bank_screening_enabled: bankScreeningEnabled,
       has_completed_deposit: completedDeposits.length > 0,
-      identity_verified: isSocureIdentityVerified(user),
+      identity_verified: isSeamlessPlaidVerified(user),
       legal_name: legalNameFromUser(user)?.fullName || '',
       identity_status: user.identity_verification_status || 'not_started',
       account_state: user.account_state || 'provisional',
       withdrawal_hold: !!user.withdrawal_hold,
       profile: profile ? { exists: true, status: profile.status || 'created' } : null,
       banks: banks.map((bank) => {
-        const verification = latestSocureBankVerification(bankVerifications, bank.source_id);
+        const verification = latestSeamless hosted PlaidBankVerification(bankVerifications, bank.source_id);
         return {
           id: bank.id,
           source_id: bank.source_id || '',
@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
           account_mask: bank.account_mask || '',
           is_primary: !!bank.is_primary,
           status: bank.status || 'added',
-          socure_status: publicSocureBankStatus(verification),
+          socure_status: publicSeamless hosted PlaidBankStatus(verification),
           added_at: bank.added_at || '',
           verified_at: bank.verified_at || '',
         };
