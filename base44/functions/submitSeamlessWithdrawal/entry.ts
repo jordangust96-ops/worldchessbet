@@ -18,10 +18,6 @@ const SMALL_WITHDRAWAL_THRESHOLD = 10;
 const SMALL_WITHDRAWAL_FEE = 2.50;
 const IDEMPOTENCY_KEY = /^[A-Za-z0-9._:-]{16,128}$/;
 
-async function hasLedgerGroup(base44, groupId) {
-  return (await base44.asServiceRole.entities.LedgerEntry.filter({ ledger_group_id: groupId }, '-created_date', 1)).length > 0;
-}
-
 async function upsertOperationAudit(base44, fields) {
   const existing = (await base44.asServiceRole.entities.SeamlessOperation.filter(
     { operation_type: 'withdrawal', idempotency_key: fields.idempotency_key }, '-created_date', 1
@@ -32,8 +28,7 @@ async function upsertOperationAudit(base44, fields) {
 
 async function reserveWithdrawal(base44, tx, amount) {
   const groupId = `seamless:withdrawal:reserve:${tx.id}`;
-  if (!await hasLedgerGroup(base44, groupId)) {
-    await postLedgerLegs(base44, {
+  await postLedgerLegs(base44, {
       groupId,
       walletTransactionId: tx.id,
       actor: 'system',
@@ -45,7 +40,6 @@ async function reserveWithdrawal(base44, tx, amount) {
         { ledgerAccount: 'withdrawal_reserve', debit: 0, credit: amount, transactionType: 'withdrawal' },
       ],
     });
-  }
   await base44.asServiceRole.entities.WalletTransaction.update(tx.id, {
     status: 'pending', integration_status: 'reserved', ledger_group_id: groupId,
     source_event: 'seamless_withdrawal_reservation', processed_at: '',
@@ -55,8 +49,7 @@ async function reserveWithdrawal(base44, tx, amount) {
 
 async function releaseWithdrawalReservation(base44, tx, amount, reason) {
   const groupId = `seamless:withdrawal:release:${tx.id}`;
-  if (!await hasLedgerGroup(base44, groupId)) {
-    await postLedgerLegs(base44, {
+  await postLedgerLegs(base44, {
       groupId,
       walletTransactionId: tx.id,
       actor: 'system',
@@ -68,7 +61,6 @@ async function releaseWithdrawalReservation(base44, tx, amount, reason) {
         { ledgerAccount: 'user_account', userId: tx.user_id, debit: 0, credit: amount, heldDelta: -amount, transactionType: 'reversal' },
       ],
     });
-  }
   await base44.asServiceRole.entities.WalletTransaction.update(tx.id, {
     status: 'failed', integration_status: 'failed', source_event: 'seamless_withdrawal_rejected',
     description: `Seamless ACH withdrawal rejected: ${reason}`, processed_at: new Date().toISOString(),
@@ -303,16 +295,14 @@ Deno.serve(async (req) => {
           });
         }
         feeTransactionId = feeTx.id;
-        if (!await hasLedgerGroup(base44, feeGroupId)) {
-          await postLedgerLegs(base44, {
-            groupId: feeGroupId, walletTransactionId: feeTx.id, actor: 'system', triggerEvent: 'withdrawal_fee',
-            externalRefType: 'provider_payout', externalRefId: providerRef,
-            legs: [
-              { ledgerAccount: 'user_account', userId: user.id, debit: withdrawalFee, credit: 0, transactionType: 'withdrawal_fee' },
-              { ledgerAccount: 'platform_revenue', debit: 0, credit: withdrawalFee, transactionType: 'withdrawal_fee' },
-            ],
-          });
-        }
+        await postLedgerLegs(base44, {
+          groupId: feeGroupId, walletTransactionId: feeTx.id, actor: 'system', triggerEvent: 'withdrawal_fee',
+          externalRefType: 'provider_payout', externalRefId: providerRef,
+          legs: [
+            { ledgerAccount: 'user_account', userId: user.id, debit: withdrawalFee, credit: 0, transactionType: 'withdrawal_fee' },
+            { ledgerAccount: 'platform_revenue', debit: 0, credit: withdrawalFee, transactionType: 'withdrawal_fee' },
+          ],
+        });
       } catch (feeError) {
         // Best-effort: never fail an already-accepted withdrawal over a fee
         // posting error. Logged for manual reconciliation.
