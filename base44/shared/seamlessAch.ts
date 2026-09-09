@@ -28,6 +28,8 @@ import {
   PATH_CHECK,
   PATH_BALANCE_FROM_ACCOUNT,
   PATH_BALANCE_TO_ACCOUNT,
+  PATH_REMOVE_FUNDING_SOURCE,
+  PATH_SET_PRIMARY_FUNDING_SOURCE,
 } from './seamlessAchPure.js';
 
 export {
@@ -56,6 +58,8 @@ export {
   PATH_CHECK,
   PATH_BALANCE_FROM_ACCOUNT,
   PATH_BALANCE_TO_ACCOUNT,
+  PATH_REMOVE_FUNDING_SOURCE,
+  PATH_SET_PRIMARY_FUNDING_SOURCE,
 };
 
 // Resolve Seamless config from server secrets. Fails closed (throws) on any
