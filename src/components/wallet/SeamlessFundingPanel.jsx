@@ -104,6 +104,7 @@ export default function SeamlessFundingPanel({
       const { data } = await base44.functions.invoke("getSeamlessWalletState", {});
       setState(data);
       setError("");
+      return data;
     } catch (e) {
       setError(e?.message || "Unable to load funding status");
     } finally {
@@ -113,23 +114,27 @@ export default function SeamlessFundingPanel({
 
   useEffect(() => { load(); }, [load]);
 
-  // Poll briefly while provider-created bank or transfer state is pending.
-  // Stop after ten inexpensive refreshes; later visits reload server state.
+  // Keep the open wallet current while a bank transfer is processing or a
+  // processed deposit is in its clearing window. The backend remains the
+  // authoritative 15-minute monitor even when this page is closed.
   useEffect(() => {
     const hasPending =
       state?.banks?.some((b) => ["added", "pending_verification"].includes(b.status)) ||
-      state?.recent?.some((t) => t.status === "pending");
+      state?.recent?.some((t) => t.status === "pending" || t.deposit_hold_status === "held");
     if (!hasPending) {
       pollAttempts.current = 0;
       return;
     }
-    if (pollAttempts.current >= 10) return;
-    const timer = setTimeout(() => {
+    if (pollAttempts.current >= 120) return;
+    const timer = setTimeout(async () => {
       pollAttempts.current += 1;
-      load();
-    }, 8000);
+      const before = JSON.stringify(state?.recent || []);
+      const next = await load();
+      const after = JSON.stringify(next?.recent || []);
+      if (before !== after && onRefresh) await onRefresh();
+    }, 30000);
     return () => clearTimeout(timer);
-  }, [state, load]);
+  }, [state, load, onRefresh]);
 
   const submit = async () => {
     const v = parseFloat(amount);
