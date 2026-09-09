@@ -35,7 +35,7 @@ export async function extendComplianceEvidenceRetention(base44: any, {
   );
   if (!bank) throw new Error('retained Seamless Plaid verification evidence is required');
 
-  const authorizations = await base44.asServiceRole.entities.AchDebitAuthorization.filter(
+  const authorizations = await base44.asServiceRole.entities['ach-debit-authorization'].filter(
     { user_id: userId, funding_source_id: fundingSourceId, status: 'active' },
     '-accepted_at',
     10
@@ -50,7 +50,7 @@ export async function extendComplianceEvidenceRetention(base44: any, {
     throw new Error('active ACH debit authorization is required');
   }
   if (authorization) {
-    await base44.asServiceRole.entities.AchDebitAuthorization.update(authorization.id, {
+    await base44.asServiceRole.entities['ach-debit-authorization'].update(authorization.id, {
       last_transaction_at: activityAt,
       retention_until: deadline,
     });
