@@ -2,7 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 import { check, overall, creditCheck, parseJson, telemetryChecks, timeMs, shouldNotify, formatHealthEmail, boundedHealthHistory } from '../../shared/siteHealthPolicy.ts';
 
 // Single scheduled writer. No agent tool can invoke this collector. No
-// transactions, identity evaluations, analysis jobs, financial Redis keys,
+// transactions, provider enrollments, analysis jobs, financial Redis keys,
 // account changes, or gameplay writes are performed by monitoring.
 let running = false;
 async function deadline<T>(work: Promise<T>, ms = 8000): Promise<T> {
@@ -121,12 +121,14 @@ async function collect(svc: any, config: any, previous: any, now: number) {
     async () => read('seamless_recovery', 'Seamless recovery exceptions', () => svc.SeamlessStatusReconciliation.filter({ state: { $in: ['retryable_error', 'manual_review'] } }, '-updated_date', 501), rows =>
       check('seamless_recovery', 'Seamless recovery exceptions', rows.length ? 'warning' : 'healthy',
         rows.length + ' recorded recovery exceptions. Monitoring reads saved results only and does not contact a payment endpoint.', rows.length, 'exceptions')),
-    async () => read('socure_failures', 'Socure technical failures', () => svc.SocureIdentityVerification.filter({ status: 'failed', requested_at: { $gte: since } }, '-requested_at', 501), rows =>
-      check('socure_failures', 'Socure technical failures', rows.length ? 'warning' : 'healthy',
-        rows.length + ' failed verification requests from the last 24 hours. Rejections and human review decisions are not counted as outages.', rows.length, 'failures')),
-    async () => read('socure_overdue', 'Socure overdue pending sessions', () => svc.SocureIdentityVerification.filter({ status: 'pending', expires_at: { $lt: new Date(now - 60 * 60000).toISOString() } }, '-requested_at', 501), rows =>
-      check('socure_overdue', 'Socure overdue pending sessions', rows.length ? 'warning' : 'healthy',
-        rows.length + ' pending records are over one hour past their saved expiry. This is a reconciliation signal, not proof of provider downtime.', rows.length, 'sessions')),
+    async () => read('seamless_bank_failures', 'Seamless bank-verification failures', () => svc.SeamlessBankAccount.filter({ status: { $in: ['verification_failed', 'verification_expired', 'error'] }, updated_date: { $gte: since } }, '-updated_date', 501), rows =>
+      check('seamless_bank_failures', 'Seamless bank-verification failures', rows.length ? 'warning' : 'healthy',
+        rows.length + ' bank-verification failures or expirations updated in the last 24 hours. Monitoring reads saved webhook state only.', rows.length, 'failures')),
+    async () => read('seamless_bank_pending', 'Seamless pending bank verifications', () => svc.SeamlessBankAccount.filter({ status: { $in: ['added', 'pending_verification'] } }, '-updated_date', 501), rows => {
+      const overdue = rows.filter(r => now - timeMs(r.updated_date || r.added_at) > 60 * 60000).length;
+      return check('seamless_bank_pending', 'Seamless pending bank verifications', overdue || rows.length >= 501 ? 'warning' : 'healthy',
+        overdue + ' saved bank records have remained pending for over one hour. This is a reconciliation signal, not proof of provider downtime.', overdue, 'accounts');
+    }),
   ];
   // Bounded concurrency prevents the monitor from creating its own request burst.
   let index = 0;
