@@ -221,7 +221,7 @@ Deno.serve(async (req) => {
     // every downstream consumer — the client JurisdictionAccessGuard,
     // runContestEligibility, submitSeamlessDeposit, and lockWager — reads the
     // approved status returned here, so admins are never blocked by a
-    // location check. It does not waive Socure identity verification, MFA,
+    // location check. It does not waive hosted bank verification, MFA,
     // balance, bank verification, ledger safeguards, or the
     // SEAMLESS_DEPOSITS_ENABLED funding gate.
     if (user.role === 'admin') {
