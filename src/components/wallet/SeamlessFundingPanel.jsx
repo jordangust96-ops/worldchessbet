@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { base44 } from "@/api/base44Client";
 import SeamlessPlaidBankLink from "./SeamlessPlaidBankLink";
+import { getTransferFailureMessage } from "./transferFailureCopy";
 
 // Seamless ACH funding panel. Bank credentials are collected only inside the
 // Seamless-hosted Plaid flow. Verification, deposits, and withdrawals remain
@@ -49,7 +50,9 @@ function BankRow({ bank, busy, onMakePrimary, onDisconnect }) {
               {bank.account_mask ? ` ending in ${bank.account_mask}` : ""}
             </p>
             {bank.is_primary && (
-              <span className="text-[10px] uppercase tracking-wider text-[#C9A84C]">Primary</span>
+              <span className="text-[10px] uppercase tracking-wider text-[#C9A84C]">
+                {isVerified ? "Primary" : "Selected · awaiting verification"}
+              </span>
             )}
           </div>
         </div>
@@ -89,17 +92,23 @@ function TxRow({ tx }) {
   const s = TX_STATUS[tx.status] || TX_STATUS.pending;
   const Icon = s.icon;
   const isDeposit = tx.type === "deposit";
+  const failed = tx.status === "failed";
   return (
-    <div className="flex items-center justify-between text-sm py-2">
-      <div className="flex items-center gap-2 min-w-0">
-        <Icon size={14} className={`${s.color} shrink-0`} />
-        <span className="text-white/70 truncate">
-          {isDeposit ? "Deposit" : "Withdrawal"}
-        </span>
+    <div className="flex items-start justify-between gap-3 py-2.5 text-sm">
+      <div className="flex min-w-0 items-start gap-2">
+        <Icon size={14} className={`${s.color} mt-0.5 shrink-0`} />
+        <div className="min-w-0">
+          <p className="text-white/70">{isDeposit ? "Deposit" : "Withdrawal"}</p>
+          {failed && (
+            <p className="mt-0.5 text-[11px] leading-relaxed text-red-300/75">
+              {getTransferFailureMessage(tx)}
+            </p>
+          )}
+        </div>
       </div>
-      <div className="flex items-center gap-2 shrink-0">
-        <span className={isDeposit ? "text-emerald-400" : "text-white/70"}>
-          {isDeposit ? "+" : "-"}${Number(tx.amount || 0).toFixed(2)}
+      <div className="flex shrink-0 items-center gap-2">
+        <span className={failed ? "text-white/45" : isDeposit ? "text-emerald-400" : "text-white/70"}>
+          {failed ? "" : isDeposit ? "+" : "-"}${Number(tx.amount || 0).toFixed(2)}
         </span>
         <span className={`text-xs ${s.color}`}>{s.label}</span>
       </div>
@@ -177,9 +186,16 @@ export default function SeamlessFundingPanel({
       if (onRefresh) onRefresh();
     } catch (e) {
       const serverMessage = e?.response?.data?.error;
-      setError(typeof serverMessage === "string" && serverMessage
+      const message = typeof serverMessage === "string" && serverMessage
         ? serverMessage
-        : "We couldn't submit that request. Please try again or contact support.");
+        : "We couldn't submit that request. Please try again or contact support.";
+      // Reload the durable transaction so an immediate provider decline appears
+      // in both the compact transfer list and full Transaction History.
+      try {
+        await load();
+        if (onRefresh) await onRefresh();
+      } catch { /* Preserve the original transfer error below. */ }
+      setError(message);
     } finally {
       setBusy("");
     }
@@ -226,6 +242,7 @@ export default function SeamlessFundingPanel({
   const accountRestricted = ["suspended", "closed"].includes(effectiveAccountState);
   const notVerified = !accountVerified || effectiveAccountState !== "verified";
   const ineligible = effectiveWithdrawalHold || accountRestricted || notVerified;
+  const providerPrimaryBank = state?.banks?.find((b) => b.is_primary) || null;
   const verifiedBank =
     state?.banks?.find((b) => b.status === "verified" && b.is_primary) ||
     state?.banks?.find((b) => b.status === "verified");
@@ -233,12 +250,15 @@ export default function SeamlessFundingPanel({
     ["added", "pending_verification"].includes(b.status)
   );
   const bankReady = !!verifiedBank && accountVerified;
+  const depositSourceReady = providerPrimaryBank?.status === "verified";
+  const bankReadyForDirection = direction === "deposit" ? depositSourceReady : bankReady;
+  const displayedBank = direction === "deposit" ? (providerPrimaryBank || verifiedBank) : verifiedBank;
   const transferDirectionEnabled = direction === "deposit" ? depositsEnabled : withdrawalsEnabled;
   const availableBalance = wallet?.available_balance || 0;
   const meetsMinimum = direction === "deposit" ? parsedAmount >= MIN_DEPOSIT_AMOUNT : parsedAmount > 0;
   const exceedsAvailableBalance = direction === "withdrawal" && parsedAmount > availableBalance + 0.005;
   const canSubmit =
-    !ineligible && bankReady && !busy && meetsMinimum && !exceedsAvailableBalance && transferDirectionEnabled;
+    !ineligible && bankReadyForDirection && !busy && meetsMinimum && !exceedsAvailableBalance && transferDirectionEnabled;
   const transferBusy = busy === direction;
   const formattedAmount = Number.isFinite(parsedAmount) && parsedAmount > 0
     ? parsedAmount.toFixed(2)
