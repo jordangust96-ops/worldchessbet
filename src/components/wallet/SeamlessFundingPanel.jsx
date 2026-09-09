@@ -277,189 +277,306 @@ export default function SeamlessFundingPanel({
         </p>
       )}
 
-      {/* Step 1: collect authorization, then open Seamless-hosted Plaid. */}
-      <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4 space-y-3">
-        <div>
-          <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]">Step 1</p>
-          <h4 className="text-sm font-semibold text-white mt-1">
-            {bankReady ? "Bank connected" : "Connect and verify your bank"}
-          </h4>
-          <p className="text-xs text-white/45 mt-1">
-            {bankReady
-              ? "Your bank is verified and ready to use with ChessBet."
-              : bankPending
-                ? "Seamless is verifying your bank. This page updates automatically after its webhook arrives."
-                : !hostedPlaidEnabled
-                  ? "Bank connection will be available when funding opens."
-                  : "Use Seamless's hosted Plaid flow. ChessBet never receives your bank credentials or account numbers."}
-          </p>
-        </div>
-
-        {state?.banks?.length > 0 && (
-          <div className="space-y-2">
-            {state.banks.map((bank) => (
-              <BankRow
-                key={bank.id}
-                bank={bank}
-                busy={busy}
-                onMakePrimary={(selected) => manageBank("set_primary", selected)}
-                onDisconnect={setBankToDisconnect}
-              />
-            ))}
+      {/* Bank connection is a one-time prerequisite. Once verified, funding becomes the focus. */}
+      {!bankReady && (
+        <div className="rounded-3xl border border-white/5 bg-white/[0.03] p-5 space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#C9A84C]/15 text-sm font-bold text-[#C9A84C]">
+              1
+            </div>
+            <div>
+              <h4 className="text-base font-semibold text-white">Connect your bank</h4>
+              <p className="mt-1 text-xs leading-relaxed text-white/45">
+                {bankPending
+                  ? "Your bank is being verified. This page will update automatically when it is ready."
+                  : !hostedPlaidEnabled
+                    ? "Secure bank connection is temporarily unavailable."
+                    : "Securely link the checking account you want to use. ChessBet never sees or stores your bank login."}
+              </p>
+            </div>
           </div>
-        )}
-        {!bankReady && !bankPending && hostedPlaidEnabled && !accountRestricted ? (
-          <SeamlessPlaidBankLink
-            legalName={state?.legal_name || ""}
-            hasWithdrawableBalance={(wallet?.available_balance || 0) > 0}
-            disabled={effectiveWithdrawalHold}
-            onComplete={load}
-          />
-        ) : !bankReady && !bankPending ? (
-          <p className="text-xs text-white/30 text-center py-2">No bank connected yet.</p>
-        ) : null}
 
-        {bankReady && hostedPlaidEnabled && !accountRestricted && (
-          <button
-            type="button"
-            onClick={() => setShowBankLink((value) => !value)}
-            disabled={!!busy || effectiveWithdrawalHold}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-3 py-2.5 text-xs font-medium text-white/60 hover:border-[#C9A84C]/40 hover:text-[#C9A84C] disabled:opacity-40"
-          >
-            {showBankLink ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            {showBankLink ? "Close bank connection form" : "Change or add a bank account"}
-          </button>
-        )}
-        {bankReady && showBankLink && hostedPlaidEnabled && !accountRestricted && (
-          <SeamlessPlaidBankLink
-            legalName={state?.legal_name || ""}
-            hasWithdrawableBalance={(wallet?.available_balance || 0) > 0}
-            disabled={effectiveWithdrawalHold}
-            onComplete={load}
-          />
-        )}
-      </div>
-
-      {/* Step 2: transfer gates remain authoritative on the server. */}
-      <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4 space-y-3">
-        <div>
-          <p className={`text-[10px] uppercase tracking-widest ${depositComplete ? "text-emerald-300/70" : "text-[#C9A84C]"}`}>
-            {depositComplete ? "Step 2 · Complete" : "Step 2"}
-          </p>
-          <h4 className="text-sm font-semibold text-white mt-1">
-            {depositComplete ? "ChessBet wallet funded" : "Deposit into your ChessBet wallet"}
-          </h4>
-          <p className="text-xs text-white/45 mt-1">
-            {!depositsEnabled && !withdrawalsEnabled
-              ? "Bank transfers are currently unavailable."
-              : !bankReady
-                ? "Complete Step 1 first."
-                : direction === "withdrawal" && !withdrawalsEnabled
-                  ? "Withdrawals are temporarily unavailable."
-                  : direction === "withdrawal"
-                    ? "Withdraw available funds back to your connected bank."
-                    : depositComplete && !depositsEnabled
-                      ? "Your wallet has been funded successfully. Additional deposits are temporarily unavailable."
-                      : depositComplete
-                        ? "Your wallet has been funded successfully. You can deposit more anytime."
-                        : !depositsEnabled
-                          ? "Deposits are temporarily unavailable."
-                          : "Add funds from your connected bank to your ChessBet wallet."}
-          </p>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <Button
-            onClick={() => setDirection("deposit")}
-            className={`h-12 rounded-2xl font-bold disabled:opacity-30 ${
-              direction === "deposit"
-                ? "gold-gradient text-black"
-                : "bg-white/[0.05] text-white/70 border border-white/10"
-            }`}
-            disabled={ineligible || !bankReady || !depositsEnabled}
-          >
-            <Plus size={16} className="mr-2" /> Deposit
-          </Button>
-          <Button
-            onClick={() => setDirection("withdrawal")}
-            disabled={ineligible || !bankReady || !withdrawalsEnabled || (wallet && (wallet.available_balance || 0) <= 0)}
-            className={`h-12 rounded-2xl font-bold disabled:opacity-30 ${
-              direction === "withdrawal"
-                ? "gold-gradient text-black"
-                : "bg-white/[0.05] text-white/70 border border-white/10"
-            }`}
-          >
-            <ArrowUpRight size={16} className="mr-2" /> Withdraw Funds
-          </Button>
-        </div>
-      </div>
-
-      {/* Amount input + submit (deposit/withdraw share one form) */}
-      <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4 space-y-3">
-        <input
-          type="number"
-          inputMode="decimal"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          placeholder={direction === "deposit" ? "Amount to fund" : "Amount to withdraw"}
-          disabled={ineligible || !bankReady || !transferDirectionEnabled}
-          className="w-full h-12 px-4 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder:text-white/20 text-sm focus:border-[#C9A84C]/50 focus:outline-none disabled:opacity-40"
-        />
-        {direction === "deposit" && (
-          <p className="text-[11px] text-white/30 text-center">
-            Minimum deposit: ${MIN_DEPOSIT_AMOUNT.toFixed(2)}
-          </p>
-        )}
-        {direction === "withdrawal" && wallet && (wallet.available_balance || 0) > 0 && (
-          <button
-            type="button"
-            onClick={() => setAmount(String((wallet.available_balance || 0).toFixed(2)))}
-            disabled={ineligible || !bankReady || !transferDirectionEnabled}
-            className="w-full text-[11px] text-[#C9A84C] text-center hover:underline disabled:opacity-40 disabled:pointer-events-none"
-          >
-            Withdraw full balance (${(wallet.available_balance || 0).toFixed(2)}) — no fee
-          </button>
-        )}
-        {direction === "withdrawal" && parsedAmount > 0 && parsedAmount < SMALL_WITHDRAWAL_THRESHOLD && (
-          isFullBalanceWithdrawal ? (
-            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-2.5 text-center">
-              <p className="text-xs font-medium text-emerald-300">No fee — you're withdrawing your full balance</p>
+          {state?.banks?.length > 0 && (
+            <div className="space-y-2">
+              {state.banks.map((bank) => (
+                <BankRow
+                  key={bank.id}
+                  bank={bank}
+                  busy={busy}
+                  onMakePrimary={(selected) => manageBank("set_primary", selected)}
+                  onDisconnect={setBankToDisconnect}
+                />
+              ))}
             </div>
-          ) : (
-            <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-3 py-2.5 text-center">
-              <p className="text-xs font-semibold text-amber-300">
-                ${SMALL_WITHDRAWAL_FEE.toFixed(2)} fee applies to withdrawals under ${SMALL_WITHDRAWAL_THRESHOLD.toFixed(2)}
-              </p>
-              <p className="mt-1 text-[11px] text-amber-200/70">
-                ${(parsedAmount + SMALL_WITHDRAWAL_FEE).toFixed(2)} total will be deducted from your balance to send you ${parsedAmount.toFixed(2)}.
-                Withdraw your full balance instead to avoid this fee.
-              </p>
-            </div>
-          )
-        )}
-        <Button
-          onClick={submit}
-          disabled={!canSubmit}
-          className="w-full h-12 rounded-xl gold-gradient text-black font-bold hover:opacity-90 disabled:opacity-30"
-        >
-          {busy ? (
-            <><Loader2 size={16} className="animate-spin mr-2" /> Submitting...</>
-          ) : bankReady ? (
-            direction === "deposit" ? "Deposit to ChessBet wallet" : "Withdraw to bank"
-          ) : (
-            "Complete bank connection first"
           )}
-        </Button>
-        {direction === "withdrawal" && wallet && (
-          <p className="text-[11px] text-white/30 text-center">
-            Available: ${(wallet.available_balance || 0).toFixed(2)}
-          </p>
-        )}
-        {error && (
-          <p className="text-xs text-red-400 text-center flex items-center justify-center gap-1.5">
-            <AlertTriangle size={13} /> {error}
-          </p>
-        )}
-      </div>
+
+          {!bankPending && hostedPlaidEnabled && !accountRestricted ? (
+            <SeamlessPlaidBankLink
+              legalName={state?.legal_name || ""}
+              hasWithdrawableBalance={availableBalance > 0}
+              disabled={effectiveWithdrawalHold}
+              onComplete={load}
+            />
+          ) : !bankPending ? (
+            <p className="py-2 text-center text-xs text-white/30">No bank connected yet.</p>
+          ) : null}
+        </div>
+      )}
+
+      {bankReady && (
+        <div className="overflow-hidden rounded-3xl border border-white/5 bg-gradient-to-b from-white/[0.045] to-white/[0.02]">
+          <div className="space-y-5 p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#C9A84C]">
+                  ChessBet wallet
+                </p>
+                <h4 className="mt-1 text-xl font-bold text-white">
+                  {direction === "deposit" ? "Add money" : "Withdraw funds"}
+                </h4>
+                <p className="mt-1 text-xs leading-relaxed text-white/45">
+                  {direction === "deposit"
+                    ? "Choose an amount and add it securely from your connected bank."
+                    : "Send available wallet funds back to your connected bank."}
+                </p>
+              </div>
+
+              <div
+                role="group"
+                aria-label="Choose a transfer type"
+                className="grid grid-cols-2 rounded-xl border border-white/10 bg-black/20 p-1"
+              >
+                <button
+                  type="button"
+                  aria-pressed={direction === "deposit"}
+                  onClick={() => {
+                    setDirection("deposit");
+                    setAmount("");
+                    setError("");
+                  }}
+                  disabled={!depositsEnabled || ineligible}
+                  className={
+                    "rounded-lg px-4 py-2 text-xs font-semibold transition-colors disabled:opacity-30 " +
+                    (direction === "deposit"
+                      ? "bg-[#C9A84C] text-black"
+                      : "text-white/55 hover:text-white")
+                  }
+                >
+                  Add money
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={direction === "withdrawal"}
+                  onClick={() => {
+                    setDirection("withdrawal");
+                    setAmount("");
+                    setError("");
+                  }}
+                  disabled={!withdrawalsEnabled || ineligible || availableBalance <= 0}
+                  className={
+                    "rounded-lg px-4 py-2 text-xs font-semibold transition-colors disabled:opacity-30 " +
+                    (direction === "withdrawal"
+                      ? "bg-[#C9A84C] text-black"
+                      : "text-white/55 hover:text-white")
+                  }
+                >
+                  Withdraw
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/5 bg-black/20 px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10">
+                    <CheckCircle2 size={17} className="text-emerald-400" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase tracking-wider text-white/35">
+                      {direction === "deposit" ? "From" : "To"}
+                    </p>
+                    <p className="truncate text-sm font-medium text-white/85">
+                      {verifiedBank.account_name || "Connected bank"}
+                      {verifiedBank.account_mask ? " ending in " + verifiedBank.account_mask : ""}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  aria-expanded={showBankManager}
+                  onClick={() => {
+                    setShowBankManager((value) => !value);
+                    if (showBankManager) setShowBankLink(false);
+                  }}
+                  disabled={!!busy}
+                  className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[#C9A84C] hover:bg-[#C9A84C]/10 disabled:opacity-40"
+                >
+                  {showBankManager ? "Done" : "Manage"}
+                </button>
+              </div>
+
+              {showBankManager && (
+                <div className="mt-4 space-y-3 border-t border-white/5 pt-4">
+                  <div className="space-y-2">
+                    {state.banks.map((bank) => (
+                      <BankRow
+                        key={bank.id}
+                        bank={bank}
+                        busy={busy}
+                        onMakePrimary={(selected) => manageBank("set_primary", selected)}
+                        onDisconnect={setBankToDisconnect}
+                      />
+                    ))}
+                  </div>
+
+                  {hostedPlaidEnabled && !accountRestricted && (
+                    <button
+                      type="button"
+                      onClick={() => setShowBankLink((value) => !value)}
+                      disabled={!!busy || effectiveWithdrawalHold}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-3 py-2.5 text-xs font-medium text-white/60 hover:border-[#C9A84C]/40 hover:text-[#C9A84C] disabled:opacity-40"
+                    >
+                      {showBankLink ? <ChevronUp size={14} /> : <Plus size={14} />}
+                      {showBankLink ? "Close bank connection form" : "Change or add a bank account"}
+                    </button>
+                  )}
+
+                  {showBankLink && hostedPlaidEnabled && !accountRestricted && (
+                    <SeamlessPlaidBankLink
+                      legalName={state?.legal_name || ""}
+                      hasWithdrawableBalance={availableBalance > 0}
+                      disabled={effectiveWithdrawalHold}
+                      onComplete={async () => {
+                        setShowBankLink(false);
+                        await load();
+                      }}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <label htmlFor="wallet-transfer-amount" className="block text-xs font-medium text-white/60">
+                Amount
+              </label>
+              <div className="flex h-16 items-center rounded-2xl border border-white/10 bg-black/25 px-4 focus-within:border-[#C9A84C]/60">
+                <span className="text-2xl font-semibold text-white/35">$</span>
+                <input
+                  id="wallet-transfer-amount"
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.01"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="0.00"
+                  disabled={ineligible || !transferDirectionEnabled}
+                  className="h-full min-w-0 flex-1 bg-transparent px-2 text-2xl font-bold text-white outline-none placeholder:text-white/15 disabled:opacity-40"
+                />
+                <span className="text-xs font-medium text-white/30">USD</span>
+              </div>
+
+              {direction === "deposit" && (
+                <>
+                  <div className="grid grid-cols-4 gap-2" aria-label="Quick deposit amounts">
+                    {[10, 25, 50, 100].map((value) => (
+                      <button
+                        key={value}
+                        type="button"
+                        aria-pressed={parsedAmount === value}
+                        onClick={() => setAmount(String(value))}
+                        disabled={ineligible || !depositsEnabled || !!busy}
+                        className={
+                          "rounded-xl border px-2 py-2.5 text-sm font-semibold transition-colors disabled:opacity-30 " +
+                          (parsedAmount === value
+                            ? "border-[#C9A84C]/60 bg-[#C9A84C]/10 text-[#E7C866]"
+                            : "border-white/10 bg-white/[0.025] text-white/60 hover:border-white/20 hover:text-white")
+                        }
+                      >
+                        ${value}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-center text-[11px] text-white/30">
+                    ${MIN_DEPOSIT_AMOUNT.toFixed(2)} minimum deposit
+                  </p>
+                </>
+              )}
+
+              {direction === "withdrawal" && availableBalance > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setAmount(String(availableBalance.toFixed(2)))}
+                  disabled={ineligible || !withdrawalsEnabled || !!busy}
+                  className="w-full text-center text-xs font-medium text-[#C9A84C] hover:underline disabled:opacity-40"
+                >
+                  Withdraw full balance (${availableBalance.toFixed(2)}) — no fee
+                </button>
+              )}
+
+              {exceedsAvailableBalance && (
+                <p className="text-center text-xs text-red-400">
+                  Enter an amount no greater than your ${availableBalance.toFixed(2)} available balance.
+                </p>
+              )}
+
+              {direction === "withdrawal" && parsedAmount > 0 && parsedAmount < SMALL_WITHDRAWAL_THRESHOLD && !exceedsAvailableBalance && (
+                isFullBalanceWithdrawal ? (
+                  <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-2.5 text-center">
+                    <p className="text-xs font-medium text-emerald-300">No fee — you're withdrawing your full balance</p>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-3 py-2.5 text-center">
+                    <p className="text-xs font-semibold text-amber-300">
+                      ${SMALL_WITHDRAWAL_FEE.toFixed(2)} fee applies below ${SMALL_WITHDRAWAL_THRESHOLD.toFixed(2)}
+                    </p>
+                    <p className="mt-1 text-[11px] text-amber-200/70">
+                      ${(parsedAmount + SMALL_WITHDRAWAL_FEE).toFixed(2)} will leave your wallet to send ${parsedAmount.toFixed(2)}.
+                    </p>
+                  </div>
+                )
+              )}
+
+              <Button
+                onClick={submit}
+                disabled={!canSubmit}
+                className="w-full rounded-2xl gold-gradient py-3.5 text-sm font-bold text-black hover:opacity-90 disabled:opacity-30"
+              >
+                {transferBusy ? (
+                  <><Loader2 size={16} className="mr-2 animate-spin" /> Processing securely...</>
+                ) : direction === "deposit" ? (
+                  !depositsEnabled
+                    ? "Deposits are temporarily unavailable"
+                    : !formattedAmount
+                      ? "Enter an amount"
+                      : !meetsMinimum
+                        ? "Minimum deposit is $" + MIN_DEPOSIT_AMOUNT.toFixed(2)
+                        : "Add $" + formattedAmount + " to wallet"
+                ) : (
+                  !withdrawalsEnabled
+                    ? "Withdrawals are temporarily unavailable"
+                    : !formattedAmount
+                      ? "Enter an amount"
+                      : exceedsAvailableBalance
+                        ? "Amount exceeds available balance"
+                        : "Withdraw $" + formattedAmount + " to bank"
+                )}
+              </Button>
+
+              <p className="text-center text-[11px] leading-relaxed text-white/25">
+                Secure bank transfer via Seamless. Your bank login is never shared with ChessBet.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <p className="flex items-center justify-center gap-1.5 text-center text-xs text-red-400">
+          <AlertTriangle size={13} /> {error}
+        </p>
+      )}
 
       <AlertDialog
         open={!!bankToDisconnect}
