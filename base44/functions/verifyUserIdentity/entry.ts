@@ -1,17 +1,12 @@
-import { createClientFromRequest } from 'npm:@base44/sdk';
-import { requireAdminMfa } from '../../shared/mfa.ts';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 
-// Socure is the authoritative identity-verification path. This retired manual
-// verifier remains fail-closed for compatibility with any stale admin client.
+// Manual promotion is intentionally disabled. Only an authenticated Seamless
+// funding-source.verified webhook can make a player eligible.
 Deno.serve(async (req) => {
-  try {
-    const base44 = createClientFromRequest(req);
-    const admin = await base44.auth.me();
-    const body = await req.json().catch(() => ({}));
-    const mfaError = await requireAdminMfa(base44, admin, body?.mfaSessionToken, req.headers.get('user-agent') || '');
-    if (mfaError) return mfaError;
-    return Response.json({ error: 'Manual identity verification is retired; Socure is authoritative.' }, { status: 409 });
-  } catch (error) {
-    return Response.json({ error: error?.message || 'Unable to process verification request' }, { status: 500 });
-  }
+  const base44 = createClientFromRequest(req);
+  const user = await base44.auth.me().catch(() => null);
+  if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  return Response.json({
+    error: 'Manual account verification is retired; Seamless hosted Plaid is authoritative.',
+  }, { status: 409 });
 });
