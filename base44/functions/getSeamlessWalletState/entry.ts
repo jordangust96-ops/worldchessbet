@@ -70,6 +70,9 @@ Deno.serve(async (req) => {
         type: tx.type,
         amount: tx.amount,
         status: tx.status,
+        integration_status: tx.integration_status || '',
+        description: tx.description || '',
+        funding_source_id: tx.funding_source_id || '',
         created_date: tx.created_date,
       })),
     });
