@@ -4,7 +4,11 @@ import {
   applyWebhookEvent, applyFundingSourceEvent, normalizeProviderEventTime,
   userSafeTransferFailureReason, SEAMLESS_PROVIDER_KEY,
 } from '../../shared/seamlessAch.ts';
-import { postLedgerLegs } from '../../shared/ledger.ts';
+import {
+  postSeamlessSettlement,
+  releaseSeamlessWithdrawal,
+  reverseSeamlessSettlement,
+} from '../../shared/seamlessLedgerTransitions.ts';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 import { claimWebhookEvent, finishWebhookEvent } from '../../shared/seamlessAtomicStore.ts';
 
@@ -40,9 +44,6 @@ function pickRtpEligibility(body) {
 function pickAmount(body) {
   const value = Number(body?.amount ?? body?.check?.amount);
   return Number.isFinite(value) ? value / 100 : undefined;
-}
-async function hasLedgerGroup(base44, groupId) {
-  return (await base44.asServiceRole.entities.LedgerEntry.filter({ ledger_group_id: groupId }, '-created_date', 1)).length > 0;
 }
 
 // Seamless sends its own secret directly in Authorization (no "Bearer "
@@ -573,18 +574,30 @@ async function handleTransaction(base44, body, eventType, idemKey, providerRef) 
   const tx = await base44.asServiceRole.entities.WalletTransaction.get(ref.wallet_transaction_id);
   if (!tx) throw new Error('missing_wallet_transaction');
 
+  const checkedAt = new Date().toISOString();
+  await base44.asServiceRole.entities.WalletTransaction.update(tx.id, {
+    provider_last_status: providerStatus || 'unknown',
+    provider_last_checked_at: checkedAt,
+  });
+
   const decision = applyWebhookEvent(tx, { status: providerStatus });
   const failureReason = userSafeTransferFailureReason(pickFailureReason(body), tx.type);
-  if (decision.action === 'post') await postSettlement(base44, tx, Number(tx.amount), ref, providerRef || label);
-  else if (decision.action === 'reverse') await reverseSettlement(base44, tx, Number(tx.amount), ref, providerRef || label);
-  else if (decision.action === 'fail') {
-    if (tx.type === 'withdrawal') await releaseWithdrawal(base44, tx, Number(tx.amount), providerRef || label, failureReason);
-    else await base44.asServiceRole.entities.WalletTransaction.update(tx.id, {
-      status: decision.status,
-      integration_status: 'failed',
-      processed_at: new Date().toISOString(),
-      description: `Deposit failed — ${failureReason}`,
-    });
+  if (decision.action === 'post') {
+    await postSeamlessSettlement(base44, tx, Number(tx.amount), providerRef || label, 'seamless_webhook_settled');
+  } else if (decision.action === 'reverse') {
+    await reverseSeamlessSettlement(base44, tx, Number(tx.amount), providerRef || label, 'seamless_webhook_reversed');
+  } else if (decision.action === 'fail') {
+    if (tx.type === 'withdrawal') {
+      await releaseSeamlessWithdrawal(base44, tx, Number(tx.amount), providerRef || label, failureReason, 'seamless_webhook_failed');
+    } else {
+      await base44.asServiceRole.entities.WalletTransaction.update(tx.id, {
+        status: decision.status,
+        integration_status: 'failed',
+        deposit_hold_status: 'void',
+        processed_at: checkedAt,
+        description: `Deposit failed — ${failureReason}`,
+      });
+    }
   }
 
   await recordIntegrationEvent(base44, {
@@ -596,82 +609,3 @@ async function handleTransaction(base44, body, eventType, idemKey, providerRef) 
   return { received: true, action: decision.action, status: decision.status };
 }
 
-async function postSettlement(base44, tx, amount, ref, providerRef) {
-  const groupId = tx.type === 'deposit' ? `seamless:deposit:settle:${tx.id}` : `seamless:withdrawal:settle:${tx.id}`;
-  if (!await hasLedgerGroup(base44, groupId)) {
-    if (tx.type === 'deposit') {
-      await postLedgerLegs(base44, {
-        groupId, walletTransactionId: tx.id, actor: 'system', triggerEvent: 'deposit',
-        externalRefType: 'provider_payment', externalRefId: providerRef,
-        legs: [
-          { ledgerAccount: 'settlement', debit: amount, credit: 0, transactionType: 'deposit' },
-          { ledgerAccount: 'user_account', userId: tx.user_id, debit: 0, credit: amount, transactionType: 'deposit', totalDepositedDelta: amount },
-        ],
-      });
-    } else {
-      // The user debit occurred at reservation time. Processed transfers the
-      // held reserve to settlement; it must not debit available funds again.
-      await postLedgerLegs(base44, {
-        groupId, walletTransactionId: tx.id, actor: 'system', triggerEvent: 'withdrawal',
-        externalRefType: 'provider_payout', externalRefId: providerRef,
-        legs: [
-          { ledgerAccount: 'withdrawal_reserve', debit: amount, credit: 0, transactionType: 'withdrawal' },
-          { ledgerAccount: 'settlement', debit: 0, credit: amount, transactionType: 'withdrawal' },
-          { ledgerAccount: 'user_account', userId: tx.user_id, debit: 0, credit: 0, heldDelta: -amount, transactionType: 'withdrawal', totalWithdrawnDelta: amount },
-        ],
-      });
-    }
-  }
-  await base44.asServiceRole.entities.WalletTransaction.update(tx.id, {
-    status: 'completed', integration_status: 'settled', ledger_group_id: groupId, processed_at: new Date().toISOString(),
-  });
-}
-
-async function releaseWithdrawal(base44, tx, amount, providerRef, failureReason) {
-  const groupId = `seamless:withdrawal:release:${tx.id}`;
-  if (!await hasLedgerGroup(base44, groupId)) {
-    await postLedgerLegs(base44, {
-      groupId, walletTransactionId: tx.id, actor: 'system', triggerEvent: 'withdrawal_reservation_release',
-      externalRefType: 'provider_payout', externalRefId: providerRef,
-      legs: [
-        { ledgerAccount: 'withdrawal_reserve', debit: amount, credit: 0, transactionType: 'reversal' },
-        { ledgerAccount: 'user_account', userId: tx.user_id, debit: 0, credit: amount, heldDelta: -amount, transactionType: 'reversal' },
-      ],
-    });
-  }
-  await base44.asServiceRole.entities.WalletTransaction.update(tx.id, {
-    status: 'failed',
-    integration_status: 'failed',
-    ledger_group_id: groupId,
-    processed_at: new Date().toISOString(),
-    description: `Withdrawal failed — ${failureReason}`,
-  });
-}
-
-async function reverseSettlement(base44, tx, amount, ref, providerRef) {
-  const groupId = tx.type === 'deposit' ? `seamless:deposit:reverse:${tx.id}` : `seamless:withdrawal:reverse:${tx.id}`;
-  if (!await hasLedgerGroup(base44, groupId)) {
-    if (tx.type === 'deposit') {
-      await postLedgerLegs(base44, {
-        groupId, walletTransactionId: tx.id, actor: 'system', triggerEvent: 'refund',
-        externalRefType: 'provider_refund', externalRefId: providerRef,
-        legs: [
-          { ledgerAccount: 'user_account', userId: tx.user_id, debit: amount, credit: 0, transactionType: 'refund', totalDepositedDelta: -amount },
-          { ledgerAccount: 'settlement', debit: 0, credit: amount, transactionType: 'refund' },
-        ],
-      });
-    } else {
-      await postLedgerLegs(base44, {
-        groupId, walletTransactionId: tx.id, actor: 'system', triggerEvent: 'reversal',
-        externalRefType: 'provider_reversal', externalRefId: providerRef,
-        legs: [
-          { ledgerAccount: 'settlement', debit: amount, credit: 0, transactionType: 'reversal' },
-          { ledgerAccount: 'user_account', userId: tx.user_id, debit: 0, credit: amount, transactionType: 'reversal', totalWithdrawnDelta: -amount },
-        ],
-      });
-    }
-  }
-  await base44.asServiceRole.entities.WalletTransaction.update(tx.id, {
-    status: 'reversed', integration_status: 'reversed', ledger_group_id: groupId, processed_at: new Date().toISOString(),
-  });
-}
