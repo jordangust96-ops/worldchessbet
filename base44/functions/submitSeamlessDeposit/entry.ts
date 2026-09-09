@@ -5,7 +5,7 @@ import { isSeamlessPlaidVerified } from '../../shared/identityEligibility.js';
 import { legalNameFromUser } from '../../shared/legalName.ts';
 import {
   seamlessConfig, seamlessRequest, seamlessBaseUrl, buildDepositBody,
-  PATH_ACH_DEBIT, SEAMLESS_PROVIDER_KEY,
+  PATH_ACH_DEBIT, SEAMLESS_PROVIDER_KEY, userSafeTransferFailureReason,
 } from '../../shared/seamlessAch.ts';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 import {
@@ -56,9 +56,20 @@ Deno.serve(async (req) => {
     }
 
     const verifiedBanks = await base44.asServiceRole.entities.SeamlessBankAccount.filter({ user_id: user.id, status: 'verified' });
-    const bank = verifiedBanks.find((item) => item.source_id && item.is_primary) || verifiedBanks[0];
+    if (!verifiedBanks.some((item) => item.source_id)) {
+      return Response.json({ error: 'Link and verify a bank account first.', action: 'bank_link_required' }, { status: 400 });
+    }
+    // Seamless /ach-debit charges the customer's provider-primary bank and does
+    // not accept a funding-source id in the request. Require that exact primary
+    // source to be webhook-verified locally; falling back to a different bank
+    // would mislabel the audit trail and could charge an account the player did
+    // not see in the confirmation UI.
+    const bank = verifiedBanks.find((item) => item.source_id && item.is_primary);
     if (!bank?.source_id) {
-      return Response.json({ error: 'Link and verify a bank account first', action: 'bank_link_required' }, { status: 400 });
+      return Response.json({
+        error: 'Your selected bank is still awaiting verification. Choose a connected bank before depositing.',
+        action: 'verified_primary_required',
+      }, { status: 409 });
     }
     lockOwner = crypto.randomUUID();
     if (!await acquireUserWalletLock(user.id, lockOwner)) {
@@ -185,17 +196,18 @@ Deno.serve(async (req) => {
     } catch (error) {
       const status = Number(error?.status || 0);
       if (status >= 400 && status < 500) {
+        const failureReason = userSafeTransferFailureReason(error?.message, 'deposit');
         await base44.asServiceRole.entities.WalletTransaction.update(pending.id, {
-          status: 'failed', integration_status: 'failed', description: `Seamless ACH funding rejected: ${error?.message || 'unknown'}`,
+          status: 'failed', integration_status: 'failed', description: `Deposit failed — ${failureReason}`,
         });
         await saveDepositOperation(user.id, idempotencyKey, { ...operation, wallet_transaction_id: pending.id, label, state: 'failed', last_error_code: 'provider_rejected' });
         await recordIntegrationEvent(base44, {
           eventType: 'financial.seamless_deposit_rejected', aggregateType: 'wallet_transaction', aggregateId: pending.id,
           correlationId: pending.id, idempotencyKey, actorType: 'user', actorId: user.id, userId: user.id,
           walletTransactionId: pending.id, status: 'failed', amount: value, result: 'rejected',
-          eventData: { provider: SEAMLESS_PROVIDER_KEY, error: error?.message || 'unknown' },
+          eventData: { provider: SEAMLESS_PROVIDER_KEY, error: failureReason },
         });
-        return Response.json({ error: 'Deposit submission failed', transaction_id: pending.id }, { status: 400 });
+        return Response.json({ error: failureReason, transaction_id: pending.id }, { status: 400 });
       }
       await base44.asServiceRole.entities.WalletTransaction.update(pending.id, { integration_status: 'uncertain', source_event: 'seamless_deposit_uncertain' });
       await saveDepositOperation(user.id, idempotencyKey, { ...operation, wallet_transaction_id: pending.id, label, state: 'uncertain', reconciliation_required: true, last_error_code: 'provider_outcome_unknown' });
