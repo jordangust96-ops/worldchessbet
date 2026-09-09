@@ -5,12 +5,11 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
-import VerifiedThirdPartyFundingSourceForm from "./VerifiedThirdPartyFundingSourceForm";
+import SeamlessPlaidBankLink from "./SeamlessPlaidBankLink";
 
-// Seamless ACH funding panel. ChessBet captures the approved ACH authorization,
-// runs Socure Account Intelligence, and only then asks Seamless to create a verified
-// third-party funding source. Provider enrollment, deposits, and withdrawals each
-// have independent server-only feature switches.
+// Seamless ACH funding panel. Bank credentials are collected only inside the
+// Seamless-hosted Plaid flow. Verification, deposits, and withdrawals remain
+// independently controlled by server-side state and provider webhooks.
 
 const BANK_STATUS = {
   verified: { label: "Connected", color: "text-emerald-400", icon: CheckCircle2 },
@@ -30,13 +29,7 @@ const TX_STATUS = {
 };
 
 function BankRow({ bank }) {
-  let displayStatus = bank.status;
-  if (bank.status === "verified" && bank.socure_status !== "verified") {
-    displayStatus = ["failed", "review_required"].includes(bank.socure_status)
-      ? "verification_failed"
-      : "pending_verification";
-  }
-  const s = BANK_STATUS[displayStatus] || BANK_STATUS.added;
+  const s = BANK_STATUS[bank.status] || BANK_STATUS.added;
   const Icon = s.icon;
   return (
     <div className="flex items-center justify-between rounded-xl bg-white/[0.03] border border-white/5 px-4 py-3">
