@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import {
   seamlessConfig, seamlessRequest, buildCreateCustomerBody,
-  PATH_CREATE_CUSTOMER, SEAMLESS_PROVIDER_KEY,
+  PATH_CREATE_CUSTOMER, SEAMLESS_PROVIDER_KEY, pickSeamlessCustomerId,
 } from '../../shared/seamlessAch.ts';
 import { seamlessHostedPlaidEnabled } from '../../shared/seamlessFundingConfig.ts';
 import { legalNameFromUser } from '../../shared/legalName.ts';
@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
       email: user.email,
       phone: (user as any).phone || undefined,
     }));
-    const providerUserId = data?.user_id || data?.id || data?.userId;
+    const providerUserId = pickSeamlessCustomerId(data);
     if (!providerUserId) throw new Error('Seamless did not return a user_id');
 
     const duplicate = (
@@ -78,9 +78,15 @@ Deno.serve(async (req) => {
       env: cfg.env,
     });
   } catch (error) {
+    const providerStatus = Number(error?.status) || undefined;
+    console.error(JSON.stringify({
+      event: 'seamless_customer_setup_failed',
+      provider_status: providerStatus,
+      reason: String(error?.message || 'unknown').slice(0, 240),
+    }));
     return Response.json(
-      { error: error?.message || 'Unable to create Seamless customer' },
-      { status: 500 }
+      { error: 'Unable to set up the secure bank connection. Please try again.' },
+      { status: providerStatus ? 502 : 500 }
     );
   }
 });
