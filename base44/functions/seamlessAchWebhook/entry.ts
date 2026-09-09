@@ -2,7 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import {
   verifySeamlessWebhookAuth, webhookIdempotencyKey, mapTransactionStatus,
   applyWebhookEvent, applyFundingSourceEvent, normalizeProviderEventTime,
-  SEAMLESS_PROVIDER_KEY,
+  userSafeTransferFailureReason, SEAMLESS_PROVIDER_KEY,
 } from '../../shared/seamlessAch.ts';
 import { postLedgerLegs } from '../../shared/ledger.ts';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
@@ -15,6 +15,11 @@ function pickLabel(body) { return body?.check?.label || body?.label || body?.tra
 function pickEventType(body) { return body?.event || body?.event_type || body?.type || ''; }
 function pickEventId(body) { return body?.event_id || body?.webhook_id || ''; }
 function pickStatus(body) { return body?.status || body?.check?.status || ''; }
+function pickFailureReason(body) {
+  return body?.check?.failure_reason || body?.check?.failure_message ||
+    body?.check?.return_reason || body?.check?.return_description ||
+    body?.check?.status_message || body?.reason || body?.message || body?.error || '';
+}
 function isMerchantBalanceTransaction(body, eventType) {
   if (eventType !== 'transaction.status' || pickLabel(body)) return false;
   const check = body?.check || body?.transaction || {};
@@ -569,12 +574,16 @@ async function handleTransaction(base44, body, eventType, idemKey, providerRef) 
   if (!tx) throw new Error('missing_wallet_transaction');
 
   const decision = applyWebhookEvent(tx, { status: providerStatus });
+  const failureReason = userSafeTransferFailureReason(pickFailureReason(body), tx.type);
   if (decision.action === 'post') await postSettlement(base44, tx, Number(tx.amount), ref, providerRef || label);
   else if (decision.action === 'reverse') await reverseSettlement(base44, tx, Number(tx.amount), ref, providerRef || label);
   else if (decision.action === 'fail') {
-    if (tx.type === 'withdrawal') await releaseWithdrawal(base44, tx, Number(tx.amount), providerRef || label);
+    if (tx.type === 'withdrawal') await releaseWithdrawal(base44, tx, Number(tx.amount), providerRef || label, failureReason);
     else await base44.asServiceRole.entities.WalletTransaction.update(tx.id, {
-      status: decision.status, integration_status: 'failed', processed_at: new Date().toISOString(),
+      status: decision.status,
+      integration_status: 'failed',
+      processed_at: new Date().toISOString(),
+      description: `Deposit failed — ${failureReason}`,
     });
   }
 
@@ -618,7 +627,7 @@ async function postSettlement(base44, tx, amount, ref, providerRef) {
   });
 }
 
-async function releaseWithdrawal(base44, tx, amount, providerRef) {
+async function releaseWithdrawal(base44, tx, amount, providerRef, failureReason) {
   const groupId = `seamless:withdrawal:release:${tx.id}`;
   if (!await hasLedgerGroup(base44, groupId)) {
     await postLedgerLegs(base44, {
@@ -631,7 +640,11 @@ async function releaseWithdrawal(base44, tx, amount, providerRef) {
     });
   }
   await base44.asServiceRole.entities.WalletTransaction.update(tx.id, {
-    status: 'failed', integration_status: 'failed', ledger_group_id: groupId, processed_at: new Date().toISOString(),
+    status: 'failed',
+    integration_status: 'failed',
+    ledger_group_id: groupId,
+    processed_at: new Date().toISOString(),
+    description: `Withdrawal failed — ${failureReason}`,
   });
 }
 
