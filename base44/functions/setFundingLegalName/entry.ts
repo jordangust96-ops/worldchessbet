@@ -2,8 +2,8 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { legalNameFromUser, normalizeLegalNameParts } from '../../shared/legalName.ts';
 
 // Authenticated, self-service legal-name capture for funding readiness.
-// Identity decisions remain exclusively Socure-controlled. Once an identity
-// evaluation is pending or verified, the name cannot be changed here.
+// Once Seamless hosted Plaid verification has completed, the legal name is
+// locked so the customer profile and retained authorization evidence cannot drift.
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
