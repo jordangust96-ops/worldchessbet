@@ -5,21 +5,19 @@ import {
   seamlessDepositsEnabled,
   seamlessWithdrawalsEnabled,
   seamlessRtpPayoutsEnabled,
-  seamlessThirdPartyFundingEnabled,
+  seamlessHostedPlaidEnabled,
 } from '../../shared/seamlessFundingConfig.ts';
 import {
   atomicStoreEnabled,
   checkAtomicStoreHealth,
 } from '../../shared/seamlessAtomicStore.ts';
 
-import { socureConfig } from '../../shared/socure.ts';
-
 function configured(name: string) {
   return !!(Deno.env.get(name) || '').trim();
 }
 
-// Admin-only, read-only production readiness probe. It never returns secret
-// values and does not contact a payment-movement endpoint.
+// Admin-only, read-only readiness probe. It exposes booleans only, never
+// provider credentials, and does not contact a money-movement endpoint.
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -42,36 +40,16 @@ Deno.serve(async (req) => {
 
     const environment = (Deno.env.get('SEAMLESS_ACH_ENV') || '').trim().toLowerCase();
     const providerConfigured =
-      environment === 'production' &&
+      ['production', 'sandbox'].includes(environment) &&
       configured('SEAMLESS_ACH_PUBLIC_KEY') &&
       configured('SEAMLESS_ACH_SECRET_KEY');
-    const complianceEvidenceConfigured = configured('KYC_AUDIT_ENCRYPTION_KEY');
-    const identityEnabled =
-      (Deno.env.get('SOCURE_IDENTITY_ENABLED') || '').trim().toLowerCase() === 'true';
-    const identityEnvironment =
-      (Deno.env.get('SOCURE_IDENTITY_ENV') || '').trim().toLowerCase();
-    const identityWorkflow = (Deno.env.get('SOCURE_IDENTITY_WORKFLOW') || '').trim();
-    const identityWorkflowConfigured =
-      !!identityWorkflow && identityWorkflow !== 'account_intelligence_screening';
-    const identityConfigured =
-      identityEnabled &&
-      identityEnvironment === 'production' &&
-      configured('SOCURE_IDENTITY_API_KEY') &&
-      configured('SOCURE_IDENTITY_RETURN_URL') &&
-      configured('SOCURE_IDENTITY_WEBHOOK_TOKEN') &&
-      identityWorkflowConfigured &&
-      complianceEvidenceConfigured;
-    const thirdPartyFundingEnabled = seamlessThirdPartyFundingEnabled();
-    let bankScreeningConfigured = false;
-    try { bankScreeningConfigured = socureConfig().enabled === true; } catch { /* fail closed */ }
-    const configurationReady = providerConfigured && atomicConfigured && atomicReachable && identityConfigured && bankScreeningConfigured;
+    const hostedPlaidEnabled = seamlessHostedPlaidEnabled();
+    const configurationReady = providerConfigured && atomicConfigured && atomicReachable;
     const blockers = [
       !seamlessProviderApproved() && 'provider_approval_pending',
       !providerConfigured && 'provider_configuration_incomplete',
       !atomicReachable && 'atomic_store_unavailable',
-      !identityConfigured && 'identity_configuration_incomplete',
-      !bankScreeningConfigured && 'bank_screening_configuration_incomplete',
-      !thirdPartyFundingEnabled && 'bank_enrollment_disabled',
+      !hostedPlaidEnabled && 'hosted_plaid_disabled',
       !seamlessDepositsEnabled() && 'deposits_disabled',
       !seamlessWithdrawalsEnabled() && 'withdrawals_disabled',
       !paidContestsEnabled() && 'paid_contests_disabled',
@@ -84,21 +62,16 @@ Deno.serve(async (req) => {
       configuration_ready: configurationReady,
       provider_approved: seamlessProviderApproved(),
       paid_contests_enabled: paidContestsEnabled(),
-      bank_screening_configured: bankScreeningConfigured,
       blockers,
       environment,
       provider_configured: providerConfigured,
+      hosted_plaid_enabled: hostedPlaidEnabled,
       atomic_store_configured: atomicConfigured,
       atomic_store_reachable: atomicReachable,
       atomic_store_error: atomicError,
       deposits_enabled: seamlessDepositsEnabled(),
       withdrawals_enabled: seamlessWithdrawalsEnabled(),
       rtp_payouts_enabled: seamlessRtpPayoutsEnabled(),
-      third_party_funding_enabled: thirdPartyFundingEnabled,
-      compliance_evidence_configured: complianceEvidenceConfigured,
-      identity_enabled: identityEnabled,
-      identity_configured: identityConfigured,
-      identity_workflow_configured: identityWorkflowConfigured,
       checked_at: new Date().toISOString(),
     });
   } catch {
