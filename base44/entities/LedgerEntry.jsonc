@@ -23,6 +23,7 @@
         "suspense",
         "settlement",
         "withdrawal_reserve",
+        "ach_return_receivable",
         "settlement_reconciliation_adjustment"
       ],
       "description": "Which internal ledger account this row posts to"
@@ -49,6 +50,37 @@
       "default": 0
     },
     "credit_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "ledger_leg_index": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Stable zero-based leg position inside ledger_group_id. Used to resume an interrupted journal write without duplicating earlier legs."
+    },
+    "available_delta": {
+      "type": "number",
+      "default": 0,
+      "description": "Exact additive change this row contributes to the user's Available Balance."
+    },
+    "held_delta": {
+      "type": "number",
+      "default": 0,
+      "description": "Exact additive change this row contributes to the user's Held Balance."
+    },
+    "total_wagered_delta": {
+      "type": "number",
+      "default": 0
+    },
+    "total_won_delta": {
+      "type": "number",
+      "default": 0
+    },
+    "total_deposited_delta": {
+      "type": "number",
+      "default": 0
+    },
+    "total_withdrawn_delta": {
       "type": "number",
       "default": 0
     },
