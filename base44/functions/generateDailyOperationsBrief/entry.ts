@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
       openCases, reviewCases, openFlags, reviewFlags,
       reconciliations, manualReviewAnalyses, failedEvents, inProgressMatches,
       wallets, ledgerAccounts, settlementEntries,
-      awaitingAnalyzerAnalyses, failedAnalyses,
+      awaitingAnalyzerAnalyses, failedAnalyses, pooledReconciliations,
     ] = await Promise.all([
       svc.DisputeCase.filter({ status: 'open' }, '-created_date', 500),
       svc.DisputeCase.filter({ status: 'under_review' }, '-created_date', 500),
@@ -63,6 +63,7 @@ Deno.serve(async (req) => {
       // screening platform-wide.
       svc.FairPlayAnalysis.filter({ status: 'awaiting_analyzer' }, '-created_date', 500),
       svc.FairPlayAnalysis.filter({ status: 'failed' }, '-created_date', 500),
+      svc.SeamlessPooledFundsReconciliation.list('-created_at', 1),
     ]);
 
     // --- Internal ledger invariant (mirrors checkLedgerIntegrity, read-only here) ---
@@ -96,6 +97,10 @@ Deno.serve(async (req) => {
     const findings = [];
     const pushFinding = (f) => findings.push(f);
 
+    const latestPooled = pooledReconciliations[0] || null;
+    const pooledAgeMs = latestPooled ? now.getTime() - new Date(latestPooled.created_at || 0).getTime() : Infinity;
+    const pooledMonitorHealthy = !!latestPooled && pooledAgeMs <= 2 * 60 * 60 * 1000 && latestPooled.status === 'covered';
+
     if (!ledgerBalanced) {
       pushFinding({
         finding_key: `ledger-imbalance-${briefDate}`,
@@ -109,6 +114,28 @@ Deno.serve(async (req) => {
         recommended_next_step: 'Administrator must reconcile the contest-clearing ledger before any payout or refund. Do not initiate a second payout. Verify WalletTransaction and ledger groups for recent contests.',
         is_approval_required: true,
         related_entity_type: 'ledger_entry',
+      });
+    }
+
+    if (!pooledMonitorHealthy) {
+      const shortfall = latestPooled?.status === 'shortfall';
+      pushFinding({
+        finding_key: `seamless-pooled-funds-coverage-${briefDate}`,
+        category: 'settlement_ledger',
+        priority: shortfall ? 'critical' : 'high',
+        status: 'human_approval_required',
+        authority_level: 'human_approval_required',
+        title: shortfall ? 'Seamless pooled funds coverage shortfall' : 'Seamless pooled funds check is missing or stale',
+        summary: shortfall
+          ? `The latest hourly comparison shows provider available cash below player wallet liabilities by $${Math.abs(Number(latestPooled.settled_coverage_variance || 0)).toFixed(2)}.`
+          : 'No covered Seamless pooled-funds reconciliation was recorded within the last two hours.',
+        evidence: latestPooled
+          ? `record=${latestPooled.id}; status=${latestPooled.status}; variance=${latestPooled.settled_coverage_variance}; created_at=${latestPooled.created_at}`
+          : `no_reconciliation_record=true; checked_at=${now.toISOString()}`,
+        recommended_next_step: 'Review the hourly reconciliation workflow and compare the Seamless merchant available balance with the ChessBet wallet liability total. This numerical check does not certify legal custody or segregation.',
+        is_approval_required: true,
+        related_entity_type: 'settlement_reconciliation',
+        related_entity_id: latestPooled?.id || '',
       });
     }
 
@@ -261,7 +288,7 @@ Deno.serve(async (req) => {
     }
     lines.push(`## Critical approvals required: ${criticalApprovals}`);
     lines.push(`## High-priority investigations: ${highCases.length + highFlags.length}`);
-    lines.push(`## Money/ledger exceptions: ${moneyExceptions} (ledger ${ledgerBalanced ? 'balanced' : `IMBALANCED (diff ${ledgerDiff})`})`);
+    lines.push(`## Money/ledger exceptions: ${moneyExceptions} (ledger ${ledgerBalanced ? 'balanced' : `IMBALANCED (diff ${ledgerDiff})`}; pooled funds ${pooledMonitorHealthy ? 'covered and current' : latestPooled?.status || 'not observed'})`);
     lines.push(`## Fair-play/dispute cases awaiting review: ${fairPlayAwaiting.length} fair-play-linked (${casesAwaiting.length} total disputes), ${manualReviewAnalyses.length} analyses in manual_review`);
     lines.push(`## Fair-play screening backlog: ${awaitingAnalyzerAnalyses.length} awaiting_analyzer (${staleAwaitingAnalyzer.length} over 24h), ${failedAnalyses.length} failed`);
     lines.push(`## Production anomalies: ${productionAnomalies} failed integration deliveries (last 24h)`);
