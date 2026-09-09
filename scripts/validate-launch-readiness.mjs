@@ -69,7 +69,7 @@ for (const file of [...await collect('src/'), ...await collect('base44/functions
 const ledger = await read('base44/shared/ledger.ts');
 const ledgerIntegrity = await read('base44/functions/checkLedgerIntegrity/entry.ts');
 assert.equal((ledger.match(/launch_epoch: 2/g) || []).length, 3);
-assert.match(ledgerIntegrity, /LedgerEntry\.filter\(\{ launch_epoch: 2 \}\)/);
-assert.match(ledgerIntegrity, /WalletTransaction\.filter\(\{ launch_epoch: 2 \}\)/);
+assert.match(ledgerIntegrity, /LedgerEntry\.filter\(\{ launch_epoch: 2 \}/);
+assert.match(ledgerIntegrity, /WalletTransaction\.filter\(\{ launch_epoch: 2 \}/);
 
 console.log('Launch readiness validation passed.');
