@@ -182,23 +182,23 @@ export default function Profile() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+        <div className="grid grid-cols-6 sm:grid-cols-5 gap-3">
           {[
           { icon: Swords, label: "Played", value: stats.played },
           { icon: Trophy, label: "Won", value: stats.won },
           { icon: XCircle, label: "Lost", value: stats.lost },
           { icon: Crown, label: "Win Rate", value: `${stats.winRate}%` }].
-          map(({ icon: Icon, label, value }) =>
+          map(({ icon: Icon, label, value }, index) =>
           <div
             key={label}
-            className="rounded-2xl bg-white/[0.03] border border-white/5 p-4 text-center">
+            className={`col-span-2 sm:col-span-1 rounded-2xl bg-white/[0.03] border border-white/5 p-4 text-center ${index === 3 ? "col-start-2 sm:col-start-auto" : ""}`}>
             
               <Icon size={18} className="text-[#C9A84C] mx-auto mb-2" />
               <p className="text-lg font-bold text-white">{value}</p>
               <p className="text-[10px] text-white/40 uppercase tracking-wider">{label}</p>
             </div>
           )}
-          <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4 text-center">
+          <div className="col-span-2 sm:col-span-1 rounded-2xl bg-white/[0.03] border border-white/5 p-4 text-center">
             <BarChart3 size={18} className="text-[#C9A84C] mx-auto mb-2" />
             <p className="text-lg font-bold text-white">
               {!ratingSummary || ratingSummary.loading ? (
@@ -208,7 +208,10 @@ export default function Profile() {
               ) : typeof ratingSummary.rating === "number" ? (
                 ratingSummary.rating.toLocaleString()
               ) : (
-                "Provisional"
+                <>
+                  <span className="sm:hidden">{ratingSummary.gamesRated ?? 0}/{ratingSummary.threshold ?? 10}</span>
+                  <span className="hidden sm:inline">Provisional</span>
+                </>
               )}
             </p>
             <p className="text-[10px] text-white/40 uppercase tracking-wider">
@@ -216,7 +219,10 @@ export default function Profile() {
             </p>
             {ratingSummary && !ratingSummary.loading && !ratingSummary.error &&
               (ratingSummary.status === "unrated" || ratingSummary.status === "provisional") && (
-              <p className="mt-0.5 text-[9px] text-white/30">{ratingSummary.gamesRated}/{ratingSummary.threshold} games</p>
+              <p className="mt-0.5 text-[9px] text-white/30">
+                <span className="sm:hidden">games rated</span>
+                <span className="hidden sm:inline">{ratingSummary.gamesRated}/{ratingSummary.threshold} games</span>
+              </p>
             )}
           </div>
         </div>
