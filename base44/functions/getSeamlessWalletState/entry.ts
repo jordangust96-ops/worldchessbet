@@ -3,48 +3,28 @@ import {
   seamlessProviderApproved,
   paidContestsEnabled,
   seamlessDepositsEnabled,
-  seamlessThirdPartyFundingEnabled,
+  seamlessHostedPlaidEnabled,
   seamlessWithdrawalsEnabled,
 } from '../../shared/seamlessFundingConfig.ts';
 import { isSeamlessPlaidVerified } from '../../shared/identityEligibility.js';
 import { legalNameFromUser } from '../../shared/legalName.ts';
-import { socureConfig } from '../../shared/socure.ts';
-import { latestSeamless hosted PlaidBankVerification, publicSeamless hosted PlaidBankStatus } from '../../shared/socureBankEligibility.js';
 
-// Read-only view of the authenticated user's Seamless funding state for the
-// Wallet page. Reads ONLY our own stored records (SeamlessPaymentProfile,
-// SeamlessBankAccount, recent pending Seamless WalletTransactions) — it does
-// NOT call the Seamless API. (No provider transaction readback endpoint is
-// proven in the current Seamless ACH v2 references; that gap is flagged as a
-// launch blocker in the build report.)
+// Read-only wallet funding view. Provider verification status is read only
+// from webhook-maintained SeamlessBankAccount records; the browser callback
+// never makes a bank usable.
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const depositsEnabled = seamlessDepositsEnabled();
-    const withdrawalsEnabled = seamlessWithdrawalsEnabled();
-    const thirdPartyFundingEnabled = seamlessThirdPartyFundingEnabled();
-    let bankScreeningEnabled = false;
-    try { bankScreeningEnabled = !!socureConfig().enabled; } catch { bankScreeningEnabled = false; }
-
     const profile = (
       await base44.asServiceRole.entities.SeamlessPaymentProfile.filter({ user_id: user.id })
     )[0] || null;
-
     const banks = await base44.asServiceRole.entities.SeamlessBankAccount.filter(
       { user_id: user.id }, '-added_at', 50
     );
-    const bankVerifications = await base44.asServiceRole.entities.Seamless hosted PlaidBankVerification.filter(
-      { user_id: user.id }, '-requested_at', 100
-    );
 
-    // `source_event` is mutated as a deposit/withdrawal progresses (created ->
-    // *_submitting -> *_submitted/*_uncertain, then overwritten again by
-    // postLedgerLegs to the raw triggerEvent on settlement), so it is never a
-    // stable filter value once a transaction leaves its initial instant. `type`
-    // and `launch_epoch` are set once at creation and never changed afterward.
     const [deposits, withdrawals, completedDeposits] = await Promise.all([
       base44.asServiceRole.entities.WalletTransaction.filter(
         { launch_epoch: 2, user_id: user.id, type: 'deposit' }, '-created_date', 10
@@ -64,31 +44,26 @@ Deno.serve(async (req) => {
       enabled: true,
       provider_approved: seamlessProviderApproved(),
       paid_contests_enabled: paidContestsEnabled(),
-      deposits_enabled: depositsEnabled,
-      withdrawals_enabled: withdrawalsEnabled,
-      third_party_funding_enabled: thirdPartyFundingEnabled,
-      bank_screening_enabled: bankScreeningEnabled,
+      deposits_enabled: seamlessDepositsEnabled(),
+      withdrawals_enabled: seamlessWithdrawalsEnabled(),
+      hosted_plaid_enabled: seamlessHostedPlaidEnabled(),
       has_completed_deposit: completedDeposits.length > 0,
-      identity_verified: isSeamlessPlaidVerified(user),
+      account_verified: isSeamlessPlaidVerified(user),
       legal_name: legalNameFromUser(user)?.fullName || '',
-      identity_status: user.identity_verification_status || 'not_started',
+      verification_status: user.identity_verification_status || 'not_started',
       account_state: user.account_state || 'provisional',
       withdrawal_hold: !!user.withdrawal_hold,
       profile: profile ? { exists: true, status: profile.status || 'created' } : null,
-      banks: banks.map((bank) => {
-        const verification = latestSeamless hosted PlaidBankVerification(bankVerifications, bank.source_id);
-        return {
-          id: bank.id,
-          source_id: bank.source_id || '',
-          account_name: bank.account_name || '',
-          account_mask: bank.account_mask || '',
-          is_primary: !!bank.is_primary,
-          status: bank.status || 'added',
-          socure_status: publicSeamless hosted PlaidBankStatus(verification),
-          added_at: bank.added_at || '',
-          verified_at: bank.verified_at || '',
-        };
-      }),
+      banks: banks.map((bank) => ({
+        id: bank.id,
+        source_id: bank.source_id || '',
+        account_name: bank.account_name || '',
+        account_mask: bank.account_mask || '',
+        is_primary: !!bank.is_primary,
+        status: bank.status || 'added',
+        added_at: bank.added_at || '',
+        verified_at: bank.verified_at || '',
+      })),
       recent: recent.map((tx) => ({
         id: tx.id,
         type: tx.type,
