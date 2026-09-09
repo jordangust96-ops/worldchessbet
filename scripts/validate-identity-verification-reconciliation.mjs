@@ -44,7 +44,7 @@ async function run(caller, currentUser = user, currentSource = source, currentAu
           return currentSource ? [currentSource] : [];
         },
       },
-      AchDebitAuthorization: {
+      'ach-debit-authorization': {
         filter: async (query) => {
           assert.equal(query.user_id, currentUser.id);
           assert.equal(query.funding_source_id, currentUser.identity_provider_reference);
