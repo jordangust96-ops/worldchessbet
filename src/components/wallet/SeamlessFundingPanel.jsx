@@ -163,17 +163,18 @@ export default function SeamlessFundingPanel({
 
   const depositsEnabled = !!state?.deposits_enabled;
   const withdrawalsEnabled = !!state?.withdrawals_enabled;
-  const thirdPartyFundingEnabled = !!state?.third_party_funding_enabled;
-  const bankScreeningEnabled = !!state?.bank_screening_enabled;
-  const identityVerified = !!state?.identity_verified;
+  const hostedPlaidEnabled = !!state?.hosted_plaid_enabled;
+  const accountVerified = !!state?.account_verified;
   const effectiveAccountState = state?.account_state || accountState;
   const effectiveWithdrawalHold = state?.withdrawal_hold ?? withdrawalHold;
-  const notVerified = !identityVerified || effectiveAccountState !== "verified";
-  const ineligible = effectiveWithdrawalHold || notVerified;
+  const accountRestricted = ["suspended", "closed"].includes(effectiveAccountState);
+  const notVerified = !accountVerified || effectiveAccountState !== "verified";
+  const ineligible = effectiveWithdrawalHold || accountRestricted || notVerified;
   const verifiedBank = state?.banks?.find((b) => b.status === "verified");
-  const bankScreeningStatus = verifiedBank?.socure_status || "not_started";
-  const bankScreened = bankScreeningStatus === "verified";
-  const bankReady = !!verifiedBank && bankScreened;
+  const bankPending = state?.banks?.some((b) =>
+    ["added", "pending_verification"].includes(b.status)
+  );
+  const bankReady = !!verifiedBank && accountVerified;
   const depositComplete = !!state?.has_completed_deposit;
   const transferDirectionEnabled = direction === 'deposit' ? depositsEnabled : withdrawalsEnabled;
   const meetsMinimum = direction === 'deposit' ? parsedAmount >= MIN_DEPOSIT_AMOUNT : parsedAmount > 0;
@@ -190,7 +191,7 @@ export default function SeamlessFundingPanel({
   return (
     <div className="space-y-4">
 
-      {/* Account-state notices (preserved from the prior UX) */}
+      {/* Provider webhooks are authoritative for account and bank status. */}
       {effectiveWithdrawalHold && (
         <p className="text-xs text-red-400/80 text-center">
           Withdrawals are temporarily on hold while we complete a routine account review.
@@ -198,7 +199,7 @@ export default function SeamlessFundingPanel({
       )}
       {!effectiveWithdrawalHold && notVerified && effectiveAccountState === "provisional" && (
         <p className="text-xs text-white/40 text-center">
-          Complete identity verification to unlock deposits and withdrawals.
+          Connect and verify your bank to unlock deposits and withdrawals.
         </p>
       )}
       {!effectiveWithdrawalHold && effectiveAccountState === "suspended" && (
@@ -212,48 +213,46 @@ export default function SeamlessFundingPanel({
         </p>
       )}
 
-      {/* Step 2: connect a bank. Provider screening and verification remain internal to this step. */}
+      {/* Step 1: collect authorization, then open Seamless-hosted Plaid. */}
       <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4 space-y-3">
         <div>
-          <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]">Step 2</p>
+          <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]">Step 1</p>
           <h4 className="text-sm font-semibold text-white mt-1">
-            {bankReady ? "Bank connected" : "Connect your bank"}
+            {bankReady ? "Bank connected" : "Connect and verify your bank"}
           </h4>
           <p className="text-xs text-white/45 mt-1">
-            {!identityVerified
-              ? "Complete Step 1 before connecting a bank."
-              : bankReady
-                ? "Your bank is connected and ready to use with ChessBet."
-                : verifiedBank
-                  ? "We're securely confirming your bank account. This page updates automatically."
-                  : !thirdPartyFundingEnabled
-                    ? "Bank connection will be available when funding opens."
-                    : !bankScreeningEnabled
-                      ? "Bank connection will be available when funding opens."
-                      : "Add the bank account you'll use to deposit and withdraw funds."}
+            {bankReady
+              ? "Your bank is verified and ready to use with ChessBet."
+              : bankPending
+                ? "Seamless is verifying your bank. This page updates automatically after its webhook arrives."
+                : !hostedPlaidEnabled
+                  ? "Bank connection will be available when funding opens."
+                  : "Use Seamless's hosted Plaid flow. ChessBet never receives your bank credentials or account numbers."}
           </p>
         </div>
 
-        {state?.banks?.length ? (
+        {state?.banks?.length > 0 && (
           <div className="space-y-2">
             {state.banks.map((bank) => <BankRow key={bank.id} bank={bank} />)}
           </div>
-        ) : thirdPartyFundingEnabled && bankScreeningEnabled && identityVerified ? (
-          <VerifiedThirdPartyFundingSourceForm
+        )}
+        {!bankReady && !bankPending && hostedPlaidEnabled && !accountRestricted ? (
+          <SeamlessPlaidBankLink
             legalName={state?.legal_name || ""}
-            disabled={ineligible}
+            hasWithdrawableBalance={(wallet?.available_balance || 0) > 0}
+            disabled={effectiveWithdrawalHold}
             onComplete={load}
           />
-        ) : (
+        ) : !bankReady && !bankPending ? (
           <p className="text-xs text-white/30 text-center py-2">No bank connected yet.</p>
-        )}
+        ) : null}
       </div>
 
-      {/* Step 3: existing server-side transfer gates remain authoritative. */}
+      {/* Step 2: transfer gates remain authoritative on the server. */}
       <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4 space-y-3">
         <div>
           <p className={`text-[10px] uppercase tracking-widest ${depositComplete ? "text-emerald-300/70" : "text-[#C9A84C]"}`}>
-            {depositComplete ? "Step 3 · Complete" : "Step 3"}
+            {depositComplete ? "Step 2 · Complete" : "Step 2"}
           </p>
           <h4 className="text-sm font-semibold text-white mt-1">
             {depositComplete ? "ChessBet wallet funded" : "Deposit into your ChessBet wallet"}
@@ -261,10 +260,8 @@ export default function SeamlessFundingPanel({
           <p className="text-xs text-white/45 mt-1">
             {!depositsEnabled && !withdrawalsEnabled
               ? "Bank transfers are currently unavailable."
-              : !identityVerified
-              ? "Complete Step 1 first."
               : !bankReady
-                ? "Complete Step 2 first."
+                ? "Complete Step 1 first."
                 : direction === "withdrawal" && !withdrawalsEnabled
                   ? "Withdrawals are temporarily unavailable."
                   : direction === "withdrawal"
