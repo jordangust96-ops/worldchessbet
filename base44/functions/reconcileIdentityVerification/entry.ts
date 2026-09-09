@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
       }
 
       if (user.identity_verification_status !== 'verified' && user.account_state !== 'verified') continue;
-      const nextStatus = publicStatus(source);
+      const nextStatus = source?.status === 'verified' ? 'review_required' : publicStatus(source);
       const updates: Record<string, unknown> = { identity_verification_status: nextStatus };
       if (user.account_state === 'verified') updates.account_state = 'provisional';
       await base44.asServiceRole.entities.User.update(user.id, updates);
