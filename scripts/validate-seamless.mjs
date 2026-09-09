@@ -63,6 +63,8 @@ const [
   createLink,
   ensureCustomer,
   webhook,
+  complianceEvidence,
+  reconcileIdentity,
   deposit,
   withdrawal,
   contest,
@@ -74,6 +76,8 @@ const [
   read('base44/functions/createSeamlessBankLinkUrl/entry.ts'),
   read('base44/functions/ensureSeamlessCustomer/entry.ts'),
   read('base44/functions/seamlessAchWebhook/entry.ts'),
+  read('base44/shared/complianceEvidence.ts'),
+  read('base44/functions/reconcileIdentityVerification/entry.ts'),
   read('base44/functions/submitSeamlessDeposit/entry.ts'),
   read('base44/functions/submitSeamlessWithdrawal/entry.ts'),
   read('base44/functions/runContestEligibility/entry.ts'),
@@ -88,7 +92,7 @@ assert.doesNotMatch(panel, /routingNumber|accountNumber|access_token|processor_t
 assert.match(hostedLink, /SeamlessPlaidBankLink/);
 assert.doesNotMatch(hostedLink, /VerifiedThirdPartyFundingSourceForm/);
 assert.match(createLink, /trustedAppOrigin/);
-assert.match(createLink, /AchDebitAuthorization\.create/);
+assert.match(createLink, /entities\['ach-debit-authorization'\]\.create/);
 assert.match(createLink, /buildBankLinkUrl/);
 assert.doesNotMatch(createLink, /SEAMLESS_ACH_SECRET_KEY/);
 assert.match(ensureCustomer, /pickSeamlessCustomerId\(data\)/);
@@ -97,6 +101,10 @@ assert.match(webhook, /'funding-source\.verified'/);
 assert.match(webhook, /body\?\.user\?\.user_id/);
 assert.match(webhook, /eventType === 'user\.created'/);
 assert.match(webhook, /Recovered from authenticated Seamless customer webhook/);
+for (const source of [createLink, webhook, complianceEvidence, reconcileIdentity]) {
+  assert.match(source, /entities\['ach-debit-authorization'\]/);
+  assert.doesNotMatch(source, /entities\.AchDebitAuthorization/);
+}
 assert.match(webhook, /identity_verification_provider: 'seamless_ach_plaid'/);
 assert.match(webhook, /funding_source_id: bank\.source_id/);
 assert.ok(
