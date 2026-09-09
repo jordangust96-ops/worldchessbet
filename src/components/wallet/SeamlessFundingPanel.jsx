@@ -253,6 +253,7 @@ export default function SeamlessFundingPanel({
   const depositSourceReady = providerPrimaryBank?.status === "verified";
   const bankReadyForDirection = direction === "deposit" ? depositSourceReady : bankReady;
   const displayedBank = direction === "deposit" ? (providerPrimaryBank || verifiedBank) : verifiedBank;
+  const displayedBankVerified = displayedBank?.status === "verified";
   const transferDirectionEnabled = direction === "deposit" ? depositsEnabled : withdrawalsEnabled;
   const availableBalance = wallet?.available_balance || 0;
   const meetsMinimum = direction === "deposit" ? parsedAmount >= MIN_DEPOSIT_AMOUNT : parsedAmount > 0;
@@ -408,16 +409,21 @@ export default function SeamlessFundingPanel({
             <div className="rounded-2xl border border-white/5 bg-black/20 px-4 py-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10">
-                    <CheckCircle2 size={17} className="text-emerald-400" />
+                  <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${displayedBankVerified ? "bg-emerald-500/10" : "bg-amber-500/10"}`}>
+                    {displayedBankVerified
+                      ? <CheckCircle2 size={17} className="text-emerald-400" />
+                      : <Clock size={17} className="text-amber-400" />}
                   </div>
                   <div className="min-w-0">
                     <p className="text-[10px] uppercase tracking-wider text-white/35">
                       {direction === "deposit" ? "From" : "To"}
                     </p>
                     <p className="truncate text-sm font-medium text-white/85">
-                      {verifiedBank.account_name || "Connected bank"}
-                      {verifiedBank.account_mask ? " ending in " + verifiedBank.account_mask : ""}
+                      {displayedBank?.account_name || "Connected bank"}
+                      {displayedBank?.account_mask ? " ending in " + displayedBank.account_mask : ""}
+                    </p>
+                    <p className={`text-[10px] ${displayedBankVerified ? "text-emerald-400/75" : "text-amber-300/75"}`}>
+                      {displayedBankVerified ? "Connected" : "Awaiting verification"}
                     </p>
                   </div>
                 </div>
@@ -434,6 +440,25 @@ export default function SeamlessFundingPanel({
                   {showBankManager ? "Done" : "Manage"}
                 </button>
               </div>
+
+              {direction === "deposit" && !depositSourceReady && (
+                <div className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/[0.07] p-3">
+                  <p className="text-xs leading-relaxed text-amber-100/80">
+                    {providerPrimaryBank?.account_name || "Your selected bank"} is still awaiting verification and cannot be used for another deposit yet.
+                  </p>
+                  {verifiedBank && !verifiedBank.is_primary && (
+                    <button
+                      type="button"
+                      onClick={() => manageBank("set_primary", verifiedBank)}
+                      disabled={!!busy}
+                      className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-[#E7C866] hover:underline disabled:opacity-40"
+                    >
+                      {busy === `primary:${verifiedBank.id}` ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                      Use {verifiedBank.account_name || "connected bank"} for deposits
+                    </button>
+                  )}
+                </div>
+              )}
 
               {showBankManager && (
                 <div className="mt-4 space-y-3 border-t border-white/5 pt-4">
@@ -491,7 +516,7 @@ export default function SeamlessFundingPanel({
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="0.00"
-                  disabled={ineligible || !transferDirectionEnabled}
+                  disabled={ineligible || !bankReadyForDirection || !transferDirectionEnabled}
                   className="h-full min-w-0 flex-1 bg-transparent px-2 text-2xl font-bold text-white outline-none placeholder:text-white/15 disabled:opacity-40"
                 />
                 <span className="text-xs font-medium text-white/30">USD</span>
@@ -506,7 +531,7 @@ export default function SeamlessFundingPanel({
                         type="button"
                         aria-pressed={parsedAmount === value}
                         onClick={() => setAmount(String(value))}
-                        disabled={ineligible || !depositsEnabled || !!busy}
+                        disabled={ineligible || !depositSourceReady || !depositsEnabled || !!busy}
                         className={
                           "rounded-xl border px-2 py-2.5 text-sm font-semibold transition-colors disabled:opacity-30 " +
                           (parsedAmount === value
@@ -568,6 +593,8 @@ export default function SeamlessFundingPanel({
                 ) : direction === "deposit" ? (
                   !depositsEnabled
                     ? "Deposits are temporarily unavailable"
+                    : !depositSourceReady
+                      ? "Choose a connected bank"
                     : !formattedAmount
                       ? "Enter an amount"
                       : !meetsMinimum
