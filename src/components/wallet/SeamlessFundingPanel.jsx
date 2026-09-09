@@ -18,8 +18,8 @@ import { getTransferFailureMessage } from "./transferFailureCopy";
 
 const BANK_STATUS = {
   verified: { label: "Connected", color: "text-emerald-400", icon: CheckCircle2 },
-  pending_verification: { label: "Connecting", color: "text-amber-400", icon: Clock },
-  added: { label: "Connecting", color: "text-amber-400", icon: Clock },
+  pending_verification: { label: "Awaiting verification", color: "text-amber-400", icon: Clock },
+  added: { label: "Awaiting verification", color: "text-amber-400", icon: Clock },
   verification_failed: { label: "Needs attention", color: "text-red-400", icon: XCircle },
   verification_expired: { label: "Reconnect required", color: "text-red-400", icon: XCircle },
   deleted: { label: "Removed", color: "text-white/40", icon: XCircle },
