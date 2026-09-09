@@ -132,10 +132,11 @@ await Promise.all([
 ]);
 assert.deepEqual([settledWithdrawal.available, settledWithdrawal.held, settledWithdrawal.reserve, settledWithdrawal.settlement], [100, 0, 0, 0], 'returned withdrawal restores funds exactly once');
 
-const [depositSrc, withdrawalSrc, webhookSrc, storeSrc] = await Promise.all([
+const [depositSrc, withdrawalSrc, webhookSrc, transitionSrc, storeSrc] = await Promise.all([
   readFile(new URL('../base44/functions/submitSeamlessDeposit/entry.ts', import.meta.url), 'utf8'),
   readFile(new URL('../base44/functions/submitSeamlessWithdrawal/entry.ts', import.meta.url), 'utf8'),
   readFile(new URL('../base44/functions/seamlessAchWebhook/entry.ts', import.meta.url), 'utf8'),
+  readFile(new URL('../base44/shared/seamlessLedgerTransitions.ts', import.meta.url), 'utf8'),
   readFile(new URL('../base44/shared/seamlessAtomicStore.ts', import.meta.url), 'utf8'),
 ]);
 assert.match(depositSrc, /claimDepositOperation/, 'deposit claims a durable request operation before external debit');
@@ -144,7 +145,7 @@ assert.match(withdrawalSrc, /acquireUserWalletLock/, 'withdrawal obtains a durab
 assert.match(withdrawalSrc, /withdrawal_reserve/, 'withdrawal posts a reserve before provider submission');
 assert.match(withdrawalSrc, /integration_status: 'uncertain'/, 'unknown provider outcome is retained without resubmission');
 assert.match(webhookSrc, /claimWebhookEvent/, 'webhook claims an event before financial mutation');
-assert.match(webhookSrc, /seamless:withdrawal:settle:/, 'withdrawal settlement group is stable, not random');
+assert.match(transitionSrc, /seamless:withdrawal:settle:/, 'withdrawal settlement group is stable, not random');
 assert.match(webhookSrc, /amount: pickAmount\(body\)/, 'unmatched callback has a defined optional amount');
 assert.match(storeSrc, /\['EVAL'/, 'atomic store uses Redis EVAL');
 assert.match(storeSrc, /state == 'completed'/, 'completed webhook claims are durable');
