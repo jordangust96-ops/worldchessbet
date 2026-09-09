@@ -42,9 +42,23 @@ Deno.serve(async (req) => {
       const source = matches.find((record: any) =>
         record.user_id === user.id && record.source_id === sourceId
       ) || null;
+      const authorizations = sourceId
+        ? await base44.asServiceRole.entities.AchDebitAuthorization.filter(
+            { user_id: user.id, funding_source_id: sourceId, status: 'active' },
+            '-accepted_at',
+            20
+          )
+        : [];
+      const signedAuthorization = authorizations.find((authorization: any) =>
+        authorization.provider_key === PROVIDER &&
+        authorization.provider_user_id === source?.provider_user_id &&
+        authorization.funding_source_id === sourceId &&
+        !!authorization.provider_event_id
+      );
       const trusted = source?.status === 'verified' &&
         !!source.verified_at &&
-        !!source.last_provider_event_id;
+        !!source.last_provider_event_id &&
+        !!signedAuthorization;
 
       if (trusted) {
         const needsPromotion =
