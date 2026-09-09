@@ -278,7 +278,7 @@ async function syncHostedPlaidAccountState(base44, bank, profile, eventType, eve
   if (!user) return;
 
   if (bank.status === 'verified') {
-    const authorizations = await base44.asServiceRole.entities.AchDebitAuthorization.filter(
+    const authorizations = await base44.asServiceRole.entities['ach-debit-authorization'].filter(
       { user_id: user.id, status: 'active' }, '-accepted_at', 20
     );
     const candidate = authorizations.find((authorization) =>
@@ -293,7 +293,7 @@ async function syncHostedPlaidAccountState(base44, bank, profile, eventType, eve
     // remains visible for support but cannot activate the account.
     if (!candidate) return;
 
-    await base44.asServiceRole.entities.AchDebitAuthorization.update(candidate.id, {
+    await base44.asServiceRole.entities['ach-debit-authorization'].update(candidate.id, {
       funding_source_id: bank.source_id,
       provider_event_id: eventId,
       account_last_four: bank.account_mask || '',
@@ -323,7 +323,7 @@ async function syncHostedPlaidAccountState(base44, bank, profile, eventType, eve
         authorization.provider_user_id === profile.provider_user_id &&
         !authorization.funding_source_id
       ) {
-        await base44.asServiceRole.entities.AchDebitAuthorization.update(authorization.id, {
+        await base44.asServiceRole.entities['ach-debit-authorization'].update(authorization.id, {
           status: 'superseded',
           revoked_at: now,
         });
@@ -334,13 +334,13 @@ async function syncHostedPlaidAccountState(base44, bank, profile, eventType, eve
 
   if (!['verification_failed', 'verification_expired', 'deleted'].includes(bank.status)) return;
 
-  const authorizations = await base44.asServiceRole.entities.AchDebitAuthorization.filter(
+  const authorizations = await base44.asServiceRole.entities['ach-debit-authorization'].filter(
     { user_id: user.id, funding_source_id: bank.source_id, status: 'active' },
     '-accepted_at',
     20
   );
   for (const authorization of authorizations) {
-    await base44.asServiceRole.entities.AchDebitAuthorization.update(authorization.id, {
+    await base44.asServiceRole.entities['ach-debit-authorization'].update(authorization.id, {
       status: 'revoked',
       revoked_at: now,
       provider_event_id: eventId,
@@ -354,7 +354,7 @@ async function syncHostedPlaidAccountState(base44, bank, profile, eventType, eve
     const verifiedBanks = await base44.asServiceRole.entities.SeamlessBankAccount.filter(
       { user_id: user.id, status: 'verified' }, '-verified_at', 20
     );
-    const activeAuthorizations = await base44.asServiceRole.entities.AchDebitAuthorization.filter(
+    const activeAuthorizations = await base44.asServiceRole.entities['ach-debit-authorization'].filter(
       { user_id: user.id, status: 'active' }, '-accepted_at', 50
     );
     const replacement = verifiedBanks.find((verifiedBank) =>
