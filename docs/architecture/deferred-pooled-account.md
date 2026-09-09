@@ -34,7 +34,7 @@ The mapping contains opaque provider identifiers only and never full routing/acc
 ## Go-live acceptance checklist
 
 - Written provider architecture and account ownership approved by legal/compliance.
-- Sandbox customer, bank link, Socure screening, deposit, settlement, return, withdrawal, and failure paths proven end to end.
+- Sandbox customer, Seamless hosted Plaid bank verification, authenticated funding-source webhook, deposit, settlement, return, withdrawal, and failure paths proven end to end.
 - Webhook authentication, replay, out-of-order delivery, and reconciliation tested with captured provider fixtures.
 - Atomic store and provider reconciliation configured and monitored.
 - Deposit and withdrawal switches enabled separately under change control, beginning with limited accounts and limits.
