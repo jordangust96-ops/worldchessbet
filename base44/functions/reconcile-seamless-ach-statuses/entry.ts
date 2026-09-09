@@ -78,6 +78,13 @@ function extractProviderReference(data: any) {
   );
 }
 
+async function upsertTracker(base44: any, tracker: any, fields: any) {
+  if (tracker?.id) {
+    return base44.asServiceRole.entities.SeamlessStatusReconciliation.update(tracker.id, fields);
+  }
+  return base44.asServiceRole.entities.SeamlessStatusReconciliation.create(fields);
+}
+
 async function applyRecoveredStatus(
   base44: any,
   tx: any,
