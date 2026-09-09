@@ -13,7 +13,7 @@
     },
     "identity_verification_status": {
       "type": "string",
-      "description": "Authoritative server-maintained Socure identity-verification state.",
+      "description": "Authoritative server-maintained account-verification state derived from Seamless hosted Plaid funding-source webhooks.",
       "enum": [
         "not_started",
         "pending",
@@ -31,7 +31,7 @@
     "identity_verified_at": {
       "type": "string",
       "format": "date-time",
-      "description": "Timestamp when identity verification was successfully completed. Once set, the user should not be re-verified unless required by future policy.",
+      "description": "Timestamp when Seamless confirmed the player's bank funding source. Re-verification is required if that source later fails, expires, or is deleted.",
       "rls": {
         "write": false
       }
@@ -55,7 +55,7 @@
     },
     "verified_id_hash": {
       "type": "string",
-      "description": "SHA-256 hash of the government-issued ID number provided during identity verification (never the raw ID number). Used by verifyUserIdentity to detect and deny duplicate accounts belonging to the same individual \u2014 each individual may hold only one Account.",
+      "description": "Deprecated legacy verification hash retained only for historical records. The hosted bank flow does not populate or read this field.",
       "rls": {
         "write": false,
         "read": {
@@ -193,7 +193,7 @@
     },
     "account_state": {
       "type": "string",
-      "description": "Internal account status. provisional: created but not identity-verified \u2014 may access the Platform but not deposit, withdraw, or enter paid Contests. verified: identity verification complete \u2014 full participation, subject to ongoing eligibility checks. suspended: temporarily restricted (investigation/dispute/compliance/integrity hold) \u2014 no new Contests, deposits, or withdrawals; existing balance preserved but held. closed: permanently closed. Set by an admin.",
+      "description": "Internal account status. provisional: created but no webhook-verified Seamless bank is active; may access the Platform but not deposit, withdraw, or enter paid Contests. verified: hosted bank verification complete; full participation, subject to ongoing eligibility checks. suspended: temporarily restricted; no new Contests, deposits, or withdrawals and the existing balance is preserved. closed: permanently closed. Restricted states are never overridden by provider webhooks.",
       "enum": [
         "provisional",
         "verified",
