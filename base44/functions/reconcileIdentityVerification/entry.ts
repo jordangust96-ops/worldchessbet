@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
         record.user_id === user.id && record.source_id === sourceId
       ) || null;
       const authorizations = sourceId
-        ? await base44.asServiceRole.entities.AchDebitAuthorization.filter(
+        ? await base44.asServiceRole.entities['ach-debit-authorization'].filter(
             { user_id: user.id, funding_source_id: sourceId, status: 'active' },
             '-accepted_at',
             20
