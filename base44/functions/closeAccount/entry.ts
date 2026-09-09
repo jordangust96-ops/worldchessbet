@@ -5,7 +5,6 @@ import { seamlessWithdrawalsEnabled } from '../../shared/seamlessFundingConfig.t
 import { extendComplianceEvidenceRetention } from '../../shared/complianceEvidence.ts';
 import { isSeamlessPlaidVerified } from '../../shared/identityEligibility.js';
 import { legalNameFromUser } from '../../shared/legalName.ts';
-import { isSeamless hosted PlaidBankVerificationAccepted, latestSeamless hosted PlaidBankVerification } from '../../shared/socureBankEligibility.js';
 import {
   seamlessConfig, seamlessRequest, buildWithdrawalBody,
   PATH_CHECK_SEND, SEAMLESS_PROVIDER_KEY,
@@ -143,15 +142,6 @@ Deno.serve(async (req) => {
           return Response.json({
             error: 'Link and verify a bank account before closing an account with a remaining balance — there is no way to send your remaining balance without one.',
             action: 'bank_link_required',
-            available_balance: payout,
-          }, { status: 400 });
-        }
-        const bankVerifications = await base44.asServiceRole.entities.Seamless hosted PlaidBankVerification.filter({ user_id: user.id, source_id: bank.source_id });
-        const bankVerification = latestSeamless hosted PlaidBankVerification(bankVerifications, bank.source_id);
-        if (!isSeamless hosted PlaidBankVerificationAccepted(bankVerification, bank.source_id)) {
-          return Response.json({
-            error: 'Complete bank account screening before closing an account with a remaining balance.',
-            action: 'bank_screening_required',
             available_balance: payout,
           }, { status: 400 });
         }
