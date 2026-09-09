@@ -72,6 +72,7 @@ const [
   webhook,
   complianceEvidence,
   reconcileIdentity,
+  manageBank,
   deposit,
   withdrawal,
   contest,
@@ -85,6 +86,7 @@ const [
   read('base44/functions/seamlessAchWebhook/entry.ts'),
   read('base44/shared/complianceEvidence.ts'),
   read('base44/functions/reconcileIdentityVerification/entry.ts'),
+  read('base44/functions/manageSeamlessBankAccount/entry.ts'),
   read('base44/functions/submitSeamlessDeposit/entry.ts'),
   read('base44/functions/submitSeamlessWithdrawal/entry.ts'),
   read('base44/functions/runContestEligibility/entry.ts'),
@@ -120,13 +122,22 @@ assert.ok(
   'an orphan verified source must not activate the player'
 );
 assert.match(webhook, /const replacement = verifiedBanks\.find/);
+assert.match(webhook, /funding-source\.made-primary/);
+assert.match(manageBank, /PATH_REMOVE_FUNDING_SOURCE/);
+assert.match(manageBank, /PATH_SET_PRIMARY_FUNDING_SOURCE/);
+assert.match(manageBank, /bank\.user_id !== user\.id/);
+assert.match(manageBank, /ACTIVE_INTEGRATION_STATUSES/);
+assert.match(manageBank, /entities\['ach-debit-authorization'\]/);
+assert.match(hostedLink, /manageSeamlessBankAccount/);
+assert.match(hostedLink, /Change or add a bank account/);
+assert.match(hostedLink, /Disconnect bank/);
 assert.match(deposit, /isSeamlessPlaidVerified\(user\)/);
 assert.match(withdrawal, /isSeamlessPlaidVerified\(user\)/);
 assert.match(contest, /isSeamlessPlaidVerified\(user\)/);
 assert.match(retiredManualSource, /status: 410/);
 assert.match(retiredIdentityStart, /status: 410/);
 
-for (const source of [panel, hostedLink, createLink, webhook, deposit, withdrawal, contest]) {
+for (const source of [panel, hostedLink, createLink, webhook, manageBank, deposit, withdrawal, contest]) {
   assert.doesNotMatch(source, /Socure|SOCURE|socure/);
 }
 
