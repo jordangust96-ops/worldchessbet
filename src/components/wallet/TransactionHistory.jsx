@@ -11,6 +11,7 @@ import {
 import moment from "moment";
 import TransactionPagination from "@/components/wallet/TransactionPagination";
 import ReportContestButton from "@/components/disputes/ReportContestButton";
+import { getTransferFailureMessage } from "@/components/wallet/transferFailureCopy";
 
 const typeConfig = {
   deposit: { icon: ArrowDownLeft, color: "text-green-400", bg: "bg-green-500/10", label: "Deposit" },
@@ -30,6 +31,7 @@ const statusConfig = {
   completed: { label: "Completed", className: "text-green-400 bg-green-500/10 border-green-500/20" },
   pending: { label: "Pending", className: "text-[#C9A84C] bg-[#C9A84C]/10 border-[#C9A84C]/20" },
   failed: { label: "Not applied", className: "text-white/45 bg-white/5 border-white/10" },
+  failed_transfer: { label: "Failed", className: "text-red-300 bg-red-500/10 border-red-500/20" },
   review_required: { label: "Review required", className: "text-orange-300 bg-orange-500/10 border-orange-500/20" },
   pending_release: { label: "Pending release", className: "text-[#C9A84C] bg-[#C9A84C]/10 border-[#C9A84C]/20" },
 };
@@ -86,6 +88,14 @@ function getTransactionExplanation(tx, match) {
     return {
       heading: "No balance change",
       text: "This was a duplicate processing attempt. It did not change your balance and can be ignored because the contest was completed in another transaction.",
+    };
+  }
+  if (tx.status === "failed" && ["deposit", "withdrawal"].includes(tx.type)) {
+    return {
+      heading: "Why it failed",
+      text: tx.type === "deposit"
+        ? `${getTransferFailureMessage(tx)} No money was added to your ChessBet wallet.`
+        : `${getTransferFailureMessage(tx)} The withdrawal was not sent and any reserved funds were returned to your available balance.`,
     };
   }
   if (tx.status === "failed") {
@@ -198,8 +208,14 @@ export default function TransactionHistory({
           const timeControl = match?.display_name || titleCase(match?.time_control);
           const result = getMatchResult(match, userId);
           const isPendingRelease = tx.type === "payout" && tx.payout_hold_status === "held";
-          const status = isPendingRelease ? statusConfig.pending_release : (statusConfig[tx.status] || statusConfig.completed);
           const isFailed = tx.status === "failed";
+          const isFailedTransfer = isFailed && ["deposit", "withdrawal"].includes(tx.type);
+          const failureMessage = isFailedTransfer ? getTransferFailureMessage(tx) : "";
+          const status = isPendingRelease
+            ? statusConfig.pending_release
+            : isFailedTransfer
+              ? statusConfig.failed_transfer
+              : (statusConfig[tx.status] || statusConfig.completed);
           const needsReview = tx.status === "review_required";
           const explanation = getTransactionExplanation(tx, match);
           const transactionCreatedMs = serverTimestampMs(tx.created_date);
@@ -233,7 +249,9 @@ export default function TransactionHistory({
                 timeControl,
                 matchReference ? `Match ${matchReference}` : null,
               ]
-            : [moment(tx.created_date).format("MMM D, YYYY"), titleCase(tx.status || "completed")];
+            : isFailedTransfer
+              ? [failureMessage]
+              : [moment(tx.created_date).format("MMM D, YYYY"), titleCase(tx.status || "completed")];
 
           return (
             <div
