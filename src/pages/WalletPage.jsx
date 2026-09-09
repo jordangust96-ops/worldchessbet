@@ -7,7 +7,6 @@ import Logo from "@/components/Logo";
 import RestrictedModeBanner from "@/components/RestrictedModeBanner";
 import TransactionHistory from "@/components/wallet/TransactionHistory";
 import SeamlessFundingPanel from "@/components/wallet/SeamlessFundingPanel";
-import SocureIdentityVerificationPanel from "@/components/wallet/SocureIdentityVerificationPanel";
 import RealMoneyLaunchNotice from "@/components/RealMoneyLaunchNotice";
 
 const TX_PAGE_SIZE = 20;
@@ -34,8 +33,8 @@ export default function WalletPage() {
   // Wallet route is the one protected route the guard lets a jurisdiction-
   // blocked user reach (see JurisdictionAccessGuard.jsx) so balance and
   // withdrawal stay available regardless of jurisdiction. Deposit- and
-  // gameplay-adjacent actions (identity verification, bank linking) still
-  // re-check jurisdiction themselves immediately before starting, so this
+  // gameplay-adjacent actions (new bank linking) still re-check
+  // jurisdiction immediately before starting, so this
   // value is passed through for context/messaging only, not used to hide the
   // page itself.
   const jurisdictionDecision = /** @type {{ allowed: boolean, reason?: string, promptEligible?: boolean } | null} */ (useOutletContext());
@@ -48,11 +47,7 @@ export default function WalletPage() {
   const [stats, setStats] = useState({ won: 0, lost: 0, wagered: 0 });
   const [loading, setLoading] = useState(true);
   const [withdrawalHold, setWithdrawalHold] = useState(false);
-  const [accountState, setAccountState] = useState("verified");
-  const [identityStatus, setIdentityStatus] = useState("not_started");
-  const [fullName, setFullName] = useState("");
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [fundingJourney, setFundingJourney] = useState({ bankStarted: false, bankConnectionAvailable: false });
+  const [accountState, setAccountState] = useState("provisional");
 
   useEffect(() => {
     loadData();
@@ -138,10 +133,7 @@ export default function WalletPage() {
     }
     setUserId(me.id);
     setWithdrawalHold(!!me.withdrawal_hold);
-    setAccountState(me.account_state || "verified");
-    setIdentityStatus(me.identity_verification_status || "not_started");
-    setFullName(me.full_name || me.name || "");
-    setIsAdmin(me.role === "admin");
+    setAccountState(me.account_state || "provisional");
     // The wallet is always created by the backend (ensureWallet, as
     // the service role) so there is exactly one per user. Never create a
     // wallet from the client — that previously produced a duplicate wallet
@@ -242,23 +234,11 @@ export default function WalletPage() {
 
         <RealMoneyLaunchNotice />
 
-        <SocureIdentityVerificationPanel
-          status={identityStatus}
-          fullName={fullName}
-          onNameSaved={setFullName}
-          wallet={wallet}
-          onRefresh={loadData}
-          isAdmin={isAdmin}
-          bankConnectionStarted={fundingJourney.bankStarted}
-          bankConnectionAvailable={fundingJourney.bankConnectionAvailable}
-        />
-
         <SeamlessFundingPanel
           wallet={wallet}
           accountState={accountState}
           withdrawalHold={withdrawalHold}
           onRefresh={loadData}
-          onJourneyStateChange={setFundingJourney}
         />
 
         {/* Transactions */}
