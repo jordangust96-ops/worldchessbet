@@ -34,6 +34,35 @@ export function formatAmount(value) {
   return n.toFixed(2);
 }
 
+// Convert provider decline text into stable, useful player copy. Unknown raw
+// provider messages are never exposed because they may contain internal detail.
+export function userSafeTransferFailureReason(raw, direction = 'deposit') {
+  const transfer = direction === 'withdrawal' ? 'withdrawal' : 'deposit';
+  const text = String(raw || '').trim();
+  const lower = text.toLowerCase();
+  const fallback = transfer === 'deposit'
+    ? 'Your bank declined this deposit. Check your available balance or use a different connected bank.'
+    : 'Your bank declined this withdrawal. Confirm the account is open and able to receive ACH transfers.';
+
+  if (!text) return fallback;
+  if (/insufficient|not sufficient|nsf|available funds|sufficient funds/.test(lower)) {
+    return transfer === 'deposit'
+      ? 'Your bank could not complete this deposit. Check that the account has enough available funds, or use a different connected bank.'
+      : 'Your bank could not complete this withdrawal because the destination account may be unable to accept it.';
+  }
+  if (/closed|frozen|restricted|blocked/.test(lower)) {
+    return 'This bank account is currently restricted or unavailable. Use a different connected bank or contact your bank.';
+  }
+  if (/invalid.*account|account.*invalid|routing/.test(lower)) {
+    return 'The connected bank details could not be used. Reconnect the bank account or choose a different one.';
+  }
+  if (/authoriz|permission|not permitted/.test(lower)) {
+    return 'The bank did not authorize this transfer. Reconnect the account or contact your bank.';
+  }
+  if (/declin|couldn.t be completed|could not be completed|payment.*failed/.test(lower)) return fallback;
+  return fallback;
+}
+
 // Map raw Seamless transaction statuses to ChessBet WalletTransaction lifecycle.
 // ONLY "Processed" is treated as settled. Unknown statuses default to pending
 // (never settled) so the ledger is never credited on an ambiguous signal.
