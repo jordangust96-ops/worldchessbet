@@ -1,7 +1,7 @@
 # ChessBet Funds-Flow Integration Contract
 
 Version: 1  
-Provider status: Seamless (`seamless_ach`) is the selected funds-movement partner (deposits, withdrawals, verified third-party funding source); Socure (`socure`) is the selected identity-verification and bank-screening partner. `unassigned` remains a valid `provider_key` value only for a reference type not yet routed to any partner.
+Provider status: Seamless (`seamless_ach`) is the selected funds-movement partner, and Seamless hosted Plaid (`seamless_ach_plaid`) is the bank-verification path. ChessBet does not hold Plaid credentials or tokens. `unassigned` remains valid only for a reference type not yet routed to a partner.
 
 This contract is the stable boundary between ChessBet's internal contest/ledger system and any future payment processor, funds-flow platform, sponsor bank, custody provider, or payout rail. Provider-specific IDs and payloads must never replace ChessBet's canonical IDs.
 
@@ -58,7 +58,7 @@ Event creation is deliberately non-blocking. Authoritative Match, Game, WalletTr
 
 Rules:
 
-- Store the partner name in `provider_key` (currently `seamless_ach` or `socure`); use `unassigned` only for a reference type not yet routed to a partner.
+- Store the partner path in `provider_key` (currently `seamless_ach` or `seamless_ach_plaid`); use `unassigned` only for a reference type not yet routed to a partner.
 - Store only opaque provider IDs and sanitized metadata.
 - Never store API credentials, bank credentials, full payment instruments, raw identity documents, or unrestricted webhook payloads.
 - Preserve ChessBet's canonical internal ID even if a provider object is replaced or migrated.
