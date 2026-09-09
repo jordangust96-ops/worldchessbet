@@ -133,6 +133,10 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     const message = String(error?.message || '');
+    console.error(JSON.stringify({
+      event: 'seamless_bank_link_failed',
+      reason: (message || 'unknown_error').slice(0, 240),
+    }));
     if (message === 'trusted_app_origin_required') {
       return Response.json({ error: message }, { status: 400 });
     }
