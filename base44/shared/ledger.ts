@@ -113,7 +113,7 @@ export async function rebuildLedgerBalances(base44, { userIds = [], systemAccoun
 // moving money twice.
 export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletTransactionId, actor, actorId, triggerEvent, externalRefType, externalRefId, legs }) {
   const correlationId = matchId || walletTransactionId || groupId;
-  if (!groupId || !Array.isArray(legs) || legs.length < 2) {
+  if (!groupId || !Array.isArray(legs) || legs.length < 1) {
     throw new Error('Invalid ledger posting request');
   }
   for (const leg of legs) {
