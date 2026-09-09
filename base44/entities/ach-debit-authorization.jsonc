@@ -151,6 +151,36 @@
     },
     "enrollment_id": {
       "type": "string",
+      "description": "Opaque ChessBet bank-link attempt identifier.",
+      "rls": {
+        "read": {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        "write": false
+      }
+    },
+    "provider_key": {
+      "type": "string",
+      "default": "seamless_ach_plaid",
+      "description": "Provider flow that collected and verified the funding source."
+    },
+    "provider_user_id": {
+      "type": "string",
+      "description": "Seamless customer user_id associated with the hosted Plaid authorization.",
+      "rls": {
+        "read": {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        "write": false
+      }
+    },
+    "provider_event_id": {
+      "type": "string",
+      "description": "Seamless webhook event that bound this authorization to a verified funding source.",
       "rls": {
         "read": {
           "user_condition": {
@@ -181,14 +211,8 @@
     "authorization_version",
     "authorization_text",
     "accepted_at",
-    "bank_details_ciphertext",
-    "bank_details_iv",
-    "bank_details_sha256",
-    "routing_last_four",
-    "account_last_four",
-    "account_fingerprint",
-    "account_type",
-    "bank_name",
+    "provider_key",
+    "provider_user_id",
     "status",
     "retention_until"
   ],
