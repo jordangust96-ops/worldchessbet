@@ -119,6 +119,7 @@ export default function SeamlessFundingPanel({
   const [error, setError] = useState("");
   const [amount, setAmount] = useState("");
   const [direction, setDirection] = useState("deposit");
+  const [showBankManager, setShowBankManager] = useState(false);
   const [showBankLink, setShowBankLink] = useState(false);
   const [bankToDisconnect, setBankToDisconnect] = useState(null);
   const depositRequestKey = useRef("");
@@ -225,15 +226,23 @@ export default function SeamlessFundingPanel({
   const accountRestricted = ["suspended", "closed"].includes(effectiveAccountState);
   const notVerified = !accountVerified || effectiveAccountState !== "verified";
   const ineligible = effectiveWithdrawalHold || accountRestricted || notVerified;
-  const verifiedBank = state?.banks?.find((b) => b.status === "verified");
+  const verifiedBank =
+    state?.banks?.find((b) => b.status === "verified" && b.is_primary) ||
+    state?.banks?.find((b) => b.status === "verified");
   const bankPending = state?.banks?.some((b) =>
     ["added", "pending_verification"].includes(b.status)
   );
   const bankReady = !!verifiedBank && accountVerified;
-  const depositComplete = !!state?.has_completed_deposit;
-  const transferDirectionEnabled = direction === 'deposit' ? depositsEnabled : withdrawalsEnabled;
-  const meetsMinimum = direction === 'deposit' ? parsedAmount >= MIN_DEPOSIT_AMOUNT : parsedAmount > 0;
-  const canSubmit = !ineligible && bankReady && !busy && meetsMinimum && transferDirectionEnabled;
+  const transferDirectionEnabled = direction === "deposit" ? depositsEnabled : withdrawalsEnabled;
+  const availableBalance = wallet?.available_balance || 0;
+  const meetsMinimum = direction === "deposit" ? parsedAmount >= MIN_DEPOSIT_AMOUNT : parsedAmount > 0;
+  const exceedsAvailableBalance = direction === "withdrawal" && parsedAmount > availableBalance + 0.005;
+  const canSubmit =
+    !ineligible && bankReady && !busy && meetsMinimum && !exceedsAvailableBalance && transferDirectionEnabled;
+  const transferBusy = busy === direction;
+  const formattedAmount = Number.isFinite(parsedAmount) && parsedAmount > 0
+    ? parsedAmount.toFixed(2)
+    : "";
 
   if (loading) {
     return (
