@@ -215,6 +215,46 @@ export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletT
       launch_epoch: 2,
     }));
 
+    // Commit the complete balanced posting as one immutable database record.
+    // This batch is the authoritative atomic journal; individual LedgerEntry
+    // rows and balances below are recoverable materializations.
+    const canonicalLegs = JSON.stringify(journalEntries);
+    const batches = await base44.asServiceRole.entities.LedgerJournalBatch.filter(
+      { ledger_group_id: groupId },
+      '-created_at',
+      2
+    );
+    if (batches.length > 1) throw new Error('duplicate_ledger_journal_batch');
+    if (!batches[0]) {
+      await base44.asServiceRole.entities.LedgerJournalBatch.create({
+        ledger_group_id: groupId,
+        correlation_id: correlationId,
+        wallet_transaction_id: walletTransactionId || '',
+        match_id: matchId || '',
+        game_id: gameId || '',
+        trigger_event: triggerEvent,
+        initiating_actor: actor,
+        initiating_actor_id: actorId || '',
+        external_reference_type: externalRefType || 'none',
+        external_reference_id: externalRefId || '',
+        total_debit: Math.round(totalDebit * 100) / 100,
+        total_credit: Math.round(totalCredit * 100) / 100,
+        leg_count: journalEntries.length,
+        legs_json: canonicalLegs,
+        currency: 'USD',
+        schema_version: 1,
+        launch_epoch: 2,
+        created_at: new Date().toISOString(),
+      });
+    } else if (
+      Number(batches[0].leg_count) !== journalEntries.length ||
+      Math.round(number(batches[0].total_debit) * 100) !== Math.round(totalDebit * 100) ||
+      Math.round(number(batches[0].total_credit) * 100) !== Math.round(totalCredit * 100) ||
+      batches[0].legs_json !== canonicalLegs
+    ) {
+      throw new Error('ledger_journal_batch_conflict');
+    }
+
     const missingEntries = journalEntries.filter((entry) => !existingIndexes.has(entry.ledger_leg_index));
     if (missingEntries.length) await base44.asServiceRole.entities.LedgerEntry.bulkCreate(missingEntries);
 
@@ -308,6 +348,7 @@ export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletT
         external_reference_id: externalRefId || '',
         affected_user_ids: affectedUserIds,
         journal_first: true,
+        atomic_batch: true,
       },
     });
 
