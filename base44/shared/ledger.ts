@@ -1,239 +1,344 @@
 import { recordIntegrationEvent } from './integrationEvents.ts';
+import { acquireLedgerLock, releaseLedgerLock } from './seamlessAtomicStore.ts';
 
-// Moves funds between a user's Available and Held balances. Used for
-// administrative investigation holds/releases (manageDisputeCase) and for
-// the automatic pending-winnings hold's system-initiated release
-// (releasePendingWinnings, manageDisputeCase's case-resolution cleanup).
-// This never moves value to another ledger account — the total stays with
-// the user, only its availability changes — so the ledger entry is
-// self-balancing (debit_amount === credit_amount), always immutable, and
-// additive (a release/consumption never edits the original hold entry — it
-// always creates a new one).
-export async function applyBalanceHold(base44, { userId, amount, direction, matchId, actor = 'administrator', actorId = '', triggerEvent, walletTransactionId = '' }) {
-  if (amount <= 0) return null;
+function number(value) {
+  const parsed = Number(value || 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function userAvailableDelta(leg) {
+  return Number.isFinite(leg.availableDelta)
+    ? Number(leg.availableDelta)
+    : number(leg.credit) - number(leg.debit);
+}
+
+function userHeldDelta(leg) {
+  return number(leg.heldDelta) + number(leg.creditHeld);
+}
+
+async function ensureWallet(base44, userId) {
   const wallets = await base44.asServiceRole.entities.Wallet.filter({ user_id: userId });
-  const wallet = wallets[0];
-  if (!wallet) throw new Error('Wallet not found for this user');
-
-  const delta = direction === 'hold' ? amount : -amount;
-  const newAvailable = (wallet.available_balance || 0) - delta;
-  const newHeld = (wallet.held_balance || 0) + delta;
-  if (newAvailable < -0.01) throw new Error('Insufficient available balance to place this hold');
-
-  const newTotal = newAvailable + newHeld;
-  await base44.asServiceRole.entities.Wallet.update(wallet.id, {
-    available_balance: newAvailable,
-    held_balance: newHeld,
-    total_balance: newTotal,
-    balance: newAvailable,
-  });
-
-  return base44.asServiceRole.entities.LedgerEntry.create({
+  if (wallets[0]) return wallets[0];
+  return base44.asServiceRole.entities.Wallet.create({
     user_id: userId,
-    match_id: matchId || '',
-    wallet_transaction_id: walletTransactionId || '',
-    ledger_account: 'user_account',
-    transaction_type: direction === 'hold' ? 'investigation_hold' : 'investigation_hold_release',
-    debit_amount: amount,
-    credit_amount: amount,
-    resulting_available_balance: newAvailable,
-    resulting_held_balance: newHeld,
-    resulting_total_balance: newTotal,
-    initiating_actor: actor,
-    initiating_actor_id: actorId || '',
-    trigger_event: triggerEvent,
-    external_reference_type: matchId ? 'match' : 'none',
-    external_reference_id: matchId || '',
-    ledger_group_id: crypto.randomUUID(),
-    correlation_id: matchId || userId,
-    currency: 'USD',
-    schema_version: 1,
-    launch_epoch: 2,
+    balance: 0,
+    available_balance: 0,
+    held_balance: 0,
+    total_balance: 0,
+    total_wagered: 0,
+    total_won: 0,
+    total_deposited: 0,
+    total_withdrawn: 0,
   });
 }
 
-// Shared Internal Ledger posting helper, used by every backend function that
-// moves money (deposits, withdrawals, contest entries/settlements, account
-// closure, promotional credits, etc.). Posts a balanced set of Ledger
-// entries and updates the derived Wallet / SystemLedgerAccount balances.
+async function ensureSystemAccount(base44, accountName) {
+  const accounts = await base44.asServiceRole.entities.SystemLedgerAccount.filter({ account_name: accountName });
+  if (accounts[0]) return accounts[0];
+  return base44.asServiceRole.entities.SystemLedgerAccount.create({
+    account_name: accountName,
+    balance: 0,
+  });
+}
+
+// The immutable journal is authoritative. Wallet and system-account balances
+// are materialized projections which can always be rebuilt from it after an
+// interrupted write.
+export async function rebuildLedgerBalances(base44, { userIds = [], systemAccounts = [] } = {}) {
+  for (const userId of [...new Set(userIds.filter(Boolean))]) {
+    const [wallet, entries] = await Promise.all([
+      ensureWallet(base44, userId),
+      base44.asServiceRole.entities.LedgerEntry.filter(
+        { launch_epoch: 2, user_id: userId },
+        'created_date',
+        5000
+      ),
+    ]);
+    const totals = entries.reduce((sum, entry) => {
+      const legacyAvailable = number(entry.credit_amount) - number(entry.debit_amount);
+      sum.available += entry.available_delta == null ? legacyAvailable : number(entry.available_delta);
+      sum.held += number(entry.held_delta);
+      sum.wagered += number(entry.total_wagered_delta);
+      sum.won += number(entry.total_won_delta);
+      sum.deposited += number(entry.total_deposited_delta);
+      sum.withdrawn += number(entry.total_withdrawn_delta);
+      return sum;
+    }, { available: 0, held: 0, wagered: 0, won: 0, deposited: 0, withdrawn: 0 });
+
+    const available = Math.round(totals.available * 100) / 100;
+    const held = Math.round(totals.held * 100) / 100;
+    const total = Math.round((available + held) * 100) / 100;
+    if (available < -0.001 || held < -0.001 || total < -0.001) {
+      throw new Error(`Ledger journal would materialize a negative user balance for ${userId}`);
+    }
+    await base44.asServiceRole.entities.Wallet.update(wallet.id, {
+      available_balance: available,
+      held_balance: held,
+      total_balance: total,
+      balance: available,
+      total_wagered: Math.round(totals.wagered * 100) / 100,
+      total_won: Math.round(totals.won * 100) / 100,
+      total_deposited: Math.round(totals.deposited * 100) / 100,
+      total_withdrawn: Math.round(totals.withdrawn * 100) / 100,
+    });
+  }
+
+  for (const accountName of [...new Set(systemAccounts.filter(Boolean))]) {
+    const [account, entries] = await Promise.all([
+      ensureSystemAccount(base44, accountName),
+      base44.asServiceRole.entities.LedgerEntry.filter(
+        { launch_epoch: 2, ledger_account: accountName },
+        'created_date',
+        5000
+      ),
+    ]);
+    const balance = Math.round(entries.reduce(
+      (sum, entry) => sum - number(entry.debit_amount) + number(entry.credit_amount),
+      0
+    ) * 100) / 100;
+    if (['contest_clearing', 'suspense', 'platform_revenue'].includes(accountName) && balance < -0.001) {
+      throw new Error(`Ledger journal would overdraw protected account: ${accountName}`);
+    }
+    await base44.asServiceRole.entities.SystemLedgerAccount.update(account.id, { balance });
+  }
+}
+
+// Shared Internal Ledger posting helper. The write order is journal-first:
+// 1) a global Redis lease serializes all money postings,
+// 2) every immutable leg is durably written with a stable group + leg index,
+// 3) every affected Wallet/SystemLedgerAccount is rebuilt from the journal.
+//
+// If a worker disappears after step 2, retrying the deterministic group (or
+// the scheduled materialization sweep) repairs every projection without
+// moving money twice.
 export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletTransactionId, actor, actorId, triggerEvent, externalRefType, externalRefId, legs }) {
   const correlationId = matchId || walletTransactionId || groupId;
   if (!groupId || !Array.isArray(legs) || legs.length < 2) {
     throw new Error('Invalid ledger posting request');
   }
   for (const leg of legs) {
-    for (const amount of [leg.debit || 0, leg.credit || 0, leg.heldDelta || 0, leg.creditHeld || 0]) {
+    for (const amount of [
+      leg.debit || 0,
+      leg.credit || 0,
+      leg.heldDelta || 0,
+      leg.creditHeld || 0,
+      leg.availableDelta || 0,
+    ]) {
       if (!Number.isFinite(amount)) throw new Error('Ledger amount must be finite');
     }
-    if ((leg.debit || 0) < 0 || (leg.credit || 0) < 0 || (leg.creditHeld || 0) < 0) {
+    if (number(leg.debit) < 0 || number(leg.credit) < 0 || number(leg.creditHeld) < 0) {
       throw new Error('Ledger debit and credit amounts cannot be negative');
     }
   }
-  // creditHeld is a credit that lands in the user's Held Balance instead of
-  // their Available Balance (e.g. a settlement payout that must sit pending
-  // for the 24-hour contest reporting window before it becomes withdrawable).
-  // It still counts toward the double-entry balance check below — the value
-  // really did leave the debited account — it is simply parked in a
-  // non-liquid bucket of the same wallet rather than credited as spendable.
-  const totalDebit = legs.reduce((s, l) => s + (l.debit || 0), 0);
-  const totalCredit = legs.reduce((s, l) => s + (l.credit || 0) + (l.creditHeld || 0), 0);
+  const totalDebit = legs.reduce((sum, leg) => sum + number(leg.debit), 0);
+  const totalCredit = legs.reduce((sum, leg) => sum + number(leg.credit) + number(leg.creditHeld), 0);
   if (Math.round(totalDebit * 100) !== Math.round(totalCredit * 100)) {
     throw new Error(`Unbalanced ledger legs: debit=${totalDebit} credit=${totalCredit}`);
   }
-  const entries = [];
-  for (const leg of legs) {
-    if (leg.ledgerAccount === 'user_account') {
-      const wallets = await base44.asServiceRole.entities.Wallet.filter({ user_id: leg.userId });
-      let wallet = wallets[0];
-      if (!wallet) {
-        wallet = await base44.asServiceRole.entities.Wallet.create({
-          user_id: leg.userId, balance: 0, available_balance: 0, held_balance: 0, total_balance: 0,
-          total_wagered: 0, total_won: 0, total_deposited: 0, total_withdrawn: 0,
-        });
-      }
-      const newAvailable = (wallet.available_balance || 0) - (leg.debit || 0) + (leg.credit || 0);
-      const newHeld = (wallet.held_balance || 0) + (leg.heldDelta || 0) + (leg.creditHeld || 0);
-      const newTotal = newAvailable + newHeld;
-      if (newAvailable < -0.001 || newHeld < -0.001 || newTotal < -0.001) {
-        throw new Error('Ledger posting would create a negative user balance');
-      }
-      await base44.asServiceRole.entities.Wallet.update(wallet.id, {
-        available_balance: newAvailable,
-        held_balance: newHeld,
-        total_balance: newTotal,
-        balance: newAvailable,
-        total_wagered: (wallet.total_wagered || 0) + (leg.totalWageredDelta || 0),
-        total_won: (wallet.total_won || 0) + (leg.totalWonDelta || 0),
-        total_deposited: (wallet.total_deposited || 0) + (leg.totalDepositedDelta || 0),
-        total_withdrawn: (wallet.total_withdrawn || 0) + (leg.totalWithdrawnDelta || 0),
-      });
-      entries.push({
-        user_id: leg.userId, match_id: matchId || '', wallet_transaction_id: leg.walletTransactionId || walletTransactionId || '',
-        ledger_account: 'user_account', transaction_type: leg.transactionType,
-        debit_amount: leg.debit || 0, credit_amount: leg.credit || 0,
-        resulting_available_balance: newAvailable, resulting_held_balance: newHeld, resulting_total_balance: newTotal,
-        initiating_actor: actor, initiating_actor_id: actorId || '', trigger_event: triggerEvent,
-        external_reference_type: externalRefType || 'none', external_reference_id: externalRefId || '',
-        ledger_group_id: groupId, correlation_id: correlationId, game_id: gameId || '',
-        currency: 'USD', schema_version: 1, launch_epoch: 2,
-      });
-    } else {
-      const accounts = await base44.asServiceRole.entities.SystemLedgerAccount.filter({ account_name: leg.ledgerAccount });
-      let acct = accounts[0];
-      if (!acct) acct = await base44.asServiceRole.entities.SystemLedgerAccount.create({ account_name: leg.ledgerAccount, balance: 0 });
-      const newBalance = (acct.balance || 0) - (leg.debit || 0) + (leg.credit || 0) + (leg.creditHeld || 0);
-      if (['contest_clearing', 'suspense', 'platform_revenue'].includes(leg.ledgerAccount) && newBalance < -0.001) {
-        throw new Error(`Ledger posting would overdraw protected account: ${leg.ledgerAccount}`);
-      }
-      await base44.asServiceRole.entities.SystemLedgerAccount.update(acct.id, { balance: newBalance });
-      entries.push({
-        match_id: matchId || '', wallet_transaction_id: leg.walletTransactionId || walletTransactionId || '',
-        ledger_account: leg.ledgerAccount, transaction_type: leg.transactionType,
-        debit_amount: leg.debit || 0, credit_amount: leg.credit || 0,
-        resulting_total_balance: newBalance,
-        initiating_actor: actor, initiating_actor_id: actorId || '', trigger_event: triggerEvent,
-        external_reference_type: externalRefType || 'none', external_reference_id: externalRefId || '',
-        ledger_group_id: groupId, correlation_id: correlationId, game_id: gameId || '',
-        currency: 'USD', schema_version: 1, launch_epoch: 2,
-      });
-    }
-  }
-  const createdEntries = await base44.asServiceRole.entities.LedgerEntry.bulkCreate(entries);
 
-  // Normalize the user-facing transaction(s) and emit a provider-neutral
-  // outbox record only after the balanced ledger posting has succeeded.
-  // Integration metadata is deliberately non-authoritative and cannot roll
-  // back money.
-  //
-  // A single balanced posting can touch more than one player's
-  // WalletTransaction — e.g. a decisive Match settlement posts the
-  // winner's payout and the loser's forfeiture together in one call so they
-  // complete atomically (either both land or neither does). Mark every
-  // distinct WalletTransaction referenced by these legs as completed, not
-  // just the call-level/primary one.
-  const directionByType = {
-    deposit: 'credit',
-    withdrawal: 'debit',
-    wager_lock: 'reserve',
-    wager_refund: 'release',
-    payout: 'credit',
-    wager_forfeit: 'release',
-    service_fee_charge: 'reserve',
-    service_fee_refund: 'release',
-    withdrawal_fee: 'debit',
-  };
-  const requiresExternalRail = ['deposit', 'withdrawal', 'account_closure_disbursement'].includes(triggerEvent);
-  const walletTransactionIds = [...new Set(
-    legs.map((leg) => leg.walletTransactionId).concat([walletTransactionId]).filter(Boolean)
-  )];
-  let walletTransaction = null;
-  for (const id of walletTransactionIds) {
-    try {
-      const current = await base44.asServiceRole.entities.WalletTransaction.get(id);
-      if (id === walletTransactionId) walletTransaction = current;
-      await base44.asServiceRole.entities.WalletTransaction.update(id, {
-        status: 'completed',
-        currency: 'USD',
-        direction: directionByType[current.type] || 'internal',
-        correlation_id: correlationId,
-        ledger_group_id: groupId,
-        source_event: triggerEvent,
-        initiating_actor: actor,
-        initiating_actor_id: actorId || '',
-        processed_at: new Date().toISOString(),
-        retention_until: (() => {
-          const activityAt = new Date().toISOString();
-          const deadline = new Date(activityAt);
-          deadline.setUTCFullYear(deadline.getUTCFullYear() + 2);
-          const existing = Date.parse(current.retention_until || '');
-          return Number.isFinite(existing) && existing > deadline.getTime()
-            ? current.retention_until
-            : deadline.toISOString();
-        })(),
-        integration_status: requiresExternalRail ? 'unrouted' : 'internal_complete',
-        idempotency_key: current.idempotency_key || `ledger:${groupId}`,
-        schema_version: 1,
-      });
-    } catch (error) {
-      console.error(JSON.stringify({
-        event: 'wallet_transaction_trace_update_failed',
-        wallet_transaction_id: id,
-        ledger_group_id: groupId,
-        error: error?.message || 'unknown_error',
-      }));
-    }
-  }
+  const lockOwner = crypto.randomUUID();
+  if (!await acquireLedgerLock(lockOwner)) throw new Error('ledger_posting_in_progress');
 
-  const affectedUserIds = [...new Set(legs.map((leg) => leg.userId).filter(Boolean))];
-  await recordIntegrationEvent(base44, {
-    eventType: `financial.${triggerEvent}`,
-    aggregateType: walletTransactionId ? 'wallet_transaction' : 'ledger_group',
-    aggregateId: walletTransactionId || groupId,
-    correlationId,
-    idempotencyKey: `ledger:${groupId}`,
-    actorType: actor,
-    actorId: actorId || '',
-    userId: walletTransaction?.user_id || affectedUserIds[0] || '',
-    counterpartyUserId: affectedUserIds.find((id) => id !== (walletTransaction?.user_id || affectedUserIds[0])) || '',
-    matchId: matchId || '',
-    gameId: gameId || '',
-    walletTransactionId: walletTransactionId || '',
-    ledgerGroupId: groupId,
-    // This event is emitted only after the balanced ledger posting succeeds.
-    // The fetched transaction may still contain its pre-update `pending` value,
-    // so never copy that stale snapshot into the integration outbox.
-    status: 'completed',
-    amount: walletTransaction?.amount,
-    currency: 'USD',
-    result: walletTransaction?.type || triggerEvent,
-    eventData: {
-      ledger_entry_ids: (createdEntries || []).map((entry) => entry.id),
-      transaction_type: walletTransaction?.type || '',
+  try {
+    const affectedUserIds = [...new Set(legs.map((leg) => leg.userId).filter(Boolean))];
+    const affectedSystemAccounts = [...new Set(
+      legs.filter((leg) => leg.ledgerAccount !== 'user_account').map((leg) => leg.ledgerAccount)
+    )];
+
+    let existing = await base44.asServiceRole.entities.LedgerEntry.filter(
+      { ledger_group_id: groupId },
+      'ledger_leg_index',
+      100
+    );
+    const existingIndexes = new Set(existing.map((entry) => number(entry.ledger_leg_index)));
+    if (existing.length > legs.length || existingIndexes.size !== existing.length) {
+      throw new Error('ledger_group_integrity_error');
+    }
+
+    if (existing.length === 0) {
+      const walletByUser = new Map();
+      for (const userId of affectedUserIds) walletByUser.set(userId, await ensureWallet(base44, userId));
+      const systemByName = new Map();
+      for (const accountName of affectedSystemAccounts) {
+        systemByName.set(accountName, await ensureSystemAccount(base44, accountName));
+      }
+
+      const projectedUsers = new Map([...walletByUser].map(([id, wallet]) => [id, {
+        available: number(wallet.available_balance),
+        held: number(wallet.held_balance),
+      }]));
+      const projectedSystems = new Map([...systemByName].map(([name, account]) => [name, number(account.balance)]));
+
+      for (const leg of legs) {
+        if (leg.ledgerAccount === 'user_account') {
+          const projected = projectedUsers.get(leg.userId);
+          projected.available += userAvailableDelta(leg);
+          projected.held += userHeldDelta(leg);
+          if (projected.available < -0.001 || projected.held < -0.001 || projected.available + projected.held < -0.001) {
+            throw new Error('Ledger posting would create a negative user balance');
+          }
+        } else {
+          const next = number(projectedSystems.get(leg.ledgerAccount)) - number(leg.debit) + number(leg.credit);
+          if (['contest_clearing', 'suspense', 'platform_revenue'].includes(leg.ledgerAccount) && next < -0.001) {
+            throw new Error(`Ledger posting would overdraw protected account: ${leg.ledgerAccount}`);
+          }
+          projectedSystems.set(leg.ledgerAccount, next);
+        }
+      }
+    }
+
+    const journalEntries = legs.map((leg, index) => ({
+      user_id: leg.userId || '',
+      match_id: matchId || '',
+      wallet_transaction_id: leg.walletTransactionId || walletTransactionId || '',
+      ledger_account: leg.ledgerAccount,
+      transaction_type: leg.transactionType,
+      debit_amount: number(leg.debit),
+      credit_amount: number(leg.credit) + number(leg.creditHeld),
+      ledger_leg_index: index,
+      available_delta: leg.ledgerAccount === 'user_account' ? userAvailableDelta(leg) : 0,
+      held_delta: leg.ledgerAccount === 'user_account' ? userHeldDelta(leg) : 0,
+      total_wagered_delta: number(leg.totalWageredDelta),
+      total_won_delta: number(leg.totalWonDelta),
+      total_deposited_delta: number(leg.totalDepositedDelta),
+      total_withdrawn_delta: number(leg.totalWithdrawnDelta),
+      initiating_actor: actor,
+      initiating_actor_id: actorId || '',
+      trigger_event: triggerEvent,
       external_reference_type: externalRefType || 'none',
       external_reference_id: externalRefId || '',
-      affected_user_ids: affectedUserIds,
-    },
-  });
+      ledger_group_id: groupId,
+      correlation_id: correlationId,
+      game_id: gameId || '',
+      currency: 'USD',
+      schema_version: 2,
+      launch_epoch: 2,
+    }));
 
-  return createdEntries || entries;
+    const missingEntries = journalEntries.filter((entry) => !existingIndexes.has(entry.ledger_leg_index));
+    if (missingEntries.length) await base44.asServiceRole.entities.LedgerEntry.bulkCreate(missingEntries);
+
+    existing = await base44.asServiceRole.entities.LedgerEntry.filter(
+      { ledger_group_id: groupId },
+      'ledger_leg_index',
+      100
+    );
+    if (existing.length !== legs.length) throw new Error('ledger_journal_incomplete');
+
+    await rebuildLedgerBalances(base44, {
+      userIds: affectedUserIds,
+      systemAccounts: affectedSystemAccounts,
+    });
+
+    const directionByType = {
+      deposit: 'credit',
+      withdrawal: 'debit',
+      wager_lock: 'reserve',
+      wager_refund: 'release',
+      payout: 'credit',
+      wager_forfeit: 'release',
+      service_fee_charge: 'reserve',
+      service_fee_refund: 'release',
+      withdrawal_fee: 'debit',
+      withdrawal_fee_refund: 'credit',
+    };
+    const requiresExternalRail = ['deposit', 'withdrawal', 'account_closure_disbursement'].includes(triggerEvent);
+    const walletTransactionIds = [...new Set(
+      legs.map((leg) => leg.walletTransactionId).concat([walletTransactionId]).filter(Boolean)
+    )];
+    let walletTransaction = null;
+    for (const id of walletTransactionIds) {
+      try {
+        const current = await base44.asServiceRole.entities.WalletTransaction.get(id);
+        if (id === walletTransactionId) walletTransaction = current;
+        await base44.asServiceRole.entities.WalletTransaction.update(id, {
+          status: 'completed',
+          currency: 'USD',
+          direction: directionByType[current.type] || 'internal',
+          correlation_id: correlationId,
+          ledger_group_id: groupId,
+          source_event: triggerEvent,
+          initiating_actor: actor,
+          initiating_actor_id: actorId || '',
+          processed_at: current.processed_at || new Date().toISOString(),
+          retention_until: (() => {
+            const deadline = new Date();
+            deadline.setUTCFullYear(deadline.getUTCFullYear() + 2);
+            const saved = Date.parse(current.retention_until || '');
+            return Number.isFinite(saved) && saved > deadline.getTime()
+              ? current.retention_until
+              : deadline.toISOString();
+          })(),
+          integration_status: requiresExternalRail ? 'unrouted' : 'internal_complete',
+          idempotency_key: current.idempotency_key || `ledger:${groupId}`,
+          schema_version: 2,
+        });
+      } catch (error) {
+        console.error(JSON.stringify({
+          event: 'wallet_transaction_trace_update_failed',
+          wallet_transaction_id: id,
+          ledger_group_id: groupId,
+          error: error?.message || 'unknown_error',
+        }));
+      }
+    }
+
+    await recordIntegrationEvent(base44, {
+      eventType: `financial.${triggerEvent}`,
+      aggregateType: walletTransactionId ? 'wallet_transaction' : 'ledger_group',
+      aggregateId: walletTransactionId || groupId,
+      correlationId,
+      idempotencyKey: `ledger:${groupId}`,
+      actorType: actor,
+      actorId: actorId || '',
+      userId: walletTransaction?.user_id || affectedUserIds[0] || '',
+      counterpartyUserId: affectedUserIds.find((id) => id !== (walletTransaction?.user_id || affectedUserIds[0])) || '',
+      matchId: matchId || '',
+      gameId: gameId || '',
+      walletTransactionId: walletTransactionId || '',
+      ledgerGroupId: groupId,
+      status: 'completed',
+      amount: walletTransaction?.amount,
+      currency: 'USD',
+      result: walletTransaction?.type || triggerEvent,
+      eventData: {
+        ledger_entry_ids: existing.map((entry) => entry.id),
+        transaction_type: walletTransaction?.type || '',
+        external_reference_type: externalRefType || 'none',
+        external_reference_id: externalRefId || '',
+        affected_user_ids: affectedUserIds,
+        journal_first: true,
+      },
+    });
+
+    return existing;
+  } finally {
+    try { await releaseLedgerLock(lockOwner); } catch { /* Lease expiry is the safe fallback. */ }
+  }
+}
+
+// Moves value between a user's Available and Held balances through the same
+// durable journal-first pipeline used for every other money movement.
+export async function applyBalanceHold(base44, { userId, amount, direction, matchId, actor = 'administrator', actorId = '', triggerEvent, walletTransactionId = '' }) {
+  if (amount <= 0) return null;
+  const holding = direction === 'hold';
+  return postLedgerLegs(base44, {
+    groupId: `${triggerEvent}:${walletTransactionId || matchId || userId}:${holding ? 'hold' : 'release'}`,
+    matchId: matchId || '',
+    walletTransactionId: walletTransactionId || '',
+    actor,
+    actorId,
+    triggerEvent,
+    externalRefType: matchId ? 'match' : 'none',
+    externalRefId: matchId || '',
+    legs: [{
+      ledgerAccount: 'user_account',
+      userId,
+      debit: amount,
+      credit: amount,
+      availableDelta: holding ? -amount : amount,
+      heldDelta: holding ? amount : -amount,
+      transactionType: holding ? 'investigation_hold' : 'investigation_hold_release',
+    }],
+  });
 }
