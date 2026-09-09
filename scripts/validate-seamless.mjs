@@ -87,6 +87,12 @@ assert.ok(webhook.indexOf('verifySeamlessWebhookAuth') < webhook.indexOf('handle
 assert.match(webhook, /'funding-source\.verified'/);
 assert.match(webhook, /identity_verification_provider: 'seamless_ach_plaid'/);
 assert.match(webhook, /funding_source_id: bank\.source_id/);
+assert.ok(
+  webhook.indexOf('if (!candidate) return;') <
+    webhook.indexOf("identity_verification_status: 'verified'"),
+  'an orphan verified source must not activate the player'
+);
+assert.match(webhook, /const replacement = verifiedBanks\.find/);
 assert.match(deposit, /isSeamlessPlaidVerified\(user\)/);
 assert.match(withdrawal, /isSeamlessPlaidVerified\(user\)/);
 assert.match(contest, /isSeamlessPlaidVerified\(user\)/);
