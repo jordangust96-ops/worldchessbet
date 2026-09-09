@@ -39,6 +39,7 @@ Deno.serve(async (req) => {
     const recent = [...deposits, ...withdrawals]
       .sort((a, b) => new Date(b.created_date || 0).getTime() - new Date(a.created_date || 0).getTime())
       .slice(0, 10);
+    const visibleBanks = banks.filter((bank) => bank.status !== 'deleted');
 
     return Response.json({
       enabled: true,
@@ -54,7 +55,7 @@ Deno.serve(async (req) => {
       account_state: user.account_state || 'provisional',
       withdrawal_hold: !!user.withdrawal_hold,
       profile: profile ? { exists: true, status: profile.status || 'created' } : null,
-      banks: banks.map((bank) => ({
+      banks: visibleBanks.map((bank) => ({
         id: bank.id,
         source_id: bank.source_id || '',
         account_name: bank.account_name || '',
