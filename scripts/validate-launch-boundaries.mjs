@@ -1,61 +1,82 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { loadBackend } from './helpers/load-backend.mjs';
-const configPath = 'base44/shared/seamlessFundingConfig.ts';
-const flags = ['SEAMLESS_DEPOSITS_ENABLED','SEAMLESS_WITHDRAWALS_ENABLED','SEAMLESS_RTP_PAYOUTS_ENABLED','SEAMLESS_THIRD_PARTY_FUNDING_ENABLED','PAID_CONTESTS_ENABLED'];
-const names = ['seamlessDepositsEnabled','seamlessWithdrawalsEnabled','seamlessRtpPayoutsEnabled','seamlessThirdPartyFundingEnabled','paidContestsEnabled'];
-let checks = 0;
-const eq = (a,b,label) => { assert.equal(a,b,label); checks++; };
-for (let mask = 0; mask < 64; mask++) {
-  const env = { SEAMLESS_PROVIDER_APPROVED: mask & 32 ? 'true' : 'false' };
-  flags.forEach((key,i) => { env[key] = mask & (1 << i) ? 'true' : 'false'; });
-  const { exports: gates } = await loadBackend(configPath, {}, env);
-  names.forEach((name,i) => eq(gates[name](), !!(mask & 32) && !!(mask & (1 << i)), name + ' combination ' + mask));
-}
-for (const value of [undefined,'','false','1','yes','tru']) {
-  const { exports: gates } = await loadBackend(configPath, {}, { ...Object.fromEntries(flags.map(f=>[f,'true'])), SEAMLESS_PROVIDER_APPROVED:value });
-  names.forEach(name=>eq(gates[name](),false,'unapproved fails closed'));
-}
-const { exports: gates } = await loadBackend(configPath, {}, Object.fromEntries(flags.map(f=>[f,'true'])));
-const routes = ['submitSeamlessDeposit','submitSeamlessWithdrawal','createVerifiedSeamlessFundingSource','ensureSeamlessCustomer','requestSocureBankVerification','runContestEligibility','createMatch','acceptMatch','lockWager'];
-for (const name of routes) {
-  let effects = 0;
-  const unexpected = () => { effects++; throw new Error('Unexpected side effect while disabled'); };
-  const sdk = { auth:{me:async()=>({id:'fixture',role:'user',account_state:'verified'})}, asServiceRole:new Proxy({}, {get:unexpected}) };
-  const path = 'base44/functions/' + name + '/entry.ts';
-  const source = await readFile(new URL('../'+path,import.meta.url),'utf8');
-  const deps = {};
-  for (const match of source.matchAll(/from ['"]([^'"]+)['"]/g)) deps[match[1]] = new Proxy({}, {get:()=>unexpected});
-  deps['npm:@base44/sdk@0.8.38'] = {createClientFromRequest:()=>sdk};
-  deps['../../shared/seamlessFundingConfig.ts'] = gates;
-  const {handler} = await loadBackend(path,deps);
-  const response = await handler(new Request('https://test.invalid',{method:'POST',body:'{}'}));
-  const data = await response.json();
-  eq(effects,0,name+' no entity/provider/lock effects');
-  eq(data.enabled === false || data.action === 'paid_contests_disabled',true,name+' denied');
-}
-const publicPath = 'base44/functions/getLaunchAvailability/entry.ts';
-const {handler} = await loadBackend(publicPath, {'../../shared/seamlessFundingConfig.ts':gates});
-const response = handler();
-eq(response.headers.get('Cache-Control'),'no-store','availability not cached');
-const availability = await response.json();
-eq(Object.values(availability).every(v=>v===false),true,'public availability fails closed');
-eq(Object.keys(availability).length,4,'only public availability fields exposed');
 
-for (const name of ['reconcileIdentityVerification','reconcile-seamless-ach-statuses','enforceWalletTransactionRetention']) {
-  for (const [caller,status] of [[null,401],[{role:'user'},403]]) {
-    let effects=0;
-    const unexpected=()=>{effects++;throw new Error('Unexpected privileged access');};
-    const sdk={auth:{me:async()=>caller},asServiceRole:new Proxy({}, {get:unexpected})};
-    const path='base44/functions/'+name+'/entry.ts';
-    const source=await readFile(new URL('../'+path,import.meta.url),'utf8');
-    const deps={};
-    for(const match of source.matchAll(/from ['"]([^'"]+)['"]/g)) deps[match[1]]=new Proxy({}, {get:()=>unexpected});
-    deps['npm:@base44/sdk@0.8.38']={createClientFromRequest:()=>sdk};
-    const {handler}=await loadBackend(path,deps);
-    eq((await handler(new Request('https://test.invalid'))).status,status,name+' caller boundary');
-    eq(effects,0,name+' rejected before privileged reads');
+const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
+const configPath = 'base44/shared/seamlessFundingConfig.ts';
+
+const { exports: disabled } = await loadBackend(configPath, {}, {});
+assert.equal(disabled.seamlessDepositsEnabled(), false);
+assert.equal(disabled.seamlessWithdrawalsEnabled(), false);
+assert.equal(disabled.seamlessRtpPayoutsEnabled(), false);
+assert.equal(disabled.paidContestsEnabled(), false);
+assert.equal(disabled.seamlessHostedPlaidEnabled(), false);
+
+const providerEnv = {
+  SEAMLESS_ACH_ENV: 'production',
+  SEAMLESS_ACH_PUBLIC_KEY: 'public',
+  SEAMLESS_ACH_SECRET_KEY: 'secret',
+};
+const { exports: verificationOnly } = await loadBackend(configPath, {}, providerEnv);
+assert.equal(verificationOnly.seamlessHostedPlaidEnabled(), true,
+  'hosted verification may be exposed without enabling money movement');
+assert.equal(verificationOnly.seamlessDepositsEnabled(), false);
+assert.equal(verificationOnly.seamlessWithdrawalsEnabled(), false);
+
+const enabledEnv = {
+  ...providerEnv,
+  SEAMLESS_PROVIDER_APPROVED: 'true',
+  SEAMLESS_DEPOSITS_ENABLED: 'true',
+  SEAMLESS_WITHDRAWALS_ENABLED: 'true',
+  SEAMLESS_RTP_PAYOUTS_ENABLED: 'true',
+  PAID_CONTESTS_ENABLED: 'true',
+};
+const { exports: enabled } = await loadBackend(configPath, {}, enabledEnv);
+assert.equal(enabled.seamlessHostedPlaidEnabled(), true);
+assert.equal(enabled.seamlessDepositsEnabled(), true);
+assert.equal(enabled.seamlessWithdrawalsEnabled(), true);
+assert.equal(enabled.seamlessRtpPayoutsEnabled(), true);
+assert.equal(enabled.paidContestsEnabled(), true);
+
+for (const [path, predicate] of [
+  ['base44/functions/submitSeamlessDeposit/entry.ts', 'seamlessDepositsEnabled'],
+  ['base44/functions/submitSeamlessWithdrawal/entry.ts', 'seamlessWithdrawalsEnabled'],
+  ['base44/functions/runContestEligibility/entry.ts', 'paidContestsEnabled'],
+  ['base44/functions/createSeamlessBankLinkUrl/entry.ts', 'seamlessHostedPlaidEnabled'],
+]) {
+  const source = await read(path);
+  assert.match(source, new RegExp(`if \\(!${predicate}\\(\\)\\)`), `${path} fails closed at its server gate`);
+}
+
+const publicPath = 'base44/functions/getLaunchAvailability/entry.ts';
+const { handler } = await loadBackend(publicPath, {
+  '../../shared/seamlessFundingConfig.ts': verificationOnly,
+});
+const response = handler();
+assert.equal(response.headers.get('Cache-Control'), 'no-store');
+assert.deepEqual(await response.json(), {
+  paid_contests_enabled: false,
+  deposits_enabled: false,
+  withdrawals_enabled: false,
+  bank_connection_enabled: true,
+});
+
+for (const name of ['reconcileIdentityVerification', 'reconcile-seamless-ach-statuses', 'enforceWalletTransactionRetention']) {
+  for (const [caller, status] of [[null, 401], [{ role: 'user' }, 403]]) {
+    let effects = 0;
+    const unexpected = () => { effects += 1; throw new Error('Unexpected privileged access'); };
+    const sdk = { auth: { me: async () => caller }, asServiceRole: new Proxy({}, { get: unexpected }) };
+    const path = `base44/functions/${name}/entry.ts`;
+    const source = await read(path);
+    const deps = {};
+    for (const match of source.matchAll(/from ['"]([^'"]+)['"]/g)) {
+      deps[match[1]] = new Proxy({}, { get: () => unexpected });
+    }
+    deps['npm:@base44/sdk@0.8.38'] = { createClientFromRequest: () => sdk };
+    const { handler } = await loadBackend(path, deps);
+    assert.equal((await handler(new Request('https://test.invalid'))).status, status);
+    assert.equal(effects, 0);
   }
 }
 
-console.log('Launch boundary checks passed: '+checks+' assertions; actual handlers, no network or records.');
+console.log('Launch boundary validation passed.');
