@@ -108,8 +108,8 @@ Deno.serve(async (req) => {
         status: 'open',
         description: 'Hosted bank-verification snapshot drift detected and corrected.',
         notes:
-          `User eligibility referenced funding source ${sourceId || 'missing'}, but the stored source state is '${source?.status || 'missing'}'. ` +
-          `Eligibility was downgraded to '${nextStatus}'.`,
+          `User eligibility referenced funding source ${sourceId || 'missing'}, but verified webhook evidence and a bound active authorization did not agree ` +
+          `(source state: '${source?.status || 'missing'}'). Eligibility was downgraded to '${nextStatus}'.`,
       });
     }
 
