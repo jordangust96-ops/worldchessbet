@@ -17,6 +17,7 @@
         "service_fee_charge",
         "service_fee_refund",
         "withdrawal_fee",
+        "withdrawal_fee_refund",
         "admin_reversal"
       ]
     },
@@ -158,6 +159,31 @@
       "default": 2,
       "minimum": 2,
       "description": "Production data generation. Records from launch onward use epoch 2; earlier immutable history remains outside production reporting."
+    },
+    "deposit_hold_status": {
+      "type": "string",
+      "enum": [
+        "held",
+        "released",
+        "returned",
+        "void"
+      ],
+      "description": "Only meaningful for type 'deposit'. A provider-Processed ACH debit is first credited to Held Balance and remains unavailable until deposit_release_at and a fresh provider status check both confirm it is still Processed."
+    },
+    "deposit_release_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Earliest time a provider-Processed deposit may move from Held to Available Balance. Defaults to five business days after submission and always requires a fresh provider confirmation."
+    },
+    "provider_last_status": {
+      "type": "string",
+      "maxLength": 64,
+      "description": "Latest sanitized Seamless transfer status observed by webhook or scheduled status recovery."
+    },
+    "provider_last_checked_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When ChessBet most recently confirmed this transfer status with Seamless."
     },
     "payout_hold_status": {
       "type": "string",
