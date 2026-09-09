@@ -5,6 +5,7 @@ import {
   buildBankLinkUrl,
   applyFundingSourceEvent,
   pickSeamlessCustomerId,
+  userSafeTransferFailureReason,
 } from '../base44/shared/seamlessAchPure.js';
 import { isSeamlessPlaidVerified } from '../base44/shared/identityEligibility.js';
 
@@ -16,6 +17,14 @@ assert.equal(pickSeamlessCustomerId({ data: { user_id: 'customer-data' } }), 'cu
 assert.equal(pickSeamlessCustomerId({ user: { user_id: 'customer-webhook' } }), 'customer-webhook');
 assert.equal(pickSeamlessCustomerId({ result: { customer_id: 'customer-result' } }), 'customer-result');
 assert.equal(pickSeamlessCustomerId({}), '');
+assert.match(
+  userSafeTransferFailureReason('Payment declined due to insufficient funds', 'deposit'),
+  /enough available funds/
+);
+assert.doesNotMatch(
+  userSafeTransferFailureReason('internal provider trace 123', 'deposit'),
+  /trace 123/
+);
 const link = new URL(buildBankLinkUrl({
   env: 'production',
   publicKey: 'pk_live_example',
@@ -78,6 +87,8 @@ const [
   contest,
   retiredManualSource,
   retiredIdentityStart,
+  transactionHistory,
+  walletState,
 ] = await Promise.all([
   read('src/components/wallet/SeamlessPlaidBankLink.jsx'),
   read('src/components/wallet/SeamlessFundingPanel.jsx'),
@@ -92,6 +103,8 @@ const [
   read('base44/functions/runContestEligibility/entry.ts'),
   read('base44/functions/createVerifiedSeamlessFundingSource/entry.ts'),
   read('base44/functions/startSocureIdentityVerification/entry.ts'),
+  read('src/components/wallet/TransactionHistory.jsx'),
+  read('base44/functions/getSeamlessWalletState/entry.ts'),
 ]);
 
 assert.match(panel, /event\.origin !== providerOrigin/);
@@ -138,6 +151,15 @@ assert.match(hostedLink, /showBankManager \? "Done" : "Manage"/);
 assert.doesNotMatch(hostedLink, /<Plus[^>]*\/> Deposit/);
 assert.doesNotMatch(hostedLink, /Deposit to ChessBet wallet/);
 assert.match(deposit, /isSeamlessPlaidVerified\(user\)/);
+assert.match(deposit, /verified_primary_required/);
+assert.match(deposit, /userSafeTransferFailureReason/);
+assert.doesNotMatch(deposit, /\|\| verifiedBanks\[0\]/);
+assert.match(webhook, /description: `Deposit failed — \$\{failureReason\}`/);
+assert.match(hostedLink, /depositSourceReady/);
+assert.match(hostedLink, /Use \{verifiedBank\.account_name \|\| "connected bank"\} for deposits/);
+assert.match(transactionHistory, /heading: "Why it failed"/);
+assert.match(transactionHistory, /getTransferFailureMessage/);
+assert.match(walletState, /description: tx\.description/);
 assert.match(withdrawal, /isSeamlessPlaidVerified\(user\)/);
 assert.match(contest, /isSeamlessPlaidVerified\(user\)/);
 assert.match(retiredManualSource, /status: 410/);
