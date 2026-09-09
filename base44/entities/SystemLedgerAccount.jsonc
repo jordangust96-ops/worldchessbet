@@ -10,6 +10,7 @@
         "suspense",
         "settlement",
         "withdrawal_reserve",
+        "ach_return_receivable",
         "settlement_reconciliation_adjustment"
       ],
       "description": "One record per system-wide internal ledger account"
