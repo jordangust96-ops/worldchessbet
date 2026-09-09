@@ -16,9 +16,19 @@ const source = {
   status: 'verified',
   verified_at: '2026-09-09T12:00:00Z',
   last_provider_event_id: 'event-1',
+  provider_user_id: 'provider-user-1',
+};
+const authorization = {
+  id: 'authorization-1',
+  user_id: 'u1',
+  provider_key: 'seamless_ach_plaid',
+  provider_user_id: 'provider-user-1',
+  funding_source_id: 'source-1',
+  provider_event_id: 'event-1',
+  status: 'active',
 };
 
-async function run(caller, currentUser = user, currentSource = source) {
+async function run(caller, currentUser = user, currentSource = source, currentAuthorization = authorization) {
   const updates = [], flags = [], events = [], reads = [];
   const sdk = {
     auth: { me: async () => caller },
@@ -32,6 +42,14 @@ async function run(caller, currentUser = user, currentSource = source) {
           assert.equal(query.user_id, currentUser.id);
           assert.equal(query.source_id, currentUser.identity_provider_reference);
           return currentSource ? [currentSource] : [];
+        },
+      },
+      AchDebitAuthorization: {
+        filter: async (query) => {
+          assert.equal(query.user_id, currentUser.id);
+          assert.equal(query.funding_source_id, currentUser.identity_provider_reference);
+          assert.equal(query.status, 'active');
+          return currentAuthorization ? [currentAuthorization] : [];
         },
       },
       IntegrationEvent: { create: async (value) => events.push(value) },
@@ -54,6 +72,11 @@ for (const [caller, status] of [[null, 401], [{ role: 'user' }, 403]]) {
 
 const admin = { role: 'admin' };
 assert.equal((await run(admin)).updates.length, 0, 'trusted matching snapshot remains unchanged');
+
+const missingAuthorization = await run(admin, user, source, null);
+assert.equal(missingAuthorization.updates[0].account_state, 'provisional');
+assert.equal(missingAuthorization.updates[0].identity_verification_status, 'review_required');
+assert.equal(missingAuthorization.flags.length, 1);
 
 for (const invalidSource of [
   null,
