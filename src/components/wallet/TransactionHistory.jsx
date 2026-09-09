@@ -23,6 +23,7 @@ const typeConfig = {
   service_fee_charge: { icon: Minus, color: "text-orange-400", bg: "bg-orange-500/10", label: "Platform Service Fee" },
   service_fee_refund: { icon: Plus, color: "text-blue-400", bg: "bg-blue-500/10", label: "Platform Service Fee Refund" },
   withdrawal_fee: { icon: Minus, color: "text-amber-400", bg: "bg-amber-500/10", label: "Small Withdrawal Fee" },
+  withdrawal_fee_refund: { icon: Plus, color: "text-blue-400", bg: "bg-blue-500/10", label: "Withdrawal Fee Refund" },
 };
 
 const SMALL_WITHDRAWAL_THRESHOLD = 10;
@@ -34,9 +35,10 @@ const statusConfig = {
   failed_transfer: { label: "Failed", className: "text-red-300 bg-red-500/10 border-red-500/20" },
   review_required: { label: "Review required", className: "text-orange-300 bg-orange-500/10 border-orange-500/20" },
   pending_release: { label: "Pending release", className: "text-[#C9A84C] bg-[#C9A84C]/10 border-[#C9A84C]/20" },
+  clearing: { label: "Clearing", className: "text-[#C9A84C] bg-[#C9A84C]/10 border-[#C9A84C]/20" },
 };
 
-const incomingTypes = ["deposit", "payout", "wager_refund", "service_fee_refund"];
+const incomingTypes = ["deposit", "payout", "wager_refund", "service_fee_refund", "withdrawal_fee_refund"];
 const REPORT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 function shortReference(id) {
@@ -75,6 +77,15 @@ function getTransactionExplanation(tx, match) {
   const amount = `$${formatMoney(tx.amount)}`;
   const entry = match?.wager_amount != null ? `$${formatMoney(match.wager_amount)}` : null;
 
+  if (tx.type === "deposit" && tx.deposit_hold_status === "held") {
+    const releaseText = tx.deposit_release_at
+      ? moment(tx.deposit_release_at).format("MMM D, YYYY")
+      : "the end of the bank clearing period";
+    return {
+      heading: "Clearing",
+      text: `${amount} was received by ChessBet and is being held safely while the ACH return-risk window closes. ChessBet will check Seamless again on or after ${releaseText}; it will become available to play or withdraw only if that check still confirms the deposit was processed.`,
+    };
+  }
   if (tx.type === "payout" && tx.payout_hold_status === "held") {
     const releaseText = tx.payout_release_at
       ? `available ${moment(tx.payout_release_at).format("MMM D [at] h:mm A")} if no report is filed`
@@ -129,6 +140,7 @@ function getTransactionExplanation(tx, match) {
     service_fee_charge: `The separate ${amount} platform service fee was reserved when the contest began. It is not deducted from the winner’s prize.`,
     service_fee_refund: `The ${amount} platform service fee was returned to your available balance.`,
     withdrawal_fee: `A ${amount} fee applies to withdrawals under $${SMALL_WITHDRAWAL_THRESHOLD} to help cover bank transfer costs. Withdrawing your full available balance at once waives this fee.`,
+    withdrawal_fee_refund: `${amount} was returned to your available balance because the related bank withdrawal did not complete.`,
   };
 
   return {
@@ -207,12 +219,15 @@ export default function TransactionHistory({
           const opponentName = context?.opponentName;
           const timeControl = match?.display_name || titleCase(match?.time_control);
           const result = getMatchResult(match, userId);
-          const isPendingRelease = tx.type === "payout" && tx.payout_hold_status === "held";
+          const isDepositClearing = tx.type === "deposit" && tx.deposit_hold_status === "held";
+          const isPendingRelease = (tx.type === "payout" && tx.payout_hold_status === "held") || isDepositClearing;
           const isFailed = tx.status === "failed";
           const isFailedTransfer = isFailed && ["deposit", "withdrawal"].includes(tx.type);
           const failureMessage = isFailedTransfer ? getTransferFailureMessage(tx) : "";
-          const status = isPendingRelease
-            ? statusConfig.pending_release
+          const status = isDepositClearing
+            ? statusConfig.clearing
+            : isPendingRelease
+              ? statusConfig.pending_release
             : isFailedTransfer
               ? statusConfig.failed_transfer
               : (statusConfig[tx.status] || statusConfig.completed);
