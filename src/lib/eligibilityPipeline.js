@@ -9,7 +9,7 @@ import { base44 } from "@/api/base44Client";
 // Current order:
 //   1. Jurisdiction Check (MaxMind, via the centralized getCurrentJurisdiction
 //      backend function) — every deposit
-// Identity verification is enforced server-side through Socure before funding.
+// Account verification is enforced server-side from Seamless hosted Plaid webhooks before funding.
 const steps = [runJurisdictionCheck];
 
 export async function runEligibilityPipeline(/* user, amount */) {
