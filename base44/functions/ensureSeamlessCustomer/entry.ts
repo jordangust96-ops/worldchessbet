@@ -1,39 +1,37 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
-import { isSocureIdentityVerified } from '../../shared/identityEligibility.js';
 import {
   seamlessConfig, seamlessRequest, buildCreateCustomerBody,
   PATH_CREATE_CUSTOMER, SEAMLESS_PROVIDER_KEY,
 } from '../../shared/seamlessAch.ts';
-import { seamlessThirdPartyFundingEnabled } from '../../shared/seamlessFundingConfig.ts';
+import { seamlessHostedPlaidEnabled } from '../../shared/seamlessFundingConfig.ts';
 import { legalNameFromUser } from '../../shared/legalName.ts';
 
-// Idempotently ensures a Seamless ACH customer exists for the authenticated
-// user. If a SeamlessPaymentProfile already exists for this user, its
-// provider_user_id is returned without a second provider call. Otherwise a
-// POST /user is made and the returned user_id is persisted in a user-scoped
-// profile. Fails closed on missing or invalid provider configuration.
+// Idempotently creates the Seamless customer required by the hosted Plaid
+// authorization flow. New/provisional users may create a profile so bank
+// verification can become their authoritative account-verification signal.
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me().catch(() => null);
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    if (!seamlessThirdPartyFundingEnabled()) {
-      return Response.json({ enabled: false, reason: 'Bank connection will be available when funding opens.' }, { status: 409 });
+    if (!seamlessHostedPlaidEnabled()) {
+      return Response.json({ enabled: false, reason: 'Secure bank connection is unavailable right now.' }, { status: 409 });
     }
     const cfg = seamlessConfig();
-    if (!isSocureIdentityVerified(user) || user.withdrawal_hold) {
-      return Response.json({ error: 'Verified account required for bank linking' }, { status: 403 });
+    if (['suspended', 'closed'].includes(user.account_state || '')) {
+      return Response.json({ error: 'This account cannot add a bank connection.' }, { status: 403 });
     }
 
     const existing = (
       await base44.asServiceRole.entities.SeamlessPaymentProfile.filter({ user_id: user.id })
     )[0];
-    if (existing && existing.provider_user_id) {
+    if (existing?.provider_user_id) {
       return Response.json({
         enabled: true,
         provider_user_id: existing.provider_user_id,
         profile_id: existing.id,
         created: false,
+        env: cfg.env,
       });
     }
 
@@ -41,16 +39,28 @@ Deno.serve(async (req) => {
     if (!legalName) {
       return Response.json({ error: 'A valid legal first and last name are required.' }, { status: 409 });
     }
-    const body = buildCreateCustomerBody({
+
+    const data = await seamlessRequest('POST', PATH_CREATE_CUSTOMER, buildCreateCustomerBody({
       firstName: legalName.firstName,
       lastName: legalName.lastName,
       email: user.email,
       phone: (user as any).phone || undefined,
-    });
-
-    const data = await seamlessRequest('POST', PATH_CREATE_CUSTOMER, body);
+    }));
     const providerUserId = data?.user_id || data?.id || data?.userId;
     if (!providerUserId) throw new Error('Seamless did not return a user_id');
+
+    const duplicate = (
+      await base44.asServiceRole.entities.SeamlessPaymentProfile.filter({ user_id: user.id })
+    )[0];
+    if (duplicate?.provider_user_id) {
+      return Response.json({
+        enabled: true,
+        provider_user_id: duplicate.provider_user_id,
+        profile_id: duplicate.id,
+        created: false,
+        env: cfg.env,
+      });
+    }
 
     const profile = await base44.asServiceRole.entities.SeamlessPaymentProfile.create({
       user_id: user.id,
