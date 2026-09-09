@@ -37,6 +37,7 @@ function BankRow({ bank, busy, onMakePrimary, onDisconnect }) {
   const s = BANK_STATUS[bank.status] || BANK_STATUS.added;
   const Icon = s.icon;
   const isVerified = bank.status === "verified";
+  const canDisconnect = bank.status !== "deleted";
   return (
     <div className="rounded-xl bg-white/[0.03] border border-white/5 px-4 py-3">
       <div className="flex items-center justify-between gap-3">
@@ -60,9 +61,9 @@ function BankRow({ bank, busy, onMakePrimary, onDisconnect }) {
           <Icon size={14} /> {s.label}
         </span>
       </div>
-      {isVerified && (
+      {canDisconnect && (
         <div className="mt-3 flex justify-end gap-2 border-t border-white/5 pt-3">
-          {!bank.is_primary && (
+          {isVerified && !bank.is_primary && (
             <button
               type="button"
               onClick={() => onMakePrimary(bank)}
