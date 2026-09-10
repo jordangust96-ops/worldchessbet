@@ -13,6 +13,28 @@ export function identityConfig() {
     throw new Error('Socure KYC configuration is incomplete');
   return { enabled: true, environment, apiKey, workflow, redirectUri: 'https://worldchessbet.com/wallet?verification=returned', webhookToken, baseUrl: PROD };
 }
+export function identityWebhookConfig() {
+  const environment = (Deno.env.get('SOCURE_IDENTITY_ENV') || 'production').trim().toLowerCase();
+  const workflow = (Deno.env.get('SOCURE_IDENTITY_WORKFLOW') || 'consumer_onboarding').trim();
+  const webhookToken = (Deno.env.get('SOCURE_IDENTITY_WEBHOOK_TOKEN') || '').trim();
+  if (environment !== 'production' || workflow !== 'consumer_onboarding' || webhookToken.length < 20)
+    throw new Error('Socure callback configuration is incomplete');
+  // Pausing NEW sessions must not prevent completion or revocation of existing ones.
+  return { environment, workflow, webhookToken, baseUrl: PROD,
+    apiKey: (Deno.env.get('SOCURE_IDENTITY_API_KEY') || '').trim() };
+}
+export async function readIdentityEvaluation(config, evaluationId) {
+  if (!config.apiKey || typeof evaluationId !== 'string' || !evaluationId || evaluationId.length > 128)
+    throw new Error('Socure evaluation retrieval unavailable');
+  const response = await fetch(PROD + '/api/evaluation/' + encodeURIComponent(evaluationId), {
+    headers: { Authorization: 'Bearer ' + config.apiKey, Accept: 'application/json' },
+    signal: AbortSignal.timeout(12000),
+  });
+  const result = await response.json().catch(() => null);
+  if (!response.ok || result?.eval_id !== evaluationId) throw new Error('Socure evaluation retrieval failed');
+  return result;
+}
+
 export function safeHostedUrl(value) {
   try { const url = new URL(value); return url.origin === PROD && url.pathname.startsWith('/hosted/') && !url.username && !url.password ? url.href : ''; } catch { return ''; }
 }
