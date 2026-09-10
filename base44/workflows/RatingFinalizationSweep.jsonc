@@ -1,6 +1,6 @@
 {
   "name": "Rating Finalization Sweep",
-  "description": "Shadow-only. Every 15 minutes, processes contests that are at least 24 hours past settlement and have no unresolved dispute/integrity review; decisive results also require the pending winnings payout to have been released.",
+  "description": "Every 15 minutes, processes contests that are at least 24 hours past settlement and have no unresolved dispute/integrity review; decisive results also require the pending winnings payout to have been released.",
   "trigger": {
     "condition": null,
     "config": {
@@ -36,7 +36,7 @@
           "then": "end",
           "x-base44": {
             "title": "Process Final Ratings",
-            "description": "Apply shadow Glicko-2 ratings only after the contest's 24-hour finality gates have cleared"
+            "description": "Apply player-facing Glicko-2 ratings only after the contest's 24-hour finality gates have cleared"
           }
         }
       }
