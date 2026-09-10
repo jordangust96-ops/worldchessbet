@@ -372,7 +372,7 @@ export default function SeamlessFundingPanel({
                 </h4>
                 <p className="mt-1 text-xs leading-relaxed text-white/45">
                   {direction === "deposit"
-                    ? journey.anotherDeposit ? "Optional: add more money from your connected bank. Existing transfers remain in Transaction History." : "Choose an amount and add it securely from your connected bank."
+                    ? journey.anotherDeposit ? "Funds in your ChessBet wallet are used to create or accept match challenges. Your funds can be withdrawn at any time." : "Choose an amount and add it securely from your connected bank."
                     : "Send available wallet funds back to your connected bank."}
                 </p>
               </div>
