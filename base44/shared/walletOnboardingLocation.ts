@@ -1,0 +1,42 @@
+// Wallet onboarding approval is permanent; gameplay uses separate fresh evidence.
+// Reuse genuine approvals recorded before this policy change, never User fields
+// or an identity/bank status. Later gameplay checks cannot grant/revoke onboarding.
+const LEGACY_CUTOFF = '2026-09-10T23:32:05.000Z';
+export function isWalletLocationEvidence(row, userId) {
+  const time = Date.parse(row?.verified_at || '');
+  return !!row && row.user_id === userId && row.provider === 'MaxMind' &&
+    row.verification_result === 'approved' && row.pre_bypass_verification_result === 'approved' &&
+    row.geolocation_enforcement_enabled === true && row.enforcement_bypassed === false &&
+    row.vpn_or_proxy_detected === false && !!row.ip_address &&
+    row.detected_country === 'US' && !!row.detected_state &&
+    Number.isFinite(time) && time <= Date.now() &&
+    (row.trigger_event === 'wallet_onboarding' || time <= Date.parse(LEGACY_CUTOFF));
+}
+function publicStatus(row) {
+  const approved = row?.verification_result === 'approved';
+  const blocked = row?.verification_result === 'blocked';
+  return {
+    allowed: approved, status: row?.verification_result || 'not_started',
+    verifiedAt: approved ? row.verified_at : null,
+    promptEligible: blocked,
+    reason: approved || !row ? '' : blocked
+      ? 'Wallet setup is not available from your location. Identity verification cannot continue.'
+      : 'We could not verify your location. Turn off any VPN or proxy, or try another connection.',
+  };
+}
+export async function walletOnboardingLocation(base44, userId) {
+  if (!userId) return publicStatus(null);
+  const logs = base44.asServiceRole.entities.JurisdictionVerificationLog;
+  const approved = await logs.filter({
+    user_id: userId, verification_result: 'approved', provider: 'MaxMind',
+    pre_bypass_verification_result: 'approved', geolocation_enforcement_enabled: true,
+    enforcement_bypassed: false, vpn_or_proxy_detected: false,
+    $or: [{trigger_event: 'wallet_onboarding'}, {verified_at: {$lte: LEGACY_CUTOFF}}],
+  }, '-verified_at', 100);
+  const evidence = approved.find(row => isWalletLocationEvidence(row, userId));
+  if (evidence) return publicStatus(evidence);
+  const recent = await logs.filter({user_id: userId, trigger_event: 'wallet_onboarding'}, '-verified_at', 1);
+  // An invalid approval is never represented as approved.
+  const last = recent[0];
+  return publicStatus(last && last.user_id === userId && last.verification_result !== 'approved' ? last : null);
+}
