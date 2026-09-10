@@ -6,7 +6,7 @@ const ITEMS = [
   {
     icon: MapPin,
     title: "Where you can play",
-    description: "Cash-prize play will require age, identity, and location eligibility.",
+    description: "Cash-prize play requires age, identity, and location eligibility.",
     link: "/official-rules#eligibility",
     linkLabel: "Official Rules",
   },
