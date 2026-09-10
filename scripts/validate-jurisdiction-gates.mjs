@@ -191,7 +191,7 @@ ok(appSrc.indexOf('path="/login"') < prIdx, 'public /login remains outside the P
 
 const depositIntentSrc = await read('src/components/wallet/DepositLocationStep.jsx');
 ok(depositIntentSrc.includes('onClick={checkLocation}'), 'deposit intent starts the location check');
-ok(depositIntentSrc.includes('triggerEvent: "deposit_start"'), 'deposit intent is recorded distinctly');
+ok(depositIntentSrc.includes('"verifyWalletOnboardingLocation"'), 'explicit one-time onboarding endpoint');
 ok(!/useEffect|setTimeout|setInterval|addEventListener/.test(depositIntentSrc), 'location check has no mount, timer or background trigger');
 const uncertainGeorgia = evaluateJurisdictionAccess({ status: 'verification_failed', approved: false, enforcementEnabled: true, country: 'US', state: 'GA', vpnDetected: false });
 ok(!uncertainGeorgia.allowed && !uncertainGeorgia.promptEligible, 'uncertain Georgia remains denied without an unsupported-region waitlist');
@@ -221,8 +221,7 @@ ok((await read('base44/shared/matchLocation.ts')).includes("triggerEvent: 'match
 ok(/jurisdictionRes\.data\?\.status\s*!==\s*['"]approved['"]/.test(lockSrc), 'lockWager fails closed unless jurisdiction status is approved');
 
 const depositSrc = await read('base44/functions/submitSeamlessDeposit/entry.ts');
-ok(depositSrc.includes('getRequestJurisdiction'), 'submitSeamlessDeposit invokes getCurrentJurisdiction');
-ok(/triggerEvent:\s*['"]deposit['"]/.test(depositSrc), 'submitSeamlessDeposit passes triggerEvent deposit');
+ok(!depositSrc.includes('getRequestJurisdiction'), 'deposits do not repeat current-location checks');
 ok(depositSrc.includes('await walletOnboardingLocation(base44, user.id)') && !depositSrc.includes('getRequestJurisdiction'), 'deposit requires saved approval, never current location');
 
 console.log(`jurisdiction-gates: ${pass} assertions passed (no network).`);
