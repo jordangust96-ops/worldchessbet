@@ -19,10 +19,11 @@ export const FAQ_SECTIONS = [
       {
         question: "How do I start playing?",
         list: [
-          "Create an account.",
+          "Create an account and complete the required identity and location checks.",
+          "Connect an eligible bank account and fund your wallet.",
           "Host a challenge or accept one from another player.",
           "Complete the match.",
-          "Contest results are automatically settled when the game ends.",
+          "After a decisive result, winnings remain pending during the standard 24-hour reporting window. If no report is filed, they become available automatically.",
         ],
       },
     ],
@@ -61,17 +62,17 @@ export const FAQ_SECTIONS = [
       {
         question: "Can I withdraw anytime?",
         paragraphs: [
-          "Yes.",
-          "Withdrawals may be requested at any time, subject to verification, fraud prevention, and any contests currently in progress.",
+          "You may request a withdrawal of available funds at any time.",
+          "Pending deposits, ACH funds that are still clearing, reserved contest funds, and winnings in the 24-hour reporting window are not yet available to withdraw. Withdrawals also remain subject to identity verification, fraud-prevention review, and confirmed payment-provider status.",
         ],
       },
       {
         id: "how-payouts-work",
         question: "How do payouts work?",
         paragraphs: [
-          "After a decisive result is confirmed, the winner receives 100% of both players' combined Contest Entry Amounts in their ChessBet balance. The fixed Platform Service Fee is disclosed and reserved separately, so it is not deducted from the winner's prize.",
-          "For a draw, cancellation, or platform void, each player's Contest Entry Amount and Platform Service Fee are returned. If a report triggers an integrity review, the reserved funds remain pending until a person reviews the available evidence and the contest is resolved.",
-          "Available funds may then be withdrawn through the supported bank-transfer method, subject to identity verification, fraud-prevention review, active-contest holds, and verified provider status.",
+          "After a decisive result is confirmed, the winner receives 100% of both players' combined Contest Entry Amounts. The fixed Platform Service Fee is disclosed and reserved separately, so it is not deducted from the winner's prize.",
+          "Winnings remain pending during the standard 24-hour reporting window. If no report is filed, they become available automatically. If a report triggers an integrity review, the affected funds remain held until a person reviews the available evidence and resolves the contest.",
+          "For a draw, cancellation, or platform void, each player's Contest Entry Amount and Platform Service Fee are returned. Available funds may be withdrawn through the supported bank-transfer method, subject to identity verification, fraud-prevention review, active-contest holds, and confirmed provider status.",
         ],
       },
     ],
@@ -128,7 +129,7 @@ export const FAQ_SECTIONS = [
     category: "Security",
     items: [
       {
-        question: "Is my money safe?",
+        question: "How are wallet funds handled?",
         paragraphs: [
           "ChessBet uses Seamless for bank authorization and payment processing while ChessBet maintains the application ledger. Funding and withdrawals remain subject to provider status, identity verification, and fraud-prevention review.",
         ],
