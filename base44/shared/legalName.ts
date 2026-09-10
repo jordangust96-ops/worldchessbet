@@ -13,7 +13,7 @@ export function normalizeLegalNameParts(firstName, lastName) {
 }
 
 export function legalNameFromUser(user) {
-  const fullName = cleanPart(user?.full_name || user?.name || '');
+  const fullName = cleanPart(user?.identity_legal_name || user?.full_name || user?.name || '');
   const parts = fullName.split(' ').filter(Boolean);
   if (parts.length < 2) return null;
   return normalizeLegalNameParts(parts[0], parts.slice(1).join(' '));
