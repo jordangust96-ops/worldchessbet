@@ -240,6 +240,7 @@ export default function SeamlessFundingPanel({
   const bankPending = state?.banks?.some((b) =>
     ["added", "pending_verification"].includes(b.status)
   );
+  const bankNeedsAttention = !verifiedBank && state?.banks?.some(b => ["verification_failed", "verification_expired", "error"].includes(b.status));
   const bankReady = !!verifiedBank;
   const depositSourceReady = providerPrimaryBank?.status === "verified";
   const bankReadyForDirection = direction === "deposit" ? depositSourceReady : bankReady;
@@ -293,8 +294,8 @@ export default function SeamlessFundingPanel({
             }}>{checkingLocation ? "Checking location…" : "Verify location"}</button>}
           </WalletSetupStep>
           <SocureIdentityStep identity={{...state?.identity,can_start:state?.identity?.can_start && locationApproved}} locationApproved={locationApproved} onRefresh={load} />
-          <WalletSetupStep number={3} label="Bank connection" title={depositSourceReady ? "Bank Connected" : bankPending ? "Bank verification pending" : bankReady ? "Choose your deposit bank" : "Connect your bank"} complete={depositSourceReady} pending={!depositSourceReady && bankPending}
-            description={depositSourceReady ? providerPrimaryBank?.account_name || "Your deposit bank is connected." : bankPending ? "Awaiting bank confirmation. This page updates automatically." : bankReady ? "Select a verified bank in the funding section below." : !locationApproved || !accountVerified ? "Next, after location and identity verification." : !hostedPlaidEnabled ? "Bank connection is temporarily unavailable." : "Use the secure bank connection form below."} />
+          <WalletSetupStep number={3} label="Bank connection" title={depositSourceReady ? "Bank Connected" : bankPending ? "Bank verification pending" : bankReady ? "Choose your deposit bank" : bankNeedsAttention ? "Bank connection needs attention" : "Connect your bank"} complete={depositSourceReady} pending={!depositSourceReady && bankPending} attention={bankNeedsAttention && !bankPending}
+            description={depositSourceReady ? providerPrimaryBank?.account_name || "Your deposit bank is connected." : bankPending ? "Awaiting bank confirmation. This page updates automatically." : bankReady ? "Select a verified bank in the funding section below." : bankNeedsAttention ? "Review the bank details below and reconnect your account." : !locationApproved || !accountVerified ? "Next, after location and identity verification." : !hostedPlaidEnabled ? "Bank connection is temporarily unavailable." : "Use the secure bank connection form below."} />
         </div>
         {locationApproved && !!state?.identity?.verified && depositSourceReady && <p className="border-t border-white/10 px-4 py-3 text-xs text-white/60 sm:px-5">{!ineligible && depositsEnabled ? "Setup complete. Choose an amount below to add money." : "Setup complete. See your account or transfer status below."}</p>}
       </section>
