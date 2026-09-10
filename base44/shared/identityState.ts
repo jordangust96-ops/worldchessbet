@@ -1,0 +1,31 @@
+import { hasVerifiedIdentity, KYC_POLICY_VERSION } from './identityEligibility.js';
+import { identityConfig } from './socureIdentity.ts';
+export async function identityState(base44, user) {
+  const current = await base44.asServiceRole.entities.User.get(user.id);
+  const verified = await hasVerifiedIdentity(base44, current);
+  const rows = await base44.asServiceRole.entities.SocureIdentityVerification.filter(
+    { user_id: current.id, policy_version: KYC_POLICY_VERSION }, '-requested_at', 1
+  );
+  const row = rows[0];
+  let status = verified ? 'verified' : row?.status || 'not_started';
+  if (status === 'pending' && Date.parse(row?.expires_at || '') <= Date.now()) status = 'expired';
+  if (!verified && status === 'verified') status = 'expired';
+  let enabled = false;
+  try { enabled = identityConfig().enabled; } catch { /* Fail closed with usable wallet status. */ }
+  const ageBlocked = row?.age_verified === true && row?.age_over_21 !== true;
+  const messages = {
+    not_started: 'Verify your identity and confirm you are 21 or older to fund your wallet and play for money.',
+    pending: 'Finish the secure Socure verification. We will update this page when your result arrives.',
+    verified: 'Your identity and age have been verified.',
+    expired: 'Your verification session expired. Start again to continue.',
+    failed: 'Verification could not be completed. Please try again or contact support.',
+    rejected: 'We could not approve your verification. Contact hello@worldchessbet.com for help.',
+    review_required: row?.failure_code === 'verified_age_evidence_missing'
+      ? 'Your identity result needs an age-verification review. Contact hello@worldchessbet.com.'
+      : 'Your verification is under review. We will update your status once it is resolved.',
+  };
+  return { enabled, status: ageBlocked ? 'rejected' : status, verified: verified && !ageBlocked,
+    minimum_age: 21, can_start: enabled && !ageBlocked && !['rejected','review_required'].includes(status) &&
+      !['suspended','closed'].includes(current.account_state) && !current.withdrawal_hold,
+    message: ageBlocked ? 'ChessBet currently requires players to be 21 or older for real-money activity.' : messages[status] || messages.review_required };
+}
