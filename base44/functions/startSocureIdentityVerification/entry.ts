@@ -39,6 +39,7 @@ Deno.serve(async (req) => {
     ))[0];
     if (latest && ['rejected', 'review_required'].includes(latest.status))
       return Response.json({ error: 'Your verification needs support review. Contact hello@worldchessbet.com.', status: latest.status }, { status: 409 });
+    if (latest?.completed_at) return Response.json({ enabled: true, status: latest.status });
     if (latest?.status === 'pending') {
       // Recheck the provider under the lock before replacing an unfinished attempt.
       // Browser return URLs, stale UI state and elapsed time cannot authorize a restart.
