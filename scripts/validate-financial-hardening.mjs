@@ -90,7 +90,7 @@ assert.match(ledgerWorkflow, /\*\/5 \* \* \* \*/);
 
 assert.match(pooled, /seamlessRequest\('GET', PATH_ACCOUNT\)/);
 assert.match(pooled, /buildMerchantBalanceLookupPath/);
-assert.match(pooled, /SeamlessPooledFundsReconciliation\.create/);
+assert.match(pooled, /entities\['seamless-pooled-funds-reconciliation'\]\.create/);
 assert.match(pooled, /custody_certification: false/);
 assert.match(pooledWorkflow, /7 \* \* \* \*/);
 
