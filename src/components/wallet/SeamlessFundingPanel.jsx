@@ -524,6 +524,7 @@ export default function SeamlessFundingPanel({
                   type="number"
                   inputMode="decimal"
                   min="0"
+                  max={direction === "deposit" ? 10000 : availableBalance}
                   step="0.01"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
@@ -607,6 +608,10 @@ export default function SeamlessFundingPanel({
                     ? (!locationApproved ? "Verify your location first" : "Deposits are temporarily unavailable")
                     : !depositSourceReady
                       ? "Choose a connected bank"
+                    : parsedAmount > 10000
+                      ? "Maximum deposit is $10,000"
+                    : amount && !/^\d+(?:\.\d{1,2})?$/.test(amount)
+                      ? "Enter an amount with up to 2 decimals"
                     : !formattedAmount
                       ? "Enter an amount"
                       : !meetsMinimum
