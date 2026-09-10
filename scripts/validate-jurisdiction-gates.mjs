@@ -192,7 +192,6 @@ ok(appSrc.indexOf('path="/login"') < prIdx, 'public /login remains outside the P
 const guardSrc = await read('src/components/JurisdictionAccessGuard.jsx');
 ok(/triggerEvent:\s*["']app_access["']/.test(guardSrc), 'guard invokes getCurrentJurisdiction with triggerEvent app_access');
 ok(guardSrc.includes('onClick={() => window.location.reload()}'), 'explicit retry reloads and rechecks instead of granting access');
-const { evaluateJurisdictionAccess } = await import('../src/lib/jurisdictionAccess.js');
 const uncertainGeorgia = evaluateJurisdictionAccess({ status: 'verification_failed', approved: false, enforcementEnabled: true, country: 'US', state: 'GA', vpnDetected: false });
 ok(!uncertainGeorgia.allowed && !uncertainGeorgia.promptEligible, 'uncertain Georgia remains denied without an unsupported-region waitlist');
 ok(uncertainGeorgia.reason.includes('another connection') && !uncertainGeorgia.reason.includes('VPN'), 'uncertain Georgia gets connection guidance without a VPN accusation');
