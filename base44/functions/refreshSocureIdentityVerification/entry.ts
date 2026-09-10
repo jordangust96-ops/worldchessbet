@@ -36,10 +36,10 @@ Deno.serve(async req => {
     const retained = row.provider_report_source === 'socure_api' &&
       row.provider_result_reference === row.provider_evaluation_id &&
       row.provider_report_ciphertext && row.provider_report_sha256;
-    if (!(retained && ['verified','rejected','review_required'].includes(row.status))) {
-      if (row.status !== 'pending') return Response.json({status:row.status});
+    if (!(retained && ['verified','rejected'].includes(row.status))) {
+      if (!['pending','review_required'].includes(row.status)) return Response.json({status:row.status});
       if (Date.now() - Date.parse(row.provider_checked_at || '') < 30000)
-        return Response.json({status:'pending',throttled:true});
+        return Response.json({status:row.status,throttled:true});
       const checkedAt = new Date().toISOString();
       // Persist the throttle before the network call, including unavailable-provider retries.
       await base44.asServiceRole.entities.SocureIdentityVerification.update(row.id,{provider_checked_at:checkedAt});
@@ -50,11 +50,12 @@ Deno.serve(async req => {
       const result = classifyKyc(data);
       if (result.status === 'pending') return Response.json({status:'pending'});
       const eventAt = Date.parse(data.decision_at || data.eval_end_time || '');
+      const completedAt = Date.parse(data.eval_end_time || data.decision_at || '');
       const requestedAt = Date.parse(row.requested_at || '');
       const deadline = Date.parse(row.expires_at || '');
       if (!Number.isFinite(eventAt) || !Number.isFinite(requestedAt) || !Number.isFinite(deadline) ||
           eventAt < requestedAt - 300000 || eventAt > Date.now() + 300000 ||
-          eventAt > deadline) throw Error('Provider result time could not be verified');
+          !Number.isFinite(completedAt) || completedAt > deadline) throw Error('Provider result time could not be verified');
       const previousAt = Date.parse(row.provider_event_at || '');
       if (Number.isFinite(previousAt) && eventAt < previousAt) return Response.json({status:row.status});
       const archived = await encryptComplianceJson({source:'socure_api',retrieved_at:checkedAt,data});
