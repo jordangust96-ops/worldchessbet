@@ -15,7 +15,7 @@ export async function identityState(base44, user) {
   const ageBlocked = row?.age_verified === true && row?.age_over_21 !== true;
   const messages = {
     not_started: 'Verify your identity and confirm you are 21 or older to fund your wallet and play for money.',
-    pending: 'Your verification is pending. If you finished the secure Socure flow, no further action is needed while we wait for the result.'
+    pending: 'Your verification is pending. If you finished the secure Socure flow, no further action is needed while we wait for the result.',
     verified: 'Your identity and age have been verified.',
     expired: 'Your verification session expired. Start again to continue.',
     failed: 'Verification could not be completed. Please try again or contact support.',
