@@ -1,3 +1,4 @@
+import { bankOnboardingEligibility } from '../../shared/bankOnboardingEligibility.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import {
   seamlessConfig, buildBankLinkUrl, SEAMLESS_PLAID_PROVIDER_KEY,
@@ -35,9 +36,12 @@ function trustedAppOrigin(req: Request, environment: string) {
 // funding-source.verified webhook remains the sole verification authority.
 Deno.serve(async (req) => {
   try {
+    if (req.method !== 'POST') return Response.json({error:'Method not allowed'},{status:405});
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me().catch(() => null);
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const eligibilityError = await bankOnboardingEligibility(req,base44,user);
+    if (eligibilityError) return Response.json(eligibilityError,{status:403});
     if (!seamlessHostedPlaidEnabled()) {
       return Response.json({ enabled: false, reason: 'Secure bank connection is unavailable right now.' }, { status: 409 });
     }
