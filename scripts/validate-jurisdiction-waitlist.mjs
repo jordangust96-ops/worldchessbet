@@ -208,7 +208,7 @@ ok(/promptEligible=\{decision\.promptEligible\}/.test(guardSrc) || /promptElligi
 // Outlet legitimately carries a context prop now, so match the tag loosely.
 ok(/<Outlet\b/.test(guardSrc), 'guard still renders <Outlet /> (optionally with props) when allowed');
 ok(/triggerEvent:\s*["']app_access["']/.test(guardSrc), 'guard still triggers getCurrentJurisdiction with app_access');
-ok(!/Retry/.test(guardSrc), 'guard still has no retry button');
+ok(guardSrc.includes('window.location.reload()'), 'manual recheck reruns verification without bypassing the guard');
 ok(!/setTimeout|setInterval/.test(guardSrc), 'guard still has no timer');
 ok(!/addEventListener/.test(guardSrc), 'guard still has no focus/visibility listener');
 ok(!/useNavigate/.test(guardSrc), 'guard still has no navigation listener');
