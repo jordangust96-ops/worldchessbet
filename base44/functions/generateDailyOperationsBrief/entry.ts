@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
       // screening platform-wide.
       svc.FairPlayAnalysis.filter({ status: 'awaiting_analyzer' }, '-created_date', 500),
       svc.FairPlayAnalysis.filter({ status: 'failed' }, '-created_date', 500),
-      svc.SeamlessPooledFundsReconciliation.list('-created_at', 1),
+      svc['seamless-pooled-funds-reconciliation'].list('-created_at', 1),
     ]);
 
     // --- Internal ledger invariant (mirrors checkLedgerIntegrity, read-only here) ---
