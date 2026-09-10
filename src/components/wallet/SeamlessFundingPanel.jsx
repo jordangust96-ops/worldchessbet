@@ -101,7 +101,6 @@ export default function SeamlessFundingPanel({
   const depositRequestKey = useRef("");
   const withdrawalRequestKey = useRef("");
   const pollAttempts = useRef(0);
-  const nextStepRef = useRef(null);
   const load = useCallback(async () => {
     try {
       let syncUnavailable = false;
@@ -126,7 +125,7 @@ export default function SeamlessFundingPanel({
   // authoritative 15-minute monitor even when this page is closed.
   useEffect(() => {
     const hasPending = loadError ||
-      ["pending", "review_required"].includes(state?.identity?.status) ||
+      ["pending", "incomplete", "review_required"].includes(state?.identity?.status) ||
       state?.banks?.some((b) => ["added", "pending_verification"].includes(b.status)) ||
       state?.recent?.some((t) => t.status === "pending" || t.deposit_hold_status === "held");
     if (!hasPending) {
@@ -262,8 +261,7 @@ export default function SeamlessFundingPanel({
 
   return (
     <div className="space-y-4">
-      <SocureIdentityStep identity={state?.identity} onRefresh={load} nextStepLabel={bankReady ? "Continue to add money" : "Continue to bank connection"} onNextStep={() => { nextStepRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); nextStepRef.current?.focus({ preventScroll: true }); }} />
-      <div ref={nextStepRef} tabIndex={-1} aria-label="Bank connection and wallet funding" />
+      <SocureIdentityStep identity={state?.identity} onRefresh={load} />
 
       {/* Provider webhooks are authoritative for account and bank status. */}
       {effectiveWithdrawalHold && (
@@ -579,7 +577,7 @@ export default function SeamlessFundingPanel({
               >
                 {transferBusy ? (
                   <><Loader2 size={16} className="mr-2 animate-spin" /> Processing securely...</>
-                ) : notVerified ? "Verify your identity first" : direction === "deposit" ? (
+                ) : notVerified ? (["pending", "review_required"].includes(state?.identity?.status) ? "Awaiting identity approval" : state?.identity?.status === "rejected" ? "Verification not approved" : "Verify your identity first") : direction === "deposit" ? (
                   !depositsEnabled
                     ? "Deposits are temporarily unavailable"
                     : !depositSourceReady
