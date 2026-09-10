@@ -124,7 +124,7 @@
     },
     "provider_report_ciphertext": {
       "type": "string",
-      "description": "AES-GCM encrypted Socure webhook evidence; plaintext PII is never stored.",
+      "description": "AES-GCM encrypted raw Socure webhook evidence; verified legal name is retained separately for bank-ownership consistency.",
       "rls": {
         "read": {
           "user_condition": {
