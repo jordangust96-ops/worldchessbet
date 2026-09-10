@@ -25,6 +25,8 @@ Deno.serve(async (req) => {
         const result = classifyKyc(data);
         current_result = {
           local_status: row.status, provider_decision: data.decision,
+          decision_at:data.decision_at, eval_end_time:data.eval_end_time,
+          local_requested_at:row.requested_at, local_expires_at:row.expires_at,
           eval_status: data.eval_status, evaluation_status: data.evaluation_status,
           correlation_matches: data.id === row.request_id,
           classified_status: result.status, failure_code: result.failure_code,
