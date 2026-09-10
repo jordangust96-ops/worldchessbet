@@ -5,13 +5,14 @@ export function isSocureIdentityVerified(user) {
     user.identity_verification_status === 'verified' &&
     user.identity_verification_provider === 'socure' &&
     user.identity_policy_version === KYC_POLICY_VERSION &&
-    !!user.identity_provider_reference && user.identity_age_verified === true && user.identity_age_over_21 === true;
+    !!user.identity_legal_name && !!user.identity_provider_reference && user.identity_age_verified === true && user.identity_age_over_21 === true;
 }
 // Compatibility export for callers during the migration; semantics are KYC only.
 export const isSeamlessPlaidVerified = isSocureIdentityVerified;
 
 export function isVerifiedKycEvidence(row, user, now = Date.now()) {
   return isSocureIdentityVerified(user) && !!row &&
+    row.verified_legal_name === user.identity_legal_name &&
     row.user_id === user.id && row.provider_evaluation_id === user.identity_provider_reference &&
     row.workflow === 'consumer_onboarding' && row.environment === 'production' &&
     row.policy_version === KYC_POLICY_VERSION && row.status === 'verified' &&
