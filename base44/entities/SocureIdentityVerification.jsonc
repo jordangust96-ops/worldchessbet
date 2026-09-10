@@ -169,6 +169,48 @@
     "description": {
       "type": "string",
       "maxLength": 1000
+    },
+    "policy_version": {
+      "type": "string",
+      "rls": {
+        "write": false
+      }
+    },
+    "environment": {
+      "type": "string",
+      "rls": {
+        "write": false
+      }
+    },
+    "age_verified": {
+      "type": "boolean",
+      "rls": {
+        "write": false
+      }
+    },
+    "age_over_18": {
+      "type": "boolean",
+      "rls": {
+        "write": false
+      }
+    },
+    "age_over_21": {
+      "type": "boolean",
+      "rls": {
+        "write": false
+      }
+    },
+    "verified_valid_until": {
+      "type": "string",
+      "rls": {
+        "write": false
+      }
+    },
+    "consent_version": {
+      "type": "string",
+      "rls": {
+        "write": false
+      }
     }
   },
   "required": [
