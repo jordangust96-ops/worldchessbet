@@ -8,7 +8,10 @@ export async function identityState(base44, user) {
   );
   const row = rows[0];
   let status = verified ? 'verified' : row?.status || 'not_started';
-  if (status === 'pending' && Date.parse(row?.expires_at || '') <= Date.now()) status = 'expired';
+  // Never treat a missing/delayed result as proof that the player abandoned verification.
+  const submitted = !!row?.completed_at || ['verified','rejected','review_required'].includes(row?.status);
+  if (status === 'pending' && !submitted && row?.failure_code === 'hosted_verification_incomplete' &&
+      Date.now() - Date.parse(row.provider_checked_at || '') < 60000) status = 'incomplete';
   if (!verified && status === 'verified') status = 'expired';
   let enabled = false;
   try { enabled = identityConfig().enabled; } catch { /* Fail closed with usable wallet status. */ }
@@ -24,8 +27,8 @@ export async function identityState(base44, user) {
       ? 'Your identity result needs an age-verification review. Contact hello@worldchessbet.com.'
       : 'Your verification is under review. We will update your status once it is resolved.',
   };
-  return { enabled, status: ageBlocked ? 'rejected' : status, verified: verified && !ageBlocked,
-    minimum_age: 21, can_start: enabled && !verified && !ageBlocked && ['not_started','pending','expired','failed'].includes(status) &&
+  return { enabled, submitted, status: ageBlocked ? 'rejected' : status, verified: verified && !ageBlocked,
+    minimum_age: 21, can_start: enabled && !verified && !ageBlocked && ['not_started','incomplete','expired','failed'].includes(status) &&
       !['suspended','closed'].includes(current.account_state) && !current.withdrawal_hold,
     message: ageBlocked ? 'ChessBet currently requires players to be 21 or older for real-money activity.' : messages[status] || messages.review_required };
 }
