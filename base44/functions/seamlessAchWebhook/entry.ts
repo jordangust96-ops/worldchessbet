@@ -311,16 +311,7 @@ async function syncHostedPlaidAccountState(base44, bank, profile, eventType, eve
       })(),
     });
 
-    const userUpdates: Record<string, unknown> = {
-      identity_verification_status: 'verified',
-      identity_verification_provider: 'seamless_ach_plaid',
-      identity_provider_reference: bank.source_id,
-      identity_verified_at: bank.verified_at || now,
-    };
-    if (!['suspended', 'closed'].includes(user.account_state || '')) {
-      userUpdates.account_state = 'verified';
-    }
-    await base44.asServiceRole.entities.User.update(user.id, userUpdates);
+    // funding-source.verified authorizes this bank only; Socure owns player KYC.
 
     for (const authorization of authorizations) {
       if (
@@ -353,42 +344,7 @@ async function syncHostedPlaidAccountState(base44, bank, profile, eventType, eve
     });
   }
 
-  if (
-    user.identity_verification_provider === 'seamless_ach_plaid' &&
-    user.identity_provider_reference === bank.source_id
-  ) {
-    const verifiedBanks = await base44.asServiceRole.entities.SeamlessBankAccount.filter(
-      { user_id: user.id, status: 'verified' }, '-verified_at', 20
-    );
-    const activeAuthorizations = await base44.asServiceRole.entities['ach-debit-authorization'].filter(
-      { user_id: user.id, status: 'active' }, '-accepted_at', 50
-    );
-    const replacement = verifiedBanks.find((verifiedBank) =>
-      !!verifiedBank.verified_at &&
-      !!verifiedBank.last_provider_event_id &&
-      activeAuthorizations.some((authorization) =>
-        authorization.provider_key === 'seamless_ach_plaid' &&
-        authorization.provider_user_id === verifiedBank.provider_user_id &&
-        authorization.funding_source_id === verifiedBank.source_id
-      )
-    );
-
-    if (replacement) {
-      await base44.asServiceRole.entities.User.update(user.id, {
-        identity_verification_status: 'verified',
-        identity_verification_provider: 'seamless_ach_plaid',
-        identity_provider_reference: replacement.source_id,
-        identity_verified_at: replacement.verified_at,
-      });
-    } else {
-      const updates: Record<string, unknown> = {
-        identity_verification_status:
-          bank.status === 'verification_failed' ? 'failed' : 'expired',
-      };
-      if (user.account_state === 'verified') updates.account_state = 'provisional';
-      await base44.asServiceRole.entities.User.update(user.id, updates);
-    }
-  }
+  // Revoking ACH authorization does not revoke or grant player identity verification.
 }
 
 async function handleFundingSource(base44, body, eventType, idemKey) {
