@@ -47,15 +47,7 @@ async function setProviderPrimary(base44, user, profile, bank) {
     }
   }
 
-  await base44.asServiceRole.entities.User.update(user.id, {
-    identity_verification_status: 'verified',
-    identity_verification_provider: SEAMLESS_PLAID_PROVIDER_KEY,
-    identity_provider_reference: bank.source_id,
-    identity_verified_at: bank.verified_at || new Date().toISOString(),
-    ...(!['suspended', 'closed'].includes(user.account_state || '')
-      ? { account_state: 'verified' }
-      : {}),
-  });
+  // Bank selection does not change player KYC or account restrictions.
 }
 
 async function audit(base44, userId: string, bank, action: string, result: string) {
@@ -149,7 +141,7 @@ Deno.serve(async (req) => {
       50,
     );
     let replacement = null;
-    if (bank.is_primary || user.identity_provider_reference === bank.source_id) {
+    if (bank.is_primary) {
       for (const candidate of allBanks) {
         if (candidate.id === bank.id || candidate.status !== 'verified') continue;
         const authorization = await activeAuthorizationFor(base44, user.id, candidate.source_id);
@@ -186,14 +178,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (user.identity_provider_reference === bank.source_id && !replacement) {
-      await base44.asServiceRole.entities.User.update(user.id, {
-        identity_verification_status: 'expired',
-        identity_verification_provider: SEAMLESS_PLAID_PROVIDER_KEY,
-        identity_provider_reference: '',
-        ...(user.account_state === 'verified' ? { account_state: 'provisional' } : {}),
-      });
-    }
+    // Disconnecting a bank leaves the independent Socure KYC result intact.
 
     await audit(base44, user.id, bank, 'disconnected', 'provider_removal_confirmed');
     return Response.json({
