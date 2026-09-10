@@ -1,3 +1,4 @@
+import { getRequestJurisdiction } from '../../shared/requestJurisdiction.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { identityConfig, startIdentityEvaluation, readIdentityEvaluation } from '../../shared/socureIdentity.ts';
 import { hasVerifiedIdentity, KYC_POLICY_VERSION } from '../../shared/identityEligibility.js';
@@ -20,6 +21,8 @@ Deno.serve(async (req) => {
     if (await hasVerifiedIdentity(base44, user)) return Response.json({ enabled: true, status: 'verified' });
     const body = await req.json().catch(() => ({}));
     if (body.consent !== true) return Response.json({ error: 'Please consent to identity and age verification.' }, { status: 400 });
+    const location = await (await getRequestJurisdiction(req,{triggerEvent:'identity_verification_start'})).json();
+    if (location.status !== 'approved') return Response.json({error:location.reason || 'Location verification is required before identity verification.'},{status:403});
     // Validate evidence encryption before starting a billable session.
     await encryptComplianceJson({ readiness: true });
     userId = user.id;
