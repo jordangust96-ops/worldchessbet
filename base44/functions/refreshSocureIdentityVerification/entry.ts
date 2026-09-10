@@ -9,10 +9,12 @@ import { acquireUserWalletLock, releaseUserWalletLock } from '../../shared/seaml
 // Authenticated recovery of an EXISTING evaluation. Never starts a paid evaluation,
 // trusts a browser-supplied result, changes another player, or touches bank/money records.
 Deno.serve(async req => {
-  let userId = '', owner = '';
+  let userId = '', owner = '', stage = 'authentication', verificationId = '', timing = '';
+  let service;
   try {
     if (req.method !== 'POST') return Response.json({error:'Method not allowed'}, {status:405});
     const base44 = createClientFromRequest(req);
+    service = base44.asServiceRole;
     const caller = await base44.auth.me().catch(() => null);
     if (!caller) return Response.json({error:'Unauthorized'}, {status:401});
     userId = caller.id;
@@ -27,6 +29,7 @@ Deno.serve(async req => {
     const rows = await base44.asServiceRole.entities.SocureIdentityVerification.filter(
       {user_id:userId, policy_version:POLICY_VERSION}, '-requested_at', 1);
     let row = rows[0];
+    verificationId = row?.id || '';
     if (!row || row.user_id !== userId || row.policy_version !== POLICY_VERSION ||
         row.workflow !== 'consumer_onboarding' || row.environment !== 'production' ||
         !row.provider_evaluation_id || current.identity_verification_provider !== 'socure' ||
@@ -43,7 +46,9 @@ Deno.serve(async req => {
       const checkedAt = new Date().toISOString();
       // Persist the throttle before the network call, including unavailable-provider retries.
       await base44.asServiceRole.entities.SocureIdentityVerification.update(row.id,{provider_checked_at:checkedAt});
+      stage = 'provider_read';
       const data = await readIdentityEvaluation(identityWebhookConfig(),row.provider_evaluation_id);
+      stage = 'provider_correlation';
       if (data.id !== row.request_id || data.eval_id !== row.provider_evaluation_id ||
           data.workflow !== row.workflow || data.environment_name !== 'Production')
         throw Error('Provider correlation mismatch');
@@ -55,6 +60,8 @@ Deno.serve(async req => {
           {failure_code:incomplete?'hosted_verification_incomplete':''});
         return Response.json({status:incomplete?'incomplete':'pending'});
       }
+      stage = 'provider_timestamps';
+      timing = JSON.stringify({decision_at:data.decision_at,eval_end_time:data.eval_end_time,requested_at:row.requested_at,expires_at:row.expires_at});
       const eventAt = Date.parse(data.decision_at || data.eval_end_time || '');
       const completedAt = Date.parse(data.eval_end_time || data.decision_at || '');
       const requestedAt = Date.parse(row.requested_at || '');
@@ -64,6 +71,7 @@ Deno.serve(async req => {
           !Number.isFinite(completedAt) || completedAt > deadline) throw Error('Provider result time could not be verified');
       const previousAt = Date.parse(row.provider_event_at || '');
       if (Number.isFinite(previousAt) && eventAt < previousAt) return Response.json({status:row.status});
+      stage = 'encrypt_evidence';
       const archived = await encryptComplianceJson({source:'socure_api',retrieved_at:checkedAt,data});
       const patch = {
         status:result.status, provider_decision:['ACCEPT','REJECT','REVIEW'].includes(data.decision)?data.decision:'UNKNOWN',
@@ -77,13 +85,15 @@ Deno.serve(async req => {
         retention_until:complianceRetentionUntil(checkedAt),
         verified_valid_until:result.status === 'verified'?new Date(eventAt + 365*86400000).toISOString():'',
       };
-      await base44.asServiceRole.entities.SocureIdentityVerification.update(row.id,patch);
+      stage = 'persist_evidence';
+      await base44.asServiceRole.entities.SocureIdentityVerification.update(row.id,{...patch,description:'Canonical provider result synchronized'});
       row = {...row,...patch};
     }
     const latest = await base44.asServiceRole.entities.User.get(userId);
     if (latest.identity_verification_provider !== 'socure' ||
         ![row.provider_evaluation_id,row.request_id].includes(latest.identity_provider_reference))
       return Response.json({ignored:true});
+    stage = 'project_user';
     await base44.asServiceRole.entities.User.update(userId,{
       identity_verification_provider:'socure',identity_provider_reference:row.provider_evaluation_id,
       identity_verification_status:row.status,identity_policy_version:POLICY_VERSION,
@@ -95,6 +105,9 @@ Deno.serve(async req => {
     });
     return Response.json({status:row.status,recovered:true});
   } catch {
+    console.error('Socure result sync failed at ' + stage);
+    if (service && verificationId) await service.entities.SocureIdentityVerification.update(verificationId,
+      {description:('sync_failed:' + stage + (stage === 'provider_timestamps' ? '; ' + timing : '')).slice(0,1000)}).catch(()=>{});
     return Response.json({error:'Your verification result could not be refreshed. Please try again shortly.'},{status:503});
   } finally {
     if (owner && userId) await releaseUserWalletLock(userId,owner).catch(()=>{});
