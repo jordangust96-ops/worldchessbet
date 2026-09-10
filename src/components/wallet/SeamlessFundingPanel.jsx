@@ -107,7 +107,7 @@ export default function SeamlessFundingPanel({
       setState(data);
       setLoadError(false);
       return data;
-    } catch (e) {
+    } catch {
       setLoadError(true);
     } finally {
       setLoading(false);
