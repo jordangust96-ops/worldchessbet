@@ -61,6 +61,9 @@ export async function extendComplianceEvidenceRetention(base44: any, {
   if (requireAchAuthorization && !authorization) {
     throw new Error('active ACH debit authorization is required');
   }
+  if (authorization && String(authorization.signer_name || '').normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase() !== String(user.identity_legal_name || '').normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase()) {
+    throw new Error('bank authorization name does not match verified identity; contact support');
+  }
   if (authorization) {
     await base44.asServiceRole.entities['ach-debit-authorization'].update(authorization.id, {
       last_transaction_at: activityAt,
