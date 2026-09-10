@@ -3,7 +3,7 @@ import { walletJourneyCopy as copy } from "../src/lib/walletJourneyCopy.js";
 const verified={identity:{verified:true,status:"verified"},banks:[{status:"verified"}]};
 let result=copy({funding:verified,pendingDeposits:10});
 assert.match(result.message,/Deposit pending/);
-assert.match(result.locationAction,/another deposit/);
+assert.equal(result.locationAction,undefined);
 assert.equal(result.title,"Wallet status");
 assert.match(copy({wallet:{held_balance:10},funding:verified}).message,/clearing/);
 assert.match(copy({wallet:{available_balance:10},funding:verified}).message,/available funds/);
@@ -13,7 +13,7 @@ assert.match(copy({funding:{identity:{status:"pending",submitted:true}}}).messag
 assert.match(copy({funding:{identity:{status:"rejected"}}}).message,/not approved/);
 assert.equal(copy({funding:{identity:{status:"incomplete"}}}).title,"Wallet status");
 assert.equal(copy().title,"Wallet setup");
-assert.equal(copy().locationAction,"Check location");
+assert.equal(copy().locationAction,undefined);
 assert.match(copy({funding:{recent:[{type:"withdrawal",status:"pending"}]}}).message,/Complete the checks/);
 assert.match(copy({funding:{recent:[{type:"deposit",status:"pending"}]}}).message,/Deposit pending/);
 console.log("Wallet journey copy passed: new, incomplete, submitted, rejected, verified, pending, clearing, funded, and completed states.");
