@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 
 // Returns public display names (ChessBet username, falling back to first name)
 // for a set of user IDs. Needed because the built-in User entity only allows a
