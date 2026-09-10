@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { base44 } from "@/api/base44Client";
 import DepositLocationStep from "./DepositLocationStep";
+import { walletJourneyCopy } from "@/lib/walletJourneyCopy";
 import SeamlessPlaidBankLink from "./SeamlessPlaidBankLink";
 import SocureIdentityStep from "./SocureIdentityStep";
 import WalletSetupStep from "./WalletSetupStep";
@@ -86,6 +87,7 @@ function BankRow({ bank, busy, onMakePrimary, onDisconnect }) {
 
 export default function SeamlessFundingPanel({
   wallet,
+  pendingDeposits = 0,
   accountState,
   withdrawalHold,
   onRefresh,
@@ -220,6 +222,7 @@ export default function SeamlessFundingPanel({
   const isFullBalanceWithdrawal =
     !!wallet && parsedAmount > 0 && parsedAmount >= (wallet.available_balance || 0) - 0.005;
 
+  const journey = walletJourneyCopy({wallet: wallet || {}, funding: state || {}, pendingDeposits});
   const location = locationOverride;
   const locationApproved = location?.allowed === true;
   const depositsEnabled = !!state?.deposits_enabled && locationApproved;
@@ -276,16 +279,17 @@ export default function SeamlessFundingPanel({
     <div className="space-y-4">
       <section className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03]" aria-label="Wallet setup">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 px-4 py-4 sm:px-5">
-          <h2 className="text-base font-semibold text-white">Wallet setup</h2>
+          <h2 className="text-base font-semibold text-white">{journey.title}</h2>
           <span className="text-xs text-white/60">{[locationApproved, !!state?.identity?.verified, depositSourceReady].filter(Boolean).length} of 3 complete</span>
         </div>
+        <p role="status" className="border-b border-white/10 px-4 py-3 text-sm leading-relaxed text-white/70 sm:px-5">{journey.message}</p>
         <div className="divide-y divide-white/10">
-          <DepositLocationStep decision={location} onDecision={setLocationOverride} />
+          <DepositLocationStep decision={location} onDecision={setLocationOverride} journey={journey} />
           <SocureIdentityStep identity={{...state?.identity,can_start:state?.identity?.can_start && locationApproved}} locationApproved={locationApproved} onRefresh={load} />
           <WalletSetupStep number={3} label="Bank connection" title={depositSourceReady ? "Bank Connected" : bankPending ? "Bank verification pending" : bankReady ? "Choose your deposit bank" : bankNeedsAttention ? "Bank connection needs attention" : "Connect your bank"} complete={depositSourceReady} pending={!depositSourceReady && bankPending} attention={bankNeedsAttention && !bankPending}
             description={depositSourceReady ? providerPrimaryBank?.account_name || "Your deposit bank is connected." : bankPending ? "Awaiting bank confirmation. This page updates automatically." : bankReady ? "Select a verified bank in the funding section below." : bankNeedsAttention ? "Review the bank details below and reconnect your account." : !locationApproved || !accountVerified ? "Next, after location and identity verification." : !hostedPlaidEnabled ? "Bank connection is temporarily unavailable." : "Use the secure bank connection form below."} />
         </div>
-        {locationApproved && !!state?.identity?.verified && depositSourceReady && <p className="border-t border-white/10 px-4 py-3 text-xs text-white/60 sm:px-5">{!ineligible && depositsEnabled ? "Setup complete. Choose an amount below to add money." : "Setup complete. See your account or transfer status below."}</p>}
+        {locationApproved && !!state?.identity?.verified && depositSourceReady && <p className="border-t border-white/10 px-4 py-3 text-xs text-white/60 sm:px-5">{!ineligible && depositsEnabled ? journey.anotherDeposit ? "Checks complete for another deposit. Your existing activity remains in Transaction History." : "Checks complete. The deposit form is available below." : "Setup complete. See your account or transfer status below."}</p>}
       </section>
 
       {/* Provider webhooks are authoritative for account and bank status. */}
@@ -369,7 +373,7 @@ export default function SeamlessFundingPanel({
                 </h4>
                 <p className="mt-1 text-xs leading-relaxed text-white/45">
                   {direction === "deposit"
-                    ? "Choose an amount and add it securely from your connected bank."
+                    ? journey.anotherDeposit ? "Optional: add more money from your connected bank. Existing transfers remain in Transaction History." : "Choose an amount and add it securely from your connected bank."
                     : "Send available wallet funds back to your connected bank."}
                 </p>
               </div>
