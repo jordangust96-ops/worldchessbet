@@ -90,7 +90,7 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled =
         <div className="rounded-xl bg-[#C9A84C]/10 border border-[#C9A84C]/20 p-3 flex items-center gap-2.5">
           <Wallet size={15} className="text-[#C9A84C] shrink-0" />
           <p className="text-xs text-[#C9A84C]/80 leading-snug">
-            {launchClosed ? "Paid contests will open after launch." : availability?.deposits_enabled ? "Add funds to create a challenge." : "Deposits are currently unavailable."}{" "}
+            {launchClosed ? "Paid contests are temporarily unavailable." : availability?.deposits_enabled ? "Add funds to create a challenge." : "Deposits are currently unavailable."}{" "}
             <Link to="/wallet" className="underline font-semibold hover:text-[#C9A84C]">
               {!launchClosed && availability?.deposits_enabled ? "Fund Wallet" : "View Wallet"}
             </Link>
