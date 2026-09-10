@@ -16,7 +16,7 @@ assert.equal(mapTransactionStatus('Returned'), 'reversed');
 assert.equal(PATH_ACCOUNT, '/account');
 assert.equal(
   buildMerchantBalanceLookupPath('merchant user'),
-  '/funding-source/check/balance/merchant%20user'
+  '/funding-source/check/balance/:merchant%20user'
 );
 
 const shortfall = reconcileSeamlessMerchantBalance({
