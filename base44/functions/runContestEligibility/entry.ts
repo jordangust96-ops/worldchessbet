@@ -1,6 +1,6 @@
 import { paidContestsEnabled } from '../../shared/seamlessFundingConfig.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
-import { isSeamlessPlaidVerified } from '../../shared/identityEligibility.js';
+import { hasVerifiedIdentity } from '../../shared/identityEligibility.js';
 
 // Single authoritative eligibility pipeline for contest participation.
 // Both Host Match (createMatch) and Join Match (acceptMatch) — public and
@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
 
     // 1. Account Verification — only an authoritative Seamless hosted Plaid result is
     // eligible for real-money contest activity.
-    if (!isSeamlessPlaidVerified(user)) {
+    if (!await hasVerifiedIdentity(base44, user)) {
       const reason =
         user.account_state === 'suspended'
           ? 'Your account is currently suspended and cannot enter paid contests.'
