@@ -48,7 +48,13 @@ Deno.serve(async req => {
           data.workflow !== row.workflow || data.environment_name !== 'Production')
         throw Error('Provider correlation mismatch');
       const result = classifyKyc(data);
-      if (result.status === 'pending') return Response.json({status:'pending'});
+      if (result.status === 'pending') {
+        const incomplete = !row.completed_at && data.eval_status === 'evaluation_paused' &&
+          (!data.evaluation_status || data.evaluation_status === 'evaluation_paused');
+        await base44.asServiceRole.entities.SocureIdentityVerification.update(row.id,
+          {failure_code:incomplete?'hosted_verification_incomplete':''});
+        return Response.json({status:incomplete?'incomplete':'pending'});
+      }
       const eventAt = Date.parse(data.decision_at || data.eval_end_time || '');
       const completedAt = Date.parse(data.eval_end_time || data.decision_at || '');
       const requestedAt = Date.parse(row.requested_at || '');
