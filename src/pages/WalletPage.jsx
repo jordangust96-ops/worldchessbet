@@ -46,6 +46,7 @@ export default function WalletPage() {
   const [matchDetailsById, setMatchDetailsById] = useState({});
   const [stats, setStats] = useState({ won: 0, lost: 0, wagered: 0 });
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [withdrawalHold, setWithdrawalHold] = useState(false);
   const [accountState, setAccountState] = useState("provisional");
 
@@ -126,6 +127,8 @@ export default function WalletPage() {
   };
 
   const loadData = async () => {
+    setLoadError(false);
+    try {
     let me = await base44.auth.me();
     if (me.launch_epoch !== 2) {
       await base44.functions.invoke("ensureLaunchEpoch", {});
@@ -184,7 +187,9 @@ export default function WalletPage() {
     });
     setStats({ won, lost, wagered });
 
-    setLoading(false);
+    } catch {
+      setLoadError(true);
+    } finally { setLoading(false); }
   };
 
 
@@ -195,6 +200,8 @@ export default function WalletPage() {
       </div>
     );
   }
+
+  if (loadError) return <div role="alert" className="mx-auto max-w-md p-6 text-center text-white"><p>Unable to load your wallet. No new transfer has been submitted.</p><button onClick={() => {setLoading(true); loadData();}} className="mt-4 rounded-xl gold-gradient px-4 py-3 text-black">Retry wallet connection</button></div>;
 
   return (
     <div className="min-h-screen px-4 pb-24 pt-6 sm:px-6 sm:pt-8">
@@ -249,6 +256,7 @@ export default function WalletPage() {
 
         <SeamlessFundingPanel
           wallet={wallet}
+          jurisdictionDecision={jurisdictionDecision}
           accountState={accountState}
           withdrawalHold={withdrawalHold}
           onRefresh={loadData}
