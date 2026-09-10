@@ -1,121 +1,34 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
-
-const PROVIDER = 'seamless_ach_plaid';
-
-function publicStatus(source: any) {
-  if (!source) return 'failed';
-  if (source.status === 'verified') return 'verified';
-  if (['added', 'pending_verification'].includes(source.status)) return 'pending';
-  if (source.status === 'verification_expired') return 'expired';
-  return 'failed';
-}
-
-// Scheduled safety sweep: the denormalized User eligibility snapshot must agree
-// with a webhook-evidenced Seamless funding source. It can never promote from a
-// browser redirect, client write, or an unverified bank record.
+import { isVerifiedKycEvidence, KYC_POLICY_VERSION } from '../../shared/identityEligibility.js';
+// The scheduled sweep may revoke drifted snapshots; it never promotes bank verification to KYC.
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const caller = await base44.auth.me().catch(() => null);
     if (!caller) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     if (caller.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 });
-
-    const users = await base44.asServiceRole.entities.User.filter(
-      { identity_verification_provider: PROVIDER },
-      '-updated_date',
-      500
-    );
-
-    let checked = 0;
-    const driftedIds: string[] = [];
-
-    for (const user of users) {
-      checked += 1;
-      const sourceId = String(user.identity_provider_reference || '');
-      const matches = sourceId
-        ? await base44.asServiceRole.entities.SeamlessBankAccount.filter(
-            { user_id: user.id, source_id: sourceId },
-            '-updated_date',
-            1
-          )
-        : [];
-      const source = matches.find((record: any) =>
-        record.user_id === user.id && record.source_id === sourceId
-      ) || null;
-      const authorizations = sourceId
-        ? await base44.asServiceRole.entities['ach-debit-authorization'].filter(
-            { user_id: user.id, funding_source_id: sourceId, status: 'active' },
-            '-accepted_at',
-            20
-          )
-        : [];
-      const signedAuthorization = authorizations.find((authorization: any) =>
-        authorization.provider_key === PROVIDER &&
-        authorization.provider_user_id === source?.provider_user_id &&
-        authorization.funding_source_id === sourceId &&
-        !!authorization.provider_event_id
-      );
-      const trusted = source?.status === 'verified' &&
-        !!source.verified_at &&
-        !!source.last_provider_event_id &&
-        !!signedAuthorization;
-
-      if (trusted) {
-        const needsPromotion =
-          user.identity_verification_status !== 'verified' ||
-          user.account_state === 'provisional';
-        if (!needsPromotion) continue;
-
+    let checked = 0, revoked = 0, skip = 0;
+    while (true) {
+      const users = await base44.asServiceRole.entities.User.list('id', 100, skip);
+      for (const user of users) {
+        checked++;
+        if (user.identity_verification_status !== 'verified') continue;
+        const rows = user.identity_verification_provider === 'socure'
+          ? await base44.asServiceRole.entities.SocureIdentityVerification.filter(
+              { user_id: user.id, provider_evaluation_id: user.identity_provider_reference }, '-requested_at', 1) : [];
+        if (isVerifiedKycEvidence(rows[0], user)) continue;
         await base44.asServiceRole.entities.User.update(user.id, {
-          identity_verification_status: 'verified',
-          identity_verification_provider: PROVIDER,
-          identity_provider_reference: source.source_id,
-          identity_verified_at: user.identity_verified_at || source.verified_at,
-          account_state: user.account_state === 'provisional' ? 'verified' : user.account_state,
+          identity_verification_status: 'not_started', identity_age_verified: false,
+          identity_age_over_18: false, identity_age_over_21: false,
+          identity_policy_version: KYC_POLICY_VERSION,
+          ...(user.account_state === 'verified' ? { account_state: 'provisional' } : {}),
         });
-        driftedIds.push(user.id);
-        await base44.asServiceRole.entities.IntegrationEvent.create({
-          event_type: 'account.seamless_plaid_snapshot_reconciled',
-          occurred_at: new Date().toISOString(),
-          aggregate_type: 'user',
-          aggregate_id: user.id,
-          correlation_id: source.source_id,
-          idempotency_key: `seamless.plaid.snapshot-reconcile:${source.last_provider_event_id}`,
-          actor_type: 'system',
-          user_id: user.id,
-          status: 'verified',
-          result: 'verified',
-          event_data_json: JSON.stringify({
-            provider: PROVIDER,
-            funding_source_id: source.source_id,
-            provider_event_id: source.last_provider_event_id,
-          }),
-          description: 'Player eligibility reconciled to a webhook-verified Seamless bank account.',
-        });
-        continue;
+        revoked++;
       }
-
-      if (user.identity_verification_status !== 'verified' && user.account_state !== 'verified') continue;
-      const nextStatus = source?.status === 'verified' ? 'review_required' : publicStatus(source);
-      const updates: Record<string, unknown> = { identity_verification_status: nextStatus };
-      if (user.account_state === 'verified') updates.account_state = 'provisional';
-      await base44.asServiceRole.entities.User.update(user.id, updates);
-      driftedIds.push(user.id);
-      await base44.asServiceRole.entities.IntegrityFlag.create({
-        user_id: user.id,
-        flag_type: 'manual',
-        severity: 'high',
-        status: 'open',
-        description: 'Hosted bank-verification snapshot drift detected and corrected.',
-        notes:
-          `User eligibility referenced funding source ${sourceId || 'missing'}, but verified webhook evidence and a bound active authorization did not agree ` +
-          `(source state: '${source?.status || 'missing'}'). Eligibility was downgraded to '${nextStatus}'.`,
-      });
+      if (users.length < 100) break;
+      skip += users.length;
     }
-
-    return Response.json({ checked, drifted: driftedIds.length, driftedIds });
-  } catch (error) {
-    console.error(JSON.stringify({ event: 'backend_function_failed', error: error?.message || 'unknown_error' }));
-    return Response.json({ error: 'internal_error' }, { status: 500 });
-  }
+    return Response.json({ success: true, checked, revoked });
+  } catch { return Response.json({ error: 'Identity reconciliation unavailable' }, { status: 503 }); }
 });
+
