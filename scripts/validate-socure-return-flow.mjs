@@ -8,15 +8,15 @@ import {loadBackend} from './helpers/load-backend.mjs';
 import * as policy from '../base44/shared/socureKycPolicy.js';
 import * as eligibility from '../base44/shared/identityEligibility.js';
 const source=await readFile('src/components/wallet/SocureIdentityStep.jsx','utf8');
-const uiExports={};
+const uiModule={exports:{}};
 vm.runInNewContext(transformSync(source,{loader:'jsx',format:'cjs'}).code,{
- module:{exports:uiExports},exports:uiExports,require:name=>{
+ module:uiModule,exports:uiModule.exports,require:name=>{
  if(name==='react')return React;
  if(name==='lucide-react')return {ShieldCheck:()=>null,Loader2:()=>null,CheckCircle2:()=>null,Clock:()=>null,AlertTriangle:()=>null};
  if(name==='@/api/base44Client')return {base44:{}};
  throw Error(name);
  }});
-const Component=uiExports.default;
+const Component=uiModule.exports.default;
 for(const [status,title] of Object.entries({pending:'Verification pending',review_required:'Verification under review',rejected:'Verification not approved',verified:'Identity verified',not_started:'First, verify your identity',expired:'Verification session expired',failed:'Verification could not be completed'})){
  const html=renderToStaticMarkup(React.createElement(Component,{identity:{status,verified:status==='verified',enabled:true,can_start:true},onNextStep:()=>{}}));
  assert.ok(html.includes(title));
