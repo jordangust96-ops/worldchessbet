@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { seamlessDepositsEnabled } from '../../shared/seamlessFundingConfig.ts';
 import { extendComplianceEvidenceRetention } from '../../shared/complianceEvidence.ts';
+import { getRequestJurisdiction } from '../../shared/requestJurisdiction.ts';
 import { meetsStateAge } from '../../shared/playerAgePolicy.js';
 import { hasVerifiedIdentity } from '../../shared/identityEligibility.js';
 import { legalNameFromUser } from '../../shared/legalName.ts';
@@ -31,6 +32,7 @@ Deno.serve(async (req) => {
   let lockOwner = '';
   let userId = '';
   try {
+    if (req.method !== 'POST') return Response.json({error:'Method not allowed'},{status:405});
     if (!seamlessDepositsEnabled()) {
       return Response.json({
         enabled: false,
@@ -44,9 +46,9 @@ Deno.serve(async (req) => {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     userId = user.id;
 
-    const { amount, idempotencyKey } = await req.json();
+    const { amount, idempotencyKey, bankSourceId } = await req.json().catch(() => ({}));
     const value = Number(amount);
-    if (!Number.isFinite(value) || value < MIN_DEPOSIT_AMOUNT || value > MAX_AMOUNT) {
+    if (!Number.isFinite(value) || value < MIN_DEPOSIT_AMOUNT || value > MAX_AMOUNT || Math.abs(value * 100 - Math.round(value * 100)) > 0.000001) {
       return Response.json({ error: `Deposit amount must be between $${MIN_DEPOSIT_AMOUNT} and $${MAX_AMOUNT}` }, { status: 400 });
     }
     if (!IDEMPOTENCY_KEY.test(String(idempotencyKey || ''))) {
@@ -65,7 +67,7 @@ Deno.serve(async (req) => {
     // source to be webhook-verified locally; falling back to a different bank
     // would mislabel the audit trail and could charge an account the player did
     // not see in the confirmation UI.
-    const bank = verifiedBanks.find((item) => item.source_id && item.is_primary);
+    let bank = verifiedBanks.find((item) => item.source_id && item.is_primary);
     if (!bank?.source_id) {
       return Response.json({
         error: 'Your selected bank is still awaiting verification. Choose a connected bank before depositing.',
@@ -82,6 +84,13 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Identity verification (21+) is required and account restrictions must be resolved.' }, { status: 403 });
     }
 
+    // Bank management uses this same lock. Re-read the primary after waiting
+    // and bind it to the source displayed in the updated client.
+    const lockedBanks = await base44.asServiceRole.entities.SeamlessBankAccount.filter({user_id:user.id,status:'verified'});
+    bank = lockedBanks.find(item => item.source_id && item.is_primary);
+    if (!bank || (bankSourceId && bankSourceId !== bank.source_id))
+      return Response.json({error:'Your selected bank changed. Review your bank account before depositing.',action:'refresh_bank'},{status:409});
+
     let operation = await claimDepositOperation(user.id, idempotencyKey, value);
     if (!operation || Number(operation.amount) !== value) {
       return Response.json({ error: 'Invalid deposit idempotency key reuse' }, { status: 409 });
@@ -93,7 +102,7 @@ Deno.serve(async (req) => {
       return Response.json({ enabled: true, transaction_id: operation.wallet_transaction_id || '', status: 'uncertain', deduplicated: true, reconciliation_required: true }, { status: 202 });
     }
     if (operation.state === 'failed') {
-      return Response.json({ error: 'This deposit request was rejected. Start a new request with a new idempotency key.' }, { status: 409 });
+      return Response.json({ error: 'This deposit request was rejected. You can start a new deposit.', request_terminal:true }, { status: 409 });
     }
 
     const profile = (
@@ -119,18 +128,18 @@ Deno.serve(async (req) => {
 
     // Jurisdiction determines whether new funds may be brought onto the paid
     // platform. This preserves the existing deposit-location gate.
-    const jurisdiction = await base44.functions.invoke('getCurrentJurisdiction', {
+    const jurisdiction = {data:await (await getRequestJurisdiction(req, {
       triggerEvent: 'deposit',
       relatedEntityType: 'deposit',
       contextAmount: value,
-    });
+    })).json()};
     if (jurisdiction.data?.error || jurisdiction.data?.status !== 'approved') {
       return Response.json(
         { error: jurisdiction.data?.reason || 'You are not currently eligible to fund your account from this location.' },
         { status: 403 }
       );
     }
-    if (!meetsStateAge(await base44.asServiceRole.entities.User.get(user.id), jurisdiction.data?.state)) {
+    if (!(lockedUser.role === 'admin' && jurisdiction.data?.adminBypass === true) && !meetsStateAge(await base44.asServiceRole.entities.User.get(user.id), jurisdiction.data?.state)) {
       return Response.json({ eligible: false, error: 'Identity verification and age 21+ are required in an approved state.', reason: 'Identity verification and age 21+ are required in an approved state.' }, { status: 403 });
     }
 
@@ -168,7 +177,7 @@ Deno.serve(async (req) => {
       operation = await saveDepositOperation(user.id, idempotencyKey, { ...operation, wallet_transaction_id: pending.id, state: 'new' });
     }
 
-    const accountHolderName = legalNameFromUser(user);
+    const accountHolderName = legalNameFromUser(lockedUser);
     if (!accountHolderName) {
       await base44.asServiceRole.entities.WalletTransaction.update(pending.id, {
         status: 'failed', integration_status: 'failed', description: 'Seamless ACH funding requires an account holder name.',
@@ -216,7 +225,7 @@ Deno.serve(async (req) => {
           walletTransactionId: pending.id, status: 'failed', amount: value, result: 'rejected',
           eventData: { provider: SEAMLESS_PROVIDER_KEY, error: failureReason },
         });
-        return Response.json({ error: failureReason, transaction_id: pending.id }, { status: 400 });
+        return Response.json({ error: failureReason, transaction_id: pending.id, request_terminal:true }, { status: 400 });
       }
       await base44.asServiceRole.entities.WalletTransaction.update(pending.id, { integration_status: 'uncertain', source_event: 'seamless_deposit_uncertain' });
       await saveDepositOperation(user.id, idempotencyKey, { ...operation, wallet_transaction_id: pending.id, label, state: 'uncertain', reconciliation_required: true, last_error_code: 'provider_outcome_unknown' });
