@@ -189,10 +189,10 @@ ok(appSrc.indexOf('path="/privacy-policy"') < prIdx, 'public /privacy-policy rem
 ok(appSrc.indexOf('path="/faq"') < prIdx, 'public /faq remains outside the ProtectedRoute block');
 ok(appSrc.indexOf('path="/login"') < prIdx, 'public /login remains outside the ProtectedRoute block');
 
-const depositSrc = await read('src/components/wallet/DepositLocationStep.jsx');
-ok(depositSrc.includes('onClick={startDeposit}'), 'deposit intent starts the location check');
-ok(depositSrc.includes('triggerEvent: "deposit_start"'), 'deposit intent is recorded distinctly');
-ok(!/useEffect|setTimeout|setInterval|addEventListener/.test(depositSrc), 'location check has no mount, timer or background trigger');
+const depositIntentSrc = await read('src/components/wallet/DepositLocationStep.jsx');
+ok(depositIntentSrc.includes('onClick={startDeposit}'), 'deposit intent starts the location check');
+ok(depositIntentSrc.includes('triggerEvent: "deposit_start"'), 'deposit intent is recorded distinctly');
+ok(!/useEffect|setTimeout|setInterval|addEventListener/.test(depositIntentSrc), 'location check has no mount, timer or background trigger');
 const uncertainGeorgia = evaluateJurisdictionAccess({ status: 'verification_failed', approved: false, enforcementEnabled: true, country: 'US', state: 'GA', vpnDetected: false });
 ok(!uncertainGeorgia.allowed && !uncertainGeorgia.promptEligible, 'uncertain Georgia remains denied without an unsupported-region waitlist');
 ok(uncertainGeorgia.reason.includes('another connection') && !uncertainGeorgia.reason.includes('VPN'), 'uncertain Georgia gets connection guidance');
