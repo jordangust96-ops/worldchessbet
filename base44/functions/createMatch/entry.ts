@@ -1,3 +1,4 @@
+import { runContestEligibility } from '../../shared/runContestEligibility.ts';
 import { paidContestsEnabled } from '../../shared/seamlessFundingConfig.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
@@ -45,11 +46,11 @@ Deno.serve(async (req) => {
     // Eligibility — the single shared pipeline (identity, geolocation,
     // participation restrictions, available balance) also used by Join
     // Match. No funds are held here; this is only an early eligibility check.
-    const eligibilityRes = await base44.functions.invoke('runContestEligibility', {
+    const eligibilityRes = { data: await (await runContestEligibility(req, {
       entryAmount: wager,
       triggerEvent: 'create_match',
       relatedEntityType: 'match',
-    });
+    })).json() };
     if (eligibilityRes.data?.error || !eligibilityRes.data?.eligible) {
       return Response.json({ error: eligibilityRes.data?.reason || eligibilityRes.data?.error || 'You are not eligible to create this contest' }, { status: 403 });
     }

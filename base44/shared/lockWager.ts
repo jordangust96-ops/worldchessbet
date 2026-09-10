@@ -1,0 +1,255 @@
+import { verifyMatchLocation } from './matchLocation.ts';
+import { paidContestsEnabled } from './seamlessFundingConfig.ts';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { postLedgerLegs } from './ledger.ts';
+import { recordIntegrationEvent } from './integrationEvents.ts';
+import { meetsStateAge } from './playerAgePolicy.js';
+import { hasVerifiedIdentity } from './identityEligibility.js';
+import { acquireUserWalletLock, releaseUserWalletLock } from './seamlessAtomicStore.ts';
+
+// Reserves a player's Entry Amount into escrow during the shared Preparing
+// Match phase. Requires that player to have already certified Fair Play.
+// Runs server-side with the service role so the wallet balance deduction is
+// always computed from the Internal Ledger — a client can never set its own
+// balance. Once both players have certified AND reserved funds, this
+// function is also the trigger that creates/loads the Game and takes the
+// match live.
+//
+// Financial model: the Contest Entry Amount and the Platform Service Fee
+// (a published fixed-dollar amount) are two independent, separately-disclosed
+// charges. The Entry Amount moves into the Contest Reserve
+// ('contest_clearing') where it stays untouched until settlement. The
+// Service Fee moves into 'suspense' — pending, not yet recognized revenue —
+// and is only ever promoted to 'platform_revenue' once the match settles
+// with a decisive result. Each charge gets its own WalletTransaction and its
+// own balanced ledger group so the two remain independently auditable.
+
+export async function lockWager(req, context = null) {
+  // Same per-user Redis lock submitSeamlessDeposit/submitSeamlessWithdrawal use
+  // around their wallet debit, and for the same reason: postLedgerLegs reads
+  // the current Wallet balance and writes back a computed result with no
+  // compare-and-set. Without a lock here, two lockWager calls for the same
+  // user across two different matches (concurrent contest entries) could
+  // both read the same starting balance and race, letting a lost update
+  // reserve funds beyond what the user actually has. Held for the full
+  // reservation — balance check through both ledger postings.
+  let lockOwner = '';
+  let userId = '';
+  try {
+    const base44 = createClientFromRequest(req);
+    const user = await base44.auth.me().catch(() => null);
+    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!paidContestsEnabled()) {
+      return Response.json({ eligible: false, error: 'Paid contests are temporarily unavailable.', reason: 'Paid contests are temporarily unavailable.', action: 'paid_contests_disabled' }, { status: 409 });
+    }
+    userId = user.id;
+
+    // Only Verified accounts may enter paid contests (Provisional/Suspended/
+    // Closed accounts cannot lock a wager. Only an authoritative Seamless hosted Plaid
+    // verification result is eligible for real-money contest activity.
+    if (!await hasVerifiedIdentity(base44, user)) {
+      return Response.json({ error: 'Your account must be verified before you can enter a paid contest' }, { status: 403 });
+    }
+
+    const {
+      matchId,
+      browserGeoPermission,
+      browserLatitude,
+      browserLongitude,
+      browserAccuracyMeters,
+      deviceFingerprintHash,
+    } = context || await req.json();
+
+    if (!matchId) return Response.json({ error: 'matchId is required' }, { status: 400 });
+
+    let match = await base44.asServiceRole.entities.Match.get(matchId);
+    if (!match) return Response.json({ error: 'Match not found' }, { status: 404 });
+    if (Number(match.launch_epoch) !== 2) return Response.json({ error: 'Match not available' }, { status: 410 });
+
+    const isP1 = match.player1_id === user.id;
+    const isP2 = match.player2_id === user.id;
+    if (!isP1 && !isP2) {
+      return Response.json({ error: 'You are not a player in this match' }, { status: 403 });
+    }
+
+    if (match.status !== 'preparing' && match.status !== 'both_ready') {
+      return Response.json({ error: 'This match is not currently accepting entry reservations' }, { status: 400 });
+    }
+
+    const alreadyDeposited = isP1 ? match.player1_deposited : match.player2_deposited;
+    if (alreadyDeposited) {
+      return Response.json({ error: 'You have already reserved your entry amount' }, { status: 400 });
+    }
+
+    const certified = isP1 ? match.player1_certified : match.player2_certified;
+    if (!certified) {
+      return Response.json({ error: 'Certify Fair Play before reserving your entry amount' }, { status: 400 });
+    }
+
+    const serviceFee = Number(match.platform_service_fee);
+    if (!Number.isFinite(serviceFee) || serviceFee < 0) {
+      return Response.json({ error: 'This contest is missing its disclosed Platform Service Fee.' }, { status: 409 });
+    }
+    const totalCharge = match.wager_amount + serviceFee;
+
+    lockOwner = crypto.randomUUID();
+    if (!await acquireUserWalletLock(user.id, lockOwner)) {
+      return Response.json({ error: 'wager_lock_in_progress', retryable: true }, { status: 409 });
+    }
+    // Recheck after acquiring the same lock used by identity callbacks.
+    const lockedUser = await base44.asServiceRole.entities.User.get(user.id);
+    if (!await hasVerifiedIdentity(base44, lockedUser) || lockedUser.withdrawal_hold) {
+      return Response.json({ error: 'Identity verification (21+) is required and account restrictions must be resolved.' }, { status: 403 });
+    }
+
+    const wallets = await base44.asServiceRole.entities.Wallet.filter({ user_id: user.id });
+    const wallet = wallets[0];
+    if (!wallet || wallet.available_balance < totalCharge) {
+      return Response.json({ error: 'Insufficient balance for this entry amount and platform service fee' }, { status: 400 });
+    }
+
+    // Jurisdiction is the final gate before a financial reservation. All free
+    // request, match, membership, certification, and balance checks above run
+    // first. A fresh, match-specific check is required for every participant.
+    const jurisdictionRes = { data: await verifyMatchLocation(req, match, {
+      relatedEntityType: 'match',
+      relatedEntityId: match.id,
+      contextAmount: totalCharge,
+      browserGeoPermission,
+      browserLatitude,
+      browserLongitude,
+      browserAccuracyMeters,
+      deviceFingerprintHash,
+    }) };
+    if (jurisdictionRes.data?.error || jurisdictionRes.data?.status !== 'approved') {
+      return Response.json({ error: jurisdictionRes.data?.reason || 'You are not currently eligible to fund a contest entry from your location.' }, { status: 403 });
+    }
+    if (!meetsStateAge(await base44.asServiceRole.entities.User.get(user.id), jurisdictionRes.data?.state)) {
+      return Response.json({ eligible: false, error: 'Identity verification and age 21+ are required in an approved state.', reason: 'Identity verification and age 21+ are required in an approved state.' }, { status: 403 });
+    }
+
+    const fundingOperationField = isP1 ? 'player1_funding_operation_id' : 'player2_funding_operation_id';
+    if (match[fundingOperationField]) {
+      return Response.json({ error: 'funding_in_progress' }, { status: 409 });
+    }
+    const fundingOperationId = crypto.randomUUID();
+    await base44.asServiceRole.entities.Match.update(match.id, {
+      [fundingOperationField]: fundingOperationId,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    match = await base44.asServiceRole.entities.Match.get(match.id);
+    if (match[fundingOperationField] !== fundingOperationId) {
+      return Response.json({ error: 'funding_claim_lost' }, { status: 409 });
+    }
+    if (isP1 ? match.player1_deposited : match.player2_deposited) {
+      return Response.json({ error: 'already_funded' }, { status: 409 });
+    }
+
+    const entryTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
+      launch_epoch: 2,
+      user_id: user.id,
+      type: 'wager_lock',
+      amount: match.wager_amount,
+      match_id: match.id,
+      description: 'Contest entry amount reserved for match',
+    });
+
+    // Double-entry: Debit User Available Balance, Credit Contest Reserve.
+    // The debited amount is simultaneously moved into the user's held balance.
+    await postLedgerLegs(base44, {
+      // Deterministic, greppable ledger_group_id: every leg posted for a
+      // given financial event can be found from just the match id and the
+      // WalletTransaction it backs, without first looking up a random UUID
+      // via an admin diagnostic tool.
+      groupId: `match:${match.id}:match_entry:${entryTransaction.id}`,
+      matchId: match.id,
+      walletTransactionId: entryTransaction.id,
+      actor: 'user',
+      actorId: user.id,
+      triggerEvent: 'match_entry',
+      externalRefType: 'match',
+      externalRefId: match.id,
+      legs: [
+        { ledgerAccount: 'user_account', userId: user.id, debit: match.wager_amount, credit: 0, heldDelta: match.wager_amount, transactionType: 'match_entry', totalWageredDelta: match.wager_amount },
+        { ledgerAccount: 'contest_clearing', debit: 0, credit: match.wager_amount, transactionType: 'match_entry' },
+      ],
+    });
+
+    const feeTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
+      launch_epoch: 2,
+      user_id: user.id,
+      type: 'service_fee_charge',
+      amount: serviceFee,
+      match_id: match.id,
+      description: 'Platform service fee charged for match',
+    });
+
+    // Separate double-entry, in its own balanced group: Debit User Available
+    // Balance, Credit Suspense (pending — not yet recognized as revenue until
+    // the match settles with a decisive result).
+    await postLedgerLegs(base44, {
+      groupId: `match:${match.id}:service_fee_charge:${feeTransaction.id}`,
+      matchId: match.id,
+      walletTransactionId: feeTransaction.id,
+      actor: 'user',
+      actorId: user.id,
+      triggerEvent: 'service_fee_charge',
+      externalRefType: 'match',
+      externalRefId: match.id,
+      legs: [
+        { ledgerAccount: 'user_account', userId: user.id, debit: serviceFee, credit: 0, heldDelta: serviceFee, transactionType: 'platform_fee' },
+        { ledgerAccount: 'suspense', debit: 0, credit: serviceFee, transactionType: 'platform_fee' },
+      ],
+    });
+
+    const depositUpdates = isP1
+      ? { player1_deposited: true, player1_funding_operation_id: fundingOperationId }
+      : { player2_deposited: true, player2_funding_operation_id: fundingOperationId };
+    let updatedMatch = await base44.asServiceRole.entities.Match.update(match.id, depositUpdates);
+
+    await recordIntegrationEvent(base44, {
+      eventType: 'contest.participant_funded',
+      aggregateType: 'match',
+      aggregateId: match.id,
+      correlationId: match.id,
+      idempotencyKey: `contest.participant_funded:${match.id}:${user.id}`,
+      actorType: 'user',
+      actorId: user.id,
+      userId: user.id,
+      counterpartyUserId: isP1 ? match.player2_id : match.player1_id,
+      matchId: match.id,
+      status: updatedMatch.status,
+      amount: totalCharge,
+      result: 'entry_and_fee_reserved',
+      eventData: {
+        player_role: isP1 ? 'player1' : 'player2',
+        entry_amount: match.wager_amount,
+        platform_service_fee: serviceFee,
+        total_reserved: totalCharge,
+        wallet_transaction_ids: [entryTransaction.id, feeTransaction.id],
+      },
+    });
+
+    // Only when BOTH players have certified Fair Play AND successfully
+    // reserved funds does the match go live — never earlier. finalizeMatchStart
+    // is idempotent, so even if certifyFairPlay's own readiness check fires
+    // this same transition concurrently, only one Game is ever created — and
+    // it's also the same repair path the client can re-invoke if this ever
+    // fails partway, leaving the match stuck at "both_ready".
+    const bothCertified = updatedMatch.player1_certified && updatedMatch.player2_certified;
+    const bothDeposited = updatedMatch.player1_deposited && updatedMatch.player2_deposited;
+    if (bothCertified && bothDeposited) {
+      const finalizeRes = await base44.functions.invoke('finalizeMatchStart', { matchId: match.id });
+      if (finalizeRes.data?.match) updatedMatch = finalizeRes.data.match;
+    }
+
+    return Response.json({ match: updatedMatch });
+  } catch (error) {
+    console.error(JSON.stringify({ event: 'backend_function_failed', error: error?.message || 'unknown_error' }));
+    return Response.json({ error: 'internal_error' }, { status: 500 });
+  } finally {
+    if (userId && lockOwner) {
+      try { await releaseUserWalletLock(userId, lockOwner); } catch { /* TTL safely releases an unavailable store lock. */ }
+    }
+  }
+}

@@ -1,0 +1,93 @@
+import { getRequestJurisdiction } from './requestJurisdiction.ts';
+import { paidContestsEnabled } from './seamlessFundingConfig.ts';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { meetsStateAge } from './playerAgePolicy.js';
+import { hasVerifiedIdentity } from './identityEligibility.js';
+
+// Single authoritative eligibility pipeline for contest participation.
+// Both Host Match (createMatch) and Join Match (acceptMatch) — public and
+// private alike — invoke this exact function before any financial commitment
+// or Match state transition occurs. There is no separate/duplicated version
+// of this validation logic anywhere else.
+//
+// Checks run in a fixed, cost-aware order:
+//   1. Account Verification (authenticated Socure identity and age server result)
+//   2. Participation Restrictions (admin-applied withdrawal_hold)
+//   3. Available Balance Check (>= entryAmount)
+//   4. Jurisdiction Check (fresh or same-IP short-cache, server-side)
+//
+// Cheap local checks run first so an account that cannot participate never
+// causes a paid location lookup.
+//
+// Returns { eligible: boolean, reason?: string } and never mutates any
+// financial or Match state itself — callers only proceed with their own
+// hold/ledger/match-state logic once eligible === true.
+export async function runContestEligibility(req, context = null) {
+  try {
+    const base44 = createClientFromRequest(req);
+    const user = await base44.auth.me().catch(() => null);
+    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!paidContestsEnabled()) {
+      return Response.json({ eligible: false, error: 'Paid contests are temporarily unavailable.', reason: 'Paid contests are temporarily unavailable.', action: 'paid_contests_disabled' }, { status: 409 });
+    }
+
+    const { entryAmount, triggerEvent, relatedEntityType, relatedEntityId } = context || await req.json();
+    const amount = Number(entryAmount);
+    const jurisdictionTrigger = ['create_match', 'accept_match'].includes(triggerEvent)
+      ? triggerEvent
+      : 'contest_eligibility';
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return Response.json({ error: 'Invalid entry amount' }, { status: 400 });
+    }
+
+    // 1. Account Verification — only an authenticated Socure identity and age result is
+    // eligible for real-money contest activity.
+    if (!await hasVerifiedIdentity(base44, user)) {
+      const reason =
+        user.account_state === 'suspended'
+          ? 'Your account is currently suspended and cannot enter paid contests.'
+          : user.account_state === 'closed'
+          ? 'This account is closed and cannot enter paid contests.'
+          : 'Verify your identity and confirm you are 21 or older before entering a paid contest.';
+      return Response.json({ eligible: false, reason });
+    }
+
+    // 2. Participation Restrictions — admin-applied hold during an integrity review.
+    if (user.withdrawal_hold) {
+      return Response.json({
+        eligible: false,
+        reason: 'Your account is currently under review and cannot enter new contests at this time.',
+      });
+    }
+
+    // 3. Available Balance Check
+    const wallets = await base44.asServiceRole.entities.Wallet.filter({ user_id: user.id });
+    const wallet = wallets[0];
+    if (!wallet || (wallet.available_balance || 0) < amount) {
+      return Response.json({ eligible: false, reason: 'Insufficient balance for this entry amount.' });
+    }
+
+    // 4. Jurisdiction Check — performed only after all free local checks pass.
+    // getCurrentJurisdiction may reuse a recent result only for the exact same
+    // trusted edge IP; otherwise it performs a fresh provider lookup.
+    const jurisdictionRes = { data: await (await getRequestJurisdiction(req, {
+      triggerEvent: jurisdictionTrigger,
+      relatedEntityType: relatedEntityType || 'match',
+      relatedEntityId: relatedEntityId || '',
+      contextAmount: amount,
+    })).json() };
+    if (jurisdictionRes.data?.error || jurisdictionRes.data?.status !== 'approved') {
+      return Response.json({
+        eligible: false,
+        reason: jurisdictionRes.data?.reason || 'You are not currently eligible to enter a contest from your location.',
+      });
+    }
+    if (!meetsStateAge(await base44.asServiceRole.entities.User.get(user.id), jurisdictionRes.data?.state)) {
+      return Response.json({ eligible: false, error: 'Identity verification and age 21+ are required in an approved state.', reason: 'Identity verification and age 21+ are required in an approved state.' }, { status: 403 });
+    }
+
+    return Response.json({ eligible: true });
+  } catch (error) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+}
