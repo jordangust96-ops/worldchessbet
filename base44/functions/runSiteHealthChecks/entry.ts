@@ -69,6 +69,20 @@ async function collect(svc: any, config: any, previous: any, now: number) {
     catch { checks.push(check(key, label, 'unknown', 'The bounded read failed or timed out. No healthy result can be inferred.')); }
   }
   const jobs = [
+    async () => {
+      const enabled = Deno.env.get('MAXMIND_GEOIP_ENABLED') === 'true';
+      const accountConfigured = !!String(Deno.env.get('MAXMIND_ACCOUNT_ID') || '').trim();
+      const licenseConfigured = !!String(Deno.env.get('MAXMIND_LICENSE_KEY') || '').trim();
+      const ready = enabled && accountConfigured && licenseConfigured;
+      checks.push(check(
+        'maxmind_geoip',
+        'MaxMind geolocation enforcement',
+        ready ? 'healthy' : 'critical',
+        ready
+          ? 'Production geolocation enforcement and MaxMind credentials are configured. Provider requests are made only at protected user-action boundaries.'
+          : 'Production geolocation is not fully configured. Paid location-gated activity must remain fail-closed until MAXMIND_GEOIP_ENABLED and both MaxMind credentials are present.'
+      ));
+    },
     async () => { checks.push(await httpProbe('public_site', 'Public website', 'https://worldchessbet.com/')); },
     async () => { checks.push(await redisProbe('SEAMLESS_ATOMIC_REDIS', 'financial_redis', 'Financial Redis')); },
     async () => { checks.push(await redisProbe('RATING_ATOMIC_REDIS', 'rating_redis', 'Rating Redis')); },
