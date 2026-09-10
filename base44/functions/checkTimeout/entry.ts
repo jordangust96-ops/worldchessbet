@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 
 // Server timestamps are always UTC but can come back without a timezone
 // designator (e.g. "2026-07-13T23:48:07.212273"). Parsing a designator-less
