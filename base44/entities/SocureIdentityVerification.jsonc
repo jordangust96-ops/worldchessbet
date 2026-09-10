@@ -2,6 +2,31 @@
   "name": "SocureIdentityVerification",
   "type": "object",
   "properties": {
+    "provider_report_source": {
+      "type": "string",
+      "enum": [
+        "webhook",
+        "socure_api"
+      ],
+      "rls": {
+        "read": false,
+        "write": false
+      }
+    },
+    "provider_result_reference": {
+      "type": "string",
+      "rls": {
+        "read": false,
+        "write": false
+      }
+    },
+    "provider_checked_at": {
+      "type": "string",
+      "format": "date-time",
+      "rls": {
+        "write": false
+      }
+    },
     "user_id": {
       "type": "string"
     },
