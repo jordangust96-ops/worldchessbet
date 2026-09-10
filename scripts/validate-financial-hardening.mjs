@@ -45,6 +45,10 @@ const [
   pooledWorkflow,
   history,
   walletPage,
+  depositEmail,
+  depositEmailRecovery,
+  depositEmailWorkflow,
+  emailLogSchema,
 ] = await Promise.all([
   read('base44/shared/seamlessLedgerTransitions.ts'),
   read('base44/functions/releaseClearedDeposits/entry.ts'),
@@ -59,6 +63,10 @@ const [
   read('base44/workflows/HourlySeamlessPooledFundsReconciliation.jsonc'),
   read('src/components/wallet/TransactionHistory.jsx'),
   read('src/pages/WalletPage.jsx'),
+  read('base44/shared/depositAvailableEmail.ts'),
+  read('base44/functions/processDepositAvailableNotifications/entry.ts'),
+  read('base44/workflows/DepositAvailableEmailNotifications.jsonc'),
+  read('base44/entities/EmailLog.jsonc'),
 ]);
 
 assert.match(transitions, /creditHeld: amount/);
@@ -90,5 +98,24 @@ assert.match(history, /heading: "Clearing"/);
 assert.match(history, /Withdrawal Fee Refund/);
 assert.match(walletPage, />Available</);
 assert.match(walletPage, />Clearing</);
+
+assert.match(transitions, /deposit_available_email_status: 'pending'/);
+assert.match(releaseSweep, /sendDepositAvailableEmail/);
+assert.match(depositEmail, /deposit_hold_status !== 'released'/,
+  'email is impossible before funds are actually available');
+assert.match(depositEmail, /Amount added/);
+assert.match(depositEmail, /Available/);
+assert.match(depositEmail, /Submitted/);
+assert.match(depositEmail, /Transaction ID/);
+assert.match(depositEmail, /Wallet balance/);
+assert.match(depositEmail, /Ready to play/);
+assert.match(depositEmail, /ctaText: 'Find a Match'/);
+assert.match(depositEmail, /claimWebhookEvent\(eventKey, providerLockKey, owner\)/,
+  'deposit email delivery is protected by a durable idempotency claim');
+assert.match(depositEmail, /finishWebhookEvent\(eventKey, providerLockKey, owner, 'completed'\)/);
+assert.match(depositEmailRecovery, /deposit_available_email_status: notificationStatus/);
+assert.match(depositEmailRecovery, /MAX_ATTEMPTS = 8/);
+assert.match(depositEmailWorkflow, /\*\/5 \* \* \* \*/);
+assert.match(emailLogSchema, /"deposit_available"/);
 
 console.log('Financial hardening validation passed.');
