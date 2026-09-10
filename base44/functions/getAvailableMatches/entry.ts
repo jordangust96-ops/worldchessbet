@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { publicAvailableMatchQuery } from '../../shared/marketplaceStats.ts';
 import { readPublicMatchRatings } from '../../shared/publicMatchRatings.js';
 
