@@ -15,7 +15,7 @@ export async function identityState(base44, user) {
   const ageBlocked = row?.age_verified === true && row?.age_over_21 !== true;
   const messages = {
     not_started: 'Verify your identity and confirm you are 21 or older to fund your wallet and play for money.',
-    pending: 'Finish the secure Socure verification. We will update this page when your result arrives.',
+    pending: 'Your verification is pending. If you finished the secure Socure flow, no further action is needed while we wait for the result.'
     verified: 'Your identity and age have been verified.',
     expired: 'Your verification session expired. Start again to continue.',
     failed: 'Verification could not be completed. Please try again or contact support.',
@@ -25,7 +25,7 @@ export async function identityState(base44, user) {
       : 'Your verification is under review. We will update your status once it is resolved.',
   };
   return { enabled, status: ageBlocked ? 'rejected' : status, verified: verified && !ageBlocked,
-    minimum_age: 21, can_start: enabled && !ageBlocked && !['rejected','review_required'].includes(status) &&
+    minimum_age: 21, can_start: enabled && !verified && !ageBlocked && ['not_started','pending','expired','failed'].includes(status) &&
       !['suspended','closed'].includes(current.account_state) && !current.withdrawal_hold,
     message: ageBlocked ? 'ChessBet currently requires players to be 21 or older for real-money activity.' : messages[status] || messages.review_required };
 }
