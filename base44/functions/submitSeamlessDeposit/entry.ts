@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'A valid deposit idempotency key is required' }, { status: 400 });
     }
     if (!await hasVerifiedIdentity(base44, user) || user.withdrawal_hold) {
-      return Response.json({ error: 'Your account is not eligible for bank transfers' }, { status: 403 });
+      return Response.json({ error: 'Identity verification (21+) is required and account holds must be resolved before transfers. Contact hello@worldchessbet.com for help accessing existing funds.' }, { status: 403 });
     }
 
     const verifiedBanks = await base44.asServiceRole.entities.SeamlessBankAccount.filter({ user_id: user.id, status: 'verified' });
