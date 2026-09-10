@@ -61,6 +61,7 @@ Deno.serve(async (req) => {
       const now = new Date().toISOString();
       const updated = {
         status: result.status, age_verified: result.age_verified,
+        verified_legal_name: result.verified_name || '',
         age_over_18: result.age_over_18 === true, age_over_21: result.age_over_21 === true,
         provider_decision: ['ACCEPT', 'REJECT', 'REVIEW'].includes(data.decision) ? data.decision : 'UNKNOWN',
         provider_evaluation_id: data.eval_id, webhook_event_id: eventId,
@@ -82,6 +83,7 @@ Deno.serve(async (req) => {
       identity_verification_provider: 'socure', identity_provider_reference: data.eval_id,
       identity_verification_status: verification.status, identity_policy_version: POLICY_VERSION,
       identity_age_verified: verification.age_verified === true,
+      identity_legal_name: verification.verified_legal_name || '',
       identity_age_over_18: verification.age_over_18 === true, identity_age_over_21: verification.age_over_21 === true,
       identity_verified_at: verification.status === 'verified' ? verification.completed_at : '',
       ...(!['suspended', 'closed'].includes(current.account_state)
