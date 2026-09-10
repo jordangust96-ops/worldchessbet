@@ -13,7 +13,7 @@ const ITEMS = [
   {
     icon: WalletCards,
     title: "How you get paid",
-    description: "Decisive results settle under clear rules. Reports and disputes have a documented review path.",
+    description: "Winnings remain pending during the 24-hour report window, with a documented review path for disputes.",
     link: "/faq#how-payouts-work",
     linkLabel: "Payout FAQ",
   },
