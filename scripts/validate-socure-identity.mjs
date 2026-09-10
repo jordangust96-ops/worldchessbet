@@ -11,8 +11,10 @@ for (const dob of ['', '2005-02-30', '2028-01-01', '09/10/2000', null]) assert.e
 const enrichment = dob => ({ enrichment_provider:'Socure', status_code:200, request:{date_of_birth:dob,firstName:'Test',surName:'Player'},
   response:{kyc:{fieldValidations:{dob:0.99,firstName:0.99,surName:0.99}}}});
 const data = { id:'request-1', eval_id:'eval-1', workflow:'consumer_onboarding', environment_name:'Production',
-  eval_status:'evaluation_completed', decision:'ACCEPT', data_enrichments:[enrichment('1990-01-01')] };
+  evaluation_status:'evaluation_completed', decision:'ACCEPT', data_enrichments:[enrichment('1990-01-01')] };
 assert.equal(policy.classifyKyc(data,now).status,'verified');
+assert.equal(policy.classifyKyc({...data,eval_status:'evaluation_paused'},now).status,'review_required');
+assert.equal(policy.classifyKyc({...data,evaluation_status:undefined,eval_status:'evaluation_completed'},now).status,'verified');
 assert.equal(policy.classifyKyc({...data,data_enrichments:[]},now).status,'review_required');
 assert.equal(policy.classifyKyc({...data,environment_name:'Sandbox'},now).status,'review_required');
 assert.equal(policy.classifyKyc({...data,workflow:'account_intelligence_screening'},now).status,'review_required');
@@ -39,7 +41,7 @@ for(const state of Object.keys(STATE_MINIMUM_AGES)) assert.equal(meetsStateAge(u
 assert.equal(meetsStateAge(user,'ZZ'),false);
 assert.equal(meetsStateAge({...user,identity_age_over_21:false},'TX'),false);
 
-async function webhookHarness({failUserOnce=false,lock=true,restricted=false}={}) {
+async function webhookHarness({failUserOnce=false,lock=true,restricted=false,canonical=data}={}) {
  let current={...user,account_state:restricted?'suspended':'provisional',identity_verification_status:'pending'};
  let record={...row,status:'pending',webhook_event_id:'',provider_report_ciphertext:''}; let writes=0, archives=0, releases=0;
  const sdk={asServiceRole:{entities:{
@@ -48,7 +50,7 @@ async function webhookHarness({failUserOnce=false,lock=true,restricted=false}={}
  }}};
  const {handler}=await loadBackend('base44/functions/socureIdentityWebhook/entry.ts',{
   'npm:@base44/sdk@0.8.38':{createClientFromRequest:()=>sdk},
-  '../../shared/socureIdentity.ts':{identityConfig:()=>({enabled:true,webhookToken:'test-token'}),constantTimeEqual:(a,b)=>a===b},
+  '../../shared/socureIdentity.ts':{identityWebhookConfig:()=>({webhookToken:'test-token'}),readIdentityEvaluation:async()=>canonical,constantTimeEqual:(a,b)=>a===b},
   '../../shared/kycEvidenceArchive.ts':{encryptComplianceJson:async()=>{archives++;return {ciphertext:'encrypted',iv:'iv',sha256:'hash'};}},
   '../../shared/socureKycPolicy.js':policy,
   '../../shared/achAuthorization.js':{complianceRetentionUntil:()=> '2028-09-10T00:00:00Z'},
@@ -71,6 +73,15 @@ h=await webhookHarness({lock:false}); assert.equal((await h.send()).status,503);
 h=await webhookHarness({restricted:true});await h.send();assert.equal(h.state().current.account_state,'suspended');
 h=await webhookHarness();await h.send({data:{...data,data_enrichments:[]}});assert.equal(h.state().current.identity_verification_status,'review_required');
 h=await webhookHarness();await h.send({data:{...data,workflow:'account_intelligence_screening'}});assert.equal(h.state().writes,0);
+h=await webhookHarness();
+assert.equal((await h.send({event_type:'decision_update',data:{id:data.id,eval_id:data.eval_id,workflow:data.workflow,decision:'REJECT'}})).status,200);
+assert.equal(h.state().record.status,'rejected');
+h=await webhookHarness();
+assert.equal((await h.send({event_type:'decision_update',data:{id:data.id,eval_id:data.eval_id,workflow:data.workflow,decision:'ACCEPT'}})).status,200);
+assert.equal(h.state().record.status,'verified');
+h=await webhookHarness({canonical:{...data,id:'wrong'}});
+assert.equal((await h.send({event_type:'decision_update',data:{id:data.id,eval_id:data.eval_id,workflow:data.workflow,decision:'ACCEPT'}})).status,503);
+assert.equal(h.state().writes,0);
 for(const fn of ['submitSeamlessDeposit','submitSeamlessWithdrawal','lockWager','runContestEligibility','closeAccount']){
  const code=await readFile('base44/functions/'+fn+'/entry.ts','utf8');
  assert.ok(code.includes('await hasVerifiedIdentity(base44, user)'),fn+' must use retained server KYC evidence');
@@ -81,7 +92,7 @@ for(const fn of ['seamlessAchWebhook','manageSeamlessBankAccount']){
 }
 console.log('Socure KYC: age boundaries, evidence, fail-closed gates, webhook auth, correlation, replay recovery and bank separation passed.');
 
-async function startHarness({enabled=true,lock=true,prior=null,encryptionFails=false,providerFails=false}={}) {
+async function startHarness({enabled=true,lock=true,prior=null,encryptionFails=false,providerFails=false,verifiedWhileLocking=false,restrictedWhileLocking=false}={}) {
  let current={id:'u1',account_state:'provisional'}, record=prior, calls=0, releases=0;
  const sdk={auth:{me:async()=>current},asServiceRole:{entities:{
   User:{get:async()=>current,update:async(id,p)=>{current={...current,...p};}},
@@ -98,15 +109,18 @@ async function startHarness({enabled=true,lock=true,prior=null,encryptionFails=f
   safeHostedUrl:v=> typeof v==='string' && v.startsWith('https://riskos.socure.com/hosted/')?v:'',
   startIdentityEvaluation:async()=>{calls++;if(providerFails)throw Error('network');return {eval_id:'eval-1',redirect_uri:'https://riskos.socure.com/hosted/test'};}
  },
- '../../shared/identityEligibility.js':{...eligibility,hasVerifiedIdentity:async()=>false},
+ '../../shared/identityEligibility.js':{...eligibility,hasVerifiedIdentity:async()=>current.account_state==='verified'},
  '../../shared/kycEvidenceArchive.ts':{encryptComplianceJson:async()=>{if(encryptionFails)throw Error('key');}},
  '../../shared/achAuthorization.js':{complianceRetentionUntil:()=> '2028-09-10T00:00:00Z',requestIpAddress:()=> '192.0.2.1'},
- '../../shared/seamlessAtomicStore.ts':{acquireUserWalletLock:async()=>lock,releaseUserWalletLock:async()=>{releases++;}}
+ '../../shared/seamlessAtomicStore.ts':{acquireUserWalletLock:async()=>{if(verifiedWhileLocking)current.account_state='verified';if(restrictedWhileLocking)current.account_state='suspended';return lock;},releaseUserWalletLock:async()=>{releases++;}}
  });
  return {send:(consent=true)=>handler(new Request('https://test.invalid',{method:'POST',body:JSON.stringify({consent})})),
  state:()=>({current,record,calls,releases})};
 }
-let starter=await startHarness();assert.equal((await starter.send(false)).status,400);assert.equal(starter.state().calls,0);
+let starter=await startHarness({verifiedWhileLocking:true});
+assert.equal((await starter.send()).status,200);assert.equal(starter.state().calls,0);assert.equal(starter.state().current.account_state,'verified');
+starter=await startHarness({restrictedWhileLocking:true});assert.equal((await starter.send()).status,403);assert.equal(starter.state().calls,0);
+starter=await startHarness();assert.equal((await starter.send(false)).status,400);assert.equal(starter.state().calls,0);
 starter=await startHarness({enabled:false});assert.equal((await starter.send()).status,503);assert.equal(starter.state().calls,0);
 starter=await startHarness({lock:false});assert.equal((await starter.send()).status,409);assert.equal(starter.state().calls,0);
 starter=await startHarness({encryptionFails:true});assert.equal((await starter.send()).status,503);assert.equal(starter.state().calls,0);
