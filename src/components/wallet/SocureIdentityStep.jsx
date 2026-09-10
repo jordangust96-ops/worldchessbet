@@ -7,7 +7,7 @@ export default function SocureIdentityStep({ identity, onRefresh }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const status = identity?.verified ? "verified" : identity?.status || "not_started";
-  const canStart = identity?.can_start && ["not_started", "incomplete", "expired", "failed"].includes(status);
+  const canStart = !identity?.submitted && identity?.can_start && ["not_started", "incomplete", "expired", "failed"].includes(status);
   const titles = {
     verified: "Identity verified",
     pending: identity?.submitted ? "Verification submitted — pending" : "Confirming verification status",
