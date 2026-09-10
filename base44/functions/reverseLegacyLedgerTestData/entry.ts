@@ -21,6 +21,9 @@ export default async function (req) {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     if (user.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 });
+    if ((Deno.env.get('PAID_CONTESTS_ENABLED') || '').trim().toLowerCase() === 'true') {
+      return Response.json({ error: 'launch_cleanup_retired' }, { status: 410 });
+    }
 
     const svc = base44.asServiceRole.entities;
 
