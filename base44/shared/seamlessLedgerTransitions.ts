@@ -302,6 +302,10 @@ export async function releaseDepositAvailability(base44, transaction) {
     provider_last_checked_at: new Date().toISOString(),
     source_event: 'deposit_availability_release',
     description: 'Deposit cleared and available to play or withdraw',
+    deposit_available_email_status: 'pending',
+    deposit_available_email_attempts: 0,
+    deposit_available_email_next_attempt_at: new Date().toISOString(),
+    deposit_available_email_last_error: '',
   });
   return true;
 }
