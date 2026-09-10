@@ -20,7 +20,7 @@
     "test:identity-reconciliation": "node scripts/validate-identity-verification-reconciliation.mjs",
     "test:ledger-group-ids": "node scripts/validate-deterministic-ledger-group-ids.mjs",
     "test:ledger": "node scripts/validate-ledger-integrity.mjs",
-    "test:jurisdiction": "node scripts/validate-jurisdiction-gates.mjs && node scripts/validate-deposit-location-intent.mjs",
+    "test:jurisdiction": "node scripts/validate-jurisdiction-gates.mjs && node scripts/validate-deposit-location-intent.mjs && node scripts/validate-match-location.mjs",
     "test:waitlist": "node scripts/validate-jurisdiction-waitlist.mjs",
     "test:bank-verification": "node scripts/validate-seamless.mjs",
     "test:match-lifecycle": "node scripts/validate-match-start-race.mjs",
