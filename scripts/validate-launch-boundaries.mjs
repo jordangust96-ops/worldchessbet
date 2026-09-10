@@ -38,6 +38,21 @@ assert.equal(enabled.seamlessWithdrawalsEnabled(), true);
 assert.equal(enabled.seamlessRtpPayoutsEnabled(), true);
 assert.equal(enabled.paidContestsEnabled(), true);
 
+const { exports: sandboxMoneyMovement } = await loadBackend(configPath, {}, {
+  ...enabledEnv,
+  SEAMLESS_ACH_ENV: 'sandbox',
+});
+assert.equal(sandboxMoneyMovement.seamlessHostedPlaidEnabled(), true,
+  'sandbox may support hosted bank verification');
+assert.equal(sandboxMoneyMovement.seamlessDepositsEnabled(), false,
+  'sandbox must never enable production deposits');
+assert.equal(sandboxMoneyMovement.seamlessWithdrawalsEnabled(), false,
+  'sandbox must never enable production withdrawals');
+assert.equal(sandboxMoneyMovement.seamlessRtpPayoutsEnabled(), false,
+  'sandbox must never enable production payouts');
+assert.equal(sandboxMoneyMovement.paidContestsEnabled(), false,
+  'sandbox must never enable paid contests');
+
 for (const [path, predicate] of [
   ['base44/functions/submitSeamlessDeposit/entry.ts', 'seamlessDepositsEnabled'],
   ['base44/functions/submitSeamlessWithdrawal/entry.ts', 'seamlessWithdrawalsEnabled'],
