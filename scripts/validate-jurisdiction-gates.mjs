@@ -168,6 +168,9 @@ ok(
   'verificationSkipped:true only appears inside the role-gated admin bypass (no disabled-provider approved bypass remains)'
 );
 ok(/!lookup\.ok/.test(entrySrc) && /status\s*=\s*'verification_failed'/.test(entrySrc), 'provider lookup failure -> verification_failed (fail-closed preserved)');
+ok(entrySrc.includes("MIN_COUNTRY_CONFIDENCE = confidenceFloor('MAXMIND_MIN_COUNTRY_CONFIDENCE')"), 'real-money gate requires a minimum MaxMind country confidence');
+ok(entrySrc.includes("MIN_SUBDIVISION_CONFIDENCE = confidenceFloor('MAXMIND_MIN_SUBDIVISION_CONFIDENCE')"), 'real-money gate requires a minimum MaxMind subdivision confidence');
+ok(/!hasSufficientLocationConfidence\(lookup\)/.test(entrySrc) && /status\s*=\s*'verification_failed'/.test(entrySrc), 'low-confidence geography fails closed before allowlist approval');
 ok(!entrySrc.includes('VERIFICATION_CACHE_TTL_MS = 15'), 'TTL constant moved to the pure shared module (no duplicate)');
 
 // ---------- 7. Authenticated application route order + guard constraints ----------
