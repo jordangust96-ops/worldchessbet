@@ -185,6 +185,36 @@
       "format": "date-time",
       "description": "When ChessBet most recently confirmed this transfer status with Seamless."
     },
+    "deposit_available_email_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "processing",
+        "sent",
+        "failed"
+      ],
+      "description": "Transactional email delivery state after a cleared deposit moves into Available Balance. Only the current release flow stamps this field, preventing old deposits from being emailed retroactively."
+    },
+    "deposit_available_email_sent_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When Base44 accepted the deposit-available email for delivery."
+    },
+    "deposit_available_email_attempts": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 0
+    },
+    "deposit_available_email_next_attempt_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Retry schedule for a deposit-available email that was not accepted."
+    },
+    "deposit_available_email_last_error": {
+      "type": "string",
+      "maxLength": 300,
+      "description": "Sanitized last email delivery error for operations review."
+    },
     "payout_hold_status": {
       "type": "string",
       "enum": [
