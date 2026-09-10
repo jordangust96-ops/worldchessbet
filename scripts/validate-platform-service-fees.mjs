@@ -61,6 +61,10 @@ assert.match(disputes, /ledgerAccount: 'contest_clearing', debit: entryAmount/);
 assert.match(disputes, /triggerEvent: 'contest_void_fee_refund'/);
 assert.match(disputes, /ledgerAccount: 'suspense', debit: feePerPlayer/);
 assert.match(disputes, /heldDelta: -feePerPlayer/);
+assert.match(disputes, /const getOrCreateVoidRefund = async/);
+assert.match(disputes, /idempotencyKey = `dispute:\$\{disputeCase\.id\}:contest_void:\$\{keySuffix\}:\$\{playerId\}`/);
+assert.match(disputes, /if \(refundTx\.status !== 'completed'\)/);
+assert.match(disputes, /if \(feeRefundTx\.status !== 'completed'\)/);
 
 // Arithmetic sanity checks for decisive, draw, settled void, and reversal+fee-refund.
 {
