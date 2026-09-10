@@ -81,3 +81,41 @@ for(const fn of ['seamlessAchWebhook','manageSeamlessBankAccount']){
 }
 console.log('Socure KYC: age boundaries, evidence, fail-closed gates, webhook auth, correlation, replay recovery and bank separation passed.');
 
+async function startHarness({enabled=true,lock=true,prior=null,encryptionFails=false,providerFails=false}={}) {
+ let current={id:'u1',account_state:'provisional'}, record=prior, calls=0, releases=0;
+ const sdk={auth:{me:async()=>current},asServiceRole:{entities:{
+  User:{get:async()=>current,update:async(id,p)=>{current={...current,...p};}},
+  SocureIdentityVerification:{
+   filter:async()=>record?[record]:[],
+   create:async p=>{record={id:'v1',...p};return record;},
+   update:async(id,p)=>{record={...record,...p};return record;}
+  }
+ }}};
+ const {handler}=await loadBackend('base44/functions/startSocureIdentityVerification/entry.ts',{
+ 'npm:@base44/sdk@0.8.38':{createClientFromRequest:()=>sdk},
+ '../../shared/socureIdentity.ts':{
+  identityConfig:()=>({enabled}),
+  safeHostedUrl:v=> typeof v==='string' && v.startsWith('https://riskos.socure.com/hosted/')?v:'',
+  startIdentityEvaluation:async()=>{calls++;if(providerFails)throw Error('network');return {eval_id:'eval-1',redirect_uri:'https://riskos.socure.com/hosted/test'};}
+ },
+ '../../shared/identityEligibility.js':{...eligibility,hasVerifiedIdentity:async()=>false},
+ '../../shared/kycEvidenceArchive.ts':{encryptComplianceJson:async()=>{if(encryptionFails)throw Error('key');}},
+ '../../shared/achAuthorization.js':{complianceRetentionUntil:()=> '2028-09-10T00:00:00Z',requestIpAddress:()=> '192.0.2.1'},
+ '../../shared/seamlessAtomicStore.ts':{acquireUserWalletLock:async()=>lock,releaseUserWalletLock:async()=>{releases++;}}
+ });
+ return {send:(consent=true)=>handler(new Request('https://test.invalid',{method:'POST',body:JSON.stringify({consent})})),
+ state:()=>({current,record,calls,releases})};
+}
+let starter=await startHarness();assert.equal((await starter.send(false)).status,400);assert.equal(starter.state().calls,0);
+starter=await startHarness({enabled:false});assert.equal((await starter.send()).status,503);assert.equal(starter.state().calls,0);
+starter=await startHarness({lock:false});assert.equal((await starter.send()).status,409);assert.equal(starter.state().calls,0);
+starter=await startHarness({encryptionFails:true});assert.equal((await starter.send()).status,503);assert.equal(starter.state().calls,0);
+starter=await startHarness();let response=await starter.send();assert.equal(response.status,200);
+assert.equal((await response.json()).redirect_uri,'https://riskos.socure.com/hosted/test');
+assert.equal((await starter.send()).status,200);assert.equal(starter.state().calls,1,'resume is not another billable evaluation');
+starter=await startHarness({providerFails:true});assert.equal((await starter.send()).status,503);
+assert.equal((await starter.send()).status,409);assert.equal(starter.state().calls,1,'uncertain start is not blindly duplicated');
+starter=await startHarness({prior:{status:'rejected'}});assert.equal((await starter.send()).status,409);assert.equal(starter.state().calls,0);
+console.log('KYC session starts: consent, disabled config, encryption, locking, URL contract, resume, uncertain provider outcome and rejection passed.');
+
+
