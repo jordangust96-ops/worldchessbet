@@ -12,6 +12,7 @@ import { base44 } from "@/api/base44Client";
 import { evaluateJurisdictionAccess } from "@/lib/jurisdictionAccess";
 import SeamlessPlaidBankLink from "./SeamlessPlaidBankLink";
 import SocureIdentityStep from "./SocureIdentityStep";
+import WalletSetupStep from "./WalletSetupStep";
 
 // Seamless ACH funding panel. Bank credentials are collected only inside the
 // Seamless-hosted Plaid flow. Verification, deposits, and withdrawals remain
@@ -274,19 +275,29 @@ export default function SeamlessFundingPanel({
 
   return (
     <div className="space-y-4">
-      <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-5" aria-label="Location verification">
-        <h3 className="text-base font-semibold text-white">{locationApproved ? "Location verified" : "Verify your location"}</h3>
-        {!locationApproved && <><p className="mt-1 text-sm text-white/60">{location?.reason || "Location verification is required before funding."}</p>
-          <button type="button" disabled={checkingLocation} className="mt-3 rounded-xl gold-gradient px-4 py-3 text-black disabled:opacity-40" onClick={async () => {
-            setCheckingLocation(true);
-            try {
-              const {data} = await base44.functions.invoke("getCurrentJurisdiction",{triggerEvent:"bank_verification_start"});
-              setLocationOverride(evaluateJurisdictionAccess(data));
-            } catch { setLocationOverride({allowed:false,reason:"Location could not be verified. Please try again."}); }
-            finally { setCheckingLocation(false); }
-          }}>{checkingLocation ? "Checking location…" : "Verify location"}</button></>}
+      <section className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03]" aria-label="Wallet setup">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 px-4 py-4 sm:px-5">
+          <h2 className="text-base font-semibold text-white">Wallet setup</h2>
+          <span className="text-xs text-white/60">{[locationApproved, !!state?.identity?.verified, depositSourceReady].filter(Boolean).length} of 3 complete</span>
+        </div>
+        <div className="divide-y divide-white/10">
+          <WalletSetupStep number={1} label="Location verification" title={locationApproved ? "Location Verified" : checkingLocation ? "Checking location" : "Verify your location"} complete={locationApproved} pending={checkingLocation}
+            description={locationApproved ? null : location?.reason || "Confirm that you are in an eligible location."}>
+            {!locationApproved && <button type="button" disabled={checkingLocation} className="mt-3 w-full rounded-xl gold-gradient px-4 py-3 text-sm font-semibold text-black disabled:opacity-40 sm:w-auto" onClick={async () => {
+              setCheckingLocation(true);
+              try {
+                const {data} = await base44.functions.invoke("getCurrentJurisdiction",{triggerEvent:"bank_verification_start"});
+                setLocationOverride(evaluateJurisdictionAccess(data));
+              } catch { setLocationOverride({allowed:false,reason:"Location could not be verified. Please try again."}); }
+              finally { setCheckingLocation(false); }
+            }}>{checkingLocation ? "Checking location…" : "Verify location"}</button>}
+          </WalletSetupStep>
+          <SocureIdentityStep identity={{...state?.identity,can_start:state?.identity?.can_start && locationApproved}} locationApproved={locationApproved} onRefresh={load} />
+          <WalletSetupStep number={3} label="Bank connection" title={depositSourceReady ? "Bank Connected" : bankPending ? "Bank verification pending" : bankReady ? "Choose your deposit bank" : "Connect your bank"} complete={depositSourceReady} pending={!depositSourceReady && bankPending}
+            description={depositSourceReady ? providerPrimaryBank?.account_name || "Your deposit bank is connected." : bankPending ? "Awaiting bank confirmation. This page updates automatically." : bankReady ? "Select a verified bank in the funding section below." : !locationApproved || !accountVerified ? "Next, after location and identity verification." : !hostedPlaidEnabled ? "Bank connection is temporarily unavailable." : "Use the secure bank connection form below."} />
+        </div>
+        {locationApproved && !!state?.identity?.verified && depositSourceReady && <p className="border-t border-white/10 px-4 py-3 text-xs text-white/60 sm:px-5">{!ineligible && depositsEnabled ? "Setup complete. Choose an amount below to add money." : "Setup complete. See your account or transfer status below."}</p>}
       </section>
-      <SocureIdentityStep identity={{...state?.identity,can_start:state?.identity?.can_start && locationApproved}} onRefresh={load} />
 
       {/* Provider webhooks are authoritative for account and bank status. */}
       {effectiveWithdrawalHold && (
@@ -315,7 +326,7 @@ export default function SeamlessFundingPanel({
         <div className="rounded-3xl border border-white/5 bg-white/[0.03] p-5 space-y-4">
           <div className="flex items-start gap-3">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#C9A84C]/15 text-sm font-bold text-[#C9A84C]">
-              2
+              3
             </div>
             <div>
               <h4 className="text-base font-semibold text-white">Connect your bank</h4>
