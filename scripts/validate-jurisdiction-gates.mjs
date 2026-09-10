@@ -145,7 +145,7 @@ ok(!accessSrc.includes('@/lib/jurisdictionConfig'), 'jurisdictionAccess does not
 }
 
 // ---------- Static wiring checks (getCurrentJurisdiction backend) ----------
-const entrySrc = await read('base44/functions/getCurrentJurisdiction/entry.ts');
+const entrySrc = await read('base44/shared/requestJurisdiction.ts');
 ok(entrySrc.includes('isGeoipEnforcementEnabled('), 'entry.ts imports & calls isGeoipEnforcementEnabled');
 ok(entrySrc.includes('canAdminForceLiveCheck('), 'entry.ts imports & calls canAdminForceLiveCheck');
 ok(entrySrc.includes('isReusableVerification('), 'entry.ts delegates cache reuse to isReusableVerification');
@@ -219,7 +219,7 @@ ok(/triggerEvent:\s*['"]lock_wager['"]/.test(lockSrc), 'lockWager passes trigger
 ok(/jurisdictionRes\.data\?\.status\s*!==\s*['"]approved['"]/.test(lockSrc), 'lockWager fails closed unless jurisdiction status is approved');
 
 const depositSrc = await read('base44/functions/submitSeamlessDeposit/entry.ts');
-ok(depositSrc.includes('getCurrentJurisdiction'), 'submitSeamlessDeposit invokes getCurrentJurisdiction');
+ok(depositSrc.includes('getRequestJurisdiction'), 'submitSeamlessDeposit invokes getCurrentJurisdiction');
 ok(/triggerEvent:\s*['"]deposit['"]/.test(depositSrc), 'submitSeamlessDeposit passes triggerEvent deposit');
 ok(/jurisdiction\.data\?\.status\s*!==\s*['"]approved['"]/.test(depositSrc), 'submitSeamlessDeposit fails closed unless jurisdiction status is approved');
 
