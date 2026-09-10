@@ -27,11 +27,11 @@ for (const status of ["verified","pending","review_required","rejected","incompl
   assert.equal(html.includes("text-emerald-300"),status==="verified");
   assert.ok(!html.includes("Check verification status"));
 }
-const waiting=renderToStaticMarkup(React.createElement(Identity,{identity:{status:"not_started",can_start:false,enabled:true},locationApproved:false}));
+const waiting=renderToStaticMarkup(React.createElement(Identity,{identity:{status:"not_started",can_start:true,enabled:true},locationApproved:false}));
 assert.match(waiting,/First, verify your location above/);
 assert.ok(!waiting.includes('type="checkbox"'));
 const panel=fs.readFileSync("src/components/wallet/SeamlessFundingPanel.jsx","utf8");
-assert.ok(panel.indexOf('label="Location verification"')<panel.indexOf("<SocureIdentityStep"));
+assert.ok(panel.indexOf('<DepositLocationStep')<panel.indexOf("<SocureIdentityStep"));
 assert.ok(panel.indexOf("<SocureIdentityStep")<panel.indexOf('label="Bank connection"'));
 assert.match(panel,/complete={depositSourceReady}/);
 assert.match(panel,/Wallet setup/);

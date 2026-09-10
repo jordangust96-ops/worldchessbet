@@ -176,12 +176,12 @@ ok(!entrySrc.includes('VERIFICATION_CACHE_TTL_MS = 15'), 'TTL constant moved to 
 // ---------- 7. Authenticated application route order + guard constraints ----------
 const appSrc = await read('src/AuthenticatedApplication.jsx');
 const prIdx = appSrc.indexOf('<Route element={<ProtectedRoute');
-const guardIdx = appSrc.indexOf('<Route element={<JurisdictionAccessGuard');
+
 const mfaIdx = appSrc.indexOf('<Route element={<MfaGuard');
 const policyIdx = appSrc.indexOf('<Route element={<PolicyAcceptanceGuard');
-ok(prIdx !== -1 && guardIdx !== -1 && mfaIdx !== -1 && policyIdx !== -1, 'ProtectedRoute, JurisdictionAccessGuard, MfaGuard, PolicyAcceptanceGuard route elements all present');
-ok(prIdx < guardIdx, 'ProtectedRoute (auth) precedes JurisdictionAccessGuard');
-ok(guardIdx < mfaIdx, 'JurisdictionAccessGuard precedes MfaGuard');
+ok(prIdx !== -1 && mfaIdx !== -1 && policyIdx !== -1, 'auth, MFA and policy guards remain present');
+ok(!appSrc.includes('JurisdictionAccessGuard'), 'browsing routes have no automatic jurisdiction guard');
+ok(prIdx < mfaIdx, 'authentication precedes MFA');
 ok(mfaIdx < policyIdx, 'MfaGuard precedes PolicyAcceptanceGuard');
 // Public / marketing / legal / auth / support routes and /join stay outside the protected block.
 ok(appSrc.indexOf('/join/:inviteCode') < prIdx, '/join/:inviteCode remains outside the ProtectedRoute block');
@@ -189,21 +189,20 @@ ok(appSrc.indexOf('path="/privacy-policy"') < prIdx, 'public /privacy-policy rem
 ok(appSrc.indexOf('path="/faq"') < prIdx, 'public /faq remains outside the ProtectedRoute block');
 ok(appSrc.indexOf('path="/login"') < prIdx, 'public /login remains outside the ProtectedRoute block');
 
-const guardSrc = await read('src/components/JurisdictionAccessGuard.jsx');
-ok(/triggerEvent:\s*["']app_access["']/.test(guardSrc), 'guard invokes getCurrentJurisdiction with triggerEvent app_access');
-ok(guardSrc.includes('onClick={() => window.location.reload()}'), 'explicit retry reloads and rechecks instead of granting access');
+const depositSrc = await read('src/components/wallet/DepositLocationStep.jsx');
+ok(depositSrc.includes('onClick={startDeposit}'), 'deposit intent starts the location check');
+ok(depositSrc.includes('triggerEvent: "deposit_start"'), 'deposit intent is recorded distinctly');
+ok(!/useEffect|setTimeout|setInterval|addEventListener/.test(depositSrc), 'location check has no mount, timer or background trigger');
 const uncertainGeorgia = evaluateJurisdictionAccess({ status: 'verification_failed', approved: false, enforcementEnabled: true, country: 'US', state: 'GA', vpnDetected: false });
 ok(!uncertainGeorgia.allowed && !uncertainGeorgia.promptEligible, 'uncertain Georgia remains denied without an unsupported-region waitlist');
-ok(uncertainGeorgia.reason.includes('another connection') && !uncertainGeorgia.reason.includes('VPN'), 'uncertain Georgia gets connection guidance without a VPN accusation');
-ok(!/setTimeout|setInterval/.test(guardSrc), 'guard has no timer');
-ok(!/addEventListener/.test(guardSrc), 'guard has no focus/visibility/navigation listener');
-ok(!/useNavigate/.test(guardSrc), 'guard has no navigation listener');
-ok(!/localStorage|sessionStorage/.test(guardSrc), 'guard uses no localStorage/sessionStorage');
-// Matches <Outlet />, <Outlet>, and <Outlet context={...} />: the guard
-// legitimately threads its jurisdiction decision to children (see the
-// wallet-page partial-access case below) via an Outlet prop, so this must
-// not require the bare, prop-less tag.
-ok(/<Outlet\b/.test(guardSrc), 'guard renders <Outlet /> (optionally with props) when allowed');
+ok(uncertainGeorgia.reason.includes('another connection') && !uncertainGeorgia.reason.includes('VPN'), 'uncertain Georgia gets connection guidance');
+const fundingSrc = await read('src/components/wallet/SeamlessFundingPanel.jsx');
+ok(fundingSrc.indexOf('<DepositLocationStep') < fundingSrc.indexOf('<SocureIdentityStep'), 'deposit location step precedes identity');
+ok(fundingSrc.includes('can_start:state?.identity?.can_start && locationApproved'), 'identity start requires approved location');
+ok(fundingSrc.includes('!!state?.deposits_enabled && locationApproved'), 'deposit controls require approved location');
+ok(fundingSrc.includes('const withdrawalsEnabled = !!state?.withdrawals_enabled;'), 'withdrawal availability does not require location');
+const identitySrc = await read('base44/functions/startSocureIdentityVerification/entry.ts');
+ok(identitySrc.indexOf('getRequestJurisdiction(req') < identitySrc.indexOf('await startIdentityEvaluation('), 'server verifies location before contacting identity provider');
 
 // ---------- 8. Backend enforcement call sites (preserved) ----------
 const createSrc = await read('base44/functions/createMatch/entry.ts');

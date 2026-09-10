@@ -200,21 +200,14 @@ ok(!/lookupWithMaxMind|geoip\.maxmind\.com|\bgetCurrentJurisdiction\b/.test(work
 // 12. Guard wires opt-in ONLY when prompt eligible; preserves single check +
 //     route order / cache / fail-closed behavior (static)
 // ---------------------------------------------------------------------------
-const guardSrc = await read('src/components/JurisdictionAccessGuard.jsx');
-ok(guardSrc.includes('promptEligible'), 'guard surfaces promptEligible');
-ok(guardSrc.includes('JurisdictionWaitlistOptIn'), 'guard renders the opt-in component');
-ok(/promptEligible=\{decision\.promptEligible\}/.test(guardSrc) || /promptElligible=\{decision\.promptEligible\}/.test(guardSrc), 'guard passes promptElligible to UnavailableScreen');
-// See the matching comment in validate-jurisdiction-gates.mjs: the guard's
-// Outlet legitimately carries a context prop now, so match the tag loosely.
-ok(/<Outlet\b/.test(guardSrc), 'guard still renders <Outlet /> (optionally with props) when allowed');
-ok(/triggerEvent:\s*["']app_access["']/.test(guardSrc), 'guard still triggers getCurrentJurisdiction with app_access');
-ok(guardSrc.includes('window.location.reload()'), 'manual recheck reruns verification without bypassing the guard');
-ok(!/setTimeout|setInterval/.test(guardSrc), 'guard still has no timer');
-ok(!/addEventListener/.test(guardSrc), 'guard still has no focus/visibility listener');
-ok(!/useNavigate/.test(guardSrc), 'guard still has no navigation listener');
-ok(!/localStorage|sessionStorage/.test(guardSrc), 'guard still uses no localStorage/sessionStorage');
-ok(/getJurisdictionCheck\(\s*userId/.test(guardSrc), 'guard still dedups via getJurisdictionCheck');
-ok(guardSrc.includes('APPROVED_STATES') && guardSrc.includes('getRegionName'), 'guard shows approved jurisdictions by full state name');
+const depositSrc = await read('src/components/wallet/DepositLocationStep.jsx');
+ok(depositSrc.includes('decision.promptEligible && <JurisdictionWaitlistOptIn'), 'deposit waitlist is shown only for a positively blocked jurisdiction');
+ok(depositSrc.includes('userEmail={user?.email}'), 'deposit waitlist uses authenticated email');
+ok(depositSrc.includes('onClick={startDeposit}'), 'location lookup requires explicit deposit intent');
+ok(!/useEffect|setTimeout|setInterval|addEventListener/.test(depositSrc), 'no automatic location checks');
+ok(depositSrc.includes('getJurisdictionCheck(user.id'), 'concurrent checks remain deduplicated');
+ok(depositSrc.includes('APPROVED_STATES') && depositSrc.includes('getRegionName'), 'deposit failure shows approved jurisdictions');
+ok(depositSrc.includes('keep browsing'), 'failed deposit setup preserves browsing');
 
 const optInSrc = await read('src/components/jurisdiction/JurisdictionWaitlistOptIn.jsx');
 ok(optInSrc.includes('ISO_COUNTRIES'), 'opt-in lists all ISO countries');
@@ -229,16 +222,16 @@ ok(panelSrc.includes('JurisdictionDemandSection'), 'admin JurisdictionPanel rend
 ok(panelSrc.includes('getJurisdictionDemandSummary'), 'admin JurisdictionPanel fetches the demand summary');
 
 // ---------------------------------------------------------------------------
-// 13. Route order preserved (auth guard -> jurisdiction -> MFA -> policy)
+// 13. Route order preserved (auth guard -> MFA -> policy; jurisdiction only at deposit intent)
 // ---------------------------------------------------------------------------
 const appSrc = await read('src/AuthenticatedApplication.jsx');
 const prIdx = appSrc.indexOf('<Route element={<ProtectedRoute');
-const guardIdx = appSrc.indexOf('<Route element={<JurisdictionAccessGuard');
+
 const mfaIdx = appSrc.indexOf('<Route element={<MfaGuard');
 const policyIdx = appSrc.indexOf('<Route element={<PolicyAcceptanceGuard');
-ok(prIdx !== -1 && guardIdx !== -1 && mfaIdx !== -1 && policyIdx !== -1, 'all four guard route elements still present');
-ok(prIdx < guardIdx, 'ProtectedRoute (auth) still precedes JurisdictionAccessGuard');
-ok(guardIdx < mfaIdx, 'JurisdictionAccessGuard still precedes MfaGuard');
+ok(prIdx !== -1 && mfaIdx !== -1 && policyIdx !== -1, 'auth, MFA and policy guards remain present');
+ok(!appSrc.includes('JurisdictionAccessGuard'), 'browsing routes have no automatic jurisdiction guard');
+ok(prIdx < mfaIdx, 'authentication precedes MFA');
 ok(mfaIdx < policyIdx, 'MfaGuard still precedes PolicyAcceptanceGuard');
 
 // ---------------------------------------------------------------------------
