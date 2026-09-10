@@ -13,20 +13,26 @@ export function seamlessProviderApproved() {
   return enabled('SEAMLESS_PROVIDER_APPROVED');
 }
 
+function productionMoneyMovementConfigured() {
+  return (Deno.env.get('SEAMLESS_ACH_ENV') || '').trim().toLowerCase() === 'production' &&
+    configured('SEAMLESS_ACH_PUBLIC_KEY') &&
+    configured('SEAMLESS_ACH_SECRET_KEY');
+}
+
 export function paidContestsEnabled() {
-  return seamlessProviderApproved() && enabled('PAID_CONTESTS_ENABLED');
+  return seamlessProviderApproved() && productionMoneyMovementConfigured() && enabled('PAID_CONTESTS_ENABLED');
 }
 
 export function seamlessDepositsEnabled() {
-  return seamlessProviderApproved() && enabled('SEAMLESS_DEPOSITS_ENABLED');
+  return seamlessProviderApproved() && productionMoneyMovementConfigured() && enabled('SEAMLESS_DEPOSITS_ENABLED');
 }
 
 export function seamlessWithdrawalsEnabled() {
-  return seamlessProviderApproved() && enabled('SEAMLESS_WITHDRAWALS_ENABLED');
+  return seamlessProviderApproved() && productionMoneyMovementConfigured() && enabled('SEAMLESS_WITHDRAWALS_ENABLED');
 }
 
 export function seamlessRtpPayoutsEnabled() {
-  return seamlessProviderApproved() && enabled('SEAMLESS_RTP_PAYOUTS_ENABLED');
+  return seamlessProviderApproved() && productionMoneyMovementConfigured() && enabled('SEAMLESS_RTP_PAYOUTS_ENABLED');
 }
 
 export function seamlessHostedPlaidEnabled() {
