@@ -5,7 +5,7 @@ export function isSocureIdentityVerified(user) {
     user.identity_verification_status === 'verified' &&
     user.identity_verification_provider === 'socure' &&
     user.identity_policy_version === KYC_POLICY_VERSION &&
-    !!user.identity_provider_reference && user.identity_age_verified === true;
+    !!user.identity_provider_reference && user.identity_age_verified === true && user.identity_age_over_21 === true;
 }
 // Compatibility export for callers during the migration; semantics are KYC only.
 export const isSeamlessPlaidVerified = isSocureIdentityVerified;
@@ -15,7 +15,7 @@ export function isVerifiedKycEvidence(row, user, now = Date.now()) {
     row.user_id === user.id && row.provider_evaluation_id === user.identity_provider_reference &&
     row.workflow === 'consumer_onboarding' && row.environment === 'production' &&
     row.policy_version === KYC_POLICY_VERSION && row.status === 'verified' &&
-    row.provider_decision === 'ACCEPT' && row.age_verified === true &&
+    row.provider_decision === 'ACCEPT' && row.age_verified === true && row.age_over_21 === true &&
     !!row.webhook_event_id && !!row.provider_report_ciphertext &&
     !!row.provider_report_sha256 && Number.isFinite(Date.parse(row.verified_valid_until || '')) &&
     Date.parse(row.verified_valid_until) > now;
