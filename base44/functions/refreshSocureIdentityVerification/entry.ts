@@ -104,10 +104,13 @@ Deno.serve(async req => {
         {account_state:row.status === 'verified'?'verified':'provisional'}:{}),
     });
     return Response.json({status:row.status,recovered:true});
-  } catch {
-    console.error('Socure result sync failed at ' + stage);
+  } catch (error) {
+    const detail = error?.response?.data?.detail;
+    const validation = Array.isArray(detail) ? detail.map(item => ({field:item.loc,reason:item.msg,type:item.type})) :
+      (typeof detail === 'string' ? detail.slice(0,600) : String(error?.message || 'Unknown error').slice(0,600));
+    console.error('Socure result sync failed at ' + stage, JSON.stringify(validation));
     if (service && verificationId) await service.entities.SocureIdentityVerification.update(verificationId,
-      {description:('sync_failed:' + stage + (stage === 'provider_timestamps' ? '; ' + timing : '')).slice(0,1000)}).catch(()=>{});
+      {description:('sync_failed:' + stage + (stage === 'provider_timestamps' ? '; ' + timing : '') + '; ' + JSON.stringify(validation)).slice(0,1000)}).catch(()=>{});
     return Response.json({error:'Your verification result could not be refreshed. Please try again shortly.'},{status:503});
   } finally {
     if (owner && userId) await releaseUserWalletLock(userId,owner).catch(()=>{});
