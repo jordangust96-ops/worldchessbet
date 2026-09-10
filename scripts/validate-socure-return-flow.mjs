@@ -26,6 +26,27 @@ for(const [status,title] of Object.entries({pending:'Confirming verification sta
  if(['pending','review_required','rejected','verified'].includes(status))assert.ok(!html.includes('<button'));
  if(status==='incomplete')assert.ok(html.includes('Start verification over'));
 }
+const submittedHtml=renderToStaticMarkup(React.createElement(Component,{identity:{status:'pending',submitted:true,enabled:true,can_start:true}}));
+assert.ok(submittedHtml.includes('Verification submitted — pending'));
+assert.ok(!submittedHtml.includes('<button'));
+for(const status of ['failed','expired']) {
+ const html=renderToStaticMarkup(React.createElement(Component,{identity:{status,submitted:true,enabled:true,can_start:true}}));
+ assert.ok(!html.includes('<button'),'completed submissions remain status-only');
+}
+async function stateFor(row){
+ const sdk={asServiceRole:{entities:{User:{get:async()=>({id:'u1',account_state:'provisional'})},SocureIdentityVerification:{filter:async()=>[row]}}}};
+ const {exports}=await loadBackend('base44/shared/identityState.ts',{
+ './identityEligibility.js':{hasVerifiedIdentity:async()=>false,KYC_POLICY_VERSION:policy.POLICY_VERSION},
+ './socureIdentity.ts':{identityConfig:()=>({enabled:true})}
+ });
+ return exports.identityState(sdk,{id:'u1'});
+}
+let view=await stateFor({status:'pending',expires_at:'2020-01-01'});
+assert.equal(view.status,'pending');assert.equal(view.can_start,false,'timeout alone cannot justify restart');
+view=await stateFor({status:'pending',failure_code:'hosted_verification_incomplete',provider_checked_at:new Date().toISOString()});
+assert.equal(view.status,'incomplete');assert.equal(view.can_start,true);
+view=await stateFor({status:'pending',completed_at:new Date().toISOString(),failure_code:'hosted_verification_incomplete',provider_checked_at:new Date().toISOString()});
+assert.equal(view.status,'pending');assert.equal(view.submitted,true);assert.equal(view.can_start,false);
 const decisionAt=new Date(Date.now()-30000).toISOString();
 const data={id:'request1',eval_id:'eval1',workflow:'consumer_onboarding',environment_name:'Production',eval_status:'evaluation_completed',decision:'ACCEPT',decision_at:decisionAt,data_enrichments:[{enrichment_provider:'Socure',status_code:200,request:{dob:'1990-01-01',firstName:'Test',surName:'Player'},response:{kyc:{fieldValidations:{dob:0.99,firstName:0.99,surName:0.99}}}}]};
 async function harness({auth=true,lock=true,provider=data,failProvider=false,failUserOnce=false,restricted=false,superseded=false}={}){
