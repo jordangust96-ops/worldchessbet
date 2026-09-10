@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { Chess } from 'npm:chess.js@1.0.0';
 
 // Server timestamps are always UTC but can come back without a timezone
