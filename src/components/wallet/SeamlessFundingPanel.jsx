@@ -84,6 +84,7 @@ function BankRow({ bank, busy, onMakePrimary, onDisconnect }) {
 
 export default function SeamlessFundingPanel({
   wallet,
+  jurisdictionDecision,
   accountState,
   withdrawalHold,
   onRefresh,
@@ -93,6 +94,9 @@ export default function SeamlessFundingPanel({
   const [loadError, setLoadError] = useState(false);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [locationOverride, setLocationOverride] = useState(null);
+  const [checkingLocation, setCheckingLocation] = useState(false);
   const [amount, setAmount] = useState("");
   const [direction, setDirection] = useState("deposit");
   const [showBankManager, setShowBankManager] = useState(false);
@@ -146,10 +150,11 @@ export default function SeamlessFundingPanel({
   const submit = async () => {
     const v = parseFloat(amount);
     if (!v || v <= 0 || !wallet) return;
-    setError(""); setBusy(direction);
+    if (busy) return;
+    setError(""); setNotice(""); setBusy(direction);
     try {
       const fn = direction === "deposit" ? "submitSeamlessDeposit" : "submitSeamlessWithdrawal";
-      const payload = { amount: v };
+      const payload = { amount: v, ...(direction === "deposit" ? {bankSourceId:providerPrimaryBank?.source_id} : {}) };
       const requestKey = direction === "deposit" ? depositRequestKey : withdrawalRequestKey;
       requestKey.current ||= crypto.randomUUID();
       payload.idempotencyKey = requestKey.current;
@@ -159,9 +164,13 @@ export default function SeamlessFundingPanel({
       // asks the server for the same logical transfer, never a second ACH request.
       if (data?.status !== "uncertain") requestKey.current = "";
       if (data?.status !== "uncertain") setAmount("");
+      setNotice(data?.status === "uncertain" ? "Your bank has not confirmed this request yet. Do not submit another transfer; check Transaction History for updates." : direction === "deposit" ? "Deposit requested. Funds become available after processing and clearing. Follow its progress in Transaction History." : "Withdrawal requested. Follow its progress in Transaction History.");
       await load();
       if (onRefresh) onRefresh();
     } catch (e) {
+      if (e?.response?.data?.request_terminal === true) {
+        (direction === "deposit" ? depositRequestKey : withdrawalRequestKey).current = "";
+      }
       const serverMessage = e?.response?.data?.error;
       const message = typeof serverMessage === "string" && serverMessage
         ? serverMessage
@@ -210,7 +219,9 @@ export default function SeamlessFundingPanel({
   const isFullBalanceWithdrawal =
     !!wallet && parsedAmount > 0 && parsedAmount >= (wallet.available_balance || 0) - 0.005;
 
-  const depositsEnabled = !!state?.deposits_enabled;
+  const location = locationOverride || jurisdictionDecision;
+  const locationApproved = location?.allowed === true;
+  const depositsEnabled = !!state?.deposits_enabled && locationApproved;
   const withdrawalsEnabled = !!state?.withdrawals_enabled;
   const hostedPlaidEnabled = !!state?.hosted_plaid_enabled;
   const accountVerified = !!state?.account_verified;
@@ -236,7 +247,7 @@ export default function SeamlessFundingPanel({
   const meetsMinimum = direction === "deposit" ? parsedAmount >= MIN_DEPOSIT_AMOUNT : parsedAmount > 0;
   const exceedsAvailableBalance = direction === "withdrawal" && parsedAmount > availableBalance + 0.005;
   const canSubmit =
-    !ineligible && bankReadyForDirection && !busy && meetsMinimum && !exceedsAvailableBalance && transferDirectionEnabled;
+    !ineligible && bankReadyForDirection && !busy && Number.isFinite(parsedAmount) && /^\d+(?:\.\d{1,2})?$/.test(amount) && (direction !== "deposit" || parsedAmount <= 10000) && meetsMinimum && !exceedsAvailableBalance && transferDirectionEnabled;
   const transferBusy = busy === direction;
   const formattedAmount = Number.isFinite(parsedAmount) && parsedAmount > 0
     ? parsedAmount.toFixed(2)
@@ -261,7 +272,19 @@ export default function SeamlessFundingPanel({
 
   return (
     <div className="space-y-4">
-      <SocureIdentityStep identity={state?.identity} onRefresh={load} />
+      <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-5" aria-label="Location verification">
+        <h3 className="text-base font-semibold text-white">{locationApproved ? "Location verified" : "Verify your location"}</h3>
+        {!locationApproved && <><p className="mt-1 text-sm text-white/60">{location?.reason || "Location verification is required before funding."}</p>
+          <button type="button" disabled={checkingLocation} className="mt-3 rounded-xl gold-gradient px-4 py-3 text-black disabled:opacity-40" onClick={async () => {
+            setCheckingLocation(true);
+            try {
+              const {data} = await base44.functions.invoke("getCurrentJurisdiction",{triggerEvent:"bank_verification_start"});
+              setLocationOverride({allowed:data?.status === "approved",reason:data?.reason || "Location could not be verified."});
+            } catch { setLocationOverride({allowed:false,reason:"Location could not be verified. Please try again."}); }
+            finally { setCheckingLocation(false); }
+          }}>{checkingLocation ? "Checking location…" : "Verify location"}</button></>}
+      </section>
+      <SocureIdentityStep identity={{...state?.identity,can_start:state?.identity?.can_start && locationApproved}} onRefresh={load} />
 
       {/* Provider webhooks are authoritative for account and bank status. */}
       {effectiveWithdrawalHold && (
@@ -318,11 +341,11 @@ export default function SeamlessFundingPanel({
             </div>
           )}
 
-          {!bankPending && hostedPlaidEnabled && !accountRestricted && accountVerified ? (
+          {!bankPending && hostedPlaidEnabled && !accountRestricted && accountVerified && (locationApproved || availableBalance > 0) ? (
             <SeamlessPlaidBankLink
               legalName={state?.legal_name || ""}
               hasWithdrawableBalance={availableBalance > 0}
-              disabled={effectiveWithdrawalHold}
+              disabled={effectiveWithdrawalHold || !accountVerified || (!locationApproved && availableBalance <= 0)}
               onComplete={load}
             />
           ) : !bankPending ? (
@@ -461,7 +484,7 @@ export default function SeamlessFundingPanel({
                     ))}
                   </div>
 
-                  {hostedPlaidEnabled && !accountRestricted && (
+                  {hostedPlaidEnabled && !accountRestricted && accountVerified && (locationApproved || availableBalance > 0) && (
                     <button
                       type="button"
                       onClick={() => setShowBankLink((value) => !value)}
@@ -473,11 +496,11 @@ export default function SeamlessFundingPanel({
                     </button>
                   )}
 
-                  {showBankLink && hostedPlaidEnabled && !accountRestricted && (
+                  {showBankLink && hostedPlaidEnabled && !accountRestricted && accountVerified && (locationApproved || availableBalance > 0) && (
                     <SeamlessPlaidBankLink
                       legalName={state?.legal_name || ""}
                       hasWithdrawableBalance={availableBalance > 0}
-                      disabled={effectiveWithdrawalHold}
+                      disabled={effectiveWithdrawalHold || !accountVerified || (!locationApproved && availableBalance <= 0)}
                       onComplete={async () => {
                         setShowBankLink(false);
                         await load();
@@ -579,7 +602,7 @@ export default function SeamlessFundingPanel({
                   <><Loader2 size={16} className="mr-2 animate-spin" /> Processing securely...</>
                 ) : notVerified ? (["pending", "review_required"].includes(state?.identity?.status) ? "Awaiting identity approval" : state?.identity?.status === "rejected" ? "Verification not approved" : "Verify your identity first") : direction === "deposit" ? (
                   !depositsEnabled
-                    ? "Deposits are temporarily unavailable"
+                    ? (!locationApproved ? "Verify your location first" : "Deposits are temporarily unavailable")
                     : !depositSourceReady
                       ? "Choose a connected bank"
                     : !formattedAmount
@@ -606,8 +629,9 @@ export default function SeamlessFundingPanel({
         </div>
       )}
 
+      {notice && <p role="status" className="text-center text-sm text-[#C9A84C]">{notice}</p>}
       {error && (
-        <p className="flex items-center justify-center gap-1.5 text-center text-xs text-red-400">
+        <p role="alert" className="flex items-center justify-center gap-1.5 text-center text-xs text-red-400">
           <AlertTriangle size={13} /> {error}
         </p>
       )}
