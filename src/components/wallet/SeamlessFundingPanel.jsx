@@ -101,6 +101,7 @@ export default function SeamlessFundingPanel({
   const depositRequestKey = useRef("");
   const withdrawalRequestKey = useRef("");
   const pollAttempts = useRef(0);
+  const nextStepRef = useRef(null);
   const load = useCallback(async () => {
     try {
       const { data } = await base44.functions.invoke("getSeamlessWalletState", {});
@@ -135,7 +136,7 @@ export default function SeamlessFundingPanel({
       const next = await load();
       const after = JSON.stringify(next?.recent || []);
       if ((before !== after || state?.identity?.status !== next?.identity?.status) && onRefresh) await onRefresh();
-    }, 30000);
+    }, state?.identity?.status === "pending" && pollAttempts.current < 24 ? 5000 : 30000);
     return () => clearTimeout(timer);
   }, [state, loadError, load, onRefresh]);
 
@@ -257,7 +258,8 @@ export default function SeamlessFundingPanel({
 
   return (
     <div className="space-y-4">
-      <SocureIdentityStep identity={state?.identity} onRefresh={load} />
+      <SocureIdentityStep identity={state?.identity} onRefresh={load} nextStepLabel={bankReady ? "Continue to add money" : "Continue to bank connection"} onNextStep={() => { nextStepRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); nextStepRef.current?.focus({ preventScroll: true }); }} />
+      <div ref={nextStepRef} tabIndex={-1} aria-label="Bank connection and wallet funding" />
 
       {/* Provider webhooks are authoritative for account and bank status. */}
       {effectiveWithdrawalHold && (
@@ -267,7 +269,7 @@ export default function SeamlessFundingPanel({
       )}
       {!effectiveWithdrawalHold && notVerified && effectiveAccountState === "provisional" && (
         <p className="text-xs text-white/40 text-center">
-          Complete identity verification to unlock transfers. Your connected banks stay linked.
+          {["pending", "review_required"].includes(state?.identity?.status) ? "Transfers will unlock after your identity is approved." : state?.identity?.status === "rejected" ? "Verification was not approved. Contact support for next steps." : "Complete identity verification to unlock transfers."} Your connected banks stay linked.
         </p>
       )}
       {!effectiveWithdrawalHold && effectiveAccountState === "suspended" && (
