@@ -99,7 +99,7 @@ for(const fn of ['seamlessAchWebhook','manageSeamlessBankAccount']){
 }
 console.log('Socure KYC: age boundaries, evidence, fail-closed gates, webhook auth, correlation, replay recovery and bank separation passed.');
 
-async function startHarness({enabled=true,lock=true,prior=null,encryptionFails=false,providerFails=false,verifiedWhileLocking=false,restrictedWhileLocking=false}={}) {
+async function startHarness({enabled=true,lock=true,prior=null,encryptionFails=false,providerFails=false,verifiedWhileLocking=false,restrictedWhileLocking=false,existingStatus='evaluation_paused'}={}) {
  let current={id:'u1',account_state:'provisional'}, record=prior, calls=0, releases=0;
  const sdk={auth:{me:async()=>current},asServiceRole:{entities:{
   User:{get:async()=>current,update:async(id,p)=>{current={...current,...p};}},
@@ -113,6 +113,7 @@ async function startHarness({enabled=true,lock=true,prior=null,encryptionFails=f
  'npm:@base44/sdk@0.8.38':{createClientFromRequest:()=>sdk},
  '../../shared/socureIdentity.ts':{
   identityConfig:()=>({enabled}),
+  readIdentityEvaluation:async(config,id)=>{if(!id)throw Error('uncertain');return {id:record.request_id,eval_id:id,workflow:'consumer_onboarding',environment_name:'Production',eval_status:existingStatus};},
   safeHostedUrl:v=> typeof v==='string' && v.startsWith('https://riskos.socure.com/hosted/')?v:'',
   startIdentityEvaluation:async()=>{calls++;if(providerFails)throw Error('network');return {eval_id:'eval-1',redirect_uri:'https://riskos.socure.com/hosted/test'};}
  },
@@ -133,9 +134,13 @@ starter=await startHarness({lock:false});assert.equal((await starter.send()).sta
 starter=await startHarness({encryptionFails:true});assert.equal((await starter.send()).status,503);assert.equal(starter.state().calls,0);
 starter=await startHarness();let response=await starter.send();assert.equal(response.status,200);
 assert.equal((await response.json()).redirect_uri,'https://riskos.socure.com/hosted/test');
-assert.equal((await starter.send()).status,200);assert.equal(starter.state().calls,1,'resume is not another billable evaluation');
+assert.equal((await starter.send()).status,200);assert.equal(starter.state().calls,2,'unfinished verification starts a fresh evaluation');
+starter=await startHarness({existingStatus:'evaluation_completed'});await starter.send();
+assert.equal((await (await starter.send()).json()).redirect_uri,undefined);assert.equal(starter.state().calls,1,'completed verification is never restarted');
+starter=await startHarness({existingStatus:'evaluation_running'});await starter.send();
+assert.equal((await (await starter.send()).json()).redirect_uri,undefined);assert.equal(starter.state().calls,1,'uncertain processing is never restarted');
 starter=await startHarness({providerFails:true});assert.equal((await starter.send()).status,503);
-assert.equal((await starter.send()).status,409);assert.equal(starter.state().calls,1,'uncertain start is not blindly duplicated');
+assert.equal((await starter.send()).status,503);assert.equal(starter.state().calls,1,'uncertain start is not blindly duplicated');
 starter=await startHarness({prior:{status:'rejected'}});assert.equal((await starter.send()).status,409);assert.equal(starter.state().calls,0);
 console.log('KYC session starts: consent, disabled config, encryption, locking, URL contract, resume, uncertain provider outcome and rejection passed.');
 
