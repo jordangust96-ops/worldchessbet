@@ -92,6 +92,42 @@ for(const role of ['user','admin']) {
   assert.equal(lookups,1); assert.equal(cachedReads,0); assert.equal(auditWrites,1);
 }
 
+
+// State-confidence boundary regression: execute the real handler with mocked
+// provider/SDK so these checks never call MaxMind or change player records.
+for (const c of [
+  {stateConfidence:10,countryConfidence:99,expected:'approved'},
+  {stateConfidence:9,countryConfidence:99,expected:'verification_failed'},
+  {stateConfidence:undefined,countryConfidence:99,expected:'verification_failed'},
+  {stateConfidence:10,countryConfidence:49,expected:'verification_failed'},
+  {stateConfidence:10,countryConfidence:50,expected:'approved'},
+  {stateConfidence:10,countryConfidence:99,vpn:true,expected:'verification_failed'},
+  {stateConfidence:10,countryConfidence:99,state:'MI',expected:'blocked'},
+  {stateConfidence:10,countryConfidence:99,override:'30',expected:'verification_failed'},
+  {stateConfidence:9,countryConfidence:99,override:'0',expected:'verification_failed'}
+]) {
+  const rows=[];
+  const sdk={auth:{me:async()=>({id:'confidence-test',role:'user'})},asServiceRole:{entities:{
+    User:{update:async()=>{}},JurisdictionVerificationLog:{filter:async()=>[],create:async row=>rows.push(row)}
+  }}};
+  const geo=load('base44/shared/requestJurisdiction.ts',{
+    'npm:@base44/sdk@0.8.38':{createClientFromRequest:()=>sdk},
+    './jurisdictionGates.js':gates,'./jurisdictionRegions.js':regions
+  },{
+    Deno:{env:{get:name=>({MAXMIND_GEOIP_ENABLED:'true',MAXMIND_ACCOUNT_ID:'test',MAXMIND_LICENSE_KEY:'test',MAXMIND_MIN_SUBDIVISION_CONFIDENCE:c.override})[name]}},
+    fetch:async()=>Response.json({country:{iso_code:'US',confidence:c.countryConfidence},
+      subdivisions:[{iso_code:c.state||'GA',confidence:c.stateConfidence}],traits:{is_anonymous_vpn:!!c.vpn}})
+  }).exports;
+  const result=await (await geo.getRequestJurisdiction(
+    new Request('https://example.invalid',{headers:{'cf-connecting-ip':'198.51.100.1'}}),
+    {triggerEvent:'manual'},{fresh:true,requireLocation:true}
+  )).json();
+  assert.equal(result.status,c.expected,JSON.stringify(c));
+  assert.equal(rows.length,1);
+  assert.equal(rows[0].verification_result,c.expected);
+}
+console.log('State confidence: 9 boundary cases passed, including 10% acceptance, country floor, VPN and region restrictions.');
+
 // Execute both actual start handlers: invalid evidence must cause zero writes,
 // zero game creation and zero downstream start calls.
 for(const name of ['finalizeMatchStart','getOrCreateGame']) {
