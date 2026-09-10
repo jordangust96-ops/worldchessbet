@@ -30,7 +30,9 @@ const ANONYMIZER_SIGNALS = [
 const REASON_UNAVAILABLE =
   "ChessBet is not currently available in your location. Paid contests are offered only in approved U.S. jurisdictions.";
 const REASON_UNVERIFIED =
-  "We could not verify your current location. Please disable any VPN, proxy, or location-masking software and try again.";
+  "We could not verify your current location reliably enough for real-money play. Try another connection, such as switching between Wi-Fi and mobile data, then check your location again.";
+const REASON_ANONYMIZER =
+  "We could not verify your current location. If you use a VPN, proxy, or location-masking service, turn it off and check your location again.";
 const REASON_BLOCKED =
   "Unfortunately, real-money play is not currently available in your location. ChessBet has not yet enabled real-money play in your state or country under its current launch requirements.";
 
@@ -82,7 +84,7 @@ export function evaluateJurisdictionAccess(response) {
   // real location was detected.
   for (const key of ANONYMIZER_SIGNALS) {
     if (response[key] === true) {
-      return { allowed: false, reason: REASON_UNVERIFIED, promptEligible: false };
+      return { allowed: false, reason: REASON_ANONYMIZER, promptEligible: false };
     }
   }
 
@@ -100,8 +102,8 @@ export function evaluateJurisdictionAccess(response) {
     return { allowed: false, reason: REASON_BLOCKED, promptEligible: true };
   }
 
-  // unknown / verification_failed / non-US / approved-but-unapproved-state edge.
-  return { allowed: false, reason: REASON_UNAVAILABLE, promptEligible: false };
+  // An unresolved check is not evidence that the location is unsupported.
+  return { allowed: false, reason: REASON_UNVERIFIED, promptEligible: false };
 }
 
 // Module-scoped Map of in-flight jurisdiction-check promises, keyed by the
