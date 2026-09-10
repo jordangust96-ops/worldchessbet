@@ -525,7 +525,8 @@ Deno.serve(async (req) => {
             const loserId = contestRecord.loser_id;
             const payout = contestRecord.winner_payout || 0;
             const entryAmount = contestRecord.entry_amount || 0;
-            const fee = contestRecord.platform_fee || 0;
+            const fee = Number(contestRecord.platform_fee || 0);
+            const feePerPlayer = Number(contestRecord.platform_fee_per_player || 0);
             const pendingPayoutCoversThis = !!pendingPayout && pendingPayout.user_id === winnerId;
             const holdCoversThis = pendingPayoutCoversThis || (disputeCase.hold_status === 'post_settlement_hold' && disputeCase.hold_target_user_id === winnerId);
 
