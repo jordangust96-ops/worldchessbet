@@ -26,6 +26,24 @@ export function verifiedBirthDate(data) {
   const unique = [...new Set(dates)];
   return unique.length === 1 && ageOn(unique[0]) !== null ? unique[0] : null;
 }
+export function verifiedLegalName(data) {
+  const names = [];
+  for (const e of Array.isArray(data?.data_enrichments) ? data.data_enrichments : []) {
+    if (e.status_code !== 200 || !/socure/i.test(e.enrichment_provider || '')) continue;
+    const doc = e.response?.documentVerification;
+    if (doc?.decision?.value === 'accept' && doc.documentData?.firstName && doc.documentData?.surName)
+      names.push(doc.documentData.firstName + ' ' + doc.documentData.surName);
+    for (const k of ['kyc', 'kycPlus']) {
+      const fields = e.response?.[k]?.fieldValidations;
+      if (fields?.dob === 0.99 && fields.firstName === 0.99 && fields.surName === 0.99 && e.request?.firstName && e.request?.surName)
+        names.push(e.request.firstName + ' ' + e.request.surName);
+    }
+  }
+  const normalized = names.map(name => String(name).normalize('NFKC').trim().replace(/\s+/g, ' '));
+  if (!normalized.length || new Set(normalized.map(name => name.toLowerCase())).size !== 1) return '';
+  return normalized[0];
+}
+
 export function classifyKyc(data, now = new Date()) {
   if (data?.workflow !== 'consumer_onboarding' || data?.environment_name !== 'Production')
     return { status: 'review_required', age_verified: false, failure_code: 'workflow_or_environment_mismatch' };
@@ -37,6 +55,8 @@ export function classifyKyc(data, now = new Date()) {
   const age = ageOn(dob, now);
   if (age === null) return { status: 'review_required', age_verified: false, failure_code: 'verified_age_evidence_missing' };
   if (age < 21) return { status: 'rejected', age_verified: true, age_over_18: age >= 18, age_over_21: false, failure_code: 'minimum_age_not_met' };
-  return { status: 'verified', age_verified: true, age_over_18: true, age_over_21: age >= 21,
+  const verified_name = verifiedLegalName(data);
+  if (!verified_name) return { status: 'review_required', age_verified: true, age_over_18: true, age_over_21: true, failure_code: 'verified_name_evidence_missing' };
+  return { verified_name, status: 'verified', age_verified: true, age_over_18: true, age_over_21: age >= 21,
     failure_code: '', verified_dob: dob };
 }
