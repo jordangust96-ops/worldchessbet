@@ -649,18 +649,29 @@ Deno.serve(async (req) => {
             await reverseContestStats(base44, contestRecord);
             await base44.asServiceRole.entities.Match.update(match.id, { result: 'cancelled' });
           } else if (match) {
-            // Not yet settled — simply refund each player's escrowed entry hold.
-            for (const playerId of [match.player1_id, match.player2_id].filter(Boolean)) {
-              const amount = match.wager_amount || 0;
-              let walletTransactionId = '';
-              if (amount > 0) {
+            // Not yet settled: unwind only money that was actually reserved.
+            // Entry Amounts must leave contest_clearing and Platform Service
+            // Fees must leave suspense. This is the same accounting treatment
+            // as cancellation/preparation timeout, but administrator-triggered.
+            const entryAmount = Number(match.wager_amount || 0);
+            const feePerPlayer = Number(match.platform_service_fee || 0);
+            if (!Number.isFinite(entryAmount) || entryAmount < 0 || !Number.isFinite(feePerPlayer) || feePerPlayer < 0) {
+              return Response.json({ error: 'invalid_contest_amounts_for_void' }, { status: 409 });
+            }
+
+            const refundTargets = [];
+            if (match.player1_deposited && match.player1_id) refundTargets.push(match.player1_id);
+            if (match.player2_deposited && match.player2_id) refundTargets.push(match.player2_id);
+
+            for (const playerId of refundTargets) {
+              if (entryAmount > 0) {
                 const refundTx = await base44.asServiceRole.entities.WalletTransaction.create({
                   user_id: playerId,
                   type: 'wager_refund',
-                  amount,
+                  amount: entryAmount,
                   match_id: match.id,
                   description: `Entry amount refunded — contest voided before settlement, Case #${fmtCase(disputeCase.case_number)}`,
-                  status: 'completed',
+                  status: 'pending',
                   direction: 'release',
                   correlation_id: disputeCase.id,
                   source_event: 'dispute_case_contest_void',
@@ -669,14 +680,47 @@ Deno.serve(async (req) => {
                   launch_epoch: 2,
                 });
                 walletTransactionIds.push(refundTx.id);
-                walletTransactionId = refundTx.id;
+                entries.push(...(await postRemedyLegs(base44, {
+                  matchId: match.id,
+                  admin,
+                  triggerEvent: 'contest_void_entry_refund',
+                  groupId: `dispute:${disputeCase.id}:contest_void:entry:${playerId}`,
+                  legs: [
+                    { ledgerAccount: 'contest_clearing', debit: entryAmount, credit: 0, transactionType: 'refund' },
+                    { ledgerAccount: 'user_account', userId: playerId, debit: 0, credit: entryAmount, heldDelta: -entryAmount, transactionType: 'refund', walletTransactionId: refundTx.id },
+                  ],
+                })));
               }
-              const entry = await applyBalanceHold(base44, {
-                userId: playerId, amount, direction: 'release',
-                matchId: match.id, actor: 'administrator', actorId: admin.id, triggerEvent: 'contest_void', walletTransactionId,
-              });
-              if (entry) entries.push(entry);
+
+              if (feePerPlayer > 0) {
+                const feeRefundTx = await base44.asServiceRole.entities.WalletTransaction.create({
+                  user_id: playerId,
+                  type: 'service_fee_refund',
+                  amount: feePerPlayer,
+                  match_id: match.id,
+                  description: `Platform service fee refunded — contest voided before settlement, Case #${fmtCase(disputeCase.case_number)}`,
+                  status: 'pending',
+                  direction: 'release',
+                  correlation_id: disputeCase.id,
+                  source_event: 'dispute_case_contest_void',
+                  initiating_actor: 'administrator',
+                  initiating_actor_id: admin.id,
+                  launch_epoch: 2,
+                });
+                walletTransactionIds.push(feeRefundTx.id);
+                entries.push(...(await postRemedyLegs(base44, {
+                  matchId: match.id,
+                  admin,
+                  triggerEvent: 'contest_void_fee_refund',
+                  groupId: `dispute:${disputeCase.id}:contest_void:fee:${playerId}`,
+                  legs: [
+                    { ledgerAccount: 'suspense', debit: feePerPlayer, credit: 0, transactionType: 'refund' },
+                    { ledgerAccount: 'user_account', userId: playerId, debit: 0, credit: feePerPlayer, heldDelta: -feePerPlayer, transactionType: 'refund', walletTransactionId: feeRefundTx.id },
+                  ],
+                })));
+              }
             }
+
             if (disputeCase.hold_status === 'pre_settlement_hold') {
               caseUpdates.hold_status = 'released';
               caseUpdates.hold_released_at = new Date().toISOString();
