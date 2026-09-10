@@ -58,6 +58,29 @@ const BLOCKED_MESSAGE =
 // is always a secondary, non-authoritative signal.
 const GEO_MISMATCH_THRESHOLD_KM = 100;
 
+// Real-money jurisdiction decisions require a minimum level of MaxMind
+// confidence at the country and state/subdivision levels. MaxMind describes
+// these values as the percent confidence that the returned geography is
+// correct. A state-level decision below this floor is too uncertain to use
+// for paid activity, even when the returned state happens to be allowlisted.
+// Keep the defaults conservative and server-only; environment values may be
+// raised later without a code change, but never lowered below 50 here.
+function confidenceFloor(name, fallback = 50) {
+  const raw = Number(Deno.env.get(name));
+  return Number.isFinite(raw) ? Math.max(fallback, Math.min(100, raw)) : fallback;
+}
+const MIN_COUNTRY_CONFIDENCE = confidenceFloor('MAXMIND_MIN_COUNTRY_CONFIDENCE');
+const MIN_SUBDIVISION_CONFIDENCE = confidenceFloor('MAXMIND_MIN_SUBDIVISION_CONFIDENCE');
+
+function hasSufficientLocationConfidence(lookup) {
+  return (
+    Number.isFinite(lookup?.countryConfidence) &&
+    lookup.countryConfidence >= MIN_COUNTRY_CONFIDENCE &&
+    Number.isFinite(lookup?.subdivisionConfidence) &&
+    lookup.subdivisionConfidence >= MIN_SUBDIVISION_CONFIDENCE
+  );
+}
+
 function haversineDistanceKm(lat1, lon1, lat2, lon2) {
   const toRad = (d) => (d * Math.PI) / 180;
   const R = 6371;
@@ -304,6 +327,13 @@ Deno.serve(async (req) => {
             reason = UNKNOWN_MESSAGE;
           } else if (!country || !state) {
             status = 'unknown';
+            reason = UNKNOWN_MESSAGE;
+          } else if (!hasSufficientLocationConfidence(lookup)) {
+            // A returned state is not enough for a real-money jurisdiction
+            // decision when MaxMind itself reports low confidence. Fail closed
+            // and require the user to try again from a more reliably located
+            // connection rather than guessing across state lines.
+            status = 'verification_failed';
             reason = UNKNOWN_MESSAGE;
           } else if (isLocationApproved(country, state)) {
             status = 'approved';
