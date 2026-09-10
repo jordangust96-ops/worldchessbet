@@ -90,11 +90,11 @@ h=await webhookHarness({canonical:{...data,id:'wrong'}});
 assert.equal((await h.send({event_type:'decision_update',data:{id:data.id,eval_id:data.eval_id,workflow:data.workflow,decision:'ACCEPT'}})).status,503);
 assert.equal(h.state().writes,0);
 for(const fn of ['submitSeamlessDeposit','submitSeamlessWithdrawal','lockWager','runContestEligibility','closeAccount']){
- const code=await readFile('base44/functions/'+fn+'/entry.ts','utf8');
+ const code=await readFile(['lockWager','runContestEligibility'].includes(fn) ? 'base44/shared/'+fn+'.ts' : 'base44/functions/'+fn+'/entry.ts','utf8');
  assert.ok(code.includes('await hasVerifiedIdentity(base44, user)'),fn+' must use retained server KYC evidence');
 }
 for(const fn of ['seamlessAchWebhook','manageSeamlessBankAccount']){
- const code=await readFile('base44/functions/'+fn+'/entry.ts','utf8');
+ const code=await readFile(['lockWager','runContestEligibility'].includes(fn) ? 'base44/shared/'+fn+'.ts' : 'base44/functions/'+fn+'/entry.ts','utf8');
  assert.ok(!code.includes('identity_verification_status:'),fn+' cannot grant or revoke player KYC');
 }
 console.log('Socure KYC: age boundaries, evidence, fail-closed gates, webhook auth, correlation, replay recovery and bank separation passed.');

@@ -57,6 +57,7 @@ export default function PreparingMatchScreen({ match, userId, opponentId, onCanc
   const [confirming, setConfirming] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [needsLocationRecheck, setNeedsLocationRecheck] = useState(false);
   const [remainingSeconds, setRemainingSeconds] = useState(() =>
     secondsRemaining(match.preparation_started_at)
   );
@@ -90,16 +91,36 @@ export default function PreparingMatchScreen({ match, userId, opponentId, onCanc
   useEffect(() => {
     if (!(myReady && opponentReady)) return;
     if (match.status === "in_progress" || match.status === "completed") return;
-    const timer = window.setTimeout(() => {
-      base44.functions.invoke("finalizeMatchStart", { matchId: match.id }).catch(() => {});
-    }, 4000);
-    return () => window.clearTimeout(timer);
-  }, [myReady, opponentReady, match.status, match.id]);
+    let active = true;
+    let inFlight = false;
+    const checkStart = async () => {
+      if (inFlight) return;
+      inFlight = true;
+      try {
+        await base44.functions.invoke("finalizeMatchStart", { matchId: match.id });
+      } catch (error) {
+        if (!active) return;
+        const detail = error?.response?.data;
+        if (detail?.action === "match_location_required") {
+          const mine = detail.requiredUserIds?.includes(userId) === true;
+          setNeedsLocationRecheck(mine);
+          setActionError(mine ? "Please recheck your location before this match starts." : "Waiting for your opponent to recheck their location.");
+        } else {
+          setActionError("The match could not start yet. We will check again shortly.");
+        }
+      } finally { inFlight = false; }
+    };
+    checkStart();
+    // This only reads the two recorded checks; it never calls MaxMind.
+    const timer = window.setInterval(checkStart, 5000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [myReady, opponentReady, match.status, match.id, userId]);
 
   const handleConfirmReadiness = async () => {
-    if (!consentSatisfied || myReady) return;
+    if (!consentSatisfied || confirming || (myReady && !needsLocationRecheck)) return;
     setConfirming(true);
     setActionError("");
+    setNeedsLocationRecheck(false);
 
     try {
       // Secondary fraud/forensic signals are collected immediately before the
@@ -116,13 +137,15 @@ export default function PreparingMatchScreen({ match, userId, opponentId, onCanc
         deviceFingerprintHash,
       });
       if (data?.error) {
-        setActionError(data.error);
+        setNeedsLocationRecheck(data.action === "match_location_required" && data.requiredUserIds?.includes(userId) === true);
+        setActionError(data.action === "match_location_required" && !data.requiredUserIds?.includes(userId) ? "Waiting for your opponent to recheck their location." : data.error);
       } else {
         // Realtime normally updates both players immediately. This direct
         // refresh also recovers the initiating client if its event was lost.
         await onRefresh?.();
       }
     } catch (error) {
+      if (myReady) setNeedsLocationRecheck(true);
       setActionError(
         error?.response?.data?.error ||
           error?.response?.data?.reason ||
@@ -224,8 +247,9 @@ export default function PreparingMatchScreen({ match, userId, opponentId, onCanc
         <PlayerReadiness label={opponentName} ready={opponentReady} />
       </div>
 
-      {!myReady && (
+      {(!myReady || needsLocationRecheck) && (
         <div className="space-y-3">
+          <p className="text-xs text-white/50">Your location is verified before the match can start.</p>
           <FairPlayAttestation
             checked={consentSatisfied}
             disabled={Boolean(myCertified)}
@@ -233,13 +257,13 @@ export default function PreparingMatchScreen({ match, userId, opponentId, onCanc
           />
           <Button
             onClick={handleConfirmReadiness}
-            disabled={!consentSatisfied || confirming || remainingSeconds === 0}
+            disabled={!consentSatisfied || confirming || (!myReady && remainingSeconds === 0)}
             className="w-full h-12 rounded-2xl font-bold gold-gradient text-black hover:opacity-90"
           >
             {confirming && <Loader2 className="mr-2 animate-spin" size={16} />}
             {confirming
               ? "Confirming readiness..."
-              : `Agree & Reserve $${financials.totalCharge.toFixed(2)}`}
+              : myReady ? "Recheck location to start" : `Agree & Reserve $${financials.totalCharge.toFixed(2)}`}
           </Button>
         </div>
       )}
@@ -258,7 +282,7 @@ export default function PreparingMatchScreen({ match, userId, opponentId, onCanc
         </div>
       )}
 
-      {myReady && (
+      {myReady && !needsLocationRecheck && !actionError && (
         <div className="flex items-center justify-center gap-2 rounded-xl bg-[#C9A84C]/8 py-3 text-[#C9A84C]">
           {opponentReady ? <Loader2 size={15} className="animate-spin" /> : <Check size={16} />}
           <span className="text-sm font-semibold">

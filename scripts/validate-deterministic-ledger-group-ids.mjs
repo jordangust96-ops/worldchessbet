@@ -49,7 +49,7 @@ function disputeGroupId(caseId, triggerEvent) {
 // crypto.randomUUID() ledger_group_id site now uses the deterministic form,
 // and none of the six functions named in the finding still use a random one.
 const files = [
-  'base44/functions/lockWager/entry.ts',
+  'base44/shared/lockWager.ts',
   'base44/functions/cancelMatch/entry.ts',
   'base44/functions/checkPreparationTimeout/entry.ts',
   'base44/functions/closeAccount/entry.ts',

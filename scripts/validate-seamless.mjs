@@ -100,7 +100,7 @@ const [
   read('base44/functions/manageSeamlessBankAccount/entry.ts'),
   read('base44/functions/submitSeamlessDeposit/entry.ts'),
   read('base44/functions/submitSeamlessWithdrawal/entry.ts'),
-  read('base44/functions/runContestEligibility/entry.ts'),
+  read('base44/shared/runContestEligibility.ts'),
   read('base44/functions/createVerifiedSeamlessFundingSource/entry.ts'),
   read('base44/functions/startSocureIdentityVerification/entry.ts'),
   read('src/components/wallet/TransactionHistory.jsx'),

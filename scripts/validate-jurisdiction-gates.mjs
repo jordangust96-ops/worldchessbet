@@ -215,9 +215,9 @@ ok(acceptSrc.includes('runContestEligibility'), 'acceptMatch invokes runContestE
 ok(/triggerEvent:\s*['"]accept_match['"]/.test(acceptSrc), 'acceptMatch passes triggerEvent accept_match');
 ok(/!eligibilityRes\.data\?\.eligible/.test(acceptSrc), 'acceptMatch fails closed when not eligible');
 
-const lockSrc = await read('base44/functions/lockWager/entry.ts');
-ok(lockSrc.includes('getCurrentJurisdiction'), 'lockWager invokes getCurrentJurisdiction (final gate before funds)');
-ok(/triggerEvent:\s*['"]lock_wager['"]/.test(lockSrc), 'lockWager passes triggerEvent lock_wager');
+const lockSrc = await read('base44/shared/lockWager.ts');
+ok(lockSrc.includes('verifyMatchLocation(req, match'), 'lockWager verifies original-request location before funds');
+ok((await read('base44/shared/matchLocation.ts')).includes("triggerEvent: 'match_readiness'"), 'readiness check is bound to the match');
 ok(/jurisdictionRes\.data\?\.status\s*!==\s*['"]approved['"]/.test(lockSrc), 'lockWager fails closed unless jurisdiction status is approved');
 
 const depositSrc = await read('base44/functions/submitSeamlessDeposit/entry.ts');

@@ -56,7 +56,7 @@ assert.equal(sandboxMoneyMovement.paidContestsEnabled(), false,
 for (const [path, predicate] of [
   ['base44/functions/submitSeamlessDeposit/entry.ts', 'seamlessDepositsEnabled'],
   ['base44/functions/submitSeamlessWithdrawal/entry.ts', 'seamlessWithdrawalsEnabled'],
-  ['base44/functions/runContestEligibility/entry.ts', 'paidContestsEnabled'],
+  ['base44/shared/runContestEligibility.ts', 'paidContestsEnabled'],
   ['base44/functions/createSeamlessBankLinkUrl/entry.ts', 'seamlessHostedPlaidEnabled'],
 ]) {
   const source = await read(path);

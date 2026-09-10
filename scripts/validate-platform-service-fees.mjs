@@ -5,7 +5,7 @@ const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 const [feeSchedule, createMatch, lockWager, settleMatch, cancelMatch, prepTimeout, disputes, contestRecord] = await Promise.all([
   read('base44/shared/platformFee.ts'),
   read('base44/functions/createMatch/entry.ts'),
-  read('base44/functions/lockWager/entry.ts'),
+  read('base44/shared/lockWager.ts'),
   read('base44/functions/settleMatch/entry.ts'),
   read('base44/functions/cancelMatch/entry.ts'),
   read('base44/functions/checkPreparationTimeout/entry.ts'),

@@ -89,7 +89,7 @@ const lifecycleSources = {
   'contest.created': 'base44/functions/createMatch/entry.ts',
   'contest.accepted': 'base44/functions/acceptMatch/entry.ts',
   'contest.fair_play_certified': 'base44/functions/certifyFairPlay/entry.ts',
-  'contest.participant_funded': 'base44/functions/lockWager/entry.ts',
+  'contest.participant_funded': 'base44/shared/lockWager.ts',
   'contest.started': 'base44/functions/finalizeMatchStart/entry.ts',
   'contest.cancelled': 'base44/functions/cancelMatch/entry.ts',
   'contest.settled': 'base44/functions/settleMatch/entry.ts',
