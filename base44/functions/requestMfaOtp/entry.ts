@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 
 const OTP_TTL_MS = 10 * 60 * 1000;
 const RESEND_COOLDOWN_MS = 60 * 1000;
