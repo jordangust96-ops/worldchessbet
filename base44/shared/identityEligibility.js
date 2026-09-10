@@ -17,7 +17,9 @@ export function isVerifiedKycEvidence(row, user, now = Date.now()) {
     row.workflow === 'consumer_onboarding' && row.environment === 'production' &&
     row.policy_version === KYC_POLICY_VERSION && row.status === 'verified' &&
     row.provider_decision === 'ACCEPT' && row.age_verified === true && row.age_over_21 === true &&
-    !!row.webhook_event_id && !!row.provider_report_ciphertext &&
+    (!!row.webhook_event_id || (row.provider_report_source === 'socure_api' &&
+      row.provider_result_reference === row.provider_evaluation_id && !!row.provider_result_reference &&
+      Number.isFinite(Date.parse(row.provider_checked_at || '')))) && !!row.provider_report_ciphertext &&
     !!row.provider_report_sha256 && Number.isFinite(Date.parse(row.verified_valid_until || '')) &&
     Date.parse(row.verified_valid_until) > now;
 }
