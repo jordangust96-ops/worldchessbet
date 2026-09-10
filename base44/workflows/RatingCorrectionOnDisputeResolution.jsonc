@@ -1,6 +1,6 @@
 {
   "name": "Rating Correction On Dispute Resolution",
-  "description": "Shadow-only safety net. If a previously settled contest is later reversed or voided, rebuild ratings asynchronously from the remaining canonical rated contests. Never blocks the dispute resolution itself.",
+  "description": "Production rating safety net. If a previously settled contest is later reversed or voided, rebuild ratings asynchronously from the remaining canonical rated contests. Never blocks the dispute resolution itself.",
   "trigger": {
     "config": {
       "trigger_type": "entity",
@@ -30,7 +30,7 @@
           },
           "then": "end",
           "x-base44": {
-            "title": "Rebuild Shadow Ratings",
+            "title": "Rebuild Player Ratings",
             "description": "Invalidate the corrected contest's rating operation and rebuild the canonical rating generation"
           }
         }
