@@ -6,7 +6,7 @@ import {
   seamlessHostedPlaidEnabled,
   seamlessWithdrawalsEnabled,
 } from '../../shared/seamlessFundingConfig.ts';
-import { hasVerifiedIdentity } from '../../shared/identityEligibility.js';
+import { identityState } from '../../shared/identityState.ts';
 import { legalNameFromUser } from '../../shared/legalName.ts';
 
 // Read-only wallet funding view. Provider verification status is read only
@@ -40,6 +40,7 @@ Deno.serve(async (req) => {
       .sort((a, b) => new Date(b.created_date || 0).getTime() - new Date(a.created_date || 0).getTime())
       .slice(0, 10);
     const visibleBanks = banks.filter((bank) => bank.status !== 'deleted');
+    const identity = await identityState(base44, user);
 
     return Response.json({
       enabled: true,
@@ -49,9 +50,10 @@ Deno.serve(async (req) => {
       withdrawals_enabled: seamlessWithdrawalsEnabled(),
       hosted_plaid_enabled: seamlessHostedPlaidEnabled(),
       has_completed_deposit: completedDeposits.some((deposit) => deposit.deposit_hold_status === 'released'),
-      account_verified: await hasVerifiedIdentity(base44, user),
+      account_verified: identity.verified,
+      identity,
       legal_name: legalNameFromUser(user)?.fullName || '',
-      verification_status: user.identity_verification_status || 'not_started',
+      verification_status: identity.status,
       account_state: user.account_state || 'provisional',
       withdrawal_hold: !!user.withdrawal_hold,
       profile: profile ? { exists: true, status: profile.status || 'created' } : null,
