@@ -141,8 +141,8 @@ ok(JSON.stringify(entity.rls.delete) === JSON.stringify({ user_condition: { role
 // ---------------------------------------------------------------------------
 // 7. Centralized approved-location matching wired into BOTH paths (static)
 // ---------------------------------------------------------------------------
-const getCurrentSrc = await read('base44/functions/getCurrentJurisdiction/entry.ts');
-ok(getCurrentSrc.includes("from '../../shared/jurisdictionRegions.js'"), 'getCurrentJurisdiction imports the shared regions module');
+const getCurrentSrc = await read('base44/shared/requestJurisdiction.ts');
+ok(getCurrentSrc.includes("from './jurisdictionRegions.js'"), 'getCurrentJurisdiction imports the shared regions module');
 ok(/isLocationApproved\(country,\s*state\)/.test(getCurrentSrc) || /isLocationApproved\(/.test(getCurrentSrc), 'getCurrentJurisdiction uses isLocationApproved');
 ok(!/const APPROVED_STATES\s*=\s*\[/.test(getCurrentSrc), 'getCurrentJurisdiction no longer hard-codes APPROVED_STATES (centralized)');
 
