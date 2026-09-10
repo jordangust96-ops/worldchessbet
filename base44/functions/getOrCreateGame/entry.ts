@@ -1,3 +1,4 @@
+import { getMatchLocationReadiness, matchLocationRequiredResponse } from '../../shared/matchLocation.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 
 const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -45,6 +46,16 @@ Deno.serve(async (req) => {
 
     if (!LIVE_OR_POST_START_STATUSES.has(match.status)) {
       return Response.json({ error: 'This match is not in a state that can have a game attached' }, { status: 409 });
+    }
+
+    // Direct calls cannot bypass the same pre-start checks as the finalizer.
+    // Already-started games remain resumable without resetting their clocks.
+    if (match.status === 'both_ready') {
+      if (!match.player1_certified || !match.player2_certified ||
+          !match.player1_deposited || !match.player2_deposited)
+        return Response.json({ error: 'Both players must be ready before play.' }, { status: 403 });
+      const locationReadiness = await getMatchLocationReadiness(base44, match);
+      if (!locationReadiness.ready) return matchLocationRequiredResponse(locationReadiness);
     }
 
     // Already attached — just return it.

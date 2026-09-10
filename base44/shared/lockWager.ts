@@ -239,8 +239,14 @@ export async function lockWager(req, context = null) {
     const bothCertified = updatedMatch.player1_certified && updatedMatch.player2_certified;
     const bothDeposited = updatedMatch.player1_deposited && updatedMatch.player2_deposited;
     if (bothCertified && bothDeposited) {
-      const finalizeRes = await base44.functions.invoke('finalizeMatchStart', { matchId: match.id });
-      if (finalizeRes.data?.match) updatedMatch = finalizeRes.data.match;
+      try {
+        const finalizeRes = await base44.functions.invoke('finalizeMatchStart', { matchId: match.id });
+        if (finalizeRes.data?.match) updatedMatch = finalizeRes.data.match;
+      } catch (error) {
+        // Reservation succeeded; an expired opponent location requires a
+        // readiness recheck, never another financial reservation.
+        if (error?.response?.data?.action !== 'match_location_required') throw error;
+      }
     }
 
     return Response.json({ match: updatedMatch });

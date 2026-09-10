@@ -1,3 +1,5 @@
+import { lockWager } from '../../shared/lockWager.ts';
+import { verifyMatchLocation } from '../../shared/matchLocation.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 
 // Coordinates the existing Fair Play certification and contest-fund
@@ -44,7 +46,7 @@ Deno.serve(async (req) => {
 
     const alreadyReserved = isP1 ? match.player1_deposited : match.player2_deposited;
     if (!alreadyReserved && match.status !== 'in_progress') {
-      await base44.functions.invoke('lockWager', {
+      const reservation = await lockWager(req, {
         matchId,
         browserGeoPermission,
         browserLatitude,
@@ -52,12 +54,33 @@ Deno.serve(async (req) => {
         browserAccuracyMeters,
         deviceFingerprintHash,
       });
+      if (!reservation.ok) return reservation;
       match = await base44.asServiceRole.entities.Match.get(matchId);
+    }
+
+    // A funded player can refresh expired location evidence without reserving
+    // funds a second time. Only this explicit player request calls MaxMind.
+    if (alreadyReserved && match.status !== 'in_progress') {
+      const location = await verifyMatchLocation(req, match);
+      if (location.status !== 'approved') return Response.json({
+        error: location.reason || 'Unable to verify your location.',
+        action: 'match_location_required', requiredUserIds: [user.id],
+      }, { status: 403 });
     }
 
     const certified = isP1 ? match.player1_certified : match.player2_certified;
     const reserved = isP1 ? match.player1_deposited : match.player2_deposited;
 
+    if (match.status !== 'in_progress' && match.player1_certified && match.player2_certified &&
+        match.player1_deposited && match.player2_deposited) {
+      try {
+        const finalized = await base44.functions.invoke('finalizeMatchStart', { matchId });
+        if (finalized.data?.match) match = finalized.data.match;
+      } catch (error) {
+        if (error?.response?.data?.action !== 'match_location_required') throw error;
+        return Response.json({ match, ready: Boolean(certified && reserved), ...error.response.data });
+      }
+    }
     return Response.json({
       match,
       ready: Boolean(certified && reserved),
@@ -71,6 +94,6 @@ Deno.serve(async (req) => {
       error?.message ||
       'Unable to confirm match readiness';
 
-    return Response.json({ error: message }, { status: safeStatus });
+    return Response.json({ error: message, action: error?.response?.data?.action, requiredUserIds: error?.response?.data?.requiredUserIds }, { status: safeStatus });
   }
 });

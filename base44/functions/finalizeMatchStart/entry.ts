@@ -1,3 +1,4 @@
+import { getMatchLocationReadiness, matchLocationRequiredResponse } from '../../shared/matchLocation.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 
@@ -55,6 +56,9 @@ Deno.serve(async (req) => {
       return Response.json({ match });
     }
 
+    const locationReadiness = await getMatchLocationReadiness(base44, match);
+    if (!locationReadiness.ready) return matchLocationRequiredResponse(locationReadiness);
+
     // Claim the both_ready -> in_progress transition so a concurrent
     // cancellation can never land in the gap between our read and our
     // write. Still idempotent/re-entrant: once a claim has been recorded
@@ -83,6 +87,7 @@ Deno.serve(async (req) => {
 
     const gameResponse = await base44.functions.invoke('getOrCreateGame', { matchId: match.id });
     const game = gameResponse.data?.game || null;
+    if (!game?.id) return Response.json({ error: 'Game creation is incomplete. Please retry.' }, { status: 409 });
 
     // Final guard, taken fresh right before declaring the match live: if a
     // cancellation won while getOrCreateGame was in flight, do not overwrite
@@ -122,6 +127,8 @@ Deno.serve(async (req) => {
 
     return Response.json({ match: updatedMatch });
   } catch (error) {
+    if (error?.response?.data?.action === 'match_location_required')
+      return Response.json(error.response.data, { status: 403 });
     return Response.json({ error: error.message }, { status: 500 });
   }
 });
