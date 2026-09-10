@@ -1,0 +1,45 @@
+{
+  "name": "Deposit Available Email Notifications",
+  "description": "Every 5 minutes, retries any transactional deposit-ready email that was not successfully accepted after cleared funds became available in a player's wallet.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "*/5 * * * *",
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "deposit_available_email_notifications",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "send_deposit_available_emails": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "processDepositAvailableNotifications",
+            "args": {}
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Send Deposit Available Emails",
+            "description": "Deliver or retry branded transactional emails only after deposits are spendable"
+          }
+        }
+      }
+    ]
+  }
+}
