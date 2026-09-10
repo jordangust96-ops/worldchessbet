@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
     })).json()};
     if (jurisdiction.data?.error || jurisdiction.data?.status !== 'approved') {
       return Response.json(
-        { error: jurisdiction.data?.reason || 'You are not currently eligible to fund your account from this location.' },
+        { error: jurisdiction.data?.reason || 'You are not currently eligible to fund your account from this location.', action:'location_required' },
         { status: 403 }
       );
     }
@@ -289,7 +289,7 @@ Deno.serve(async (req) => {
       status: 'pending',
     });
   } catch (error) {
-    return Response.json({ error: error?.message || 'Unable to submit deposit' }, { status: 500 });
+    return Response.json({ error: 'Unable to submit deposit. Check Transaction History before retrying.' }, { status: 500 });
   } finally {
     if (userId && lockOwner) {
       try { await releaseUserWalletLock(userId, lockOwner); } catch { /* TTL safely releases an unavailable store lock. */ }
