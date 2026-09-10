@@ -21,7 +21,7 @@ async function depositHarness({verified=true,hold=false,location='approved',bank
  '../../shared/playerAgePolicy.js':ages,
  '../../shared/identityEligibility.js':{hasVerifiedIdentity:async()=>verified},
  '../../shared/legalName.ts':{legalNameFromUser:()=>({fullName:'Test Player'})},
- '../../shared/requestJurisdiction.ts':{getRequestJurisdiction:async(req)=>{geoCalls++;assert.equal(req.headers.get('cf-connecting-ip'),ip);return Response.json({status:location,state:admin?'':'TX',adminBypass:admin});}},
+ '../../shared/walletOnboardingLocation.ts':{walletOnboardingLocation:async()=>({allowed:location==='approved'})},
  '../../shared/seamlessAch.ts':{seamlessConfig:()=>({}),seamlessBaseUrl:()=>'',buildDepositBody:p=>p,PATH_ACH_DEBIT:'/ach-debit',SEAMLESS_PROVIDER_KEY:'seamless',userSafeTransferFailureReason:()=> 'Bank declined the deposit.',seamlessRequest:async()=>{calls++;if(outcome==='declined')throw {status:400};if(outcome==='timeout')throw {status:503};return {check_id:'check1'};}},
  '../../shared/integrationEvents.ts':{recordIntegrationEvent:async()=>{}},
  '../../shared/seamlessAtomicStore.ts':{acquireUserWalletLock:async()=>true,releaseUserWalletLock:async()=>{},claimDepositOperation:async(id,key,amount)=>op||{amount,state:'new'},saveDepositOperation:async(id,key,p)=>op=p}
@@ -34,7 +34,7 @@ for(const opts of [{verified:false},{hold:true},{location:'blocked'},{location:'
 for(const amount of [0,9.99,10000.01,10.001,'bad',null]){
  const h=await depositHarness();assert.equal((await h.send(amount)).status,400);assert.equal(h.state().calls,0);
 }
-let h=await depositHarness();let r=await h.send();assert.equal(r.status,200);assert.equal((await r.json()).status,'pending');assert.equal(h.state().tx.status,'pending');assert.equal(h.state().calls,1);
+let h=await depositHarness();let r=await h.send();assert.equal(r.status,200);assert.equal((await r.json()).status,'pending');assert.equal(h.state().tx.status,'pending');assert.equal(h.state().calls,1);assert.equal(h.state().geoCalls,0,'deposit never checks current location');
 await h.send();assert.equal(h.state().calls,1,'retry never sends another debit');assert.equal(h.state().created,1);
 h=await depositHarness({outcome:'declined'});r=await h.send();assert.equal(r.status,400);assert.equal((await r.json()).request_terminal,true);assert.equal(h.state().tx.status,'failed');assert.match(h.state().tx.description,/Bank declined/);
 h=await depositHarness({outcome:'timeout'});assert.equal((await h.send()).status,202);assert.equal((await h.send()).status,202);assert.equal(h.state().calls,1);assert.equal(h.state().tx.status,'pending');
@@ -53,7 +53,7 @@ assert.equal((await r.json()).status,'unknown','body/XFF cannot impersonate trus
 async function bankGate({verified=true,hold=false,balance=0,approved=false}={}){
  const {exports}=await loadBackend('base44/shared/bankOnboardingEligibility.ts',{
  './identityEligibility.js':{hasVerifiedIdentity:async()=>verified},
- './requestJurisdiction.ts':{getRequestJurisdiction:async()=>Response.json({status:approved?'approved':'blocked'})}
+ './walletOnboardingLocation.ts':{walletOnboardingLocation:async()=>({allowed:approved})}
  });
  return exports.bankOnboardingEligibility(new Request('https://test.invalid'),{asServiceRole:{entities:{User:{get:async()=>({id:'u1',withdrawal_hold:hold})},Wallet:{filter:async()=>[{available_balance:balance}]}}}},{id:'u1'});
 }
@@ -62,4 +62,4 @@ assert.ok(await bankGate({hold:true,approved:true}));
 assert.ok(await bankGate());
 assert.equal(await bankGate({approved:true}),null);
 assert.equal(await bankGate({balance:5}),null,'existing funds remain withdrawable from blocked locations');
-console.log('Deposit user flow passed: original-IP location, missing location, KYC/21+, holds, primary-bank races, amounts, accepted/declined/uncertain outcomes, duplicate retry and withdrawal-preserving bank gate.');
+console.log('Deposit user flow passed: saved onboarding approval, missing onboarding approval, KYC/21+, holds, primary-bank races, amounts, accepted/declined/uncertain outcomes, duplicate retry and withdrawal-preserving bank gate.');
