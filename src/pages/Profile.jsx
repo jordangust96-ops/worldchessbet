@@ -10,7 +10,6 @@ import MyRatingSection from "@/components/profile/MyRatingSection";
 import DeleteAccountButton from "@/components/profile/DeleteAccountButton";
 import AdminToolsSection from "@/components/profile/AdminToolsSection";
 import FoundingPlayerBadge from "@/components/profile/FoundingPlayerBadge";
-import RealMoneyLaunchNotice from "@/components/RealMoneyLaunchNotice";
 import SoundToggle from "@/components/play/SoundToggle";
 import { clearMfaVerified } from "@/lib/mfaSession";
 import { getStoredSoundPreference, playGameSound, storeSoundPreference } from "@/lib/gameSounds";
@@ -156,8 +155,6 @@ export default function Profile() {
         <Link to="/play" className="inline-block">
           <Logo size="sm" />
         </Link>
-
-        <RealMoneyLaunchNotice />
 
         {/* Profile Header */}
         <div className="text-center space-y-3">
