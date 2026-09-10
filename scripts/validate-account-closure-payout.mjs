@@ -39,7 +39,7 @@ const [closeAccount, withdrawal] = await Promise.all([
 ]);
 
 assert.match(closeAccount, /seamlessWithdrawalsEnabled\(\)/);
-assert.match(closeAccount, /isSeamlessPlaidVerified\(user\)/);
+assert.match(closeAccount, /await hasVerifiedIdentity\(base44, user\)/);
 assert.match(closeAccount, /status: 'verified'/);
 assert.match(closeAccount, /extendComplianceEvidenceRetention/);
 assert.match(closeAccount, /triggerEvent: 'withdrawal_reservation'/);
