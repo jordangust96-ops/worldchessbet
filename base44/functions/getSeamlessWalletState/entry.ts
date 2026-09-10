@@ -6,6 +6,7 @@ import {
   seamlessHostedPlaidEnabled,
   seamlessWithdrawalsEnabled,
 } from '../../shared/seamlessFundingConfig.ts';
+import { walletOnboardingLocation } from '../../shared/walletOnboardingLocation.ts';
 import { identityState } from '../../shared/identityState.ts';
 import { legalNameFromUser } from '../../shared/legalName.ts';
 
@@ -52,6 +53,7 @@ Deno.serve(async (req) => {
       has_completed_deposit: completedDeposits.some((deposit) => deposit.deposit_hold_status === 'released'),
       account_verified: identity.verified,
       identity,
+      onboarding_location: await walletOnboardingLocation(base44, user.id),
       legal_name: legalNameFromUser(user)?.fullName || '',
       verification_status: identity.status,
       account_state: user.account_state || 'provisional',
