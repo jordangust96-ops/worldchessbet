@@ -9,6 +9,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { base44 } from "@/api/base44Client";
+import { evaluateJurisdictionAccess } from "@/lib/jurisdictionAccess";
 import SeamlessPlaidBankLink from "./SeamlessPlaidBankLink";
 import SocureIdentityStep from "./SocureIdentityStep";
 
@@ -168,6 +169,7 @@ export default function SeamlessFundingPanel({
       await load();
       if (onRefresh) onRefresh();
     } catch (e) {
+      if (e?.response?.data?.action === "location_required") setLocationOverride({allowed:false,reason:e.response.data.error});
       if (e?.response?.data?.request_terminal === true) {
         (direction === "deposit" ? depositRequestKey : withdrawalRequestKey).current = "";
       }
@@ -279,7 +281,7 @@ export default function SeamlessFundingPanel({
             setCheckingLocation(true);
             try {
               const {data} = await base44.functions.invoke("getCurrentJurisdiction",{triggerEvent:"bank_verification_start"});
-              setLocationOverride({allowed:data?.status === "approved",reason:data?.reason || "Location could not be verified."});
+              setLocationOverride(evaluateJurisdictionAccess(data));
             } catch { setLocationOverride({allowed:false,reason:"Location could not be verified. Please try again."}); }
             finally { setCheckingLocation(false); }
           }}>{checkingLocation ? "Checking location…" : "Verify location"}</button></>}
