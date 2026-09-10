@@ -6,7 +6,6 @@ import ChessboardPreview from "@/components/play/ChessboardPreview";
 import MatchCenter from "@/components/play/MatchCenter";
 import MatchView from "@/components/play/MatchView";
 import RestrictedModeBanner from "@/components/RestrictedModeBanner";
-import RealMoneyLaunchNotice from "@/components/RealMoneyLaunchNotice";
 import { useChessGame } from "@/hooks/useChessGame";
 import { useSize } from "@/hooks/use-size";
 import { useTouchOnlyInput } from "@/hooks/use-touch-only-input";
@@ -390,7 +389,6 @@ export default function Home() {
         </div>
         <div className="mt-3 space-y-3">
           <RestrictedModeBanner />
-          {boardState === "marketplace" && <RealMoneyLaunchNotice />}
         </div>
       </motion.div>
 
