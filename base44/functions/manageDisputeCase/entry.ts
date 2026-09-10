@@ -444,11 +444,55 @@ Deno.serve(async (req) => {
             walletTransactionIds.push(loserRefundTx.id);
             legs.push({ ledgerAccount: 'user_account', userId: loserId, debit: 0, credit: entryAmount, transactionType: 'reversal', walletTransactionId: loserRefundTx.id });
           }
-          let contestClearingNet = payout - entryAmount;
+          // Fee treatment is independent of the contest-entry remedy. If the
+          // administrator elects to refund the Platform Service Fee, reverse
+          // the exact revenue previously recognized at decisive settlement and
+          // credit each participant their separately disclosed per-player fee.
+          // Never route a fee reversal through contest_clearing: the fee never
+          // belonged to the contest pool in the first place.
           if (feeTreatment === 'refunded' && fee > 0) {
+            const feeRefundTargets = [winnerId, loserId].filter(Boolean);
+            if (
+              feeRefundTargets.length !== 2 ||
+              !(feePerPlayer > 0) ||
+              Math.round(feePerPlayer * feeRefundTargets.length * 100) !== Math.round(fee * 100)
+            ) {
+              return Response.json({ error: 'platform_fee_reversal_evidence_invalid' }, { status: 409 });
+            }
             legs.push({ ledgerAccount: 'platform_revenue', debit: fee, credit: 0, transactionType: 'reversal' });
-            contestClearingNet -= fee;
+            for (const playerId of feeRefundTargets) {
+              const feeRefundTx = await base44.asServiceRole.entities.WalletTransaction.create({
+                user_id: playerId,
+                type: 'service_fee_refund',
+                amount: feePerPlayer,
+                match_id: match.id,
+                description: `Platform service fee refunded — contest reversed, Case #${fmtCase(disputeCase.case_number)}`,
+                status: 'completed',
+                direction: 'credit',
+                correlation_id: disputeCase.id,
+                source_event: 'dispute_case_contest_reversal',
+                initiating_actor: 'administrator',
+                initiating_actor_id: admin.id,
+                launch_epoch: 2,
+              });
+              walletTransactionIds.push(feeRefundTx.id);
+              legs.push({
+                ledgerAccount: 'user_account',
+                userId: playerId,
+                debit: 0,
+                credit: feePerPlayer,
+                transactionType: 'reversal',
+                walletTransactionId: feeRefundTx.id,
+              });
+            }
           }
+
+          // The contest pool math remains entry-only. The winner's full payout
+          // is clawed back, the original loser receives their entry back, and
+          // the residual entry value returns to contest_clearing for whatever
+          // separate administrative disposition applies. Fee refunds above are
+          // balanced only against platform_revenue.
+          const contestClearingNet = payout - entryAmount;
           if (contestClearingNet > 0) legs.push({ ledgerAccount: 'contest_clearing', debit: 0, credit: contestClearingNet, transactionType: 'reversal' });
           else if (contestClearingNet < 0) legs.push({ ledgerAccount: 'contest_clearing', debit: -contestClearingNet, credit: 0, transactionType: 'reversal' });
 
