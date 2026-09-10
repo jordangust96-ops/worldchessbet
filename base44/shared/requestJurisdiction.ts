@@ -203,7 +203,7 @@ async function getReusableVerification(base44, userId, ip) {
   };
 }
 
-export async function getRequestJurisdiction(req, context = null) {
+export async function getRequestJurisdiction(req, context = null, policy = { fresh: false, requireLocation: false }) {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
@@ -247,7 +247,7 @@ export async function getRequestJurisdiction(req, context = null) {
     // location check. It does not waive hosted bank verification, MFA,
     // balance, bank verification, ledger safeguards, or the
     // SEAMLESS_DEPOSITS_ENABLED funding gate.
-    if (user.role === 'admin') {
+    if (user.role === 'admin' && !policy.requireLocation) {
       const now = new Date().toISOString();
       await base44.asServiceRole.entities.User.update(user.id, {
         jurisdiction_status: 'approved',
@@ -302,7 +302,7 @@ export async function getRequestJurisdiction(req, context = null) {
       status = 'unknown';
       reason = UNKNOWN_MESSAGE;
     } else {
-      cachedVerification = liveCheckForcedByAdmin ? null : await getReusableVerification(base44, user.id, ip);
+      cachedVerification = liveCheckForcedByAdmin || policy.fresh ? null : await getReusableVerification(base44, user.id, ip);
       if (cachedVerification) {
         status = cachedVerification.status;
         reason = cachedVerification.reason;
