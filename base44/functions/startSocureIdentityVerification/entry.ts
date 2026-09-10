@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
-import { identityConfig, startIdentityEvaluation, safeHostedUrl } from '../../shared/socureIdentity.ts';
+import { identityConfig, startIdentityEvaluation, readIdentityEvaluation } from '../../shared/socureIdentity.ts';
 import { hasVerifiedIdentity, KYC_POLICY_VERSION } from '../../shared/identityEligibility.js';
 import { encryptComplianceJson } from '../../shared/kycEvidenceArchive.ts';
 import { complianceRetentionUntil, requestIpAddress } from '../../shared/achAuthorization.js';
@@ -39,13 +39,19 @@ Deno.serve(async (req) => {
     ))[0];
     if (latest && ['rejected', 'review_required'].includes(latest.status))
       return Response.json({ error: 'Your verification needs support review. Contact hello@worldchessbet.com.', status: latest.status }, { status: 409 });
-    if (latest?.status === 'pending' && Date.parse(latest.expires_at) > Date.now()) {
-      const url = safeHostedUrl(latest.hosted_redirect_uri);
-      return url ? Response.json({ enabled: true, status: 'pending', redirect_uri: url })
-        : Response.json({ error: 'Your verification is being prepared. Please try again shortly.' }, { status: 409 });
+    if (latest?.status === 'pending') {
+      // Recheck the provider under the lock before replacing an unfinished attempt.
+      // Browser return URLs, stale UI state and elapsed time cannot authorize a restart.
+      const existing = await readIdentityEvaluation(config, latest.provider_evaluation_id);
+      if (existing.id !== latest.request_id || existing.eval_id !== latest.provider_evaluation_id ||
+          existing.workflow !== 'consumer_onboarding' || existing.environment_name !== 'Production')
+        throw Error('Verification correlation mismatch');
+      if (latest.completed_at || existing.eval_status !== 'evaluation_paused' ||
+          (existing.evaluation_status && existing.evaluation_status !== 'evaluation_paused'))
+        return Response.json({ enabled: true, status: 'pending' });
+      await base44.asServiceRole.entities.SocureIdentityVerification.update(latest.id,
+        { status: 'expired', failure_code: 'restarted_incomplete_session' });
     }
-    if (latest?.status === 'pending')
-      await base44.asServiceRole.entities.SocureIdentityVerification.update(latest.id, { status: 'expired', failure_code: 'session_expired' });
     const recent = await base44.asServiceRole.entities.SocureIdentityVerification.filter(
       { user_id: user.id, requested_at: { $gte: new Date(Date.now() - 86400000).toISOString() } }, '-requested_at', 4
     );
