@@ -9,7 +9,7 @@ export async function loadBackend(path, dependencies = {}, environment = {}) {
   const exports = {};
   let handler;
   const context = {
-    exports, Response, Request, URL, Date, JSON, console,
+    exports, Response, Request, URL, Date, JSON, console, Blob, CompressionStream, DecompressionStream,
     crypto: webcrypto, TextEncoder, TextDecoder, btoa, atob,
     Deno: { env: { get: (key) => environment[key] }, serve: (fn) => { handler = fn; } },
     require: (name) => {
