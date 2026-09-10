@@ -51,8 +51,13 @@ function terminalTrackerState(status: string) {
   return '';
 }
 
-function isClosedTrackerState(state: unknown) {
-  return ['failed', 'reversed', 'manual_review', 'settled'].includes(String(state || ''));
+function isClosedTrackerState(tracker: any) {
+  const state = String(tracker?.state || '');
+  // A newly accepted ACH debit can temporarily return 404 from the single-check
+  // endpoint while it is already visible in Seamless's dashboard. Keep those
+  // records in automated recovery instead of stranding them in manual review.
+  if (state === 'manual_review' && tracker?.last_error_code === 'seamless_http_404') return false;
+  return ['failed', 'reversed', 'manual_review', 'settled'].includes(state);
 }
 
 function extractProviderStatus(data: any) {
@@ -231,7 +236,7 @@ Deno.serve(async (req) => {
         const createdAt = timeMs(tx.created_date);
         if (!createdAt || nowMs - createdAt < INITIAL_DELAY_MS) return false;
         const tracker = trackerByTransaction.get(tx.id);
-        if (isClosedTrackerState(tracker?.state)) return false;
+        if (isClosedTrackerState(tracker)) return false;
         return !tracker?.next_check_at || timeMs(tracker.next_check_at) <= nowMs;
       })
       .sort((a, b) => {
@@ -411,6 +416,7 @@ Deno.serve(async (req) => {
       } catch (error) {
         const providerHttpStatus = Number((error as any)?.status || 0);
         const retryable = !providerHttpStatus ||
+          providerHttpStatus === 404 ||
           providerHttpStatus === 408 ||
           providerHttpStatus === 429 ||
           providerHttpStatus >= 500;
