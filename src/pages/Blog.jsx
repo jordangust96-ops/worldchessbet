@@ -7,7 +7,7 @@ import SEO from "@/components/seo/SEO";
 import { SITE_URL } from "@/lib/seoConfig";
 
 const BLOG_TITLE = "Cash Chess Strategy & Fair-Play Insights | ChessBet Blog";
-const BLOG_DESCRIPTION = "Read ChessBet guides on head-to-head blitz, rapid, and classical chess, fair-play protection, contest rules, match strategy, and the path to cash-prize competition.";
+const BLOG_DESCRIPTION = "Read ChessBet guides on head-to-head blitz, rapid, and classical chess, fair-play protection, contest rules, match strategy, and cash-prize competition.";
 const SORO_SCRIPT_ID = "soro-blog-widget";
 const SORO_EMBED_URL = "https://app.trysoro.com/api/embed/1ff2aa86-7de2-4a37-b949-e27846ab155b";
 
