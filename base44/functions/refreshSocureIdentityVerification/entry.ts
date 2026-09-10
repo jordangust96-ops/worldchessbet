@@ -72,7 +72,7 @@ Deno.serve(async req => {
       const previousAt = Date.parse(row.provider_event_at || '');
       if (Number.isFinite(previousAt) && eventAt < previousAt) return Response.json({status:row.status});
       stage = 'encrypt_evidence';
-      const archived = await encryptComplianceJson({source:'socure_api',retrieved_at:checkedAt,data});
+      const archived = await encryptComplianceJson({source:'socure_api',retrieved_at:checkedAt,data}, {compress:true});
       const patch = {
         status:result.status, provider_decision:['ACCEPT','REJECT','REVIEW'].includes(data.decision)?data.decision:'UNKNOWN',
         age_verified:result.age_verified === true, age_over_18:result.age_over_18 === true,
