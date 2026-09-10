@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 
 const MAX_ATTEMPTS = 5;
 const MFA_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
