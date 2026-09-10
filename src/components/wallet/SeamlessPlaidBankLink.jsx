@@ -136,6 +136,8 @@ export default function SeamlessPlaidBankLink({
         throw new Error(data?.reason || "Unable to open secure bank verification.");
       }
 
+      const hosted = new URL(data.link_url);
+      if (!["https://dashboard.seamlesschex.com","https://sandbox.seamlesschex.com"].includes(hosted.origin) || hosted.origin !== data.provider_origin || hosted.username || hosted.password) throw new Error("The secure bank link could not be validated.");
       setProviderOrigin(data.provider_origin);
       setLinkUrl(data.link_url);
     } catch (err) {
@@ -145,7 +147,7 @@ export default function SeamlessPlaidBankLink({
         ach_authorization_required: "Accept the ACH authorization before continuing.",
         trusted_app_origin_required: "Secure bank connection is unavailable from this address.",
       }[serverError];
-      setError(friendly || err?.message || "Unable to start secure bank verification.");
+      setError(friendly || (typeof serverError === "string" ? serverError : "") || err?.message || "Unable to start secure bank verification.");
     } finally {
       setBusy(false);
     }
