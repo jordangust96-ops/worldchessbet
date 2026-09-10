@@ -54,7 +54,7 @@ export const FAQ_SECTIONS = [
       {
         question: "What payment methods are accepted?",
         paragraphs: [
-          "At launch, ChessBet intends to support secure ACH bank transfers.",
+          "ChessBet supports ACH bank transfers through a connected bank account for eligible, verified users.",
           "Additional payment methods may be introduced over time.",
         ],
       },
@@ -130,7 +130,7 @@ export const FAQ_SECTIONS = [
       {
         question: "Is my money safe?",
         paragraphs: [
-          "At launch, customer funds are intended to be held by regulated banking partners while ChessBet maintains the application ledger.",
+          "ChessBet uses Seamless for bank authorization and payment processing while ChessBet maintains the application ledger. Funding and withdrawals remain subject to provider status, identity verification, and fraud-prevention review.",
         ],
       },
       {
