@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, Copy, ExternalLink, Loader2, ShieldCheck, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
-import { evaluateJurisdictionAccess } from "@/lib/jurisdictionAccess";
 import {
   ACH_AUTHORIZATION_TEXT,
   ACH_AUTHORIZATION_VERSION,
@@ -18,7 +17,6 @@ function legalNameParts(value) {
 
 export default function SeamlessPlaidBankLink({
   legalName,
-  hasWithdrawableBalance = false,
   disabled = false,
   onComplete,
 }) {
@@ -112,15 +110,8 @@ export default function SeamlessPlaidBankLink({
         throw new Error("Your electronic signature must exactly match your legal name.");
       }
 
-      if (!hasWithdrawableBalance) {
-        const { data: jurisdiction } = await base44.functions.invoke("getCurrentJurisdiction", {
-          triggerEvent: "bank_verification_start",
-        });
-        const decision = evaluateJurisdictionAccess(jurisdiction);
-        if (!decision.allowed) {
-          throw new Error(decision.reason || "Bank connection is unavailable from your current location.");
-        }
-      }
+      // Server-side bank onboarding validates saved location approval and KYC.
+      // Never repeat location verification while connecting or changing banks.
 
       const { data: profile } = await base44.functions.invoke("ensureSeamlessCustomer", {});
       if (!profile?.enabled) {
