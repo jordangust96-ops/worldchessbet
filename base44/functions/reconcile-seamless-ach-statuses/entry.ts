@@ -425,25 +425,31 @@ Deno.serve(async (req) => {
           : cleanText((error as any)?.message || 'status_lookup_failed', 128)
               .toLowerCase()
               .replace(/[^a-z0-9_-]+/g, '_');
+        const webhookConfirmedPending =
+          providerHttpStatus === 404 &&
+          cleanText(candidate.provider_last_status, 64).toLowerCase() === 'pending';
 
         tracker = await upsertTracker(base44, tracker, {
           wallet_transaction_id: candidate.id,
           provider_reference_id: providerRef,
-          state: retryable ? 'retryable_error' : 'manual_review',
-          provider_status: tracker?.provider_status || '',
+          state: webhookConfirmedPending ? 'active' : retryable ? 'retryable_error' : 'manual_review',
+          provider_status: webhookConfirmedPending ? 'pending' : tracker?.provider_status || '',
           normalized_status: tracker?.normalized_status || 'pending',
           attempt_count: attemptCount,
           first_seen_at: firstSeenAt,
           last_checked_at: nowIso,
           next_check_at: retryable ? nextLookupAt(attemptCount, nowMs) : nowIso,
           completed_at: retryable ? '' : nowIso,
-          last_error_code: errorCode,
-          description: retryable
-            ? 'Status lookup failed safely and will retry after backoff.'
-            : 'Status lookup requires manual review; no financial state was changed.',
+          last_error_code: webhookConfirmedPending ? '' : errorCode,
+          description: webhookConfirmedPending
+            ? 'Seamless reported the transaction pending by webhook; the single-payment endpoint has not indexed it yet, so recovery will retry after backoff.'
+            : retryable
+              ? 'Status lookup failed safely and will retry after backoff.'
+              : 'Status lookup requires manual review; no financial state was changed.',
         });
         trackerByTransaction.set(candidate.id, tracker);
-        if (retryable) summary.retryable_errors += 1;
+        if (webhookConfirmedPending) summary.pending += 1;
+        else if (retryable) summary.retryable_errors += 1;
         else summary.manual_review += 1;
 
         console.error(JSON.stringify({
