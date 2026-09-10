@@ -51,6 +51,9 @@ Deno.serve(async (req) => {
     const duplicate = verification.webhook_event_id === eventId;
     if (!duplicate && Number.isFinite(previousTime) && eventAt <= previousTime)
       return Response.json({ received: true, ignored: true, reason: 'older_event' });
+    const deadline = Date.parse(verification.expires_at || '');
+    if (verification.status === 'pending' && Number.isFinite(deadline) && eventAt > deadline)
+      return Response.json({ received: true, ignored: true, reason: 'expired_session' });
     if (verification.status === 'expired') return Response.json({ received: true, ignored: true, reason: 'expired_session' });
     if (!duplicate) {
       const result = body.event_type === 'workflow_execution_failed'
