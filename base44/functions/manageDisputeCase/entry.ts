@@ -590,8 +590,47 @@ Deno.serve(async (req) => {
               walletTransactionIds.push(loserRefundTx.id);
               legs.push({ ledgerAccount: 'user_account', userId: loserId, debit: 0, credit: entryAmount, transactionType: 'reversal', walletTransactionId: loserRefundTx.id });
             }
-            if (fee > 0) legs.push({ ledgerAccount: 'platform_revenue', debit: fee, credit: 0, transactionType: 'reversal' });
-            const contestClearingNet = payout - entryAmount * 2 - fee;
+            if (fee > 0) {
+              const feeRefundTargets = [winnerId, loserId].filter(Boolean);
+              if (
+                feeRefundTargets.length !== 2 ||
+                !(feePerPlayer > 0) ||
+                Math.round(feePerPlayer * feeRefundTargets.length * 100) !== Math.round(fee * 100)
+              ) {
+                return Response.json({ error: 'platform_fee_void_evidence_invalid' }, { status: 409 });
+              }
+              legs.push({ ledgerAccount: 'platform_revenue', debit: fee, credit: 0, transactionType: 'reversal' });
+              for (const playerId of feeRefundTargets) {
+                const feeRefundTx = await base44.asServiceRole.entities.WalletTransaction.create({
+                  user_id: playerId,
+                  type: 'service_fee_refund',
+                  amount: feePerPlayer,
+                  match_id: match.id,
+                  description: `Platform service fee refunded — contest voided, Case #${fmtCase(disputeCase.case_number)}`,
+                  status: 'completed',
+                  direction: 'credit',
+                  correlation_id: disputeCase.id,
+                  source_event: 'dispute_case_contest_void',
+                  initiating_actor: 'administrator',
+                  initiating_actor_id: admin.id,
+                  launch_epoch: 2,
+                });
+                walletTransactionIds.push(feeRefundTx.id);
+                legs.push({
+                  ledgerAccount: 'user_account',
+                  userId: playerId,
+                  debit: 0,
+                  credit: feePerPlayer,
+                  transactionType: 'reversal',
+                  walletTransactionId: feeRefundTx.id,
+                });
+              }
+            }
+            // A settled void restores both entry amounts from the clawed-back
+            // payout. The Platform Service Fee reversal is handled separately
+            // above against platform_revenue, so it never contaminates the
+            // contest-clearing account.
+            const contestClearingNet = payout - entryAmount * 2;
             if (contestClearingNet > 0) legs.push({ ledgerAccount: 'contest_clearing', debit: 0, credit: contestClearingNet, transactionType: 'reversal' });
             else if (contestClearingNet < 0) legs.push({ ledgerAccount: 'contest_clearing', debit: -contestClearingNet, credit: 0, transactionType: 'reversal' });
 
