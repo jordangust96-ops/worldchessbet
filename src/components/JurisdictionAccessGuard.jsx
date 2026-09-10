@@ -12,7 +12,8 @@ import JurisdictionWaitlistOptIn from "@/components/jurisdiction/JurisdictionWai
 // Layout guard that gates every protected product/admin page behind a single
 // authenticated MaxMind access check. Called once per authenticated user id
 // (deduplicated across StrictMode/concurrent mounts via getJurisdictionCheck).
-// No retry, timer, focus/visibility/navigation listener, or local/session
+// Only an explicit user retry reloads the page for another check. No automatic
+// retry, timer, focus/visibility/navigation listener, or local/session
 // storage. Never logs raw response, IP, or provider diagnostics.
 
 const BLOCKED_COPY =
@@ -44,7 +45,7 @@ function ApprovedJurisdictionsCard() {
 }
 
 function UnavailableScreen({ reason, promptEligible, userEmail, onSignOut }) {
-  const message = reason || BLOCKED_COPY;
+  const message = reason || (promptEligible ? BLOCKED_COPY : evaluateJurisdictionAccess(null).reason);
   return (
     <div className="fixed inset-0 overflow-y-auto bg-background">
       <div className="mx-auto flex min-h-full max-w-md flex-col items-center justify-center gap-6 px-6 py-16 text-center">
@@ -54,7 +55,7 @@ function UnavailableScreen({ reason, promptEligible, userEmail, onSignOut }) {
 
         <div className="space-y-2">
           <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
-            ChessBet isn’t available in your location
+            {promptEligible ? "ChessBet isn’t available in your location" : "We couldn’t verify your location"}
           </h1>
           <p className="font-body text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
             {message}
@@ -70,7 +71,13 @@ function UnavailableScreen({ reason, promptEligible, userEmail, onSignOut }) {
           </>
         )}
 
-        <Button onClick={onSignOut} variant="default" className="w-full">
+        {!promptEligible && (
+          <Button onClick={() => window.location.reload()} variant="default" className="w-full">
+            Check location again
+          </Button>
+        )}
+
+        <Button onClick={onSignOut} variant="outline" className="w-full">
           <LogOut className="h-4 w-4" />
           Sign out
         </Button>
