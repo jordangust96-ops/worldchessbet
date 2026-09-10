@@ -63,14 +63,15 @@ const GEO_MISMATCH_THRESHOLD_KM = 100;
 // these values as the percent confidence that the returned geography is
 // correct. A state-level decision below this floor is too uncertain to use
 // for paid activity, even when the returned state happens to be allowlisted.
-// Keep the defaults conservative and server-only; environment values may be
-// raised later without a code change, but never lowered below 50 here.
+// Server-only policy floors: country 50%, state/subdivision 10%.
+// State confidence temporarily lowered by operator request on 2026-09-10.
+// Environment values may raise either minimum, but cannot lower its floor.
 function confidenceFloor(name, fallback = 50) {
   const raw = Number(Deno.env.get(name));
   return Number.isFinite(raw) ? Math.max(fallback, Math.min(100, raw)) : fallback;
 }
 const MIN_COUNTRY_CONFIDENCE = confidenceFloor('MAXMIND_MIN_COUNTRY_CONFIDENCE');
-const MIN_SUBDIVISION_CONFIDENCE = confidenceFloor('MAXMIND_MIN_SUBDIVISION_CONFIDENCE');
+const MIN_SUBDIVISION_CONFIDENCE = confidenceFloor('MAXMIND_MIN_SUBDIVISION_CONFIDENCE', 10);
 
 function hasSufficientLocationConfidence(lookup) {
   return (
