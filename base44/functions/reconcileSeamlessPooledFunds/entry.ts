@@ -102,13 +102,13 @@ Deno.serve(async (req) => {
 
     const bucket = checkedAt.slice(0, 13);
     const idempotencyKey = `seamless-api-hourly-${bucket}`;
-    const existing = (await base44.asServiceRole.entities.SeamlessMerchantBalanceSnapshot.filter(
+    const existing = (await base44.asServiceRole.entities['seamless-merchant-balance-snapshot'].filter(
       { idempotency_key: idempotencyKey },
       '-created_at',
       1
     ))[0];
     if (existing) {
-      const reconciliation = (await base44.asServiceRole.entities.SeamlessPooledFundsReconciliation.filter(
+      const reconciliation = (await base44.asServiceRole.entities['seamless-pooled-funds-reconciliation'].filter(
         { snapshot_id: existing.id },
         '-created_at',
         1
@@ -162,7 +162,7 @@ Deno.serve(async (req) => {
       staleAfterHours: 2,
     });
 
-    const snapshot = await base44.asServiceRole.entities.SeamlessMerchantBalanceSnapshot.create({
+    const snapshot = await base44.asServiceRole.entities['seamless-merchant-balance-snapshot'].create({
       provider_key: SEAMLESS_PROVIDER_KEY,
       available_balance: result.provider_available_balance,
       pending_balance: result.provider_pending_balance,
@@ -189,7 +189,7 @@ Deno.serve(async (req) => {
       created_at: checkedAt,
     };
     if (fields.coverage_ratio == null) delete fields.coverage_ratio;
-    const reconciliation = await base44.asServiceRole.entities.SeamlessPooledFundsReconciliation.create(fields);
+    const reconciliation = await base44.asServiceRole.entities['seamless-pooled-funds-reconciliation'].create(fields);
 
     await upsertFinding(base44, result, reconciliation.id, checkedAt);
     await recordIntegrationEvent(base44, {
