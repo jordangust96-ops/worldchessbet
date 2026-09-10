@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
     if (!seamlessDepositsEnabled()) {
       return Response.json({
         enabled: false,
-        reason: 'Account funding is not available yet.',
+        reason: 'Account funding is temporarily unavailable.',
       }, { status: 409 });
     }
     seamlessConfig(); // fail closed
