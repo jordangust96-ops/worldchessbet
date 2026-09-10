@@ -42,8 +42,8 @@ const SECTIONS = [
       "Cash-prize activity requires verified identity, an eligible location, and a supported funding account.",
     points: [
       "Every contest shows its entry amount and platform service fee before commitment",
-      "The winner of a decisive contest receives the combined contest entry amounts",
-      "Eligibility is checked before funding is available in supported U.S. locations",
+      "The winner of a decisive contest receives the combined contest entry amounts after the 24-hour reporting window closes without a report",
+      "Identity and location eligibility are checked before funding or paid contest play",
     ],
   },
 ];
