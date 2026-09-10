@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
           : classifyKyc(data);
       }
       // ACCEPT alone, absent verified DOB evidence, remains review_required.
-      const archived = await encryptComplianceJson(evidenceData === data ? body : { ...body, data: evidenceData, decision_update: data });
+      const archived = await encryptComplianceJson(evidenceData === data ? body : { ...body, data: evidenceData, decision_update: data }, {compress:true});
       const now = new Date().toISOString();
       const updated = {
         status: result.status, age_verified: result.age_verified,
