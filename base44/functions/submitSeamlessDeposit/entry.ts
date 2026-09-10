@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { seamlessDepositsEnabled } from '../../shared/seamlessFundingConfig.ts';
 import { extendComplianceEvidenceRetention } from '../../shared/complianceEvidence.ts';
+import { meetsStateAge } from '../../shared/playerAgePolicy.js';
 import { hasVerifiedIdentity } from '../../shared/identityEligibility.js';
 import { legalNameFromUser } from '../../shared/legalName.ts';
 import {
@@ -123,6 +124,9 @@ Deno.serve(async (req) => {
         { error: jurisdiction.data?.reason || 'You are not currently eligible to fund your account from this location.' },
         { status: 403 }
       );
+    }
+    if (!meetsStateAge(await base44.asServiceRole.entities.User.get(user.id), jurisdiction.data?.state)) {
+      return Response.json({ eligible: false, error: 'Identity verification and age 21+ are required in an approved state.', reason: 'Identity verification and age 21+ are required in an approved state.' }, { status: 403 });
     }
 
     // Durable idempotency: create the pending WalletTransaction FIRST with a
