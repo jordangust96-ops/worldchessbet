@@ -209,7 +209,7 @@ export default function FairPlayIntegrity() {
           </p>
           <p className="text-sm text-white/60 leading-relaxed">
             Legal moves, game state, results, and chess clocks are validated and recorded by ChessBet's
-            servers. After settlement, completed contests are queued for Stockfish-powered screening.
+            servers. After completion, contests are queued for Stockfish-powered screening.
             Depending on the available game data, that screening may evaluate engine move agreement,
             centipawn loss, critical-position performance, move timing, and focus-loss events.
           </p>
