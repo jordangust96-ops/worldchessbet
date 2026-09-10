@@ -227,7 +227,7 @@ export default function WalletPage() {
               <p className="text-sm font-bold text-[#C9A84C]">
                 ${Number(wallet?.held_balance ?? 0).toFixed(2)}
               </p>
-              <p className="mt-0.5 text-[10px] text-white/25">Not available yet</p>
+              <p className="mt-0.5 text-[10px] text-white/25">Unavailable until settled</p>
             </div>
           </div>
         </div>
