@@ -13,7 +13,7 @@
     },
     "identity_verification_status": {
       "type": "string",
-      "description": "Authoritative server-maintained account-verification state derived from Seamless hosted Plaid funding-source webhooks.",
+      "description": "Server-maintained Socure player KYC status. Bank authorization never grants identity verification.",
       "enum": [
         "not_started",
         "pending",
@@ -31,7 +31,7 @@
     "identity_verified_at": {
       "type": "string",
       "format": "date-time",
-      "description": "Timestamp when Seamless confirmed the player's bank funding source. Re-verification is required if that source later fails, expires, or is deleted.",
+      "description": "Timestamp of authenticated Socure KYC acceptance with verified age evidence.",
       "rls": {
         "write": false
       }
@@ -202,7 +202,7 @@
     },
     "account_state": {
       "type": "string",
-      "description": "Internal account status. provisional: created but no webhook-verified Seamless bank is active; may access the Platform but not deposit, withdraw, or enter paid Contests. verified: hosted bank verification complete; full participation, subject to ongoing eligibility checks. suspended: temporarily restricted; no new Contests, deposits, or withdrawals and the existing balance is preserved. closed: permanently closed. Restricted states are never overridden by provider webhooks.",
+      "description": "provisional: KYC incomplete; verified: KYC accepted; suspended/closed: restricted. Bank linking does not change account state.",
       "enum": [
         "provisional",
         "verified",
@@ -259,6 +259,33 @@
       "description": "Opaque capability token required by public marketing unsubscribe links",
       "rls": {
         "read": false,
+        "write": false
+      }
+    },
+    "identity_age_verified": {
+      "type": "boolean",
+      "default": false,
+      "rls": {
+        "write": false
+      }
+    },
+    "identity_age_over_18": {
+      "type": "boolean",
+      "default": false,
+      "rls": {
+        "write": false
+      }
+    },
+    "identity_age_over_21": {
+      "type": "boolean",
+      "default": false,
+      "rls": {
+        "write": false
+      }
+    },
+    "identity_policy_version": {
+      "type": "string",
+      "rls": {
         "write": false
       }
     }
