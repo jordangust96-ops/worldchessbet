@@ -9,7 +9,7 @@ import WalletSetupStep from "./WalletSetupStep";
 
 // Browsing never starts a lookup. Only the explicit deposit button below
 // checks location; identity and bank setup stay gated on its result.
-export default function DepositLocationStep({ decision, onDecision }) {
+export default function DepositLocationStep({ decision, onDecision, journey }) {
   const { user } = useAuth();
   const [checking, setChecking] = useState(false);
   const inProgress = useRef(false);
@@ -32,13 +32,13 @@ export default function DepositLocationStep({ decision, onDecision }) {
   };
   return (
     <WalletSetupStep number={1} label="Location verification"
-      title={approved ? "Location Verified" : checking ? "Checking location" : decision ? "Location verification required" : "Ready to make a deposit?"}
+      title={approved ? "Location Verified" : checking ? "Checking location" : decision ? "Location verification required" : "Location check"}
       complete={approved} pending={checking}
-      description={approved ? null : decision?.reason || "Start with a location check, then verify your identity and connect your bank. You can browse without completing these steps."}>
+      description={approved ? null : decision?.reason || journey?.locationDescription || "Check your current location before a new deposit."}>
       {!approved && (
         <button type="button" onClick={startDeposit} disabled={checking || !user?.id}
           className="mt-3 w-full rounded-xl gold-gradient px-4 py-3 text-sm font-semibold text-black disabled:opacity-40 sm:w-auto">
-          {checking ? "Checking location…" : decision ? "Check location again" : "Start deposit"}
+          {checking ? "Checking location…" : decision ? "Check location again" : journey?.locationAction || "Check location"}
         </button>
       )}
       {decision && !approved && (
