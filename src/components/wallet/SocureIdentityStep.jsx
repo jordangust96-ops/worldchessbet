@@ -3,12 +3,12 @@ import { Loader2 } from "lucide-react";
 import WalletSetupStep from "./WalletSetupStep";
 import { base44 } from "@/api/base44Client";
 
-export default function SocureIdentityStep({ identity, onRefresh, locationApproved = true }) {
+export default function SocureIdentityStep({ identity, onRefresh, locationApproved = false }) {
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const status = identity?.verified ? "verified" : identity?.status || "not_started";
-  const canStart = !identity?.submitted && identity?.can_start && ["not_started", "incomplete", "expired", "failed"].includes(status);
+  const canStart = locationApproved && !identity?.submitted && identity?.can_start && ["not_started", "incomplete", "expired", "failed"].includes(status);
   const titles = {
     verified: "Identity Verified",
     pending: identity?.submitted ? "Verification submitted — pending" : "Confirming verification status",
@@ -20,6 +20,7 @@ export default function SocureIdentityStep({ identity, onRefresh, locationApprov
     not_started: "Verify your identity",
   };
   const start = async () => {
+    if (!canStart || !consent || busy) return;
     setBusy(true); setError("");
     try {
       const { data } = await base44.functions.invoke("startSocureIdentityVerification", { consent });

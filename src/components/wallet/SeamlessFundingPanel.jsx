@@ -9,7 +9,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { base44 } from "@/api/base44Client";
-import { evaluateJurisdictionAccess } from "@/lib/jurisdictionAccess";
+import DepositLocationStep from "./DepositLocationStep";
 import SeamlessPlaidBankLink from "./SeamlessPlaidBankLink";
 import SocureIdentityStep from "./SocureIdentityStep";
 import WalletSetupStep from "./WalletSetupStep";
@@ -86,7 +86,6 @@ function BankRow({ bank, busy, onMakePrimary, onDisconnect }) {
 
 export default function SeamlessFundingPanel({
   wallet,
-  jurisdictionDecision,
   accountState,
   withdrawalHold,
   onRefresh,
@@ -98,7 +97,6 @@ export default function SeamlessFundingPanel({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [locationOverride, setLocationOverride] = useState(null);
-  const [checkingLocation, setCheckingLocation] = useState(false);
   const [amount, setAmount] = useState("");
   const [direction, setDirection] = useState("deposit");
   const [showBankManager, setShowBankManager] = useState(false);
@@ -222,7 +220,7 @@ export default function SeamlessFundingPanel({
   const isFullBalanceWithdrawal =
     !!wallet && parsedAmount > 0 && parsedAmount >= (wallet.available_balance || 0) - 0.005;
 
-  const location = locationOverride || jurisdictionDecision;
+  const location = locationOverride;
   const locationApproved = location?.allowed === true;
   const depositsEnabled = !!state?.deposits_enabled && locationApproved;
   const withdrawalsEnabled = !!state?.withdrawals_enabled;
@@ -282,17 +280,7 @@ export default function SeamlessFundingPanel({
           <span className="text-xs text-white/60">{[locationApproved, !!state?.identity?.verified, depositSourceReady].filter(Boolean).length} of 3 complete</span>
         </div>
         <div className="divide-y divide-white/10">
-          <WalletSetupStep number={1} label="Location verification" title={locationApproved ? "Location Verified" : checkingLocation ? "Checking location" : "Verify your location"} complete={locationApproved} pending={checkingLocation}
-            description={locationApproved ? null : location?.reason || "Confirm that you are in an eligible location."}>
-            {!locationApproved && <button type="button" disabled={checkingLocation} className="mt-3 w-full rounded-xl gold-gradient px-4 py-3 text-sm font-semibold text-black disabled:opacity-40 sm:w-auto" onClick={async () => {
-              setCheckingLocation(true);
-              try {
-                const {data} = await base44.functions.invoke("getCurrentJurisdiction",{triggerEvent:"bank_verification_start"});
-                setLocationOverride(evaluateJurisdictionAccess(data));
-              } catch { setLocationOverride({allowed:false,reason:"Location could not be verified. Please try again."}); }
-              finally { setCheckingLocation(false); }
-            }}>{checkingLocation ? "Checking location…" : "Verify location"}</button>}
-          </WalletSetupStep>
+          <DepositLocationStep decision={location} onDecision={setLocationOverride} />
           <SocureIdentityStep identity={{...state?.identity,can_start:state?.identity?.can_start && locationApproved}} locationApproved={locationApproved} onRefresh={load} />
           <WalletSetupStep number={3} label="Bank connection" title={depositSourceReady ? "Bank Connected" : bankPending ? "Bank verification pending" : bankReady ? "Choose your deposit bank" : bankNeedsAttention ? "Bank connection needs attention" : "Connect your bank"} complete={depositSourceReady} pending={!depositSourceReady && bankPending} attention={bankNeedsAttention && !bankPending}
             description={depositSourceReady ? providerPrimaryBank?.account_name || "Your deposit bank is connected." : bankPending ? "Awaiting bank confirmation. This page updates automatically." : bankReady ? "Select a verified bank in the funding section below." : bankNeedsAttention ? "Review the bank details below and reconnect your account." : !locationApproved || !accountVerified ? "Next, after location and identity verification." : !hostedPlaidEnabled ? "Bank connection is temporarily unavailable." : "Use the secure bank connection form below."} />

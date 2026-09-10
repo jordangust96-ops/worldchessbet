@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Outlet, useOutletContext } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import AcceptPolicyPrompt from "@/components/legal/AcceptPolicyPrompt";
 import { POLICY_TYPE_ORDER } from "@/lib/legalDocumentTypes";
@@ -11,7 +11,6 @@ import { POLICY_TYPE_ORDER } from "@/lib/legalDocumentTypes";
 // blocks navigation with an in-page prompt, one document at a time, until
 // they've accepted all of them.
 export default function PolicyAcceptanceGuard() {
-  const jurisdictionDecision = useOutletContext();
   const [loading, setLoading] = useState(true);
   const [pendingQueue, setPendingQueue] = useState([]);
 
@@ -60,5 +59,5 @@ export default function PolicyAcceptanceGuard() {
     );
   }
 
-  return <Outlet context={jurisdictionDecision} />;
+  return <Outlet />;
 }

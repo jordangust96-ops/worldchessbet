@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Link, useOutletContext } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import Logo from "@/components/Logo";
@@ -28,15 +28,6 @@ async function listCompletedMatchesForPlayer(field, userId) {
 }
 
 export default function WalletPage() {
-  // Set by JurisdictionAccessGuard: { allowed, reason, promptEligible }. The
-  // Wallet route is the one protected route the guard lets a jurisdiction-
-  // blocked user reach (see JurisdictionAccessGuard.jsx) so balance and
-  // withdrawal stay available regardless of jurisdiction. Deposit- and
-  // gameplay-adjacent actions (new bank linking) still re-check
-  // jurisdiction immediately before starting, so this
-  // value is passed through for context/messaging only, not used to hide the
-  // page itself.
-  const jurisdictionDecision = /** @type {{ allowed: boolean, reason?: string, promptEligible?: boolean } | null} */ (useOutletContext());
   const [wallet, setWallet] = useState(null);
   const [pendingDeposits, setPendingDeposits] = useState(0);
   const [userId, setUserId] = useState(null);
@@ -215,16 +206,6 @@ export default function WalletPage() {
         </Link>
         <RestrictedModeBanner />
 
-        {jurisdictionDecision && !jurisdictionDecision.allowed && (
-          <div className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.06] p-4 text-center">
-            <p className="text-xs text-amber-200/80">
-              {jurisdictionDecision.reason ||
-                "Paid contests aren't available from your current location."}{" "}
-              Your balance stays yours — you can still withdraw it below.
-            </p>
-          </div>
-        )}
-
         {/* Balance Card */}
         <div className="rounded-3xl bg-gradient-to-br from-[#1A1A1A] to-[#111] border border-white/5 p-6 text-center">
           <p className="text-xs uppercase tracking-widest text-white/40 mb-2">Total Balance</p>
@@ -256,7 +237,6 @@ export default function WalletPage() {
 
         <SeamlessFundingPanel
           wallet={wallet}
-          jurisdictionDecision={jurisdictionDecision}
           accountState={accountState}
           withdrawalHold={withdrawalHold}
           onRefresh={loadData}

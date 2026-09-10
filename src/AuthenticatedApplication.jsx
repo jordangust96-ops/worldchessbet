@@ -44,7 +44,6 @@ const AppLayout = lazy(() => import("@/components/layout/AppLayout"));
 const MfaGuard = lazy(() => import("@/components/MfaGuard"));
 const AdminGuard = lazy(() => import("@/components/AdminGuard"));
 const PolicyAcceptanceGuard = lazy(() => import("@/components/legal/PolicyAcceptanceGuard"));
-const JurisdictionAccessGuard = lazy(() => import("@/components/JurisdictionAccessGuard"));
 
 function LoadingScreen() {
   return (
@@ -96,7 +95,6 @@ function RoutedApplication() {
         <Route path="/join/:inviteCode" element={<JoinMatch />} />
 
         <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/" replace />} />}>
-          <Route element={<JurisdictionAccessGuard />}>
             <Route path="/verify-mfa" element={<VerifyMfa />} />
             <Route element={<MfaGuard />}>
               <Route element={<PolicyAcceptanceGuard />}>
@@ -122,7 +120,6 @@ function RoutedApplication() {
                 </Route>
               </Route>
             </Route>
-          </Route>
         </Route>
 
         <Route path="*" element={<PageNotFound />} />

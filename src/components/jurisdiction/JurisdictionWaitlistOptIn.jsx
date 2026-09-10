@@ -18,7 +18,7 @@ import {
 } from "@/lib/jurisdictionRegions";
 
 // Opt-in for the blocked-jurisdiction waitlist. Shown ONLY by
-// JurisdictionAccessGuard when the jurisdiction response positively determined
+// DepositLocationStep when the jurisdiction response positively determined
 // the authenticated user is outside the approved jurisdictions (status
 // "blocked", enforcement on, no anonymizer). Never shown for VPN/proxy,
 // provider errors, unknown/missing location, or disabled enforcement.

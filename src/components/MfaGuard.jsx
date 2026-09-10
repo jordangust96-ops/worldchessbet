@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
-import { Navigate, Outlet, useOutletContext } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { clearMfaVerified, getMfaSessionToken } from "@/lib/mfaSession";
 
 export default function MfaGuard() {
-  const jurisdictionDecision = useOutletContext();
   const [status, setStatus] = useState("checking");
   const token = getMfaSessionToken();
 
@@ -39,5 +38,5 @@ export default function MfaGuard() {
     );
   }
   if (status !== "valid") return <Navigate to="/verify-mfa" replace />;
-  return <Outlet context={jurisdictionDecision} />;
+  return <Outlet />;
 }
