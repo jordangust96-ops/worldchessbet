@@ -36,7 +36,7 @@ export function classifyKyc(data, now = new Date()) {
   const dob = verifiedBirthDate(data);
   const age = ageOn(dob, now);
   if (age === null) return { status: 'review_required', age_verified: false, failure_code: 'verified_age_evidence_missing' };
-  if (age < 18) return { status: 'rejected', age_verified: false, failure_code: 'minimum_age_not_met' };
+  if (age < 21) return { status: 'rejected', age_verified: true, age_over_18: age >= 18, age_over_21: false, failure_code: 'minimum_age_not_met' };
   return { status: 'verified', age_verified: true, age_over_18: true, age_over_21: age >= 21,
     failure_code: '', verified_dob: dob };
 }
