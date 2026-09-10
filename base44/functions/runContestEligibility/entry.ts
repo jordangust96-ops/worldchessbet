@@ -1,5 +1,6 @@
 import { paidContestsEnabled } from '../../shared/seamlessFundingConfig.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { meetsStateAge } from '../../shared/playerAgePolicy.js';
 import { hasVerifiedIdentity } from '../../shared/identityEligibility.js';
 
 // Single authoritative eligibility pipeline for contest participation.
@@ -9,7 +10,7 @@ import { hasVerifiedIdentity } from '../../shared/identityEligibility.js';
 // of this validation logic anywhere else.
 //
 // Checks run in a fixed, cost-aware order:
-//   1. Account Verification (authoritative Seamless hosted Plaid server result)
+//   1. Account Verification (authenticated Socure identity and age server result)
 //   2. Participation Restrictions (admin-applied withdrawal_hold)
 //   3. Available Balance Check (>= entryAmount)
 //   4. Jurisdiction Check (fresh or same-IP short-cache, server-side)
@@ -38,7 +39,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Invalid entry amount' }, { status: 400 });
     }
 
-    // 1. Account Verification — only an authoritative Seamless hosted Plaid result is
+    // 1. Account Verification — only an authenticated Socure identity and age result is
     // eligible for real-money contest activity.
     if (!await hasVerifiedIdentity(base44, user)) {
       const reason =
@@ -46,7 +47,7 @@ Deno.serve(async (req) => {
           ? 'Your account is currently suspended and cannot enter paid contests.'
           : user.account_state === 'closed'
           ? 'This account is closed and cannot enter paid contests.'
-          : 'You must connect and verify a bank before you can enter a paid contest.';
+          : 'Verify your identity and confirm you are 21 or older before entering a paid contest.';
       return Response.json({ eligible: false, reason });
     }
 
@@ -79,6 +80,9 @@ Deno.serve(async (req) => {
         eligible: false,
         reason: jurisdictionRes.data?.reason || 'You are not currently eligible to enter a contest from your location.',
       });
+    }
+    if (!meetsStateAge(await base44.asServiceRole.entities.User.get(user.id), jurisdictionRes.data?.state)) {
+      return Response.json({ eligible: false, error: 'Identity verification and age 21+ are required in an approved state.', reason: 'Identity verification and age 21+ are required in an approved state.' }, { status: 403 });
     }
 
     return Response.json({ eligible: true });
