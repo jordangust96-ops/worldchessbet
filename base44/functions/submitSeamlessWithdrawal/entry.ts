@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { seamlessWithdrawalsEnabled, seamlessRtpPayoutsEnabled } from '../../shared/seamlessFundingConfig.ts';
 import { extendComplianceEvidenceRetention } from '../../shared/complianceEvidence.ts';
-import { isSeamlessPlaidVerified } from '../../shared/identityEligibility.js';
+import { hasVerifiedIdentity } from '../../shared/identityEligibility.js';
 import { legalNameFromUser } from '../../shared/legalName.ts';
 import {
   seamlessConfig, seamlessRequest, seamlessBaseUrl, buildWithdrawalBody,
@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
     }
     seamlessConfig(); // fail closed before any provider mutation
     userId = user.id;
-    if (!isSeamlessPlaidVerified(user) || user.withdrawal_hold) {
+    if (!await hasVerifiedIdentity(base44, user) || user.withdrawal_hold) {
       return Response.json({ error: 'Your account is not eligible for bank transfers' }, { status: 403 });
     }
 
