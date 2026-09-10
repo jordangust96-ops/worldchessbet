@@ -237,6 +237,7 @@ export default function WalletPage() {
 
         <SeamlessFundingPanel
           wallet={wallet}
+          pendingDeposits={pendingDeposits}
           accountState={accountState}
           withdrawalHold={withdrawalHold}
           onRefresh={loadData}
