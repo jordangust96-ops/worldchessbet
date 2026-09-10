@@ -249,7 +249,7 @@ export default function SeamlessFundingPanel({
   if (loadError) return (
     <div role="alert" className="rounded-3xl border border-amber-500/20 bg-white/[0.03] p-5 space-y-3">
       <h4 className="font-semibold text-white">Unable to refresh your wallet</h4>
-      <p className="text-sm text-white/60">We could not confirm your latest bank and identity status. Transfers are paused on this screen until we reconnect. Your funds and linked accounts have not been changed.</p>
+      <p className="text-sm text-white/60">We could not confirm your latest bank and identity status. Transfers are paused on this screen until we reconnect. If you just submitted a transfer, check Transaction History once we reconnect before trying again.</p>
       <Button onClick={() => { setLoading(true); load(); }} className="gold-gradient text-black">Retry wallet connection</Button>
       {error && <p className="text-sm text-red-400">{error}</p>}
     </div>
