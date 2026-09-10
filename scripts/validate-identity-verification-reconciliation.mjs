@@ -24,8 +24,8 @@ let r=await run(admin);assert.equal(r.status,200);assert.equal(r.updates[0].iden
 assert.equal(r.updates[0].account_state,'provisional');assert.equal(r.releases,1);
 r=await run(admin,{...legacy,account_state:'suspended'});assert.ok(!('account_state' in r.updates[0]));
 r=await run(admin,legacy,null,false);assert.equal(r.updates.length,0,'in-flight identity update is not disturbed');
-const verified={...legacy,identity_verification_provider:'socure',identity_provider_reference:'eval',identity_policy_version:eligibility.KYC_POLICY_VERSION,identity_age_verified:true,identity_age_over_21:true};
-const row={user_id:'u1',provider_evaluation_id:'eval',workflow:'consumer_onboarding',environment:'production',policy_version:eligibility.KYC_POLICY_VERSION,
+const verified={...legacy,identity_legal_name:'Test Player',identity_verification_provider:'socure',identity_provider_reference:'eval',identity_policy_version:eligibility.KYC_POLICY_VERSION,identity_age_verified:true,identity_age_over_21:true};
+const row={user_id:'u1',verified_legal_name:'Test Player',provider_evaluation_id:'eval',workflow:'consumer_onboarding',environment:'production',policy_version:eligibility.KYC_POLICY_VERSION,
 status:'verified',provider_decision:'ACCEPT',age_verified:true,age_over_21:true,webhook_event_id:'event',provider_report_ciphertext:'cipher',provider_report_sha256:'hash',verified_valid_until:'2099-01-01T00:00:00Z'};
 assert.equal((await run(admin,verified,row)).updates.length,0);
 assert.equal((await run(admin,verified,{...row,verified_valid_until:'2020-01-01T00:00:00Z'})).updates.length,1);
