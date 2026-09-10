@@ -2,6 +2,7 @@ import { paidContestsEnabled } from '../../shared/seamlessFundingConfig.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { postLedgerLegs } from '../../shared/ledger.ts';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
+import { meetsStateAge } from '../../shared/playerAgePolicy.js';
 import { hasVerifiedIdentity } from '../../shared/identityEligibility.js';
 import { acquireUserWalletLock, releaseUserWalletLock } from '../../shared/seamlessAtomicStore.ts';
 
@@ -117,6 +118,9 @@ Deno.serve(async (req) => {
     });
     if (jurisdictionRes.data?.error || jurisdictionRes.data?.status !== 'approved') {
       return Response.json({ error: jurisdictionRes.data?.reason || 'You are not currently eligible to fund a contest entry from your location.' }, { status: 403 });
+    }
+    if (!meetsStateAge(await base44.asServiceRole.entities.User.get(user.id), jurisdictionRes.data?.state)) {
+      return Response.json({ eligible: false, error: 'Identity verification and age 21+ are required in an approved state.', reason: 'Identity verification and age 21+ are required in an approved state.' }, { status: 403 });
     }
 
     const fundingOperationField = isP1 ? 'player1_funding_operation_id' : 'player2_funding_operation_id';
