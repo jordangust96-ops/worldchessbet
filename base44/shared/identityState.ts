@@ -28,7 +28,7 @@ export async function identityState(base44, user) {
       : 'Your verification is under review. We will update your status once it is resolved.',
   };
   return { enabled, submitted, status: ageBlocked ? 'rejected' : status, verified: verified && !ageBlocked,
-    minimum_age: 21, can_start: enabled && !verified && !ageBlocked && ['not_started','incomplete','expired','failed'].includes(status) &&
+    minimum_age: 21, can_start: enabled && !verified && !submitted && !ageBlocked && ['not_started','incomplete','expired','failed'].includes(status) &&
       !['suspended','closed'].includes(current.account_state) && !current.withdrawal_hold,
     message: ageBlocked ? 'ChessBet currently requires players to be 21 or older for real-money activity.' : messages[status] || messages.review_required };
 }
