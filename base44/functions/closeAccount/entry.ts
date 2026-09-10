@@ -131,8 +131,8 @@ Deno.serve(async (req) => {
         }
         if (!await hasVerifiedIdentity(base44, user)) {
           return Response.json({
-            error: 'Connect and verify a bank before closing an account with a remaining balance.',
-            action: 'bank_verification_required',
+            error: 'Verify your identity (21+) before a self-service closure payout. Contact hello@worldchessbet.com for help returning existing funds.',
+            action: 'identity_verification_required',
             available_balance: payout,
           }, { status: 400 });
         }
