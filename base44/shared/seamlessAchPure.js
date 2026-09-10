@@ -33,7 +33,9 @@ export function buildCheckLookupPath(checkId) {
 export function buildMerchantBalanceLookupPath(userId) {
   const id = String(userId || '').trim();
   if (!id) throw new Error('Seamless merchant user_id required');
-  return `${PATH_BALANCE_CHECK}/${encodeURIComponent(id)}`;
+  // Seamless's balance API includes a literal colon before the user ID.
+  // https://developers-ach.seamlesschex.com/reference/retrieve-balance
+  return `${PATH_BALANCE_CHECK}/:${encodeURIComponent(id)}`;
 }
 
 export function formatAmount(value) {
