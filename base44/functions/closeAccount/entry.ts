@@ -3,7 +3,7 @@ import { postLedgerLegs } from '../../shared/ledger.ts';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 import { seamlessWithdrawalsEnabled } from '../../shared/seamlessFundingConfig.ts';
 import { extendComplianceEvidenceRetention } from '../../shared/complianceEvidence.ts';
-import { isSeamlessPlaidVerified } from '../../shared/identityEligibility.js';
+import { hasVerifiedIdentity } from '../../shared/identityEligibility.js';
 import { legalNameFromUser } from '../../shared/legalName.ts';
 import {
   seamlessConfig, seamlessRequest, buildWithdrawalBody,
@@ -129,7 +129,7 @@ Deno.serve(async (req) => {
             available_balance: payout,
           }, { status: 409 });
         }
-        if (!isSeamlessPlaidVerified(user)) {
+        if (!await hasVerifiedIdentity(base44, user)) {
           return Response.json({
             error: 'Connect and verify a bank before closing an account with a remaining balance.',
             action: 'bank_verification_required',
