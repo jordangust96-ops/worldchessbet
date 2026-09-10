@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { ShieldCheck, Loader2, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import WalletSetupStep from "./WalletSetupStep";
 import { base44 } from "@/api/base44Client";
 
-export default function SocureIdentityStep({ identity, onRefresh }) {
+export default function SocureIdentityStep({ identity, onRefresh, locationApproved = true }) {
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -18,9 +19,6 @@ export default function SocureIdentityStep({ identity, onRefresh }) {
     expired: "Verification expired",
     not_started: "Verify your identity",
   };
-  const Icon = status === "verified" ? CheckCircle2 :
-    ["pending", "review_required"].includes(status) ? Clock :
-    ["rejected", "failed", "expired", "incomplete"].includes(status) ? AlertTriangle : ShieldCheck;
   const start = async () => {
     setBusy(true); setError("");
     try {
@@ -35,27 +33,21 @@ export default function SocureIdentityStep({ identity, onRefresh }) {
       await onRefresh?.();
     } finally { setBusy(false); }
   };
-  return <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-5" aria-label="Identity verification">
-    <div className="flex items-start gap-3">
-      <Icon className={status === "verified" ? "text-emerald-400 shrink-0" : "text-[#C9A84C] shrink-0"} size={22} />
-      <div className="min-w-0 flex-1">
-        <h3 className="text-base font-semibold text-white" role="status" aria-live="polite">{titles[status] || "Verification status unavailable"}</h3>
-        {canStart && <>
-          <label className="mt-3 flex items-start gap-2 text-xs text-white/65">
-            <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} className="mt-0.5" />
-            <span>I agree to identity and age verification with Socure.</span>
-          </label>
-          <button type="button" onClick={start} disabled={busy || !consent} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl gold-gradient px-4 py-3 font-semibold text-black disabled:opacity-40">
-            {busy && <Loader2 size={16} className="animate-spin" />}
-            {busy ? "Opening verification…" : status === "not_started" ? "Verify identity" : "Start verification over"}
-          </button>
-        </>}
-        {!identity?.enabled && canStart !== true && ["not_started","incomplete","expired","failed"].includes(status) &&
-          <p className="mt-2 text-xs text-amber-300">Verification is temporarily unavailable.</p>}
-        {identity?.sync_unavailable && status === "pending" && <p className="mt-2 text-xs text-white/60">Status update delayed. Retrying automatically.</p>}
-        {error && <p role="alert" className="mt-3 text-sm text-red-300">{error}</p>}
-      </div>
-    </div>
-  </section>;
+  return <WalletSetupStep number={2} label="Identity verification" title={titles[status] || "Identity status unavailable"} complete={status === "verified"} pending={["pending", "review_required"].includes(status)} attention={["rejected", "failed", "expired", "incomplete"].includes(status)}
+    description={status === "verified" ? null : status === "pending" ? (identity?.sync_unavailable ? "Status update delayed. Retrying automatically." : identity?.submitted ? "Submitted successfully. Your result will update here automatically." : "Checking whether your verification was completed.") : status === "review_required" ? "Submitted successfully. Your result will update here after review." : status === "rejected" ? "Not approved. Contact support for next steps." : !locationApproved ? "First, verify your location above." : status === "incomplete" ? "Start again to complete verification." : "Verify your identity and age securely with Socure."}>
+    {canStart && <>
+      <label className="mt-3 flex items-start gap-2 text-xs text-white/65">
+        <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} className="mt-0.5" />
+        <span>I agree to identity and age verification with Socure.</span>
+      </label>
+      <button type="button" onClick={start} disabled={busy || !consent} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl gold-gradient px-4 py-3 text-sm font-semibold text-black disabled:opacity-40 sm:w-auto">
+        {busy && <Loader2 size={16} className="animate-spin" />}
+        {busy ? "Opening verification…" : status === "not_started" ? "Verify identity" : "Start verification over"}
+      </button>
+    </>}
+    {!identity?.enabled && canStart !== true && ["not_started","incomplete","expired","failed"].includes(status) &&
+      <p className="mt-2 text-xs text-amber-300">Verification is temporarily unavailable.</p>}
+    {error && <p role="alert" className="mt-3 text-sm text-red-300">{error}</p>}
+  </WalletSetupStep>;
 }
 
