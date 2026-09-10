@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { base44 } from "@/api/base44Client";
 import SeamlessPlaidBankLink from "./SeamlessPlaidBankLink";
+import SocureIdentityStep from "./SocureIdentityStep";
 
 // Seamless ACH funding panel. Bank credentials are collected only inside the
 // Seamless-hosted Plaid flow. Verification, deposits, and withdrawals remain
@@ -119,6 +120,7 @@ export default function SeamlessFundingPanel({
   // authoritative 15-minute monitor even when this page is closed.
   useEffect(() => {
     const hasPending =
+      ["pending", "review_required"].includes(state?.identity?.status) ||
       state?.banks?.some((b) => ["added", "pending_verification"].includes(b.status)) ||
       state?.recent?.some((t) => t.status === "pending" || t.deposit_hold_status === "held");
     if (!hasPending) {
@@ -131,7 +133,7 @@ export default function SeamlessFundingPanel({
       const before = JSON.stringify(state?.recent || []);
       const next = await load();
       const after = JSON.stringify(next?.recent || []);
-      if (before !== after && onRefresh) await onRefresh();
+      if ((before !== after || state?.identity?.status !== next?.identity?.status) && onRefresh) await onRefresh();
     }, 30000);
     return () => clearTimeout(timer);
   }, [state, load, onRefresh]);
@@ -219,7 +221,7 @@ export default function SeamlessFundingPanel({
   const bankPending = state?.banks?.some((b) =>
     ["added", "pending_verification"].includes(b.status)
   );
-  const bankReady = !!verifiedBank && accountVerified;
+  const bankReady = !!verifiedBank;
   const depositSourceReady = providerPrimaryBank?.status === "verified";
   const bankReadyForDirection = direction === "deposit" ? depositSourceReady : bankReady;
   const displayedBank = direction === "deposit" ? (providerPrimaryBank || verifiedBank) : verifiedBank;
@@ -245,6 +247,7 @@ export default function SeamlessFundingPanel({
 
   return (
     <div className="space-y-4">
+      <SocureIdentityStep identity={state?.identity} onRefresh={load} />
 
       {/* Provider webhooks are authoritative for account and bank status. */}
       {effectiveWithdrawalHold && (
@@ -254,7 +257,7 @@ export default function SeamlessFundingPanel({
       )}
       {!effectiveWithdrawalHold && notVerified && effectiveAccountState === "provisional" && (
         <p className="text-xs text-white/40 text-center">
-          Connect and verify your bank to unlock deposits and withdrawals.
+          Complete identity verification to unlock transfers. Your connected banks stay linked.
         </p>
       )}
       {!effectiveWithdrawalHold && effectiveAccountState === "suspended" && (
@@ -273,7 +276,7 @@ export default function SeamlessFundingPanel({
         <div className="rounded-3xl border border-white/5 bg-white/[0.03] p-5 space-y-4">
           <div className="flex items-start gap-3">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#C9A84C]/15 text-sm font-bold text-[#C9A84C]">
-              1
+              2
             </div>
             <div>
               <h4 className="text-base font-semibold text-white">Connect your bank</h4>
@@ -301,7 +304,7 @@ export default function SeamlessFundingPanel({
             </div>
           )}
 
-          {!bankPending && hostedPlaidEnabled && !accountRestricted ? (
+          {!bankPending && hostedPlaidEnabled && !accountRestricted && accountVerified ? (
             <SeamlessPlaidBankLink
               legalName={state?.legal_name || ""}
               hasWithdrawableBalance={availableBalance > 0}
@@ -560,7 +563,7 @@ export default function SeamlessFundingPanel({
               >
                 {transferBusy ? (
                   <><Loader2 size={16} className="mr-2 animate-spin" /> Processing securely...</>
-                ) : direction === "deposit" ? (
+                ) : notVerified ? "Verify your identity first" : direction === "deposit" ? (
                   !depositsEnabled
                     ? "Deposits are temporarily unavailable"
                     : !depositSourceReady
