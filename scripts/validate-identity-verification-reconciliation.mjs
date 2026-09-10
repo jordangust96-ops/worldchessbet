@@ -1,110 +1,33 @@
 import assert from 'node:assert/strict';
 import { loadBackend } from './helpers/load-backend.mjs';
-
-const user = {
-  id: 'u1',
-  identity_verification_provider: 'seamless_ach_plaid',
-  identity_provider_reference: 'source-1',
-  identity_verification_status: 'verified',
-  account_state: 'verified',
-  identity_verified_at: '2026-09-09T12:00:00Z',
-};
-const source = {
-  id: 'bank-1',
-  user_id: 'u1',
-  source_id: 'source-1',
-  status: 'verified',
-  verified_at: '2026-09-09T12:00:00Z',
-  last_provider_event_id: 'event-1',
-  provider_user_id: 'provider-user-1',
-};
-const authorization = {
-  id: 'authorization-1',
-  user_id: 'u1',
-  provider_key: 'seamless_ach_plaid',
-  provider_user_id: 'provider-user-1',
-  funding_source_id: 'source-1',
-  provider_event_id: 'event-1',
-  status: 'active',
-};
-
-async function run(caller, currentUser = user, currentSource = source, currentAuthorization = authorization) {
-  const updates = [], flags = [], events = [], reads = [];
-  const sdk = {
-    auth: { me: async () => caller },
-    asServiceRole: { entities: {
-      User: {
-        filter: async () => { reads.push('users'); return [currentUser]; },
-        update: async (_id, value) => { updates.push(value); return { ...currentUser, ...value }; },
-      },
-      SeamlessBankAccount: {
-        filter: async (query) => {
-          assert.equal(query.user_id, currentUser.id);
-          assert.equal(query.source_id, currentUser.identity_provider_reference);
-          return currentSource ? [currentSource] : [];
-        },
-      },
-      'ach-debit-authorization': {
-        filter: async (query) => {
-          assert.equal(query.user_id, currentUser.id);
-          assert.equal(query.funding_source_id, currentUser.identity_provider_reference);
-          assert.equal(query.status, 'active');
-          return currentAuthorization ? [currentAuthorization] : [];
-        },
-      },
-      IntegrationEvent: { create: async (value) => events.push(value) },
-      IntegrityFlag: { create: async (value) => flags.push(value) },
-    } },
-  };
-  const { handler } = await loadBackend(
-    'base44/functions/reconcileIdentityVerification/entry.ts',
-    { 'npm:@base44/sdk@0.8.38': { createClientFromRequest: () => sdk } }
-  );
-  const response = await handler(new Request('https://test.invalid', { method: 'POST', body: '{}' }));
-  return { status: response.status, updates, flags, events, reads };
+import * as eligibility from '../base44/shared/identityEligibility.js';
+const legacy={id:'u1',account_state:'verified',identity_verification_status:'verified',identity_verification_provider:'seamless_ach_plaid',identity_provider_reference:'source-1'};
+async function run(caller,current=legacy,evidence=null,lock=true){
+ const updates=[];let reads=0;let releases=0;
+ const sdk={auth:{me:async()=>caller},asServiceRole:{entities:{
+ User:{list:async()=>{reads++;return [current];},get:async()=>current,update:async(id,patch)=>updates.push(patch)},
+ SocureIdentityVerification:{filter:async()=>evidence?[evidence]:[]}
+ }}};
+ const {handler}=await loadBackend('base44/functions/reconcileIdentityVerification/entry.ts',{
+ 'npm:@base44/sdk@0.8.38':{createClientFromRequest:()=>sdk},
+ '../../shared/identityEligibility.js':eligibility,
+ '../../shared/seamlessAtomicStore.ts':{acquireUserWalletLock:async()=>lock,releaseUserWalletLock:async()=>{releases++;}}
+ });
+ const response=await handler(new Request('https://test.invalid',{method:'POST',body:'{}'}));
+ return {status:response.status,updates,reads,releases};
 }
-
-for (const [caller, status] of [[null, 401], [{ role: 'user' }, 403]]) {
-  const result = await run(caller);
-  assert.equal(result.status, status);
-  assert.equal(result.reads.length, 0);
+for(const [caller,status] of [[null,401],[{role:'user'},403]]){
+ const r=await run(caller);assert.equal(r.status,status);assert.equal(r.reads,0);
 }
+const admin={role:'admin'};
+let r=await run(admin);assert.equal(r.status,200);assert.equal(r.updates[0].identity_verification_status,'not_started');
+assert.equal(r.updates[0].account_state,'provisional');assert.equal(r.releases,1);
+r=await run(admin,{...legacy,account_state:'suspended'});assert.ok(!('account_state' in r.updates[0]));
+r=await run(admin,legacy,null,false);assert.equal(r.updates.length,0,'in-flight identity update is not disturbed');
+const verified={...legacy,identity_verification_provider:'socure',identity_provider_reference:'eval',identity_policy_version:eligibility.KYC_POLICY_VERSION,identity_age_verified:true,identity_age_over_21:true};
+const row={user_id:'u1',provider_evaluation_id:'eval',workflow:'consumer_onboarding',environment:'production',policy_version:eligibility.KYC_POLICY_VERSION,
+status:'verified',provider_decision:'ACCEPT',age_verified:true,age_over_21:true,webhook_event_id:'event',provider_report_ciphertext:'cipher',provider_report_sha256:'hash',verified_valid_until:'2099-01-01T00:00:00Z'};
+assert.equal((await run(admin,verified,row)).updates.length,0);
+assert.equal((await run(admin,verified,{...row,verified_valid_until:'2020-01-01T00:00:00Z'})).updates.length,1);
+console.log('KYC reconciliation: authorization, legacy revocation, valid evidence, expiry, restrictions and shared lock passed.');
 
-const admin = { role: 'admin' };
-assert.equal((await run(admin)).updates.length, 0, 'trusted matching snapshot remains unchanged');
-
-const missingAuthorization = await run(admin, user, source, null);
-assert.equal(missingAuthorization.updates[0].account_state, 'provisional');
-assert.equal(missingAuthorization.updates[0].identity_verification_status, 'review_required');
-assert.equal(missingAuthorization.flags.length, 1);
-
-for (const invalidSource of [
-  null,
-  { ...source, status: 'verification_failed' },
-  { ...source, status: 'verification_expired' },
-  { ...source, status: 'verified', verified_at: '' },
-  { ...source, status: 'verified', last_provider_event_id: '' },
-]) {
-  const result = await run(admin, user, invalidSource);
-  assert.equal(result.updates[0].account_state, 'provisional');
-  assert.notEqual(result.updates[0].identity_verification_status, 'verified');
-  assert.equal(result.flags.length, 1);
-}
-
-const provisional = {
-  ...user,
-  identity_verification_status: 'pending',
-  account_state: 'provisional',
-  identity_verified_at: '',
-};
-const promoted = await run(admin, provisional, source);
-assert.equal(promoted.updates[0].account_state, 'verified');
-assert.equal(promoted.updates[0].identity_verification_status, 'verified');
-assert.equal(promoted.events.length, 1);
-
-for (const state of ['suspended', 'closed']) {
-  const result = await run(admin, { ...provisional, account_state: state }, source);
-  assert.equal(result.updates[0].account_state, state, 'provider success preserves restrictions');
-}
-
-console.log('Hosted bank reconciliation checks passed.');
