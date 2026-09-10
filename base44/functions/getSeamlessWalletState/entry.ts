@@ -6,7 +6,7 @@ import {
   seamlessHostedPlaidEnabled,
   seamlessWithdrawalsEnabled,
 } from '../../shared/seamlessFundingConfig.ts';
-import { isSeamlessPlaidVerified } from '../../shared/identityEligibility.js';
+import { hasVerifiedIdentity } from '../../shared/identityEligibility.js';
 import { legalNameFromUser } from '../../shared/legalName.ts';
 
 // Read-only wallet funding view. Provider verification status is read only
@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
       withdrawals_enabled: seamlessWithdrawalsEnabled(),
       hosted_plaid_enabled: seamlessHostedPlaidEnabled(),
       has_completed_deposit: completedDeposits.some((deposit) => deposit.deposit_hold_status === 'released'),
-      account_verified: isSeamlessPlaidVerified(user),
+      account_verified: await hasVerifiedIdentity(base44, user),
       legal_name: legalNameFromUser(user)?.fullName || '',
       verification_status: user.identity_verification_status || 'not_started',
       account_state: user.account_state || 'provisional',
