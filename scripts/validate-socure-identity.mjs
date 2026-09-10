@@ -8,7 +8,7 @@ const now = new Date('2026-09-10T12:00:00Z');
 assert.equal(policy.ageOn('2005-09-10', now), 21);
 assert.equal(policy.ageOn('2005-09-11', now), 20);
 for (const dob of ['', '2005-02-30', '2028-01-01', '09/10/2000', null]) assert.equal(policy.ageOn(dob, now), null);
-const enrichment = dob => ({ enrichment_provider:'Socure', status_code:200, request:{date_of_birth:dob},
+const enrichment = dob => ({ enrichment_provider:'Socure', status_code:200, request:{date_of_birth:dob,firstName:'Test',surName:'Player'},
   response:{kyc:{fieldValidations:{dob:0.99,firstName:0.99,surName:0.99}}}});
 const data = { id:'request-1', eval_id:'eval-1', workflow:'consumer_onboarding', environment_name:'Production',
   eval_status:'evaluation_completed', decision:'ACCEPT', data_enrichments:[enrichment('1990-01-01')] };
@@ -23,11 +23,11 @@ assert.equal(policy.classifyKyc({...data,data_enrichments:[enrichment('2005-09-1
 assert.equal(policy.classifyKyc({...data,data_enrichments:[enrichment('1990-01-01'),enrichment('1991-01-01')]},now).status,'review_required');
 const mismatch=enrichment('1990-01-01'); mismatch.response.kyc.fieldValidations.dob=0.01;
 assert.equal(policy.classifyKyc({...data,data_enrichments:[mismatch]},now).status,'review_required');
-const doc={ enrichment_provider:'Socure',status_code:200,response:{documentVerification:{decision:{value:'accept'},documentData:{dob:'1990-01-01'}}}};
+const doc={ enrichment_provider:'Socure',status_code:200,response:{documentVerification:{decision:{value:'accept'},documentData:{dob:'1990-01-01',firstName:'Test',surName:'Player'}}}};
 assert.equal(policy.classifyKyc({...data,data_enrichments:[doc]},now).status,'verified');
-const user={id:'u1',account_state:'verified',identity_verification_status:'verified',identity_verification_provider:'socure',
+const user={id:'u1',identity_legal_name:'Test Player',account_state:'verified',identity_verification_status:'verified',identity_verification_provider:'socure',
  identity_provider_reference:'eval-1',identity_policy_version:eligibility.KYC_POLICY_VERSION,identity_age_verified:true,identity_age_over_21:true};
-const row={id:'v1',user_id:'u1',request_id:'request-1',provider_evaluation_id:'eval-1',workflow:'consumer_onboarding',
+const row={id:'v1',verified_legal_name:'Test Player',user_id:'u1',request_id:'request-1',provider_evaluation_id:'eval-1',workflow:'consumer_onboarding',
  environment:'production',policy_version:eligibility.KYC_POLICY_VERSION,status:'verified',provider_decision:'ACCEPT',age_verified:true,age_over_21:true,
  webhook_event_id:'event-1',provider_report_ciphertext:'encrypted',provider_report_sha256:'hash',verified_valid_until:'2099-01-01T00:00:00Z'};
 assert.equal(eligibility.isVerifiedKycEvidence(row,user),true);
