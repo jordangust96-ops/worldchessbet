@@ -17,9 +17,18 @@ Deno.serve(async (req) => {
     }
 
     const users = await base44.asServiceRole.entities.User.list();
-    const audience = users.filter((u) => u.account_state !== 'closed' && u.email);
-    const stats = { total: audience.length, sent: 0, skipped: 0, failed: 0 };
-    const loginUrl = Deno.env.get('APP_URL') || `https://${Deno.env.get('BASE44_APP_ID')}.base44.app/login`;
+    const currentUsers = users.filter((u) => u.account_state !== 'closed' && u.email);
+    const audience = currentUsers.filter((u) => u.marketing_email_opt_out !== true);
+    const stats = {
+      current_users: currentUsers.length,
+      total: audience.length,
+      opted_out: currentUsers.length - audience.length,
+      sent: 0,
+      skipped: 0,
+      failed: 0,
+    };
+    const appUrl = (Deno.env.get('APP_URL') || `https://${Deno.env.get('BASE44_APP_ID')}.base44.app`).replace(/\/$/, '');
+    const loginUrl = `${appUrl}/login?redirect=%2Fplay`;
 
     for (const user of audience) {
       const deliveries = await base44.asServiceRole.entities.CampaignDelivery.filter({ campaign_key: campaignKey, user_id: user.id });
@@ -37,12 +46,21 @@ Deno.serve(async (req) => {
       }
 
       try {
+        let unsubscribeToken = user.marketing_unsubscribe_token || '';
+        if (!unsubscribeToken) {
+          unsubscribeToken = crypto.randomUUID();
+          await base44.asServiceRole.entities.User.update(user.id, {
+            marketing_unsubscribe_token: unsubscribeToken,
+          });
+        }
+        const unsubscribeUrl = `${appUrl}/unsubscribe?userId=${encodeURIComponent(user.id)}&token=${encodeURIComponent(unsubscribeToken)}`;
         await base44.asServiceRole.integrations.Core.SendEmail({
           to: user.email,
           subject,
           body: htmlBody
             .replace(/\{\{FIRST_NAME\}\}/g, (user.full_name || '').trim().split(/\s+/)[0] || 'there')
-            .replace(/\{\{LOGIN_URL\}\}/g, loginUrl),
+            .replace(/\{\{LOGIN_URL\}\}/g, loginUrl)
+            .replace(/\{\{UNSUBSCRIBE_URL\}\}/g, unsubscribeUrl),
           from_name: 'ChessBet',
         });
         await base44.asServiceRole.entities.CampaignDelivery.update(delivery.id, { status: 'success', sent_at: new Date().toISOString(), error_message: '' });
