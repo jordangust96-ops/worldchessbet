@@ -95,6 +95,11 @@ Deno.serve(async (req) => {
     if (!await acquireUserWalletLock(user.id, lockOwner)) {
       return Response.json({ error: 'wager_lock_in_progress', retryable: true }, { status: 409 });
     }
+    // Recheck after acquiring the same lock used by identity callbacks.
+    const lockedUser = await base44.asServiceRole.entities.User.get(user.id);
+    if (!await hasVerifiedIdentity(base44, lockedUser) || lockedUser.withdrawal_hold) {
+      return Response.json({ error: 'Identity verification (21+) is required and account restrictions must be resolved.' }, { status: 403 });
+    }
 
     const wallets = await base44.asServiceRole.entities.Wallet.filter({ user_id: user.id });
     const wallet = wallets[0];
