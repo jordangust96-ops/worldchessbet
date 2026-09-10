@@ -43,7 +43,7 @@ const verifiedUser = {
   identity_verification_provider: SEAMLESS_PLAID_PROVIDER_KEY,
   identity_provider_reference: 'source-1',
 };
-assert.equal(isSeamlessPlaidVerified(verifiedUser), true);
+assert.equal(isSeamlessPlaidVerified(verifiedUser), false, 'bank verification is not KYC');
 assert.equal(isSeamlessPlaidVerified({ ...verifiedUser, account_state: 'provisional' }), false);
 assert.equal(isSeamlessPlaidVerified({ ...verifiedUser, identity_provider_reference: '' }), false);
 assert.equal(isSeamlessPlaidVerified({ ...verifiedUser, identity_verification_provider: 'legacy' }), false);
@@ -123,18 +123,14 @@ assert.match(webhook, /'funding-source\.verified'/);
 assert.match(webhook, /body\?\.user\?\.user_id/);
 assert.match(webhook, /eventType === 'user\.created'/);
 assert.match(webhook, /Recovered from authenticated Seamless customer webhook/);
-for (const source of [createLink, webhook, complianceEvidence, reconcileIdentity]) {
+for (const source of [createLink, webhook, complianceEvidence]) {
   assert.match(source, /entities\['ach-debit-authorization'\]/);
   assert.doesNotMatch(source, /entities\.AchDebitAuthorization/);
 }
-assert.match(webhook, /identity_verification_provider: 'seamless_ach_plaid'/);
+assert.doesNotMatch(webhook, /identity_verification_status:/);
 assert.match(webhook, /funding_source_id: bank\.source_id/);
-assert.ok(
-  webhook.indexOf('if (!candidate) return;') <
-    webhook.indexOf("identity_verification_status: 'verified'"),
-  'an orphan verified source must not activate the player'
-);
-assert.match(webhook, /const replacement = verifiedBanks\.find/);
+assert.match(webhook, /if \(!candidate\) return;/);
+assert.doesNotMatch(webhook, /identity_verification_provider:/);
 assert.match(webhook, /funding-source\.made-primary/);
 assert.match(manageBank, /PATH_REMOVE_FUNDING_SOURCE/);
 assert.match(manageBank, /PATH_SET_PRIMARY_FUNDING_SOURCE/);
@@ -150,7 +146,7 @@ assert.match(hostedLink, /"Add \$" \+ formattedAmount \+ " to wallet"/);
 assert.match(hostedLink, /showBankManager \? "Done" : "Manage"/);
 assert.doesNotMatch(hostedLink, /<Plus[^>]*\/> Deposit/);
 assert.doesNotMatch(hostedLink, /Deposit to ChessBet wallet/);
-assert.match(deposit, /isSeamlessPlaidVerified\(user\)/);
+assert.match(deposit, /await hasVerifiedIdentity\(base44, user\)/);
 assert.match(deposit, /verified_primary_required/);
 assert.match(deposit, /userSafeTransferFailureReason/);
 assert.doesNotMatch(deposit, /\|\| verifiedBanks\[0\]/);
@@ -160,12 +156,14 @@ assert.match(hostedLink, /Use \{verifiedBank\.account_name \|\| "connected bank"
 assert.match(transactionHistory, /heading: "Why it failed"/);
 assert.match(transactionHistory, /getTransferFailureMessage/);
 assert.match(walletState, /description: tx\.description/);
-assert.match(withdrawal, /isSeamlessPlaidVerified\(user\)/);
-assert.match(contest, /isSeamlessPlaidVerified\(user\)/);
+assert.match(withdrawal, /await hasVerifiedIdentity\(base44, user\)/);
+assert.match(contest, /await hasVerifiedIdentity\(base44, user\)/);
 assert.match(retiredManualSource, /status: 410/);
-assert.match(retiredIdentityStart, /status: 410/);
+assert.match(retiredIdentityStart, /startIdentityEvaluation/);
+assert.match(reconcileIdentity, /isVerifiedKycEvidence/);
+assert.match(hostedLink, /SocureIdentityStep/);
 
-for (const source of [panel, hostedLink, createLink, webhook, manageBank, deposit, withdrawal, contest]) {
+for (const source of [panel, createLink, webhook, manageBank]) {
   assert.doesNotMatch(source, /Socure|SOCURE|socure/);
 }
 
