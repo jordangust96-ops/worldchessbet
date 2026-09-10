@@ -104,7 +104,11 @@ export default function SeamlessFundingPanel({
   const nextStepRef = useRef(null);
   const load = useCallback(async () => {
     try {
+      let syncUnavailable = false;
+      try { await base44.functions.invoke("refreshSocureIdentityVerification", {}); }
+      catch { syncUnavailable = true; }
       const { data } = await base44.functions.invoke("getSeamlessWalletState", {});
+      if (data?.identity) data.identity.sync_unavailable = syncUnavailable;
       setState(data);
       setLoadError(false);
       return data;
