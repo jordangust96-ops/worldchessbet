@@ -5,7 +5,7 @@ import {
   seamlessWithdrawalsEnabled,
 } from '../../shared/seamlessFundingConfig.ts';
 
-// Public, read-only availability. No provider requests, account information,
+// Public, read-only production availability. No provider requests, account information,
 // configuration details, or secret references are exposed.
 Deno.serve(() => Response.json({
   paid_contests_enabled: paidContestsEnabled(),
