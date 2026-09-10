@@ -11,6 +11,7 @@ import {
   reverseSeamlessSettlement,
 } from '../../shared/seamlessLedgerTransitions.ts';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
+import { sendDepositAvailableEmail } from '../../shared/depositAvailableEmail.ts';
 
 function clean(value, max = 255) {
   return String(value || '').trim().replace(/\s+/g, ' ').slice(0, max);
@@ -47,7 +48,18 @@ Deno.serve(async (req) => {
       return Number.isFinite(releaseAt) && releaseAt <= now.getTime();
     }).slice(0, 50);
 
-    const summary = { held: held.length, due: due.length, checked: 0, released: 0, returned: 0, pending: 0, errors: 0 };
+    const summary = {
+      held: held.length,
+      due: due.length,
+      checked: 0,
+      released: 0,
+      returned: 0,
+      pending: 0,
+      errors: 0,
+      emails_sent: 0,
+      emails_already_sent: 0,
+      email_errors: 0,
+    };
     for (const tx of due) {
       try {
         const refs = await base44.asServiceRole.entities.IntegrationReference.filter({
@@ -73,7 +85,25 @@ Deno.serve(async (req) => {
         });
 
         if (normalized === 'completed') {
-          if (await releaseDepositAvailability(base44, tx)) summary.released += 1;
+          if (await releaseDepositAvailability(base44, tx)) {
+            summary.released += 1;
+            // Email is intentionally after the financial release and isolated
+            // from it. A provider/email outage cannot delay available funds;
+            // the five-minute notification recovery sweep retries failures.
+            try {
+              const notification = await sendDepositAvailableEmail(base44, tx);
+              if (notification.sent) summary.emails_sent += 1;
+              else if (notification.alreadySent) summary.emails_already_sent += 1;
+              else if (notification.failed) summary.email_errors += 1;
+            } catch (emailError) {
+              summary.email_errors += 1;
+              console.error(JSON.stringify({
+                event: 'deposit_available_email_inline_failed',
+                wallet_transaction_id: tx.id,
+                error: clean(emailError?.message || 'unknown_error', 128),
+              }));
+            }
+          }
         } else if (normalized === 'failed' || normalized === 'reversed') {
           await reverseSeamlessSettlement(
             base44,
