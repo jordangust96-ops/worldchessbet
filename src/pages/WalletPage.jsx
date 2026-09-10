@@ -38,6 +38,7 @@ export default function WalletPage() {
   // page itself.
   const jurisdictionDecision = /** @type {{ allowed: boolean, reason?: string, promptEligible?: boolean } | null} */ (useOutletContext());
   const [wallet, setWallet] = useState(null);
+  const [pendingDeposits, setPendingDeposits] = useState(0);
   const [userId, setUserId] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [txPage, setTxPage] = useState(1);
@@ -146,6 +147,16 @@ export default function WalletPage() {
       const { data } = await base44.functions.invoke("ensureWallet", {});
       setWallet(data.wallet);
     }
+    const pendingDepositRows = await base44.entities.WalletTransaction.filter(
+      { launch_epoch: 2, user_id: me.id, type: "deposit", status: "pending" },
+      "-created_date",
+      5000,
+      0,
+      ["amount"]
+    );
+    setPendingDeposits(
+      pendingDepositRows.reduce((total, transaction) => total + Number(transaction.amount || 0), 0)
+    );
     await loadTransactions(me.id, 1);
 
     // Keep monetary history derived from authoritative completed Matches, but
@@ -213,7 +224,7 @@ export default function WalletPage() {
           <h1 className="text-4xl font-extrabold text-white mb-1">
             ${Number(wallet?.total_balance ?? wallet?.balance ?? 0).toFixed(2)}
           </h1>
-          <div className="mt-4 flex items-center justify-center gap-8">
+          <div className="mt-4 grid grid-cols-3 items-start gap-3 sm:gap-8">
             <div>
               <p className="text-[10px] uppercase text-white/30">Available</p>
               <p className="text-sm font-bold text-emerald-400">
@@ -221,13 +232,17 @@ export default function WalletPage() {
               </p>
               <p className="mt-0.5 text-[10px] text-white/25">Ready to play or withdraw</p>
             </div>
-            <div className="h-9 w-px bg-white/10" />
-            <div>
+            <div className="border-x border-white/10 px-2 sm:px-8">
               <p className="text-[10px] uppercase text-white/30">Clearing</p>
               <p className="text-sm font-bold text-[#C9A84C]">
                 ${Number(wallet?.held_balance ?? 0).toFixed(2)}
               </p>
               <p className="mt-0.5 text-[10px] text-white/25">Unavailable until settled</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase text-white/30">Pending</p>
+              <p className="text-sm font-bold text-amber-300">${pendingDeposits.toFixed(2)}</p>
+              <p className="mt-0.5 text-[10px] text-white/25">Waiting for bank confirmation</p>
             </div>
           </div>
         </div>
