@@ -16,14 +16,12 @@ export function walletJourneyCopy({ wallet = {}, funding = {}, pendingDeposits =
   else if (completed) message = "Your previous deposit is complete. Your current balance and transaction history are shown here.";
   else if (identity.status === "rejected") message = "Identity verification was not approved. Review the status below for next steps.";
   else if (["pending", "review_required"].includes(identity.status)) message = identity.submitted ? "Identity verification submitted. Your result will update here; you do not need to start again." : "We are confirming your identity verification status. Your progress is shown below.";
-  else if (identity.verified && (funding.banks || []).some(b => b.status === "verified")) message = "Identity verified and bank connected. Your current location is checked separately before a new deposit.";
-  else if (identity.verified) message = "Identity verified. Review the remaining bank and location checks below.";
+  else if (identity.verified && (funding.banks || []).some(b => b.status === "verified")) message = "Identity verified and bank connected. Your wallet setup progress is saved.";
+  else if (identity.verified) message = "Identity verified. Connect your bank to finish wallet setup.";
   else if (progressed) message = "Your verification progress is saved. Review any remaining steps below.";
   return {
     title: progressed ? "Wallet status" : "Wallet setup",
     message,
     anotherDeposit,
-    locationDescription: anotherDeposit ? "A current location check is only needed if you want to make another deposit. It does not affect an existing deposit." : progressed ? "Check your current location before a new deposit. Your existing identity and bank progress stays saved." : "Check your location before continuing. Identity and bank verification follow.",
-    locationAction: anotherDeposit ? "Check location for another deposit" : "Check location",
   };
 }
