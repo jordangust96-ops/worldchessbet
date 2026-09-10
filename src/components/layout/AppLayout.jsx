@@ -1,5 +1,5 @@
 import React from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation, useOutletContext } from "react-router-dom";
 import BottomNav from "./BottomNav";
 import PresenceHeartbeat from "@/components/PresenceHeartbeat";
 import AdminActionAlert from "@/components/admin/AdminActionAlert";
@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/AuthContext";
 const HIDE_NAV_PATHS = ["/login", "/register", "/forgot-password", "/reset-password"];
 
 export default function AppLayout() {
+  const jurisdictionDecision = useOutletContext();
   const { user } = useAuth();
   const location = useLocation();
   const hideNav = HIDE_NAV_PATHS.some(p => location.pathname.startsWith(p));
@@ -25,7 +26,7 @@ export default function AppLayout() {
           <div className="px-5 pt-6">
           </div>
         )}
-        <Outlet />
+        <Outlet context={jurisdictionDecision} />
       </main>
       {!hideNav && <BottomNav />}
     </div>
