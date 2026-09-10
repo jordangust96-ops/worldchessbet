@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me().catch(() => null);
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     if (!paidContestsEnabled()) {
-      return Response.json({ eligible: false, error: 'Paid contests are not available yet.', reason: 'Paid contests are not available yet.', action: 'paid_contests_disabled' }, { status: 409 });
+      return Response.json({ eligible: false, error: 'Paid contests are temporarily unavailable.', reason: 'Paid contests are temporarily unavailable.', action: 'paid_contests_disabled' }, { status: 409 });
     }
     userId = user.id;
 
