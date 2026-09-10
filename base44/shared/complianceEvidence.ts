@@ -1,3 +1,5 @@
+import { isVerifiedKycEvidence } from './identityEligibility.js';
+
 function retentionUntil(activityAt: string) {
   const date = new Date(activityAt);
   if (!Number.isFinite(date.getTime())) throw new Error('invalid compliance activity timestamp');
@@ -21,6 +23,16 @@ export async function extendComplianceEvidenceRetention(base44: any, {
   requireAchAuthorization?: boolean;
 }) {
   const deadline = retentionUntil(activityAt);
+  const user = await base44.asServiceRole.entities.User.get(userId);
+  const rows = await base44.asServiceRole.entities.SocureIdentityVerification.filter(
+    { user_id: userId, provider_evaluation_id: user.identity_provider_reference }, '-requested_at', 1
+  );
+  const identity = rows[0];
+  if (!isVerifiedKycEvidence(identity, user)) throw new Error('retained Socure identity and age evidence is required');
+  await base44.asServiceRole.entities.SocureIdentityVerification.update(identity.id, {
+    last_transaction_at: activityAt,
+    retention_until: Date.parse(identity.retention_until || '') > Date.parse(deadline) ? identity.retention_until : deadline,
+  });
   const banks = await base44.asServiceRole.entities.SeamlessBankAccount.filter(
     { user_id: userId, source_id: fundingSourceId, status: 'verified' },
     '-verified_at',
