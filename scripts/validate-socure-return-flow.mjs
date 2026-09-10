@@ -17,12 +17,14 @@ vm.runInNewContext(transformSync(source,{loader:'jsx',format:'cjs'}).code,{
  throw Error(name);
  }});
 const Component=uiModule.exports.default;
-for(const [status,title] of Object.entries({pending:'Verification pending',review_required:'Verification under review',rejected:'Verification not approved',verified:'Identity verified',not_started:'First, verify your identity',expired:'Verification session expired',failed:'Verification could not be completed'})){
+for(const [status,title] of Object.entries({pending:'Confirming verification status',incomplete:'Verification not completed',review_required:'Verification submitted — under review',rejected:'Verification not approved',verified:'Identity verified',not_started:'Verify your identity',expired:'Verification expired',failed:'Verification could not be completed'})){
  const html=renderToStaticMarkup(React.createElement(Component,{identity:{status,verified:status==='verified',enabled:true,can_start:true},onNextStep:()=>{}}));
  assert.ok(html.includes(title));
  if(['pending','review_required','rejected','verified'].includes(status))assert.ok(!html.includes('type="checkbox"'),status+' should not show new consent by default');
- if(status==='verified')assert.ok(html.includes('Continue to bank connection'));
- if(status==='pending')assert.ok(html.includes('Check verification status'));
+ assert.ok(!html.includes('Check verification status'));
+ assert.ok(!html.includes('mailto:'));
+ if(['pending','review_required','rejected','verified'].includes(status))assert.ok(!html.includes('<button'));
+ if(status==='incomplete')assert.ok(html.includes('Start verification over'));
 }
 const decisionAt=new Date(Date.now()-30000).toISOString();
 const data={id:'request1',eval_id:'eval1',workflow:'consumer_onboarding',environment_name:'Production',eval_status:'evaluation_completed',decision:'ACCEPT',decision_at:decisionAt,data_enrichments:[{enrichment_provider:'Socure',status_code:200,request:{dob:'1990-01-01',firstName:'Test',surName:'Player'},response:{kyc:{fieldValidations:{dob:0.99,firstName:0.99,surName:0.99}}}}]};
