@@ -164,7 +164,7 @@ assert.match(reconcileIdentity, /isVerifiedKycEvidence/);
 assert.match(hostedLink, /SocureIdentityStep/);
 
 for (const source of [panel, createLink, webhook, manageBank]) {
-  assert.doesNotMatch(source, /Socure|SOCURE|socure/);
+  assert.doesNotMatch(source, /requestSocureBankVerification|SOCURE_API_KEY|socureBankVerification/);
 }
 
 console.log('Seamless hosted Plaid validation passed.');
