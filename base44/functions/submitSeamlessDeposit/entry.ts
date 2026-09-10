@@ -1,8 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { seamlessDepositsEnabled } from '../../shared/seamlessFundingConfig.ts';
 import { extendComplianceEvidenceRetention } from '../../shared/complianceEvidence.ts';
-import { getRequestJurisdiction } from '../../shared/requestJurisdiction.ts';
-import { meetsStateAge } from '../../shared/playerAgePolicy.js';
+import { walletOnboardingLocation } from '../../shared/walletOnboardingLocation.ts';
 import { hasVerifiedIdentity } from '../../shared/identityEligibility.js';
 import { legalNameFromUser } from '../../shared/legalName.ts';
 import {
@@ -126,21 +125,10 @@ Deno.serve(async (req) => {
       }, { status: 409 });
     }
 
-    // Jurisdiction determines whether new funds may be brought onto the paid
-    // platform. This preserves the existing deposit-location gate.
-    const jurisdiction = {data:await (await getRequestJurisdiction(req, {
-      triggerEvent: 'deposit',
-      relatedEntityType: 'deposit',
-      contextAmount: value,
-    })).json()};
-    if (jurisdiction.data?.error || jurisdiction.data?.status !== 'approved') {
-      return Response.json(
-        { error: jurisdiction.data?.reason || 'You are not currently eligible to fund your account from this location.', action:'location_required' },
-        { status: 403 }
-      );
-    }
-    if (!(lockedUser.role === 'admin' && jurisdiction.data?.adminBypass === true) && !meetsStateAge(await base44.asServiceRole.entities.User.get(user.id), jurisdiction.data?.state)) {
-      return Response.json({ eligible: false, error: 'Identity verification and age 21+ are required in an approved state.', reason: 'Identity verification and age 21+ are required in an approved state.' }, { status: 403 });
+    // One-time wallet approval only. Current location is checked at gameplay,
+    // never on later deposits. Verified 21+ KYC and transfer safeguards remain.
+    if (!(await walletOnboardingLocation(base44, user.id)).allowed) {
+      return Response.json({error:'Complete the one-time location check in wallet setup.', action:'location_required'}, {status:403});
     }
 
     // Durable idempotency: create the pending WalletTransaction FIRST with a
