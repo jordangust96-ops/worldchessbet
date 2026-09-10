@@ -90,6 +90,7 @@ export default function SeamlessFundingPanel({
 }) {
   const [state, setState] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [amount, setAmount] = useState("");
@@ -104,10 +105,10 @@ export default function SeamlessFundingPanel({
     try {
       const { data } = await base44.functions.invoke("getSeamlessWalletState", {});
       setState(data);
-      setError("");
+      setLoadError(false);
       return data;
     } catch (e) {
-      setError(e?.message || "Unable to load funding status");
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -119,7 +120,7 @@ export default function SeamlessFundingPanel({
   // processed deposit is in its clearing window. The backend remains the
   // authoritative 15-minute monitor even when this page is closed.
   useEffect(() => {
-    const hasPending =
+    const hasPending = loadError ||
       ["pending", "review_required"].includes(state?.identity?.status) ||
       state?.banks?.some((b) => ["added", "pending_verification"].includes(b.status)) ||
       state?.recent?.some((t) => t.status === "pending" || t.deposit_hold_status === "held");
@@ -136,7 +137,7 @@ export default function SeamlessFundingPanel({
       if ((before !== after || state?.identity?.status !== next?.identity?.status) && onRefresh) await onRefresh();
     }, 30000);
     return () => clearTimeout(timer);
-  }, [state, load, onRefresh]);
+  }, [state, loadError, load, onRefresh]);
 
   const submit = async () => {
     const v = parseFloat(amount);
@@ -244,6 +245,15 @@ export default function SeamlessFundingPanel({
       </div>
     );
   }
+
+  if (loadError) return (
+    <div role="alert" className="rounded-3xl border border-amber-500/20 bg-white/[0.03] p-5 space-y-3">
+      <h4 className="font-semibold text-white">Unable to refresh your wallet</h4>
+      <p className="text-sm text-white/60">We could not confirm your latest bank and identity status. Transfers are paused on this screen until we reconnect. Your funds and linked accounts have not been changed.</p>
+      <Button onClick={() => { setLoading(true); load(); }} className="gold-gradient text-black">Retry wallet connection</Button>
+      {error && <p className="text-sm text-red-400">{error}</p>}
+    </div>
+  );
 
   return (
     <div className="space-y-4">
