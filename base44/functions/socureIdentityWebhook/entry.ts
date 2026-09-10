@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
-import { identityConfig, constantTimeEqual } from '../../shared/socureIdentity.ts';
+import { identityWebhookConfig, readIdentityEvaluation, constantTimeEqual } from '../../shared/socureIdentity.ts';
 import { encryptComplianceJson } from '../../shared/kycEvidenceArchive.ts';
 import { classifyKyc, POLICY_VERSION } from '../../shared/socureKycPolicy.js';
 import { complianceRetentionUntil } from '../../shared/achAuthorization.js';
@@ -11,8 +11,8 @@ Deno.serve(async (req) => {
   try {
     if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
     let config;
-    try { config = identityConfig(); } catch { return new Response('Unavailable', { status: 503 }); }
-    if (!config.enabled || !config.webhookToken ||
+    try { config = identityWebhookConfig(); } catch { return new Response('Unavailable', { status: 503 }); }
+    if (!config.webhookToken ||
         !constantTimeEqual(req.headers.get('authorization') || '', 'Bearer ' + config.webhookToken))
       return new Response('Unauthorized', { status: 401 });
     const raw = await req.text();
@@ -56,11 +56,31 @@ Deno.serve(async (req) => {
       return Response.json({ received: true, ignored: true, reason: 'expired_session' });
     if (verification.status === 'expired') return Response.json({ received: true, ignored: true, reason: 'expired_session' });
     if (!duplicate) {
-      const result = body.event_type === 'workflow_execution_failed'
-        ? { status: 'failed', age_verified: false, failure_code: 'provider_execution_failed' }
-        : classifyKyc(data);
+      let evidenceData = data;
+      let result;
+      if (body.event_type === 'decision_update') {
+        if (data.environment_name && data.environment_name !== 'Production')
+          return Response.json({ received: true, ignored: true, reason: 'environment_mismatch' });
+        if (data.decision === 'REJECT') {
+          result = { status: 'rejected', age_verified: false, failure_code: 'identity_not_verified' };
+        } else if (data.decision !== 'ACCEPT') {
+          result = { status: 'review_required', age_verified: false, failure_code: 'identity_review_required' };
+        } else {
+          // Manual-decision events lack DOB/name evidence: obtain the canonical record.
+          evidenceData = await readIdentityEvaluation(config, data.eval_id);
+          if (evidenceData.id !== verification.request_id || evidenceData.eval_id !== data.eval_id ||
+              evidenceData.workflow !== 'consumer_onboarding' || evidenceData.environment_name !== 'Production' ||
+              evidenceData.decision !== 'ACCEPT')
+            throw new Error('Canonical identity result does not match the decision update');
+          result = classifyKyc(evidenceData);
+        }
+      } else {
+        result = body.event_type === 'workflow_execution_failed'
+          ? { status: 'failed', age_verified: false, failure_code: 'provider_execution_failed' }
+          : classifyKyc(data);
+      }
       // ACCEPT alone, absent verified DOB evidence, remains review_required.
-      const archived = await encryptComplianceJson(body);
+      const archived = await encryptComplianceJson(evidenceData === data ? body : { ...body, data: evidenceData, decision_update: data });
       const now = new Date().toISOString();
       const updated = {
         status: result.status, age_verified: result.age_verified,
@@ -88,7 +108,7 @@ Deno.serve(async (req) => {
       identity_age_verified: verification.age_verified === true,
       identity_legal_name: verification.verified_legal_name || '',
       identity_age_over_18: verification.age_over_18 === true, identity_age_over_21: verification.age_over_21 === true,
-      identity_verified_at: verification.status === 'verified' ? verification.completed_at : '',
+      ...(verification.status === 'verified' ? { identity_verified_at: verification.completed_at } : {}),
       ...(!['suspended', 'closed'].includes(current.account_state)
         ? { account_state: verification.status === 'verified' ? 'verified' : 'provisional' } : {}),
     });
