@@ -62,6 +62,7 @@ for(const path of ['base44/functions/startSocureIdentityVerification/entry.ts','
  assert.ok(src.includes('walletOnboardingLocation('),path);
  assert.ok(!src.includes('getRequestJurisdiction'),path+' never looks up current location');
 }
+assert.ok(!fs.readFileSync('src/components/wallet/SeamlessPlaidBankLink.jsx','utf8').includes('getCurrentJurisdiction'), 'bank UI never repeats location check');
 const panel=fs.readFileSync('src/components/wallet/SeamlessFundingPanel.jsx','utf8');
 assert.ok(panel.includes('state?.onboarding_location?.allowed'));
 assert.ok(!panel.includes('{journey.message}'));
