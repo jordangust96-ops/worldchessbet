@@ -49,11 +49,12 @@ export default function SocureIdentityStep({ identity, onRefresh, nextStepLabel 
   return <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-5" aria-label="Identity verification">
     <div className="flex items-start gap-3">
       <Icon className={status === "verified" ? "text-emerald-400 shrink-0" : "text-[#C9A84C] shrink-0"} size={22} />
-      <div className="flex-1">
+      <div className="min-w-0 flex-1">
         <h3 className="text-base font-semibold text-white">{titles[status] || "Verification needs attention"}</h3>
         <p className="mt-1 text-sm text-white/60" role="status">{identity?.message || "Identity verification is required before real-money activity."}</p>
         {identity?.verified && onNextStep && <button type="button" onClick={onNextStep} className="mt-4 rounded-xl gold-gradient px-4 py-3 font-semibold text-black">{nextStepLabel}</button>}
         {waiting && <>
+          {identity?.sync_unavailable && <p role="status" className="mt-2 text-xs text-amber-300">The latest result check is delayed. We have not confirmed approval yet. Please try Check verification status again shortly.</p>}
           <p className="mt-3 text-xs text-white/60">Deposits and real-money play unlock only after approval. Your linked banks remain connected.</p>
           <button type="button" onClick={refresh} disabled={checking} className="mt-3 rounded-xl border border-white/20 px-4 py-2 text-sm text-white disabled:opacity-40">
             {checking ? "Checking result…" : "Check verification status"}
@@ -63,7 +64,7 @@ export default function SocureIdentityStep({ identity, onRefresh, nextStepLabel 
         </>}
         {!identity?.verified && <>
           <p className="mt-2 text-xs text-white/45">Socure securely checks your identity and age. Bank linking remains separate through Seamless and Plaid. Existing bank connections and wallet funds are preserved.</p>
-          {identity?.can_start && (!waiting || resuming) && <>
+          {identity?.can_start && ["not_started","failed","expired","pending"].includes(status) && (!waiting || resuming) && <>
             <label className="mt-4 flex items-start gap-2 text-xs text-white/65">
               <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} className="mt-0.5" />
               <span>I agree to start identity verification with Socure. I will review Socure's data and document permissions in its secure verification flow.</span>
