@@ -190,7 +190,7 @@ ok(appSrc.indexOf('path="/faq"') < prIdx, 'public /faq remains outside the Prote
 ok(appSrc.indexOf('path="/login"') < prIdx, 'public /login remains outside the ProtectedRoute block');
 
 const depositIntentSrc = await read('src/components/wallet/DepositLocationStep.jsx');
-ok(depositIntentSrc.includes('onClick={startDeposit}'), 'deposit intent starts the location check');
+ok(depositIntentSrc.includes('onClick={checkLocation}'), 'deposit intent starts the location check');
 ok(depositIntentSrc.includes('triggerEvent: "deposit_start"'), 'deposit intent is recorded distinctly');
 ok(!/useEffect|setTimeout|setInterval|addEventListener/.test(depositIntentSrc), 'location check has no mount, timer or background trigger');
 const uncertainGeorgia = evaluateJurisdictionAccess({ status: 'verification_failed', approved: false, enforcementEnabled: true, country: 'US', state: 'GA', vpnDetected: false });
@@ -202,7 +202,7 @@ ok(fundingSrc.includes('can_start:state?.identity?.can_start && locationApproved
 ok(fundingSrc.includes('!!state?.deposits_enabled && locationApproved'), 'deposit controls require approved location');
 ok(fundingSrc.includes('const withdrawalsEnabled = !!state?.withdrawals_enabled;'), 'withdrawal availability does not require location');
 const identitySrc = await read('base44/functions/startSocureIdentityVerification/entry.ts');
-ok(identitySrc.indexOf('getRequestJurisdiction(req') < identitySrc.indexOf('await startIdentityEvaluation('), 'server verifies location before contacting identity provider');
+ok(identitySrc.indexOf('await walletOnboardingLocation(') < identitySrc.indexOf('await startIdentityEvaluation('), 'server verifies location before contacting identity provider');
 
 // ---------- 8. Backend enforcement call sites (preserved) ----------
 const createSrc = await read('base44/functions/createMatch/entry.ts');
@@ -223,6 +223,6 @@ ok(/jurisdictionRes\.data\?\.status\s*!==\s*['"]approved['"]/.test(lockSrc), 'lo
 const depositSrc = await read('base44/functions/submitSeamlessDeposit/entry.ts');
 ok(depositSrc.includes('getRequestJurisdiction'), 'submitSeamlessDeposit invokes getCurrentJurisdiction');
 ok(/triggerEvent:\s*['"]deposit['"]/.test(depositSrc), 'submitSeamlessDeposit passes triggerEvent deposit');
-ok(/jurisdiction\.data\?\.status\s*!==\s*['"]approved['"]/.test(depositSrc), 'submitSeamlessDeposit fails closed unless jurisdiction status is approved');
+ok(depositSrc.includes('await walletOnboardingLocation(base44, user.id)') && !depositSrc.includes('getRequestJurisdiction'), 'deposit requires saved approval, never current location');
 
 console.log(`jurisdiction-gates: ${pass} assertions passed (no network).`);
