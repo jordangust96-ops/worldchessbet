@@ -6,5 +6,5 @@ Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
   const user = await base44.auth.me();
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-  return Response.json({ eligible: false, reason: 'Account funding is not available yet.', action: 'deposits_disabled' }, { status: 409 });
+  return Response.json({ eligible: false, reason: 'Account funding is temporarily unavailable.', action: 'deposits_disabled' }, { status: 409 });
 });
