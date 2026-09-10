@@ -28,6 +28,12 @@ Deno.serve(async (req) => {
       owner = '';
       return Response.json({ error: 'Another account request is processing. Please try again shortly.' }, { status: 409 });
     }
+    // The callback may have completed while this request waited for the lock.
+    const lockedUser = await base44.asServiceRole.entities.User.get(user.id);
+    if (['suspended', 'closed'].includes(lockedUser.account_state) || lockedUser.withdrawal_hold)
+      return Response.json({ error: 'Your account is restricted. Contact support.' }, { status: 403 });
+    if (await hasVerifiedIdentity(base44, lockedUser))
+      return Response.json({ enabled: true, status: 'verified' });
     const latest = (await base44.asServiceRole.entities.SocureIdentityVerification.filter(
       { user_id: user.id, policy_version: KYC_POLICY_VERSION }, '-requested_at', 1
     ))[0];
