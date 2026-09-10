@@ -106,5 +106,8 @@ clock+=121000;await client.functions.invoke('gameHeartbeat',payload);await new P
 const sent=calls.find(c=>c[0]==='recordGameHealth');assert.ok(sent);assert.ok(!JSON.stringify(sent).includes('private'));assert.ok(!JSON.stringify(sent).includes('e4'));
 user={id:'admin',role:'admin'};
 const brief=await(await handler('generateDailyOperationsBrief')(request())).json();
-assert.match(brief.headline,/Site health: unknown/);assert.ok(rows.DailyOperationsBrief[0].summary_markdown.includes('## Site health: unknown'));
+// When material exceptions exist (here the empty-state pooled-funds check), the
+// brief headline leads with the approval/exception counts; site health still
+// appears in the summary body. (Was asserting the headline itself was site health.)
+assert.match(brief.headline,/critical\/high approval\(s\) required, \d+ money\/ledger exception\(s\)/);assert.ok(rows.DailyOperationsBrief[0].summary_markdown.includes('## Site health: unknown'));
 console.log('PASS: stale/unknown, credits, gameplay thresholds, authorization, collection persistence, alert cooldown/recovery, bounded telemetry, public redaction, original gameplay behavior. No live provider calls or email sent.');
