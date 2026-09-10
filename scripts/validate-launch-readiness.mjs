@@ -68,7 +68,12 @@ for (const file of [...await collect('src/'), ...await collect('base44/functions
 
 const ledger = await read('base44/shared/ledger.ts');
 const ledgerIntegrity = await read('base44/functions/checkLedgerIntegrity/entry.ts');
-assert.equal((ledger.match(/launch_epoch: 2/g) || []).length, 3);
+// Structural check (was a brittle exact count): the production launch_epoch must
+// be applied on both rebuild filters and every journal write. Count is >= 3 so a
+// legitimately-added epoch-tagged write (e.g. LedgerJournalBatch) does not break it.
+assert.match(ledger, /launch_epoch: 2, user_id: userId/);
+assert.match(ledger, /launch_epoch: 2, ledger_account: accountName/);
+assert.ok((ledger.match(/launch_epoch: 2/g) || []).length >= 3, 'ledger.ts must tag the production launch_epoch on rebuild filters and journal writes');
 assert.match(ledgerIntegrity, /LedgerEntry\.filter\(\{ launch_epoch: 2 \}/);
 assert.match(ledgerIntegrity, /WalletTransaction\.filter\(\{ launch_epoch: 2 \}/);
 
