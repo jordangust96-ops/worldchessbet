@@ -26,7 +26,7 @@ vm.runInNewContext(transformSync(source,{loader:'jsx',format:'cjs'}).code,{
  }});
 const Component=uiModule.exports.default;
 for(const [status,title] of Object.entries({pending:'Confirming verification status',incomplete:'Verification not completed',review_required:'Verification submitted — under review',rejected:'Verification not approved',verified:'Identity Verified',not_started:'Verify your identity',expired:'Verification expired',failed:'Verification could not be completed'})){
- const html=renderToStaticMarkup(React.createElement(Component,{identity:{status,verified:status==='verified',enabled:true,can_start:true},onNextStep:()=>{}}));
+ const html=renderToStaticMarkup(React.createElement(Component,{locationApproved:true,identity:{status,verified:status==='verified',enabled:true,can_start:true},onNextStep:()=>{}}));
  assert.ok(html.includes(title));
  if(['pending','review_required','rejected','verified'].includes(status))assert.ok(!html.includes('type="checkbox"'),status+' should not show new consent by default');
  assert.ok(!html.includes('Check verification status'));
@@ -34,11 +34,11 @@ for(const [status,title] of Object.entries({pending:'Confirming verification sta
  if(['pending','review_required','rejected','verified'].includes(status))assert.ok(!html.includes('<button'));
  if(status==='incomplete')assert.ok(html.includes('Start verification over'));
 }
-const submittedHtml=renderToStaticMarkup(React.createElement(Component,{identity:{status:'pending',submitted:true,enabled:true,can_start:true}}));
+const submittedHtml=renderToStaticMarkup(React.createElement(Component,{locationApproved:true,identity:{status:'pending',submitted:true,enabled:true,can_start:true}}));
 assert.ok(submittedHtml.includes('Verification submitted — pending'));
 assert.ok(!submittedHtml.includes('<button'));
 for(const status of ['failed','expired']) {
- const html=renderToStaticMarkup(React.createElement(Component,{identity:{status,submitted:true,enabled:true,can_start:true}}));
+ const html=renderToStaticMarkup(React.createElement(Component,{locationApproved:true,identity:{status,submitted:true,enabled:true,can_start:true}}));
  assert.ok(!html.includes('<button'),'completed submissions remain status-only');
 }
 async function stateFor(row){
