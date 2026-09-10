@@ -39,11 +39,11 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'invalid_snapshot_request' }, { status: 400 });
     }
 
-    const existing = (await base44.asServiceRole.entities.SeamlessMerchantBalanceSnapshot.filter(
+    const existing = (await base44.asServiceRole.entities['seamless-merchant-balance-snapshot'].filter(
       { idempotency_key: idempotencyKey }, '-created_at', 1
     ))[0];
     if (existing) {
-      const reconciliation = (await base44.asServiceRole.entities.SeamlessPooledFundsReconciliation.filter(
+      const reconciliation = (await base44.asServiceRole.entities['seamless-pooled-funds-reconciliation'].filter(
         { snapshot_id: existing.id }, '-created_at', 1
       ))[0] || null;
       return Response.json({ snapshot: existing, reconciliation, deduplicated: true });
@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
       calculatedAt: now,
     });
 
-    const snapshot = await base44.asServiceRole.entities.SeamlessMerchantBalanceSnapshot.create({
+    const snapshot = await base44.asServiceRole.entities['seamless-merchant-balance-snapshot'].create({
       provider_key: 'seamless_ach',
       available_balance: result.provider_available_balance,
       pending_balance: result.provider_pending_balance,
@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
       created_at: now,
     };
     if (reconciliationFields.coverage_ratio == null) delete reconciliationFields.coverage_ratio;
-    const reconciliation = await base44.asServiceRole.entities.SeamlessPooledFundsReconciliation.create(reconciliationFields);
+    const reconciliation = await base44.asServiceRole.entities['seamless-pooled-funds-reconciliation'].create(reconciliationFields);
 
     await recordIntegrationEvent(base44, {
       eventType: 'financial.seamless_merchant_balance_reconciled',
