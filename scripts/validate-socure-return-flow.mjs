@@ -8,16 +8,24 @@ import {loadBackend} from './helpers/load-backend.mjs';
 import * as policy from '../base44/shared/socureKycPolicy.js';
 import * as eligibility from '../base44/shared/identityEligibility.js';
 const source=await readFile('src/components/wallet/SocureIdentityStep.jsx','utf8');
+const stepModule={exports:{}};
+vm.runInNewContext(transformSync(await readFile('src/components/wallet/WalletSetupStep.jsx','utf8'),{loader:'jsx',format:'cjs'}).code,{
+ module:stepModule,exports:stepModule.exports,require:name=>{
+ if(name==='react')return React;
+ if(name==='lucide-react')return {Check:()=>null,Clock:()=>null,AlertTriangle:()=>null};
+ throw Error(name);
+ }});
 const uiModule={exports:{}};
 vm.runInNewContext(transformSync(source,{loader:'jsx',format:'cjs'}).code,{
  module:uiModule,exports:uiModule.exports,require:name=>{
  if(name==='react')return React;
  if(name==='lucide-react')return {ShieldCheck:()=>null,Loader2:()=>null,CheckCircle2:()=>null,Clock:()=>null,AlertTriangle:()=>null};
  if(name==='@/api/base44Client')return {base44:{}};
+ if(name==='./WalletSetupStep')return stepModule.exports;
  throw Error(name);
  }});
 const Component=uiModule.exports.default;
-for(const [status,title] of Object.entries({pending:'Confirming verification status',incomplete:'Verification not completed',review_required:'Verification submitted — under review',rejected:'Verification not approved',verified:'Identity verified',not_started:'Verify your identity',expired:'Verification expired',failed:'Verification could not be completed'})){
+for(const [status,title] of Object.entries({pending:'Confirming verification status',incomplete:'Verification not completed',review_required:'Verification submitted — under review',rejected:'Verification not approved',verified:'Identity Verified',not_started:'Verify your identity',expired:'Verification expired',failed:'Verification could not be completed'})){
  const html=renderToStaticMarkup(React.createElement(Component,{identity:{status,verified:status==='verified',enabled:true,can_start:true},onNextStep:()=>{}}));
  assert.ok(html.includes(title));
  if(['pending','review_required','rejected','verified'].includes(status))assert.ok(!html.includes('type="checkbox"'),status+' should not show new consent by default');
