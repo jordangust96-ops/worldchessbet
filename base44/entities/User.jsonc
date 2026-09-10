@@ -11,6 +11,14 @@
         "write": false
       }
     },
+    "mfa_bypass": {
+      "type": "boolean",
+      "default": false,
+      "description": "When true, this user is permanently exempt from multi-factor authentication. Set only by an administrator for account recovery. The MfaGuard and validateMfaSession short-circuit to valid without requiring an OTP or session token.",
+      "rls": {
+        "write": false
+      }
+    },
     "identity_verification_status": {
       "type": "string",
       "description": "Server-maintained Socure player KYC status. Bank authorization never grants identity verification.",

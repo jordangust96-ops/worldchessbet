@@ -12,6 +12,11 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ valid: false, error: 'unauthorized' }, { status: 401 });
 
+    // Administrators can grant a permanent MFA bypass for account recovery.
+    if (user.mfa_bypass === true) {
+      return Response.json({ valid: true, bypass: true });
+    }
+
     const { sessionToken } = await req.json();
     if (typeof sessionToken !== 'string' || sessionToken.length < 32 || sessionToken.length > 256) {
       return Response.json({ valid: false }, { status: 401 });
