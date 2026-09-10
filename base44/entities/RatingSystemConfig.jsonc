@@ -14,7 +14,7 @@
     "public_enabled": {
       "type": "boolean",
       "default": false,
-      "description": "Reserved UI kill switch. Must remain false while ratings are shadow-only."
+      "description": "Player-facing rating visibility switch. The production singleton is enabled; set false only as an emergency UI kill switch."
     },
     "history_start_at": {
       "type": "string",
@@ -44,7 +44,7 @@
     "provisional_games": {
       "type": "number",
       "default": 10,
-      "description": "Player-facing provisional threshold. Games are calculated from game one; visibility remains disabled until a future UI phase."
+      "description": "Player-facing provisional threshold. Games are calculated from game one and shown when public_enabled is true."
     },
     "current_generation": {
       "type": "number",
