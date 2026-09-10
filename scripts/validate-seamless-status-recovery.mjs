@@ -40,10 +40,14 @@ assert.match(recovery, /\{ status: 'completed', integration_status: 'settled' }/
   'settled ACH items remain eligible for bounded late-return monitoring');
 assert.match(recovery, /POST_SETTLEMENT_INTERVAL_MS = 24/,
   'post-settlement provider checks are limited to daily cadence');
-assert.match(recovery, /isClosedTrackerState\(tracker\?\.state\)/,
-  'manual-review and terminal trackers are not recreated on every sweep');
+assert.match(recovery, /isClosedTrackerState\(tracker\)/,
+  'terminal trackers are not recreated on every sweep');
+assert.match(recovery, /last_error_code === 'seamless_http_404'/,
+  'a temporarily unavailable just-created provider record remains in automated recovery');
+assert.match(recovery, /providerHttpStatus === 404/,
+  'single-check 404 responses back off and retry instead of stranding funds in manual review');
 assert.match(recovery, /\['failed', 'reversed', 'manual_review', 'settled'\]/,
-  'closed tracker states are explicit and fail closed');
+  'closed tracker states remain explicit and fail closed');
 assert.match(recovery, /priority = Number\(a\.status === 'completed'\)/,
   'unresolved ACH transactions are processed before settled monitoring');
 assert.match(recovery, /Post-settlement monitoring window completed/,
