@@ -93,6 +93,7 @@ async function upsertFinding(base44, result, reconciliationId, checkedAt) {
 // segregation determination.
 Deno.serve(async (req) => {
   const checkedAt = new Date().toISOString();
+  let stage = 'authentication';
   try {
     const base44 = createClientFromRequest(req);
     const caller = await base44.auth.me().catch(() => null);
@@ -100,6 +101,7 @@ Deno.serve(async (req) => {
     if (caller.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 });
     seamlessConfig();
 
+    stage = 'snapshot_lookup';
     const bucket = checkedAt.slice(0, 13);
     const idempotencyKey = `seamless-api-hourly-${bucket}`;
     const existing = (await base44.asServiceRole.entities['seamless-merchant-balance-snapshot'].filter(
@@ -116,12 +118,15 @@ Deno.serve(async (req) => {
       return Response.json({ snapshot: existing, reconciliation, deduplicated: true });
     }
 
+    stage = 'provider_account';
     const accountData = await seamlessRequest('GET', PATH_ACCOUNT);
     const providerUserId = merchantUserId(accountData);
     if (!providerUserId) throw new Error('missing_merchant_user_id');
+    stage = 'provider_balance';
     const balanceData = await seamlessRequest('GET', buildMerchantBalanceLookupPath(providerUserId));
     const provider = balanceValues(balanceData);
 
+    stage = 'liability_read';
     const [wallets, transactions] = await Promise.all([
       allRows(base44.asServiceRole.entities.Wallet),
       allRows(base44.asServiceRole.entities.WalletTransaction),
@@ -162,6 +167,7 @@ Deno.serve(async (req) => {
       staleAfterHours: 2,
     });
 
+    stage = 'snapshot_create';
     const snapshot = await base44.asServiceRole.entities['seamless-merchant-balance-snapshot'].create({
       provider_key: SEAMLESS_PROVIDER_KEY,
       available_balance: result.provider_available_balance,
@@ -189,8 +195,10 @@ Deno.serve(async (req) => {
       created_at: checkedAt,
     };
     if (fields.coverage_ratio == null) delete fields.coverage_ratio;
+    stage = 'reconciliation_create';
     const reconciliation = await base44.asServiceRole.entities['seamless-pooled-funds-reconciliation'].create(fields);
 
+    stage = 'finding_and_audit';
     await upsertFinding(base44, result, reconciliation.id, checkedAt);
     await recordIntegrationEvent(base44, {
       eventType: 'financial.seamless_merchant_balance_reconciled',
@@ -215,6 +223,8 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error(JSON.stringify({
       event: 'seamless_pooled_funds_reconciliation_failed',
+      stage,
+      http_status: Number(error?.status) || null,
       error: clean(error?.message || 'unknown_error', 128),
     }));
     return Response.json({ error: 'seamless_pooled_funds_reconciliation_failed' }, { status: 500 });
