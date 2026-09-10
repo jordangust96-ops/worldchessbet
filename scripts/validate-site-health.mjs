@@ -36,7 +36,7 @@ const entities=new Proxy({}, {get:(_,name)=>({
  update:async (id,data)=>{if(name==='SiteHealthSnapshot' && data.history_json?.length>20000)throw Error('history_json exceeds storage limit 20000');assert.ok(['SiteHealthSnapshot','GameHealthTelemetry','SiteHealthConfig'].includes(name),'unexpected mutation '+name);const r={...(rows[name]?.[0]||{}),...data,id};rows[name]=[r];writes.push({name,data});return r;}
 })});
 const sdk={auth:{me:async()=>user},asServiceRole:{entities,integrations:{Core:{SendEmail:async data=>{emails.push(data);if(failMail)throw Error('mail failure');return {};}}}}};
-const env={FAIR_PLAY_SCREENING_ENABLED:'true',FAIR_PLAY_ANALYZER_URL:'https://test.ondigitalocean.app',SEAMLESS_ATOMIC_REDIS_REST_URL:'https://test.upstash.io',SEAMLESS_ATOMIC_REDIS_REST_TOKEN:'mock',RATING_ATOMIC_REDIS_REST_URL:'https://ratings.upstash.io',RATING_ATOMIC_REDIS_REST_TOKEN:'mock'};
+const env={FAIR_PLAY_SCREENING_ENABLED:'true',FAIR_PLAY_ANALYZER_URL:'https://test.ondigitalocean.app',SEAMLESS_ATOMIC_REDIS_REST_URL:'https://test.upstash.io',SEAMLESS_ATOMIC_REDIS_REST_TOKEN:'mock',RATING_ATOMIC_REDIS_REST_URL:'https://ratings.upstash.io',RATING_ATOMIC_REDIS_REST_TOKEN:'mock',MAXMIND_GEOIP_ENABLED:'true',MAXMIND_ACCOUNT_ID:'mock',MAXMIND_LICENSE_KEY:'mock'};
 function handler(name){
  let serve;
  const source=fs.readFileSync('base44/functions/'+name+'/entry.ts','utf8');
