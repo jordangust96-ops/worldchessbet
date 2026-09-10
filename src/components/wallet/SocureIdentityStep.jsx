@@ -11,7 +11,7 @@ export default function SocureIdentityStep({ identity, onRefresh }) {
     try {
       const { data } = await base44.functions.invoke("startSocureIdentityVerification", { consent });
       if (data?.status === "verified") { await onRefresh?.(); return; }
-      const url = new URL(data?.hosted_url || data?.hostedUri || "");
+      const url = new URL(data?.redirect_uri || "");
       if (url.origin !== "https://riskos.socure.com" || !url.pathname.startsWith("/hosted/") || url.username || url.password)
         throw new Error("The verification link could not be validated.");
       window.location.assign(url.href);
