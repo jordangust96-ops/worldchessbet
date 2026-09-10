@@ -10,7 +10,7 @@ export default function SocureIdentityStep({ identity, onRefresh, locationApprov
   const status = identity?.verified ? "verified" : identity?.status || "not_started";
   const canStart = !identity?.submitted && identity?.can_start && ["not_started", "incomplete", "expired", "failed"].includes(status);
   const titles = {
-    verified: "Identity verified",
+    verified: "Identity Verified",
     pending: identity?.submitted ? "Verification submitted — pending" : "Confirming verification status",
     review_required: "Verification submitted — under review",
     rejected: "Verification not approved",
