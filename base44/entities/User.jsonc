@@ -288,6 +288,13 @@
       "rls": {
         "write": false
       }
+    },
+    "identity_legal_name": {
+      "type": "string",
+      "description": "Legal name from authenticated Socure KYC evidence, used for bank-ownership consistency.",
+      "rls": {
+        "write": false
+      }
     }
   },
   "required": [
