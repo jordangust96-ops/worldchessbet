@@ -117,6 +117,7 @@ async function startHarness({enabled=true,lock=true,prior=null,encryptionFails=f
   safeHostedUrl:v=> typeof v==='string' && v.startsWith('https://riskos.socure.com/hosted/')?v:'',
   startIdentityEvaluation:async()=>{calls++;if(providerFails)throw Error('network');return {eval_id:'eval-1',redirect_uri:'https://riskos.socure.com/hosted/test'};}
  },
+ '../../shared/requestJurisdiction.ts':{getRequestJurisdiction:async()=>Response.json({status:'approved'})},
  '../../shared/identityEligibility.js':{...eligibility,hasVerifiedIdentity:async()=>current.account_state==='verified'},
  '../../shared/kycEvidenceArchive.ts':{encryptComplianceJson:async()=>{if(encryptionFails)throw Error('key');}},
  '../../shared/achAuthorization.js':{complianceRetentionUntil:()=> '2028-09-10T00:00:00Z',requestIpAddress:()=> '192.0.2.1'},
