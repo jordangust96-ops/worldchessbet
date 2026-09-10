@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { acquireUserWalletLock, releaseUserWalletLock } from '../../shared/seamlessAtomicStore.ts';
 import { isVerifiedKycEvidence, KYC_POLICY_VERSION } from '../../shared/identityEligibility.js';
 // The scheduled sweep may revoke drifted snapshots; it never promotes bank verification to KYC.
 Deno.serve(async (req) => {
@@ -10,8 +11,12 @@ Deno.serve(async (req) => {
     let checked = 0, revoked = 0, skip = 0;
     while (true) {
       const users = await base44.asServiceRole.entities.User.list('id', 100, skip);
-      for (const user of users) {
+      for (const snapshot of users) {
         checked++;
+        const owner = crypto.randomUUID();
+        if (!await acquireUserWalletLock(snapshot.id, owner)) continue;
+        try {
+        const user = await base44.asServiceRole.entities.User.get(snapshot.id);
         if (user.identity_verification_status !== 'verified') continue;
         const rows = user.identity_verification_provider === 'socure'
           ? await base44.asServiceRole.entities.SocureIdentityVerification.filter(
@@ -24,6 +29,7 @@ Deno.serve(async (req) => {
           ...(user.account_state === 'verified' ? { account_state: 'provisional' } : {}),
         });
         revoked++;
+        } finally { await releaseUserWalletLock(snapshot.id, owner); }
       }
       if (users.length < 100) break;
       skip += users.length;
