@@ -663,61 +663,77 @@ Deno.serve(async (req) => {
             if (match.player1_deposited && match.player1_id) refundTargets.push(match.player1_id);
             if (match.player2_deposited && match.player2_id) refundTargets.push(match.player2_id);
 
+            const getOrCreateVoidRefund = async ({ playerId, type, amount, description, keySuffix }) => {
+              const idempotencyKey = `dispute:${disputeCase.id}:contest_void:${keySuffix}:${playerId}`;
+              const existing = await base44.asServiceRole.entities.WalletTransaction.filter(
+                { idempotency_key: idempotencyKey },
+                'created_date',
+                5
+              );
+              if (existing.length > 1) throw new Error('duplicate_contest_void_refund_operation');
+              if (existing[0]) return existing[0];
+              return base44.asServiceRole.entities.WalletTransaction.create({
+                user_id: playerId,
+                type,
+                amount,
+                match_id: match.id,
+                description,
+                status: 'pending',
+                direction: 'release',
+                correlation_id: disputeCase.id,
+                source_event: 'dispute_case_contest_void',
+                initiating_actor: 'administrator',
+                initiating_actor_id: admin.id,
+                idempotency_key: idempotencyKey,
+                launch_epoch: 2,
+              });
+            };
+
             for (const playerId of refundTargets) {
               if (entryAmount > 0) {
-                const refundTx = await base44.asServiceRole.entities.WalletTransaction.create({
-                  user_id: playerId,
+                const refundTx = await getOrCreateVoidRefund({
+                  playerId,
                   type: 'wager_refund',
                   amount: entryAmount,
-                  match_id: match.id,
+                  keySuffix: 'entry',
                   description: `Entry amount refunded — contest voided before settlement, Case #${fmtCase(disputeCase.case_number)}`,
-                  status: 'pending',
-                  direction: 'release',
-                  correlation_id: disputeCase.id,
-                  source_event: 'dispute_case_contest_void',
-                  initiating_actor: 'administrator',
-                  initiating_actor_id: admin.id,
-                  launch_epoch: 2,
                 });
                 walletTransactionIds.push(refundTx.id);
-                entries.push(...(await postRemedyLegs(base44, {
-                  matchId: match.id,
-                  admin,
-                  triggerEvent: 'contest_void_entry_refund',
-                  groupId: `dispute:${disputeCase.id}:contest_void:entry:${playerId}`,
-                  legs: [
-                    { ledgerAccount: 'contest_clearing', debit: entryAmount, credit: 0, transactionType: 'refund' },
-                    { ledgerAccount: 'user_account', userId: playerId, debit: 0, credit: entryAmount, heldDelta: -entryAmount, transactionType: 'refund', walletTransactionId: refundTx.id },
-                  ],
-                })));
+                if (refundTx.status !== 'completed') {
+                  entries.push(...(await postRemedyLegs(base44, {
+                    matchId: match.id,
+                    admin,
+                    triggerEvent: 'contest_void_entry_refund',
+                    groupId: `dispute:${disputeCase.id}:contest_void:entry:${playerId}`,
+                    legs: [
+                      { ledgerAccount: 'contest_clearing', debit: entryAmount, credit: 0, transactionType: 'refund' },
+                      { ledgerAccount: 'user_account', userId: playerId, debit: 0, credit: entryAmount, heldDelta: -entryAmount, transactionType: 'refund', walletTransactionId: refundTx.id },
+                    ],
+                  })));
+                }
               }
 
               if (feePerPlayer > 0) {
-                const feeRefundTx = await base44.asServiceRole.entities.WalletTransaction.create({
-                  user_id: playerId,
+                const feeRefundTx = await getOrCreateVoidRefund({
+                  playerId,
                   type: 'service_fee_refund',
                   amount: feePerPlayer,
-                  match_id: match.id,
+                  keySuffix: 'fee',
                   description: `Platform service fee refunded — contest voided before settlement, Case #${fmtCase(disputeCase.case_number)}`,
-                  status: 'pending',
-                  direction: 'release',
-                  correlation_id: disputeCase.id,
-                  source_event: 'dispute_case_contest_void',
-                  initiating_actor: 'administrator',
-                  initiating_actor_id: admin.id,
-                  launch_epoch: 2,
                 });
                 walletTransactionIds.push(feeRefundTx.id);
-                entries.push(...(await postRemedyLegs(base44, {
-                  matchId: match.id,
-                  admin,
-                  triggerEvent: 'contest_void_fee_refund',
-                  groupId: `dispute:${disputeCase.id}:contest_void:fee:${playerId}`,
-                  legs: [
-                    { ledgerAccount: 'suspense', debit: feePerPlayer, credit: 0, transactionType: 'refund' },
-                    { ledgerAccount: 'user_account', userId: playerId, debit: 0, credit: feePerPlayer, heldDelta: -feePerPlayer, transactionType: 'refund', walletTransactionId: feeRefundTx.id },
-                  ],
-                })));
+                if (feeRefundTx.status !== 'completed') {
+                  entries.push(...(await postRemedyLegs(base44, {
+                    matchId: match.id,
+                    admin,
+                    triggerEvent: 'contest_void_fee_refund',
+                    groupId: `dispute:${disputeCase.id}:contest_void:fee:${playerId}`,
+                    legs: [
+                      { ledgerAccount: 'suspense', debit: feePerPlayer, credit: 0, transactionType: 'refund' },
+                      { ledgerAccount: 'user_account', userId: playerId, debit: 0, credit: feePerPlayer, heldDelta: -feePerPlayer, transactionType: 'refund', walletTransactionId: feeRefundTx.id },
+                    ],
+                  })));
+                }
               }
             }
 
