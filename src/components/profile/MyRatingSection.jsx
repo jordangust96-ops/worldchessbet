@@ -6,7 +6,7 @@ import { BarChart3, CheckCircle2, Check } from "lucide-react";
 const POOLS = ["blitz", "rapid", "classical"];
 const LABELS = { blitz: "Blitz", rapid: "Rapid", classical: "Classical" };
 const STATUS = {
-  coming_soon: "Coming soon", unavailable: "Temporarily unavailable",
+  coming_soon: "Temporarily unavailable", unavailable: "Temporarily unavailable",
   updating: "Updating", unrated: "Unrated",
   provisional: "Provisional", established: "Established",
 };
@@ -134,7 +134,7 @@ export default function MyRatingSection({ onSummaryChange }) {
             <Button type="button" variant="outline" size="sm" onClick={refresh}>Try again</Button>
           </div>
         ) : data?.status === "coming_soon" ? (
-          <p>Ratings are coming soon — they'll show up here once they're ready.</p>
+          <p>Ratings are temporarily unavailable. Check back soon.</p>
         ) : data?.status === "unavailable" ? (
           <p>Rating status is temporarily unavailable. Check back soon.</p>
         ) : data?.status === "updating" || selected?.status === "updating" ? (
