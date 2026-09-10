@@ -47,7 +47,12 @@ export function verifiedLegalName(data) {
 export function classifyKyc(data, now = new Date()) {
   if (data?.workflow !== 'consumer_onboarding' || data?.environment_name !== 'Production')
     return { status: 'review_required', age_verified: false, failure_code: 'workflow_or_environment_mismatch' };
-  if (data.eval_status !== 'evaluation_completed')
+  // Evaluation API and webhook contracts use different status field names.
+  // Conflicting values must not grant eligibility.
+  if (data.eval_status && data.evaluation_status && data.eval_status !== data.evaluation_status)
+    return { status: 'review_required', age_verified: false, failure_code: 'conflicting_evaluation_status' };
+  const evaluationStatus = data.eval_status || data.evaluation_status;
+  if (evaluationStatus !== 'evaluation_completed')
     return { status: 'pending', age_verified: false, failure_code: '' };
   if (data.decision === 'REJECT') return { status: 'rejected', age_verified: false, failure_code: 'identity_not_verified' };
   if (data.decision !== 'ACCEPT') return { status: 'review_required', age_verified: false, failure_code: 'identity_review_required' };
