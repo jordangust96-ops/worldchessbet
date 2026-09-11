@@ -29,6 +29,7 @@ const typeConfig = {
 const SMALL_WITHDRAWAL_THRESHOLD = 10;
 
 const statusConfig = {
+  reversed: { label: "Reversed", className: "text-red-300 bg-red-500/10 border-red-500/20" },
   completed: { label: "Completed", className: "text-green-400 bg-green-500/10 border-green-500/20" },
   pending: { label: "Pending", className: "text-[#C9A84C] bg-[#C9A84C]/10 border-[#C9A84C]/20" },
   failed: { label: "Not applied", className: "text-white/45 bg-white/5 border-white/10" },
@@ -77,6 +78,13 @@ function getTransactionExplanation(tx, match) {
   const amount = `$${formatMoney(tx.amount)}`;
   const entry = match?.wager_amount != null ? `$${formatMoney(match.wager_amount)}` : null;
 
+  if (tx.type === "deposit" && tx.status === "reversed") {
+    return { heading: "Deposit returned", text: "The bank returned this deposit. Its wallet credit has been reversed. Any amount that could not be recovered is subject to account review." };
+  }
+  if (tx.type === "deposit" && !["failed", "reversed"].includes(tx.status) &&
+      ["awaiting_evidence", "mismatch"].includes(tx.deposit_reconciliation_status)) {
+    return { heading: "Verifying deposit", text: "We are checking the bank charge, processor fee, and amount received with Seamless. This deposit is unavailable until verification and clearing are complete." };
+  }
   if (tx.type === "deposit" && tx.deposit_hold_status === "held") {
     const releaseText = tx.deposit_release_at
       ? moment(tx.deposit_release_at).format("MMM D, YYYY")
@@ -219,19 +227,22 @@ export default function TransactionHistory({
           const opponentName = context?.opponentName;
           const timeControl = match?.display_name || titleCase(match?.time_control);
           const result = getMatchResult(match, userId);
+          const isDepositReview = tx.type === "deposit" && !["failed", "reversed"].includes(tx.status) &&
+            ["awaiting_evidence", "mismatch"].includes(tx.deposit_reconciliation_status);
+          const isReversed = tx.status === "reversed";
           const isDepositClearing = tx.type === "deposit" && tx.deposit_hold_status === "held";
           const isPendingRelease = (tx.type === "payout" && tx.payout_hold_status === "held") || isDepositClearing;
           const isFailed = tx.status === "failed";
           const isFailedTransfer = isFailed && ["deposit", "withdrawal"].includes(tx.type);
           const failureMessage = isFailedTransfer ? getTransferFailureMessage(tx) : "";
-          const status = isDepositClearing
+          const status = isDepositReview ? statusConfig.review_required : isReversed ? statusConfig.reversed : isDepositClearing
             ? statusConfig.clearing
             : isPendingRelease
               ? statusConfig.pending_release
             : isFailedTransfer
               ? statusConfig.failed_transfer
               : (statusConfig[tx.status] || statusConfig.completed);
-          const needsReview = tx.status === "review_required";
+          const needsReview = tx.status === "review_required" || isDepositReview;
           const explanation = getTransactionExplanation(tx, match);
           const transactionCreatedMs = serverTimestampMs(tx.created_date);
           const transactionAgeMs = Date.now() - transactionCreatedMs;
@@ -244,14 +255,14 @@ export default function TransactionHistory({
           const reportDeadline = Number.isFinite(transactionCreatedMs)
             ? transactionCreatedMs + REPORT_WINDOW_MS
             : null;
-          const amountLabel = isFailed
+          const amountLabel = isReversed ? `Reversed · $${formatMoney(tx.amount)}` : isFailed
             ? `Not applied · $${formatMoney(tx.amount)}`
             : needsReview
               ? `Review · $${formatMoney(tx.amount)}`
               : isPendingRelease
                 ? `Pending · +$${formatMoney(tx.amount)}`
                 : `${isIncoming ? "+" : "-"}$${formatMoney(tx.amount)}`;
-          const amountClass = isFailed || needsReview
+          const amountClass = isFailed || needsReview || isReversed
             ? "text-white/45"
             : isPendingRelease
               ? "text-[#C9A84C]"
