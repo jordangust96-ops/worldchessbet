@@ -111,12 +111,12 @@ assert.match(disputeSrc, /resolutionFields\.reversal_wallet_transaction_ids = wa
 assert.match(disputeSrc, /type: 'admin_reversal',[\s\S]{0,400}source_event: 'dispute_case_contest_void'/, 'contest_voided (settled) creates an admin_reversal WalletTransaction for the winner clawback');
 assert.doesNotMatch(disputeSrc, /debit: payout, credit: entryAmount, fromHeld: holdCoversThis, transactionType: 'reversal' \}\);/, "contest_voided's winner leg no longer mixes a debit and a credit in one untracked leg — it is split so each side gets its own WalletTransaction");
 assert.match(disputeSrc, /description: `Entry amount refunded — contest voided before settlement, Case #\$\{fmtCase\(disputeCase\.case_number\)\}`/, 'the not-yet-settled contest_voided branch also creates a WalletTransaction per refunded player, not just the settled branch');
-assert.match(disputeSrc, /walletTransactionId,\s*\n\s*\}\);\s*\n\s*if \(entry\) entries\.push\(entry\);/, 'the not-yet-settled refund is threaded into applyBalanceHold via walletTransactionId');
+assert.match(disputeSrc, /transactionType: 'refund', walletTransactionId: refundTx\.id/, 'unsettled entry refund is linked to its transaction');
 assert.match(disputeSrc, /resolutionFields\.void_wallet_transaction_ids = walletTransactionIds;/, 'contest_voided records its WalletTransaction ids on the CaseResolution');
 
 assert.match(disputeSrc, /caseUpdates\.wallet_transaction_ids = \[\.\.\.\(disputeCase\.wallet_transaction_ids \|\| \[\]\), \.\.\.walletTransactionIds\];/, 'both remedy branches append their new WalletTransaction ids onto the case\'s own wallet_transaction_ids field for admin financial review');
 
-assert.match(disputeSrc, /walletTransactionId: pendingPayout\.id,/, 'the end-of-case pending-payout release also tags its ledger leg back to the original payout WalletTransaction');
+assert.doesNotMatch(disputeSrc, /triggerEvent: 'pending_winnings_release'/, 'case resolution delegates winnings release to the sweep');
 
 assert.match(ledgerSrc, /wallet_transaction_id: leg\.walletTransactionId \|\| walletTransactionId \|\| ''/, "the shared atomic ledger threads each remedy leg's WalletTransaction id onto its materialized LedgerEntry");
 
@@ -136,9 +136,9 @@ assert.match(settleMatchSrc, /payout_hold_status: 'void'/, "settleMatch's markSe
 assert.match(disputeSrc, /\.find\(\(t\) => t\.status === 'completed' && t\.payout_hold_status === 'held'\);/, "place_post_settlement_hold's existing-hold lookup requires status:'completed'");
 assert.match(disputeSrc, /\.find\(\(t\) => t\.status === 'completed' && t\.payout_hold_status === 'held'\) \|\| null;/, "resolve_case's pending-payout lookup requires status:'completed'");
 
-assert.match(releaseSrc, /\{ type: 'payout', status: 'completed', payout_hold_status: 'held' \},/, "releasePendingWinnings' main sweep query requires status:'completed'");
-assert.match(releaseSrc, /transaction\.status !== 'completed' \|\| transaction\.payout_hold_status !== 'held'/, "releasePendingWinnings' fresh re-fetch guard requires status:'completed'");
-assert.match(releaseSrc, /preCommit\.status !== 'completed' \|\| preCommit\.payout_hold_status !== 'held'/, "releasePendingWinnings' final pre-commit guard requires status:'completed'");
-assert.match(releaseSrc, /walletTransactionId: transaction\.id,/, 'releasePendingWinnings also tags its release ledger leg back to the payout WalletTransaction it is releasing');
+assert.match(releaseSrc, /type: 'payout', status: 'completed', payout_hold_status: 'held'/, 'sweep selects only real completed payouts');
+assert.match(releaseSrc, /tx\.status !== 'completed' \|\| tx\.payout_hold_status !== 'held'/, 'locked re-fetch requires completed held payouts');
+assert.match(releaseSrc, /beforePost: async/, 'eligibility is checked inside the financial lock');
+assert.match(releaseSrc, /walletTransactionId: candidate\.id/, 'release ledger retains payout linkage');
 
 console.log('Dispute-remedy traceability and payout-election-race validation passed.');

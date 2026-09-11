@@ -349,8 +349,8 @@ Deno.serve(async (req) => {
         // releases a payout while this case is open. Resolving the case is
         // what finally decides its fate: contest_reversed/contest_voided
         // consume it directly from Held Balance below; every other
-        // resolution type releases it to Available Balance once the case
-        // concludes, matching the existing no_violation hold-release logic.
+        // resolution type leaves it for the scheduled sweep after the case
+        // concludes and the mandatory 24-hour deadline has passed.
         const payoutTransactions = disputeCase.match_id
           ? await base44.asServiceRole.entities.WalletTransaction.filter({ match_id: disputeCase.match_id, type: 'payout' })
           : [];
@@ -383,7 +383,7 @@ Deno.serve(async (req) => {
               if (disputeCase.game_id) {
                 await base44.asServiceRole.functions.invoke('settleMatch', { gameId: disputeCase.game_id }).catch(() => {});
               }
-             } else if (disputeCase.hold_target_user_id && disputeCase.held_amount > 0 &&
+            } else if (disputeCase.hold_target_user_id && disputeCase.held_amount > 0 &&
               !(pendingPayout && pendingPayout.user_id === disputeCase.hold_target_user_id &&
                 disputeCase.hold_status === 'post_settlement_hold')) {
               const entry = await applyBalanceHold(base44, {
@@ -395,7 +395,7 @@ Deno.serve(async (req) => {
             caseUpdates.hold_status = 'released';
             caseUpdates.hold_released_at = new Date().toISOString();
           }
-          effectsSummary = 'No violation was found. Any temporary hold has been released and the contest result stands.';
+          effectsSummary = 'No violation was found and the contest result stands.';
         } else if (resolutionType === 'contest_reversed') {
           if (!match || match.status !== 'completed' || !contestRecord) {
             return Response.json({ error: 'Contest reversal requires a settled contest' }, { status: 400 });

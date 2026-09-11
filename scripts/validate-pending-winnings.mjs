@@ -170,10 +170,10 @@ assert.match(reportSrc, /REPORT_WINDOW_MS, CLOCK_SKEW_TOLERANCE_MS \} from '\.\.
 assert.match(reportSrc, /if \(!transactionId && match\.status === 'completed' && contestRecord\?\.settlement_timestamp\)/, 'submitContestReport enforces the 24-hour deadline uniformly, not only for wallet-transaction-sourced reports');
 assert.match(disputeSrc, /pendingPayoutCoversThis/, 'manageDisputeCase accounts for the automatic pending-winnings hold in its reversal/void logic');
 assert.match(disputeSrc, /payout_hold_status: 'consumed'/, 'manageDisputeCase marks a pending payout consumed when a reversal/void debits it');
-assert.match(disputeSrc, /pending_winnings_release/, 'manageDisputeCase releases any still-held pending payout once a case concludes');
+assert.doesNotMatch(disputeSrc, /triggerEvent: 'pending_winnings_release'/, 'case resolution leaves pending payout release to the deadline-enforcing sweep');
 assert.match(disputeSrc, /existingPendingPayout/, 'place_post_settlement_hold adopts an existing automatic hold instead of double-holding');
 assert.match(flagSrc, /'open_case'/, 'manageIntegrityFlag exposes an admin action to open a case directly from a flag');
-assert.match(flagSrc, /releaseMatchPendingPayoutIfUnblocked/, 'manageIntegrityFlag can release a pending payout that only an autonomous flag was holding');
+assert.doesNotMatch(flagSrc, /applyBalanceHold/, 'clearing a flag cannot bypass the scheduled payout release');
 assert.match(walletTxnSchemaSrc, /payout_hold_status/, 'WalletTransaction schema carries payout_hold_status');
 assert.match(walletTxnSchemaSrc, /payout_release_at/, 'WalletTransaction schema carries payout_release_at');
 
