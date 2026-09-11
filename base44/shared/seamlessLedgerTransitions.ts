@@ -1,4 +1,6 @@
 import { postLedgerLegs, applyBalanceHold } from './ledger.ts';
+import { requireVerifiedDeposit, postDepositFeePassThrough, flagDepositReview, depositProviderReference } from './depositReconciliation.ts';
+import { isFeeDeposit } from './depositReconciliationPure.js';
 
 const DEFAULT_HOLD_BUSINESS_DAYS = 5;
 
@@ -89,6 +91,9 @@ export async function postSeamlessSettlement(base44, transaction, rawAmount, pro
     : `seamless:withdrawal:settle:${transaction.id}`;
 
   if (transaction.type === 'deposit') {
+    if (amount !== Number(transaction.amount)) throw new Error('deposit_principal_mismatch');
+    const verified = await requireVerifiedDeposit(base44, transaction, providerRef);
+    await postDepositFeePassThrough(base44, transaction, verified);
     await postLedgerLegs(base44, {
       groupId,
       walletTransactionId: transaction.id,
@@ -198,6 +203,7 @@ export async function reverseSeamlessSettlement(base44, transaction, rawAmount, 
 
   let shortfall = 0;
   if (transaction.type === 'deposit') {
+    await flagDepositReview(base44, transaction, 'returned_deposit_fee_evidence_required', 'return');
     const wallet = (await base44.asServiceRole.entities.Wallet.filter({ user_id: transaction.user_id }))[0];
     const heldRecovery = transaction.deposit_hold_status === 'held'
       ? Math.min(amount, money(wallet?.held_balance))
@@ -286,6 +292,12 @@ export async function reverseSeamlessSettlement(base44, transaction, rawAmount, 
 
 export async function releaseDepositAvailability(base44, transaction) {
   if (transaction.type !== 'deposit' || transaction.deposit_hold_status !== 'held') return false;
+  if (isFeeDeposit(transaction)) {
+    const fresh = await base44.asServiceRole.entities.WalletTransaction.get(transaction.id);
+    if (fresh.status !== 'completed' || fresh.deposit_hold_status !== 'held') return false;
+    if (!(Date.parse(fresh.deposit_release_at || '') <= Date.now())) return false;
+    await requireVerifiedDeposit(base44, fresh, await depositProviderReference(base44, fresh));
+  }
   await applyBalanceHold(base44, {
     userId: transaction.user_id,
     amount: Number(transaction.amount),
