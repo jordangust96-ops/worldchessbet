@@ -599,6 +599,13 @@ export default function SeamlessFundingPanel({
                 )
               )}
 
+              {direction === "deposit" && (
+                <p className="text-center text-xs leading-relaxed text-white/50">
+                  Deposits typically appear in your ChessBet wallet within 3–4 business days.
+                  We’ll notify you when your funds land.
+                </p>
+              )}
+
               <Button
                 onClick={submit}
                 disabled={!canSubmit}
