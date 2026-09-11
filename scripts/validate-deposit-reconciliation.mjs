@@ -185,4 +185,33 @@ assert.equal(d.db.User[0].ach_return_balance_due,100);
 await d.transitions.reverseSeamlessSettlement(d.base44,d.tx(),100,'provider-1','test_return');
 assert.equal(d.db.User[0].ach_return_balance_due,100);
 balanced(d.db);
+
+// Canonical postings, not a stale pending flag, determine how a later return
+// is handled after a crash between wallet materialization and status update.
+const interrupted = await harness();
+interrupted.setFailure((name,fields) => name === 'WalletTransaction' && fields.deposit_hold_status === 'held');
+assert.equal((await interrupted.send(interrupted.settlement)).status,409);
+interrupted.provider.check.status = 'failed';
+const recovered = await interrupted.transitions.recoverFeeDepositState(interrupted.base44,interrupted.tx());
+assert.equal(ach.applyWebhookEvent(recovered,{status:'failed'}).action,'reverse');
+await interrupted.transitions.reverseSeamlessSettlement(interrupted.base44,recovered,100,'provider-1','test_return');
+assert.equal(interrupted.db.Wallet[0].held_balance,0);
+assert.equal(interrupted.db.Wallet[0].available_balance,0);
+balanced(interrupted.db);
+
+const identity = await harness();
+for (const patch of [{check_id:'wrong'}, {currency:'EUR'}, {label:'chessbet-deposit-other'}, {amount:null}]) {
+  const original = clone(identity.provider.check);
+  Object.assign(identity.provider.check,patch);
+  assert.equal((await identity.send(identity.settlement)).status,409);
+  assert.equal(identity.db.LedgerEntry.length,0);
+  identity.provider.check = original;
+}
+identity.db.WalletTransaction[0].deposit_processing_fee = 0.5;
+assert.equal((await identity.send(identity.settlement)).status,409);
+assert.equal(identity.db.LedgerEntry.length,0);
+const legacy = await harness();
+for (const key of ['deposit_pricing_version','deposit_bank_debit','deposit_processing_fee','deposit_fee_accepted_at']) delete legacy.db.WalletTransaction[0][key];
+assert.equal((await legacy.send(legacy.settlement)).status,409,'legacy deposits excluded from new review');
+
 console.log('PASS: real handlers and ledger; amount mismatch, missing evidence, admin authorization, balanced gross/fee/net, clearing, duplicate/racing requests, return fees, and interrupted-write recovery.');
