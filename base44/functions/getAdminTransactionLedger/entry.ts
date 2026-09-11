@@ -4,6 +4,10 @@ import { requireAdminMfa } from '../../shared/mfa.ts';
 const SOURCE_LIMIT = 5000;
 const DISPLAY_PAGE_MAX = 100;
 const EXPORT_PAGE_MAX = 5000;
+// Production financial ledger begins with ChessBet's first live real-money
+// transaction. Earlier wallet/ledger rows are retained for audit/retention but
+// are intentionally excluded from the operational admin ledger.
+const PRODUCTION_LEDGER_START_AT = '2026-09-09T22:59:21.815Z';
 
 function asNumber(value, fallback = 0) {
   const n = Number(value);
@@ -109,6 +113,7 @@ async function loadIndex(service) {
     ...uncertainTransactions,
   ]).filter((row) =>
     Number(row.launch_epoch) === 2 &&
+    dateMs(row.created_date) >= dateMs(PRODUCTION_LEDGER_START_AT) &&
     !String(row.source_event || '').startsWith('prelaunch_') &&
     !String(row.source_event || '').startsWith('legacy_')
   );
@@ -576,6 +581,7 @@ Deno.serve(async (req) => {
     const walletIds = new Set(index.transactions.map((row) => row.id));
     const ledgerOnlyRows = index.journals
       .filter((journal) => Number(journal.launch_epoch) === 2)
+      .filter((journal) => dateMs(journal.created_at || journal.created_date) >= dateMs(PRODUCTION_LEDGER_START_AT))
       .filter((journal) => !String(journal.trigger_event || '').startsWith('prelaunch_') && !String(journal.trigger_event || '').startsWith('legacy_'))
       .filter((journal) => !journal.wallet_transaction_id || !walletIds.has(journal.wallet_transaction_id))
       .map((journal) => buildLedgerOnlyRow(journal, index));
