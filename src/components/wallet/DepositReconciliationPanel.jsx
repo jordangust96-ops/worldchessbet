@@ -24,7 +24,7 @@ export default function DepositReconciliationPanel() {
       setMessage('Could not load deposit reconciliation. Please refresh.');
     }
   };
-  useEffect(() => { load(page * 100); }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load(page * 100); }, [page]);
   const reset = () => { setValues({}); setConfirmed(false); setMessage(''); };
   const fields = kind === 'settlement'
     ? [['bankDebit', 'Actual bank charge'], ['processingFee', 'Actual Seamless processing fee'], ['netReceived', 'Actual net received by ChessBet']]
