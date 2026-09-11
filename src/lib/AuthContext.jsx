@@ -114,9 +114,11 @@ export const AuthProvider = ({ children }) => {
         base44.functions.invoke('sendWelcomeEmail', { userId: currentUser.id }).catch(() => {});
       }
 
-      // Do not spend a provider lookup on login. This display reflects the
-      // last server-side paid-action verification; enforcement remains server-side.
-      setJurisdictionStatus(currentUser?.jurisdiction_status || 'unknown');
+      // Ordinary login/navigation must not surface or enforce a stale persisted
+      // jurisdiction result. Location is checked only at explicit protected
+      // boundaries (wallet onboarding before identity verification, and paid
+      // match participation) where the server performs the authoritative check.
+      setJurisdictionStatus(null);
       setJurisdictionReason('');
     } catch (error) {
       console.error('User auth check failed:', error);
