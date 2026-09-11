@@ -69,13 +69,7 @@ assert.equal((await send(payload)).status,200);
 assert.equal(calls,1,'retries must not create a second debit');
 
 let ledgerArgs, releaseArgs;
-const { exports: transitions } = await loadBackend('base44/shared/seamlessLedgerTransitions.ts',{
-  './ledger.ts': {
-    postLedgerLegs: async args => {}, 
-    applyBalanceHold: async (b,args) => {releaseArgs=args;},
-  },
-});
-// Capture actual settlement legs with a separate injected ledger.
+// Capture the actual settlement and release calls.
 const { exports: settlement } = await loadBackend('base44/shared/seamlessLedgerTransitions.ts',{
   './ledger.ts': {
     postLedgerLegs: async (b,args) => {ledgerArgs=args;},
