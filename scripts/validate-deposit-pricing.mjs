@@ -68,19 +68,5 @@ assert.equal(pending.status,'pending');
 assert.equal((await send(payload)).status,200);
 assert.equal(calls,1,'retries must not create a second debit');
 
-let ledgerArgs, releaseArgs;
-// Capture the actual settlement and release calls.
-const { exports: settlement } = await loadBackend('base44/shared/seamlessLedgerTransitions.ts',{
-  './ledger.ts': {
-    postLedgerLegs: async (b,args) => {ledgerArgs=args;},
-    applyBalanceHold: async (b,args) => {releaseArgs=args;},
-  },
-});
-await settlement.postSeamlessSettlement(api,pending,Number(pending.amount),'check-test','test_settled');
-assert.equal(ledgerArgs.legs[0].debit,100);
-assert.equal(ledgerArgs.legs[1].creditHeld,100);
-assert.equal(ledgerArgs.legs[1].totalDepositedDelta,100);
-await settlement.releaseDepositAvailability(api,pending);
-assert.equal(releaseArgs.amount,100);
-assert.equal(pending.deposit_hold_status,'released');
-console.log('PASS: 108,401 cent values, exact net credit, total debit, fee consent/tampering, retry deduplication, held settlement and release.');
+// Settlement, fee journals, release, and returns execute the real ledger in validate-deposit-reconciliation.mjs.
+console.log('PASS: 108,401 cent values, exact net quote, authorized bank debit, fee consent/tampering, and retry deduplication.');
