@@ -13,7 +13,9 @@ import {
   acquireUserWalletLock, releaseUserWalletLock, claimWithdrawalOperation, saveWithdrawalOperation,
 } from '../../shared/seamlessAtomicStore.ts';
 
-const MAX_AMOUNT = 10000;
+import { sendLimitedWithdrawal } from '../../shared/limitedWithdrawal.ts';
+import { MAX_WITHDRAWAL_AMOUNT, withdrawalCents } from '../../shared/withdrawalLimits.js';
+const MAX_AMOUNT = MAX_WITHDRAWAL_AMOUNT;
 const SMALL_WITHDRAWAL_THRESHOLD = 10;
 const SMALL_WITHDRAWAL_FEE = 2.50;
 const IDEMPOTENCY_KEY = /^[A-Za-z0-9._:-]{16,128}$/;
@@ -98,7 +100,10 @@ Deno.serve(async (req) => {
     const { amount, idempotencyKey } = await req.json();
     const value = Number(amount);
     if (!Number.isFinite(value) || value <= 0 || value > MAX_AMOUNT) {
-      return Response.json({ error: 'Invalid withdrawal amount' }, { status: 400 });
+      return Response.json({ error: 'Withdraw up to $1,100.00 per request. Any remaining funds stay in your wallet.' }, { status: 400 });
+    }
+    try { withdrawalCents(value); } catch (error) {
+      return Response.json({ error: error.message }, { status: 400 });
     }
     // The fee decision (including the full-balance waiver below) is finalized
     // once, either right below when the withdrawal is first created, or read
@@ -233,7 +238,7 @@ Deno.serve(async (req) => {
 
     let data;
     try {
-      data = await seamlessRequest('POST', PATH_CHECK_SEND, buildWithdrawalBody({
+      data = await sendLimitedWithdrawal(base44, tx.id, buildWithdrawalBody({
         providerUserId: profile.provider_user_id, name: accountHolderName.fullName, amount: value,
         description: 'Withdrawal', label, sourceId: bank.source_id, transferSpeed,
       }));
@@ -243,7 +248,7 @@ Deno.serve(async (req) => {
         const releaseGroupId = await releaseWithdrawalReservation(base44, tx, value, 'provider_rejected');
         await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, state: 'failed', release_ledger_group_id: releaseGroupId });
         await upsertOperationAudit(base44, { user_id: user.id, idempotency_key: idempotencyKey, wallet_transaction_id: tx.id, amount: value, status: 'released', reservation_ledger_group_id: reservationGroupId, attempts: 1, last_error_code: 'provider_rejected' });
-        return Response.json({ error: 'Withdrawal submission failed', transaction_id: tx.id }, { status: 400 });
+        return Response.json({ error: error.payoutCapacity ? error.message : 'The bank transfer could not be submitted. Your withdrawal was returned to your wallet and no withdrawal fee was charged.', transaction_id: tx.id, request_terminal: true }, { status: error.payoutCapacity ? 429 : 400 });
       }
       await base44.asServiceRole.entities.WalletTransaction.update(tx.id, { integration_status: 'uncertain', source_event: 'seamless_withdrawal_uncertain' });
       await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, state: 'uncertain', reconciliation_required: true });
