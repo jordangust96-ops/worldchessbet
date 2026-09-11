@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowLeft, ChevronRight, Loader2, Search, UserRoundSearch } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Input } from "@/components/ui/input";
+import DepositReconciliationPanel from "@/components/wallet/DepositReconciliationPanel";
 
 // Builder-facing (admin) view of each user's lifetime wagering activity:
 // wallet balance, amount wagered, amount won, amount lost, and total
@@ -132,6 +133,7 @@ export default function AdminUserFinancials() {
           </tbody>
         </table>
       </div>
+      <DepositReconciliationPanel />
     </div>
   );
 }
