@@ -9,10 +9,12 @@ import {
 } from '../../shared/seamlessAch.ts';
 import {
   postSeamlessSettlement,
+  recoverFeeDepositState,
   releaseSeamlessWithdrawal,
   reverseSeamlessSettlement,
 } from '../../shared/seamlessLedgerTransitions.ts';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
+import { flagDepositReview } from '../../shared/depositReconciliation.ts';
 import { claimWebhookEvent, finishWebhookEvent } from '../../shared/seamlessAtomicStore.ts';
 
 // Read-only provider lookups feed the same exactly-once ledger transitions as webhooks.
@@ -101,6 +103,7 @@ async function applyRecoveredStatus(
     throw new Error('unsupported_wallet_transaction_type');
   }
 
+  tx = await recoverFeeDepositState(base44, tx);
   const decision = applyWebhookEvent(tx, { status: providerStatus });
   const amount = Number(tx.amount);
   if (!Number.isFinite(amount) || amount <= 0) {
@@ -133,6 +136,7 @@ async function applyRecoveredStatus(
         source_event: 'seamless_status_lookup_failed',
         description: 'Deposit failed — the bank transfer did not complete. No funds were added to your available balance.',
       });
+      await flagDepositReview(base44, tx, 'failed_deposit_fee_evidence_required', 'return');
     }
   }
 
