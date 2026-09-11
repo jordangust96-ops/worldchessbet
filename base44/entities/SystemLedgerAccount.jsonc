@@ -11,7 +11,10 @@
         "settlement",
         "withdrawal_reserve",
         "ach_return_receivable",
-        "settlement_reconciliation_adjustment"
+        "settlement_reconciliation_adjustment",
+        "processor_fee_clearing",
+        "processor_fee_expense",
+        "ach_return_fee_expense"
       ],
       "description": "One record per system-wide internal ledger account"
     },
