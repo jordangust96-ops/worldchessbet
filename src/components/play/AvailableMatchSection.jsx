@@ -5,8 +5,6 @@ import { User, Loader2, SearchX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import FoundingPlayerBadge from "@/components/profile/FoundingPlayerBadge";
 import { base44 } from "@/api/base44Client";
-import { useAuth } from "@/lib/AuthContext";
-import { getJurisdictionMessage } from "@/lib/jurisdictionConfig";
 import { trackPixelEvent } from "@/lib/metaPixel";
 
 // How often the marketplace silently checks for newly available public
@@ -15,8 +13,6 @@ import { trackPixelEvent } from "@/lib/metaPixel";
 const AUTO_REFRESH_INTERVAL_MS = 7000;
 
 export default function AvailableMatchSection({ userId, balance, activeMatch, onChallengeCancelled, onAccepted }) {
-  const { jurisdictionStatus, jurisdictionReason } = useAuth();
-  const jurisdictionBlocked = !!jurisdictionStatus && jurisdictionStatus !== "approved";
   const [opponents, setOpponents] = useState([]);
   const [declinedIds, setDeclinedIds] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -250,17 +246,10 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
             </div>
           </div>
 
-          {jurisdictionBlocked && (
-            <div className="rounded-xl bg-red-500/5 border border-red-500/20 p-3">
-              <p className="text-xs text-red-400/80 leading-snug whitespace-pre-line">
-                {jurisdictionReason || getJurisdictionMessage(jurisdictionStatus)}
-              </p>
-            </div>
-          )}
           <div className="space-y-2.5 lg:space-y-1.5">
             <Button
               onClick={handleAccept}
-              disabled={accepting || insufficientFunds || jurisdictionBlocked}
+              disabled={accepting || insufficientFunds}
               className="w-full h-14 lg:h-10 rounded-2xl text-base lg:text-sm font-bold gold-gradient text-black hover:opacity-90 transition-opacity disabled:opacity-30"
             >
               {accepting ? <Loader2 className="animate-spin mr-2" size={18} /> : null}
