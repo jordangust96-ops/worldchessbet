@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
-import { buildCheckLookupPath, seamlessRequest } from '../../shared/seamlessAch.ts';
+import { buildCheckLookupPath, seamlessRequest, SEAMLESS_PROVIDER_KEY } from '../../shared/seamlessAch.ts';
 import { claimWebhookEvent, finishWebhookEvent } from '../../shared/seamlessAtomicStore.ts';
 import { depositProviderReference, flagDepositReview } from '../../shared/depositReconciliation.ts';
 import { isFeeDeposit, verifyProviderDeposit, settlementMatches, returnFeeAmounts, moneyCents } from '../../shared/depositReconciliationPure.js';
@@ -31,9 +31,16 @@ Deno.serve(async req => {
     if (user.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 });
     const input = await req.json();
     if (input.action === 'list') {
+      const skip = Number(input.skip || 0);
+      if (!Number.isInteger(skip) || skip < 0 || skip > 100000) return Response.json({ error: 'invalid_page' }, { status: 400 });
       const rows = await base44.asServiceRole.entities.WalletTransaction.filter(
-        { type: 'deposit', deposit_pricing_version: { $exists: true } }, '-created_date', 200);
-      return Response.json({ transactions: rows.filter(isFeeDeposit).map(tx => ({
+        { type: 'deposit', deposit_pricing_version: { $exists: true } }, '-created_date', 101, skip);
+      const page = rows.slice(0, 100).filter(isFeeDeposit);
+      const refs = page.length ? await base44.asServiceRole.entities.IntegrationReference.filter({
+        provider_key: SEAMLESS_PROVIDER_KEY, wallet_transaction_id: { $in: page.map(tx => tx.id) },
+      }, '-effective_at', 500) : [];
+      return Response.json({ hasMore: rows.length > 100, transactions: page.map(tx => ({
+        provider_reference_id: refs.find(ref => ref.wallet_transaction_id === tx.id && ref.external_reference_id && !ref.external_reference_id.startsWith('chessbet-'))?.external_reference_id || '',
         id: tx.id, amount: tx.amount, bank_debit: tx.deposit_bank_debit,
         processing_fee: tx.deposit_processing_fee, status: tx.status,
         hold_status: tx.deposit_hold_status, created_date: tx.created_date,
