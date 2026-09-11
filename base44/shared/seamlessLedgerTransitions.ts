@@ -85,6 +85,63 @@ export async function refundWithdrawalFee(base44, withdrawal, providerRef, reaso
   return refund;
 }
 
+// Recover durable postings before interpreting a newer provider status. A crash
+// after journal commit must not make a later bank return look like an unfunded
+// failure or strand a successfully credited deposit.
+export async function recoverFeeDepositState(base44, transaction) {
+  if (!isFeeDeposit(transaction) || ['failed', 'reversed'].includes(transaction.status)) return transaction;
+  const groups = [
+    'seamless:deposit:settle:' + transaction.id,
+    'deposit_availability_release:' + transaction.id + ':release',
+  ];
+  let settled = false, released = false;
+  for (let index = 0; index < groups.length; index++) {
+    const batch = (await base44.asServiceRole.entities.LedgerJournalBatch.filter(
+      { ledger_group_id: groups[index] }, '-created_at', 1
+    ))[0];
+    if (!batch) continue;
+    const entries = JSON.parse(batch.legs_json);
+    await postLedgerLegs(base44, {
+      groupId: batch.ledger_group_id, matchId: batch.match_id || '', gameId: batch.game_id || '',
+      walletTransactionId: batch.wallet_transaction_id || '', actor: batch.initiating_actor,
+      actorId: batch.initiating_actor_id || '', triggerEvent: batch.trigger_event,
+      externalRefType: batch.external_reference_type, externalRefId: batch.external_reference_id,
+      updateTransactions: false,
+      legs: entries.map(entry => ({
+        ledgerAccount: entry.ledger_account, userId: entry.user_id || '',
+        walletTransactionId: entry.wallet_transaction_id || '',
+        debit: entry.debit_amount, credit: entry.credit_amount,
+        availableDelta: entry.available_delta, heldDelta: entry.held_delta,
+        totalWageredDelta: entry.total_wagered_delta, totalWonDelta: entry.total_won_delta,
+        totalDepositedDelta: entry.total_deposited_delta, totalWithdrawnDelta: entry.total_withdrawn_delta,
+        transactionType: entry.transaction_type,
+      })),
+    });
+    if (index === 0) settled = true;
+    else released = true;
+  }
+  if (!settled) return transaction;
+  const recovered = { ...transaction, status: 'completed', integration_status: 'settled',
+    deposit_hold_status: released ? 'released' : 'held',
+    deposit_release_at: transaction.deposit_release_at || depositAvailabilityAt(transaction),
+    ledger_group_id: released ? groups[1] : groups[0],
+  };
+  const returned = (await base44.asServiceRole.entities.LedgerJournalBatch.filter({
+    ledger_group_id: 'seamless:deposit:reverse:' + transaction.id,
+  }, '-created_at', 1))[0];
+  if (returned) {
+    await reverseSeamlessSettlement(base44, recovered, Number(transaction.amount),
+      returned.external_reference_id, 'deposit_return_recovered_from_journal');
+  } else {
+    await base44.asServiceRole.entities.WalletTransaction.update(transaction.id, {
+      status: recovered.status, integration_status: recovered.integration_status,
+      deposit_hold_status: recovered.deposit_hold_status, deposit_release_at: recovered.deposit_release_at,
+      ledger_group_id: recovered.ledger_group_id,
+    });
+  }
+  return base44.asServiceRole.entities.WalletTransaction.get(transaction.id);
+}
+
 export async function postSeamlessSettlement(base44, transaction, rawAmount, providerRef, sourceEvent) {
   const amount = money(rawAmount);
   const groupId = transaction.type === 'deposit'
