@@ -9,9 +9,31 @@ import {
 import {
   releaseDepositAvailability,
   reverseSeamlessSettlement,
+  recoverFeeDepositState,
 } from '../../shared/seamlessLedgerTransitions.ts';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 import { sendDepositAvailableEmail } from '../../shared/depositAvailableEmail.ts';
+import { isFeeDeposit } from '../../shared/depositReconciliationPure.js';
+import { claimWebhookEvent, finishWebhookEvent } from '../../shared/seamlessAtomicStore.ts';
+
+async function reverseClearingDeposit(base44, tx, checkId) {
+  if (!isFeeDeposit(tx)) return reverseSeamlessSettlement(base44, tx, Number(tx.amount), checkId, 'deposit_clearance_check_returned');
+  const key = 'deposit-clearing-return:' + tx.id;
+  const owner = crypto.randomUUID();
+  const claim = await claimWebhookEvent(key, checkId, owner);
+  if (claim?.claim === 'completed') return;
+  if (claim?.claim !== 'owned') throw new Error('deposit_transition_in_progress');
+  try {
+    const fresh = await recoverFeeDepositState(base44, await base44.asServiceRole.entities.WalletTransaction.get(tx.id));
+    if (fresh.status === 'completed') {
+      await reverseSeamlessSettlement(base44, fresh, Number(fresh.amount), checkId, 'deposit_clearance_check_returned');
+    }
+    await finishWebhookEvent(key, checkId, owner, 'completed');
+  } catch (error) {
+    try { await finishWebhookEvent(key, checkId, owner, 'retryable', 'deposit_return_failed'); } catch { /* lease expires */ }
+    throw error;
+  }
+}
 
 function clean(value, max = 255) {
   return String(value || '').trim().replace(/\s+/g, ' ').slice(0, max);
@@ -105,13 +127,7 @@ Deno.serve(async (req) => {
             }
           }
         } else if (normalized === 'failed' || normalized === 'reversed') {
-          await reverseSeamlessSettlement(
-            base44,
-            tx,
-            Number(tx.amount),
-            checkId,
-            'deposit_clearance_check_returned'
-          );
+          await reverseClearingDeposit(base44, tx, checkId);
           summary.returned += 1;
         } else {
           summary.pending += 1;
