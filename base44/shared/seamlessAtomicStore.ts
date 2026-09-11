@@ -7,6 +7,15 @@
 // lockWager (contest entry) included — so two money-movement paths for the
 // same user, Seamless or not, always serialize against one another.
 const PREFIX = 'chessbet:seamless:v1';
+// One merchant-wide rolling payout budget, shared by normal and closure withdrawals.
+export async function claimPayoutCapacity(transactionId: string, cents: number, history: unknown[]) {
+  const { CLAIM_PAYOUT_CAPACITY } = await import('./withdrawalLimits.js');
+  const env = (Deno.env.get('SEAMLESS_ACH_ENV') || '').trim();
+  if (!['sandbox', 'production'].includes(env)) throw new Error('Invalid Seamless environment');
+  return parse(await evalAtomic(CLAIM_PAYOUT_CAPACITY, [key('payout-capacity', env)],
+    [transactionId, String(cents), JSON.stringify(history)]));
+}
+
 const OP_TTL_SECONDS = 60 * 60 * 24 * 90;
 const EVENT_TTL_SECONDS = 60 * 60 * 24 * 90;
 // A lease must outlast the 12s provider timeout and the subsequent Base44
