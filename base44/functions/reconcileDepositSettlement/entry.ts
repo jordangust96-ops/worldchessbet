@@ -120,6 +120,7 @@ Deno.serve(async req => {
         ].map(leg => ({ ...leg, transactionType: 'reversal', walletTransactionId: tx.id }));
         await postLedgerLegs(base44, {
           groupId: 'seamless:deposit:return-fees:' + tx.id,
+          updateTransactions: false,
           actor: 'system', triggerEvent: 'deposit_return_processor_fees',
           externalRefType: 'provider_reversal', externalRefId: providerRef, legs,
         });
