@@ -85,6 +85,7 @@ export async function postDepositFeePassThrough(base44, tx, verified) {
   });
   await postLedgerLegs(base44, {
     groupId: 'seamless:deposit:processor-fee:' + tx.id,
+    updateTransactions: false,
     actor: 'system', triggerEvent: 'deposit_processor_fee_pass_through',
     externalRefType: 'provider_payment', externalRefId: verified.providerRef,
     legs: [
