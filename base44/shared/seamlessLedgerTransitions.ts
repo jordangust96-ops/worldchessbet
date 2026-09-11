@@ -1,6 +1,7 @@
 import { postLedgerLegs, applyBalanceHold } from './ledger.ts';
 import { requireVerifiedDeposit, postDepositFeePassThrough, flagDepositReview, depositProviderReference } from './depositReconciliation.ts';
 import { isFeeDeposit } from './depositReconciliationPure.js';
+import { claimWebhookEvent, finishWebhookEvent } from './seamlessAtomicStore.ts';
 
 const DEFAULT_HOLD_BUSINESS_DAYS = 5;
 
@@ -203,7 +204,6 @@ export async function reverseSeamlessSettlement(base44, transaction, rawAmount, 
 
   let shortfall = 0;
   if (transaction.type === 'deposit') {
-    await flagDepositReview(base44, transaction, 'returned_deposit_fee_evidence_required', 'return');
     const wallet = (await base44.asServiceRole.entities.Wallet.filter({ user_id: transaction.user_id }))[0];
     const heldRecovery = transaction.deposit_hold_status === 'held'
       ? Math.min(amount, money(wallet?.held_balance))
@@ -287,10 +287,13 @@ export async function reverseSeamlessSettlement(base44, transaction, rawAmount, 
     source_event: sourceEvent,
     provider_last_checked_at: new Date().toISOString(),
   });
+  if (isFeeDeposit(transaction)) {
+    await flagDepositReview(base44, transaction, 'returned_deposit_fee_evidence_required', 'return');
+  }
   return { shortfall };
 }
 
-export async function releaseDepositAvailability(base44, transaction) {
+async function releaseDepositAvailabilityUnlocked(base44, transaction) {
   if (transaction.type !== 'deposit' || transaction.deposit_hold_status !== 'held') return false;
   if (isFeeDeposit(transaction)) {
     const fresh = await base44.asServiceRole.entities.WalletTransaction.get(transaction.id);
