@@ -100,6 +100,7 @@ export async function postSeamlessSettlement(base44, transaction, rawAmount, pro
       walletTransactionId: transaction.id,
       actor: 'system',
       triggerEvent: 'deposit',
+      updateTransactions: !isFeeDeposit(transaction),
       externalRefType: 'provider_payment',
       externalRefId: providerRef,
       legs: [
@@ -245,6 +246,7 @@ export async function reverseSeamlessSettlement(base44, transaction, rawAmount, 
       walletTransactionId: transaction.id,
       actor: 'system',
       triggerEvent: 'refund',
+      updateTransactions: !isFeeDeposit(transaction),
       externalRefType: 'provider_refund',
       externalRefId: providerRef,
       legs,
@@ -327,6 +329,7 @@ async function releaseDepositAvailabilityUnlocked(base44, transaction) {
     direction: 'release',
     actor: 'system',
     triggerEvent: 'deposit_availability_release',
+    updateTransactions: !isFeeDeposit(transaction),
     walletTransactionId: transaction.id,
   });
   await base44.asServiceRole.entities.WalletTransaction.update(transaction.id, {
