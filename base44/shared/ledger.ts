@@ -111,7 +111,7 @@ export async function rebuildLedgerBalances(base44, { userIds = [], systemAccoun
 // If a worker disappears after step 2, retrying the deterministic group (or
 // the scheduled materialization sweep) repairs every projection without
 // moving money twice.
-export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletTransactionId, actor, actorId, triggerEvent, externalRefType, externalRefId, legs }) {
+export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletTransactionId, actor, actorId, triggerEvent, externalRefType, externalRefId, legs, updateTransactions = true }) {
   const correlationId = matchId || walletTransactionId || groupId;
   if (!groupId || !Array.isArray(legs) || legs.length < 1) {
     throw new Error('Invalid ledger posting request');
@@ -287,7 +287,7 @@ export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletT
       legs.map((leg) => leg.walletTransactionId).concat([walletTransactionId]).filter(Boolean)
     )];
     let walletTransaction = null;
-    for (const id of walletTransactionIds) {
+    for (const id of updateTransactions ? walletTransactionIds : []) {
       try {
         const current = await base44.asServiceRole.entities.WalletTransaction.get(id);
         if (id === walletTransactionId) walletTransaction = current;
@@ -360,11 +360,12 @@ export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletT
 
 // Moves value between a user's Available and Held balances through the same
 // durable journal-first pipeline used for every other money movement.
-export async function applyBalanceHold(base44, { userId, amount, direction, matchId, actor = 'administrator', actorId = '', triggerEvent, walletTransactionId = '' }) {
+export async function applyBalanceHold(base44, { userId, amount, direction, matchId, actor = 'administrator', actorId = '', triggerEvent, walletTransactionId = '', updateTransactions = true }) {
   if (amount <= 0) return null;
   const holding = direction === 'hold';
   return postLedgerLegs(base44, {
     groupId: `${triggerEvent}:${walletTransactionId || matchId || userId}:${holding ? 'hold' : 'release'}`,
+    updateTransactions,
     matchId: matchId || '',
     walletTransactionId: walletTransactionId || '',
     actor,
