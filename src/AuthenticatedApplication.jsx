@@ -37,6 +37,7 @@ const AdminDisputeCase = lazy(() => import("@/pages/AdminDisputeCase"));
 const MyReports = lazy(() => import("@/pages/MyReports"));
 const AdminSiteActivity = lazy(() => import("@/pages/AdminSiteActivity"));
 const AdminUserFinancials = lazy(() => import("@/pages/AdminUserFinancials"));
+const AdminTransactionLedger = lazy(() => import("@/pages/AdminTransactionLedger"));
 const AdminActionCenter = lazy(() => import("@/pages/AdminActionCenter"));
 const AdminSiteHealth = lazy(() => import("@/pages/AdminSiteHealth"));
 
@@ -111,6 +112,7 @@ function RoutedApplication() {
                   <Route path="/admin/disputes/:caseId" element={<AdminDisputeCase />} />
                   <Route path="/admin/site-activity" element={<AdminSiteActivity />} />
                   <Route path="/admin/user-financials" element={<AdminUserFinancials />} />
+                  <Route path="/admin/transaction-ledger" element={<AdminTransactionLedger />} />
                 </Route>
                 <Route element={<AppLayout />}>
                   <Route path="/play" element={<Home />} />
