@@ -40,6 +40,33 @@ export default function WalletPage() {
   const [loadError, setLoadError] = useState(false);
   const [withdrawalHold, setWithdrawalHold] = useState(false);
   const [accountState, setAccountState] = useState("provisional");
+  // The page can remain open across the review deadline. Fetch the canonical
+  // wallet independently of bank-transfer polling and transaction pagination.
+  useEffect(() => {
+    if (!userId) return;
+    let stopped = false;
+    let inFlight = false;
+    const refreshBalance = async () => {
+      if (inFlight || document.visibilityState === "hidden") return;
+      inFlight = true;
+      try {
+        const wallets = await base44.entities.Wallet.filter({ user_id: userId });
+        if (!stopped && wallets[0]) setWallet(wallets[0]);
+      } catch {
+        // Keep the last confirmed balance; retry on the next tick/focus.
+      } finally { inFlight = false; }
+    };
+    const timer = setInterval(refreshBalance, 15000);
+    window.addEventListener("focus", refreshBalance);
+    document.addEventListener("visibilitychange", refreshBalance);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+      window.removeEventListener("focus", refreshBalance);
+      document.removeEventListener("visibilitychange", refreshBalance);
+    };
+  }, [userId]);
+
 
   useEffect(() => {
     loadData();
