@@ -3,7 +3,7 @@ import { buildCheckLookupPath, seamlessRequest, SEAMLESS_PROVIDER_KEY } from '..
 import { claimWebhookEvent, finishWebhookEvent } from '../../shared/seamlessAtomicStore.ts';
 import { depositProviderReference, flagDepositReview } from '../../shared/depositReconciliation.ts';
 import { isFeeDeposit, verifyProviderDeposit, settlementMatches, returnFeeAmounts, moneyCents } from '../../shared/depositReconciliationPure.js';
-import { postSeamlessSettlement } from '../../shared/seamlessLedgerTransitions.ts';
+import { postSeamlessSettlement, recoverFeeDepositState } from '../../shared/seamlessLedgerTransitions.ts';
 import { postLedgerLegs } from '../../shared/ledger.ts';
 
 const clean = value => String(value || '').trim();
@@ -76,7 +76,7 @@ Deno.serve(async req => {
     if (claim?.claim === 'completed') return Response.json({ matched: true, deduplicated: true });
     if (claim?.claim !== 'owned') return Response.json({ error: 'Deposit is being updated. Please retry shortly.' }, { status: 409 });
     lock = { key, providerRef, owner };
-    tx = await base44.asServiceRole.entities.WalletTransaction.get(tx.id);
+    tx = await recoverFeeDepositState(base44, await base44.asServiceRole.entities.WalletTransaction.get(tx.id));
     const providerData = await seamlessRequest('GET', buildCheckLookupPath(providerRef));
     const observation = verifyProviderDeposit(tx, providerRef, providerData, kind === 'settlement');
     if (kind === 'settlement' && ['failed', 'reversed'].includes(tx.status)) throw new Error('deposit_already_returned');
