@@ -327,8 +327,18 @@ function filterRows(rows, body) {
     if (flaggedOnly && !row.flags?.length) return false;
 
     const when = dateMs(row.occurred_at);
-    if (startMs && when < startMs) return false;
-    if (endMs && when > endMs) return false;
+    const unresolved =
+      ['pending', 'processing', 'review_required'].includes(row.status) ||
+      ['pending', 'reserved', 'submitting', 'submitted', 'uncertain'].includes(row.integration_status) ||
+      ['new', 'reserved', 'submitting', 'submitted', 'uncertain', 'processing', 'retryable'].includes(row.seamless_operation_status) ||
+      (row.flags || []).some((flag) => flag.startsWith('provider_recovery_') || flag.startsWith('seamless_') || flag.startsWith('ledger_'));
+    // Date windows describe historical activity, but unresolved money is an
+    // operational exception: it remains visible until terminal so an admin
+    // cannot accidentally filter an aging pending transfer out of sight.
+    if (!unresolved) {
+      if (startMs && when < startMs) return false;
+      if (endMs && when > endMs) return false;
+    }
 
     if (q) {
       const haystack = [
