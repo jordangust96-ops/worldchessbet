@@ -6,10 +6,12 @@ import {
 } from '../../shared/seamlessAch.ts';
 import {
   postSeamlessSettlement,
+  recoverFeeDepositState,
   releaseSeamlessWithdrawal,
   reverseSeamlessSettlement,
 } from '../../shared/seamlessLedgerTransitions.ts';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
+import { flagDepositReview } from '../../shared/depositReconciliation.ts';
 import { claimWebhookEvent, finishWebhookEvent } from '../../shared/seamlessAtomicStore.ts';
 
 function pickCheckId(body) { return body?.check?.id || body?.check?.check_id || body?.check_id || body?.id || ''; }
@@ -527,7 +529,7 @@ async function handleTransaction(base44, body, eventType, idemKey, providerRef) 
     throw new Error('unmatched_provider_transaction');
   }
 
-  const tx = await base44.asServiceRole.entities.WalletTransaction.get(ref.wallet_transaction_id);
+  const tx = await recoverFeeDepositState(base44, await base44.asServiceRole.entities.WalletTransaction.get(ref.wallet_transaction_id));
   if (!tx) throw new Error('missing_wallet_transaction');
 
   const checkedAt = new Date().toISOString();
@@ -553,6 +555,7 @@ async function handleTransaction(base44, body, eventType, idemKey, providerRef) 
         processed_at: checkedAt,
         description: `Deposit failed — ${failureReason}`,
       });
+      await flagDepositReview(base44, tx, 'failed_deposit_fee_evidence_required', 'return');
     }
   }
 
