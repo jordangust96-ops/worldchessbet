@@ -293,6 +293,26 @@ export async function reverseSeamlessSettlement(base44, transaction, rawAmount, 
   return { shortfall };
 }
 
+// Use the same per-provider transaction lease as webhook and status recovery so
+// a return cannot race a clearing release. A failed verification stays retryable.
+export async function releaseDepositAvailability(base44, transaction) {
+  if (!isFeeDeposit(transaction)) return releaseDepositAvailabilityUnlocked(base44, transaction);
+  const ref = await depositProviderReference(base44, transaction);
+  const key = 'deposit-verified-release:' + transaction.id;
+  const owner = crypto.randomUUID();
+  const claim = await claimWebhookEvent(key, ref, owner);
+  if (claim?.claim === 'completed') return false;
+  if (claim?.claim !== 'owned') throw new Error('deposit_transition_in_progress');
+  try {
+    const released = await releaseDepositAvailabilityUnlocked(base44, transaction);
+    await finishWebhookEvent(key, ref, owner, released ? 'completed' : 'retryable');
+    return released;
+  } catch (error) {
+    try { await finishWebhookEvent(key, ref, owner, 'retryable', 'deposit_release_verification_failed'); } catch { /* lease expires */ }
+    throw error;
+  }
+}
+
 async function releaseDepositAvailabilityUnlocked(base44, transaction) {
   if (transaction.type !== 'deposit' || transaction.deposit_hold_status !== 'held') return false;
   if (isFeeDeposit(transaction)) {
