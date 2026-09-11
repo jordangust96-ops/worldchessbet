@@ -14,6 +14,7 @@ import { walletJourneyCopy } from "@/lib/walletJourneyCopy";
 import SeamlessPlaidBankLink from "./SeamlessPlaidBankLink";
 import SocureIdentityStep from "./SocureIdentityStep";
 import WalletSetupStep from "./WalletSetupStep";
+import { depositQuote } from "../../../base44/shared/depositPricing.js";
 
 // Seamless ACH funding panel. Bank credentials are collected only inside the
 // Seamless-hosted Plaid flow. Verification, deposits, and withdrawals remain
@@ -156,7 +157,7 @@ export default function SeamlessFundingPanel({
     setError(""); setNotice(""); setBusy(direction);
     try {
       const fn = direction === "deposit" ? "submitSeamlessDeposit" : "submitSeamlessWithdrawal";
-      const payload = { amount: v, ...(direction === "deposit" ? {bankSourceId:providerPrimaryBank?.source_id} : {}) };
+      const payload = { amount: v, ...(direction === "deposit" ? {bankSourceId:providerPrimaryBank?.source_id, depositPricingVersion:quote?.version, authorizedBankDebit:quote?.bankDebit} : {}) };
       const requestKey = direction === "deposit" ? depositRequestKey : withdrawalRequestKey;
       requestKey.current ||= crypto.randomUUID();
       payload.idempotencyKey = requestKey.current;
@@ -216,6 +217,7 @@ export default function SeamlessFundingPanel({
   const SMALL_WITHDRAWAL_THRESHOLD = 10;
   const SMALL_WITHDRAWAL_FEE = 2.5;
   const parsedAmount = parseFloat(amount);
+  const quote = depositQuote(parsedAmount);
   // Mirrors the server's full-balance fee waiver (submitSeamlessWithdrawal):
   // withdrawing the entire available balance skips the small-withdrawal fee,
   // so a balance under $10 (or even under the fee itself) is never stranded.
@@ -252,7 +254,7 @@ export default function SeamlessFundingPanel({
   const meetsMinimum = direction === "deposit" ? parsedAmount >= MIN_DEPOSIT_AMOUNT : parsedAmount > 0;
   const exceedsAvailableBalance = direction === "withdrawal" && parsedAmount > availableBalance + 0.005;
   const canSubmit =
-    !ineligible && bankReadyForDirection && !busy && Number.isFinite(parsedAmount) && /^\d+(?:\.\d{1,2})?$/.test(amount) && (direction !== "deposit" || parsedAmount <= 10000) && meetsMinimum && !exceedsAvailableBalance && transferDirectionEnabled;
+    !ineligible && bankReadyForDirection && !busy && Number.isFinite(parsedAmount) && /^\d+(?:\.\d{1,2})?$/.test(amount) && (direction !== "deposit" || !!quote) && meetsMinimum && !exceedsAvailableBalance && transferDirectionEnabled;
   const transferBusy = busy === direction;
   const formattedAmount = Number.isFinite(parsedAmount) && parsedAmount > 0
     ? parsedAmount.toFixed(2)
@@ -518,7 +520,7 @@ export default function SeamlessFundingPanel({
 
             <div className="space-y-3">
               <label htmlFor="wallet-transfer-amount" className="block text-xs font-medium text-white/60">
-                Amount
+                {direction === "deposit" ? "Amount to add to wallet" : "Amount"}
               </label>
               <div className="flex h-16 items-center rounded-2xl border border-white/10 bg-black/25 px-4 focus-within:border-[#C9A84C]/60">
                 <span className="text-2xl font-semibold text-white/35">$</span>
@@ -527,7 +529,7 @@ export default function SeamlessFundingPanel({
                   type="number"
                   inputMode="decimal"
                   min="0"
-                  max={direction === "deposit" ? 10000 : availableBalance}
+                  max={direction === "deposit" ? 1094 : availableBalance}
                   step="0.01"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
@@ -599,6 +601,16 @@ export default function SeamlessFundingPanel({
                 )
               )}
 
+              {direction === "deposit" && quote && (
+                <div aria-label="Deposit breakdown" aria-live="polite" className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm space-y-2">
+                  <div className="flex justify-between gap-3 text-white/75"><span>Added to your wallet</span><span>${quote.walletAmount.toFixed(2)}</span></div>
+                  <div className="flex justify-between gap-3 text-white/60"><span>Deposit processing fee</span><span>${quote.fee.toFixed(2)}</span></div>
+                  <div className="flex justify-between gap-3 border-t border-white/10 pt-3 font-semibold text-white"><span>Total bank charge</span><span>${quote.bankDebit.toFixed(2)}</span></div>
+                  <p className="pt-1 text-[11px] leading-relaxed text-white/45">The fee covers 0.5% of the total bank charge plus $0.50, rounded to cents. Your wallet receives the full ${quote.walletAmount.toFixed(2)} after Seamless confirms the deposit and clearing is complete.</p>
+                  <p className="text-[11px] leading-relaxed text-white/60">By clicking Deposit, you authorize a one-time debit of ${quote.bankDebit.toFixed(2)} from the connected bank shown above, including the ${quote.fee.toFixed(2)} processing fee.</p>
+                </div>
+              )}
+
               {direction === "deposit" && (
                 <p className="text-center text-xs leading-relaxed text-white/50">
                   Deposits typically appear in your ChessBet wallet within 3–4 business days.
@@ -618,15 +630,15 @@ export default function SeamlessFundingPanel({
                     ? (!locationApproved ? "Verify your location first" : "Deposits are temporarily unavailable")
                     : !depositSourceReady
                       ? "Choose a connected bank"
-                    : parsedAmount > 10000
-                      ? "Maximum deposit is $10,000"
+                    : parsedAmount > 1094
+                      ? "Maximum deposit is $1,094.00 plus fee"
                     : amount && !/^\d+(?:\.\d{1,2})?$/.test(amount)
                       ? "Enter an amount with up to 2 decimals"
                     : !formattedAmount
                       ? "Enter an amount"
                       : !meetsMinimum
                         ? "Minimum deposit is $" + MIN_DEPOSIT_AMOUNT.toFixed(2)
-                        : "Add $" + formattedAmount + " to wallet"
+                        : "Deposit $" + formattedAmount + " · Pay $" + (quote?.bankDebit.toFixed(2) || "")
                 ) : (
                   !withdrawalsEnabled
                     ? "Withdrawals are temporarily unavailable"
