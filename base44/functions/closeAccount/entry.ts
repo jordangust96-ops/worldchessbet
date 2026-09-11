@@ -11,6 +11,9 @@ import {
 } from '../../shared/seamlessAch.ts';
 import { acquireUserWalletLock, releaseUserWalletLock } from '../../shared/seamlessAtomicStore.ts';
 
+import { sendLimitedWithdrawal } from '../../shared/limitedWithdrawal.ts';
+import { MAX_WITHDRAWAL_AMOUNT } from '../../shared/withdrawalLimits.js';
+
 // Self-service account closure. Runs server-side with the service role so
 // contest cancellations, refunds, and the closure payout are always computed
 // via the Internal Ledger — never trusted from the client.
@@ -34,6 +37,12 @@ Deno.serve(async (req) => {
     lockedUserId = user.id;
     if (!await acquireUserWalletLock(user.id, lockOwner)) {
       return Response.json({ error: 'withdrawal_in_progress', retryable: true }, { status: 409 });
+    }
+
+    // Keep account access intact when the remaining balance needs multiple transfers.
+    const closureWallet = (await base44.asServiceRole.entities.Wallet.filter({ user_id: user.id }))[0];
+    if (Number(closureWallet?.available_balance || 0) > MAX_WITHDRAWAL_AMOUNT) {
+      return Response.json({ error: 'Your balance requires more than one bank transfer. Withdraw up to $1,100 at a time from your wallet, then return here to close your account. Your account remains open.', action: 'withdraw_balance_first' }, { status: 409 });
     }
 
     // (i) Cancel any open Contest invitations — hosted/accepted contests that
@@ -121,6 +130,9 @@ Deno.serve(async (req) => {
       const wallet = wallets[0];
       if (wallet && wallet.available_balance > 0) {
         payout = wallet.available_balance;
+        if (payout > MAX_WITHDRAWAL_AMOUNT) {
+          return Response.json({ error: 'After returning reserved contest funds, your balance exceeds the $1,100 bank transfer limit. Withdraw funds from your wallet before closing your account.', action: 'withdraw_balance_first', available_balance: payout }, { status: 409 });
+        }
 
         if (!seamlessWithdrawalsEnabled()) {
           return Response.json({
@@ -227,7 +239,7 @@ Deno.serve(async (req) => {
 
         let data;
         try {
-          data = await seamlessRequest('POST', PATH_CHECK_SEND, buildWithdrawalBody({
+          data = await sendLimitedWithdrawal(base44, walletTransaction.id, buildWithdrawalBody({
             providerUserId: profile.provider_user_id, name: accountHolderName.fullName, amount: payout,
             description: 'Account closure disbursement', label, sourceId: bank.source_id,
           }));
@@ -257,7 +269,7 @@ Deno.serve(async (req) => {
               processed_at: new Date().toISOString(),
             });
             return Response.json({
-              error: 'Unable to submit your closure payout to your bank. Your balance was not moved — please try again, or contact support.',
+              error: error.payoutCapacity ? 'Bank transfer capacity is currently full. Your balance is available in your wallet and your account remains open. Please try closing your account later.' : 'Unable to submit your closure payout to your bank. Your balance was returned to your wallet — please try again, or contact support.',
               available_balance: payout,
             }, { status: 502 });
           }
