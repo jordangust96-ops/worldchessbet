@@ -7,6 +7,13 @@ async function sha256Hex(text) {
 export async function requireAdminMfa(base44, admin, sessionToken, userAgent = '') {
   if (!admin) return Response.json({ error: 'unauthorized' }, { status: 401 });
   if (admin.role !== 'admin') return Response.json({ error: 'forbidden' }, { status: 403 });
+
+  // Keep backend authorization consistent with MfaGuard and
+  // validateMfaSession: an administrator explicitly marked with the
+  // server-controlled recovery bypass is allowed through without an OTP
+  // session token. The browser cannot set this field.
+  if (admin.mfa_bypass === true) return null;
+
   if (typeof sessionToken !== 'string' || sessionToken.length < 32 || sessionToken.length > 256) {
     return Response.json({ error: 'mfa_required' }, { status: 401 });
   }
