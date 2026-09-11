@@ -191,7 +191,7 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled =
         <div className="space-y-2 lg:space-y-1.5">
           <Button
             onClick={() => handleHost(false)}
-            disabled={!wagerValue || hosting || disabled || launchClosed || noFunds || jurisdictionBlocked || !canAffordTotal}
+            disabled={!wagerValue || hosting || disabled || launchClosed || noFunds || !canAffordTotal}
             className="w-full h-12 lg:h-9 lg:text-sm rounded-2xl font-bold gold-gradient text-black hover:opacity-90 disabled:opacity-30 transition-opacity"
           >
             {hosting ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
@@ -199,7 +199,7 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled =
           </Button>
           <Button
             onClick={() => handleHost(true)}
-            disabled={!wagerValue || hosting || disabled || launchClosed || noFunds || jurisdictionBlocked || !canAffordTotal}
+            disabled={!wagerValue || hosting || disabled || launchClosed || noFunds || !canAffordTotal}
             variant="outline"
             className="w-full h-12 lg:h-9 lg:text-sm rounded-2xl font-bold border-white/10 text-white/70 hover:bg-white/5 hover:text-white disabled:opacity-30 transition-colors"
           >
