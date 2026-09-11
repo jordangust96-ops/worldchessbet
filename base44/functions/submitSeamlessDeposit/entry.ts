@@ -13,6 +13,8 @@ import {
   acquireUserWalletLock, releaseUserWalletLock, claimDepositOperation, saveDepositOperation,
 } from '../../shared/seamlessAtomicStore.ts';
 
+import { depositQuote } from '../../shared/depositPricing.js';
+
 const MIN_DEPOSIT_AMOUNT = 10; // Minimum $10 to cover $5 contest + $1 platform fee
 const MAX_AMOUNT = 10000;
 const IDEMPOTENCY_KEY = /^[A-Za-z0-9._:-]{16,128}$/;
@@ -45,10 +47,15 @@ Deno.serve(async (req) => {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     userId = user.id;
 
-    const { amount, idempotencyKey, bankSourceId } = await req.json().catch(() => ({}));
+    const { amount, idempotencyKey, bankSourceId, depositPricingVersion, authorizedBankDebit } = await req.json().catch(() => ({}));
     const value = Number(amount);
     if (!Number.isFinite(value) || value < MIN_DEPOSIT_AMOUNT || value > MAX_AMOUNT || Math.abs(value * 100 - Math.round(value * 100)) > 0.000001) {
       return Response.json({ error: `Deposit amount must be between $${MIN_DEPOSIT_AMOUNT} and $${MAX_AMOUNT}` }, { status: 400 });
+    }
+    const quote = depositQuote(value);
+    if (!quote) return Response.json({ error: 'Enter a deposit between $10.00 and $1,094.00 (bank debit limit includes the fee).' }, { status: 400 });
+    if (depositPricingVersion !== quote.version || authorizedBankDebit !== quote.bankDebit) {
+      return Response.json({ error: 'Review the deposit processing fee and total bank charge before submitting. Refresh your wallet if needed.', action: 'review_deposit_fee' }, { status: 409 });
     }
     if (!IDEMPOTENCY_KEY.test(String(idempotencyKey || ''))) {
       return Response.json({ error: 'A valid deposit idempotency key is required' }, { status: 400 });
@@ -143,6 +150,10 @@ Deno.serve(async (req) => {
         user_id: user.id,
         type: 'deposit',
         amount: value,
+        deposit_processing_fee: quote.fee,
+        deposit_bank_debit: quote.bankDebit,
+        deposit_pricing_version: quote.version,
+        deposit_fee_accepted_at: new Date().toISOString(),
         description: 'Seamless ACH funding pending',
         status: 'pending',
         integration_status: 'pending',
@@ -165,6 +176,9 @@ Deno.serve(async (req) => {
       operation = await saveDepositOperation(user.id, idempotencyKey, { ...operation, wallet_transaction_id: pending.id, state: 'new' });
     }
 
+    if (pending.deposit_pricing_version !== quote.version || pending.deposit_bank_debit !== quote.bankDebit || pending.deposit_processing_fee !== quote.fee) {
+      return Response.json({ error: 'This deposit request has different pricing. Review Transaction History and start a new request.', request_terminal: true }, { status: 409 });
+    }
     const accountHolderName = legalNameFromUser(lockedUser);
     if (!accountHolderName) {
       await base44.asServiceRole.entities.WalletTransaction.update(pending.id, {
@@ -192,7 +206,7 @@ Deno.serve(async (req) => {
     await base44.asServiceRole.entities.WalletTransaction.update(pending.id, { integration_status: 'submitting', source_event: 'seamless_deposit_submitting' });
 
     const body = buildDepositBody({
-      providerUserId: profile.provider_user_id, name: accountHolderName.fullName, amount: value,
+      providerUserId: profile.provider_user_id, name: accountHolderName.fullName, amount: quote.bankDebit,
       description: 'Fund wallet', label,
     });
 
@@ -247,7 +261,7 @@ Deno.serve(async (req) => {
       status: 'submitted',
       effective_at: new Date().toISOString(),
       metadata_json: JSON.stringify({
-        provider: SEAMLESS_PROVIDER_KEY, direction: 'deposit', amount: value, label,
+        provider: SEAMLESS_PROVIDER_KEY, direction: 'deposit', amount: value, bank_debit: quote.bankDebit, processing_fee: quote.fee, pricing_version: quote.version, label,
         endpoint: `${seamlessBaseUrl((Deno.env.get('SEAMLESS_ACH_ENV') || '').trim())}${PATH_ACH_DEBIT}`,
       }),
     });
