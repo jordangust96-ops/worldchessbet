@@ -98,6 +98,12 @@ export default function AdminToolsSection({ userEmail }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <ToolCard to="/admin/health" icon={BarChart3} label="Site Health" description="Review connection health, alerts, and capacity warnings." />
           <ToolCard
+            to="/admin/transaction-ledger"
+            icon={ScrollText}
+            label="Transaction Ledger"
+            description="Trace every wallet, ledger, Seamless, settlement, and reconciliation stage across all users."
+          />
+          <ToolCard
             to="/admin/game-settings"
             icon={Settings2}
             label="Game & Clock Settings"
