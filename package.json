@@ -11,6 +11,7 @@
     "typecheck": "tsc -p ./jsconfig.json",
     "preview": "vite preview",
     "test:deposit-pricing": "node scripts/validate-deposit-pricing.mjs",
+    "test:deposit-reconciliation": "node scripts/validate-deposit-reconciliation.mjs",
     "test:integration": "node scripts/validate-integration-contract.mjs",
     "test:seamless": "node scripts/validate-seamless.mjs && node scripts/validate-seamless-races.mjs && node scripts/validate-seamless-status-recovery.mjs && node scripts/validate-financial-hardening.mjs",
     "test:seamless-status-recovery": "node scripts/validate-seamless-status-recovery.mjs",
