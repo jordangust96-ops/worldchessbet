@@ -64,7 +64,7 @@ function StatusPill({ value }) {
   );
 }
 
-function CopyValue({ value, label }) {
+function CopyValue({ value, label = "value" }) {
   const [copied, setCopied] = useState(false);
   if (!value) return <span className="text-white/25">—</span>;
   const copy = async () => {
@@ -94,7 +94,7 @@ function DetailField({ label, children }) {
   );
 }
 
-function Section({ title, children, right }) {
+function Section({ title, children, right = null }) {
   return (
     <section className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
