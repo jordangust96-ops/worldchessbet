@@ -4,8 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Wallet, Lock } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { computeContestFinancials, getPlatformServiceFee } from "@/lib/contestFinancials";
-import { useAuth } from "@/lib/AuthContext";
-import { getJurisdictionMessage } from "@/lib/jurisdictionConfig";
 import { trackPixelEvent } from "@/lib/metaPixel";
 
 const PRESET_GROUPS = [
@@ -26,8 +24,6 @@ export const TIME_CONTROLS = [
 // the marketplace) or privately (via an invite link) — same Match, same
 // escrow/gameplay/settlement flow either way. Only the publish button differs.
 export default function HostMatchSection({ userId, balance, onHosted, disabled = false }) {
-  const { jurisdictionStatus, jurisdictionReason } = useAuth();
-  const jurisdictionBlocked = !!jurisdictionStatus && jurisdictionStatus !== "approved";
   const [wagerValue, setWagerValue] = useState(DEFAULT_WAGER);
   const [timeControl, setTimeControl] = useState("rapid");
   const [hosting, setHosting] = useState(false);
@@ -98,15 +94,7 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled =
         </div>
       )}
 
-      {jurisdictionBlocked && (
-        <div className="rounded-xl bg-red-500/5 border border-red-500/20 p-3">
-          <p className="text-xs text-red-400/80 leading-snug whitespace-pre-line">
-            {jurisdictionReason || getJurisdictionMessage(jurisdictionStatus)}
-          </p>
-        </div>
-      )}
-
-      <div className={`space-y-5 lg:space-y-2 ${disabled || launchClosed || noFunds || jurisdictionBlocked ? "opacity-40 pointer-events-none" : ""}`}>
+      <div className={`space-y-5 lg:space-y-2 ${disabled || launchClosed || noFunds ? "opacity-40 pointer-events-none" : ""}`}>
         <div>
           <h3 className="text-base lg:text-sm font-bold text-white">Create a Challenge</h3>
           <p className="text-xs text-white/40 mt-0.5 lg:hidden">Choose an entry amount and time control.</p>
