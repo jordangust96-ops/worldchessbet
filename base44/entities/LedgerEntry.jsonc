@@ -24,7 +24,10 @@
         "settlement",
         "withdrawal_reserve",
         "ach_return_receivable",
-        "settlement_reconciliation_adjustment"
+        "settlement_reconciliation_adjustment",
+        "processor_fee_clearing",
+        "processor_fee_expense",
+        "ach_return_fee_expense"
       ],
       "description": "Which internal ledger account this row posts to"
     },
