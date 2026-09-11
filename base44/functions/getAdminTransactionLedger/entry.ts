@@ -71,10 +71,23 @@ async function loadIndex(service) {
       return [];
     }
   };
+  const safeFilter = async (entity, query, sort = '-created_date', limit = SOURCE_LIMIT) => {
+    try {
+      return await service[entity].filter(query, sort, limit);
+    } catch (error) {
+      console.error(JSON.stringify({ event: 'admin_ledger_source_filter_failed', entity, query, error: error?.message || 'unknown_error' }));
+      return [];
+    }
+  };
 
-  const [users, transactions, journals, ledgerOperations, seamlessOperations, statusRecoveries, bankAccounts, integrationEvents, settlementEvidence] = await Promise.all([
+  const [users, transactionScan, pendingTransactions, processingTransactions, reviewTransactions, submittedTransactions, uncertainTransactions, journals, ledgerOperations, seamlessOperations, statusRecoveries, bankAccounts, integrationEvents, settlementEvidence] = await Promise.all([
     safeList('User'),
     safeList('WalletTransaction'),
+    safeFilter('WalletTransaction', { status: 'pending' }),
+    safeFilter('WalletTransaction', { status: 'processing' }),
+    safeFilter('WalletTransaction', { status: 'review_required' }),
+    safeFilter('WalletTransaction', { integration_status: 'submitted' }),
+    safeFilter('WalletTransaction', { integration_status: 'uncertain' }),
     safeList('LedgerJournalBatch'),
     safeList('LedgerOperation'),
     safeList('SeamlessOperation', '-updated_at'),
@@ -82,6 +95,18 @@ async function loadIndex(service) {
     safeList('SeamlessBankAccount', '-updated_date'),
     safeList('IntegrationEvent', '-occurred_at'),
     safeList('DepositSettlementEvidence', '-recorded_at'),
+  ]);
+  // Never let an unresolved financial transaction fall out of the admin ledger
+  // because a general source scan hit its safety cap or an older pending row
+  // sorted outside the scan window. Targeted in-flight queries are merged into
+  // the broad scan and de-duplicated by immutable transaction id.
+  const transactions = uniqueById([
+    ...transactionScan,
+    ...pendingTransactions,
+    ...processingTransactions,
+    ...reviewTransactions,
+    ...submittedTransactions,
+    ...uncertainTransactions,
   ]);
 
   const userById = new Map(users.map((row) => [row.id, row]));
@@ -167,7 +192,7 @@ async function loadIndex(service) {
     eventsByWallet,
     eventsByGroup,
     eventsByCorrelation,
-    source_limited: [transactions, journals, ledgerOperations, seamlessOperations, statusRecoveries, integrationEvents].some((rows) => rows.length >= SOURCE_LIMIT),
+    source_limited: [transactionScan, journals, ledgerOperations, seamlessOperations, statusRecoveries, integrationEvents].some((rows) => rows.length >= SOURCE_LIMIT),
   };
 }
 
