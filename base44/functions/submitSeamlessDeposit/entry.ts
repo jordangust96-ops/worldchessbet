@@ -16,7 +16,7 @@ import {
 import { depositQuote } from '../../shared/depositPricing.js';
 
 const MIN_DEPOSIT_AMOUNT = 10; // Minimum $10 to cover $5 contest + $1 platform fee
-const MAX_AMOUNT = 10000;
+const MAX_AMOUNT = 1094; // $1,100 bank debit limit less processing fee.
 const IDEMPOTENCY_KEY = /^[A-Za-z0-9._:-]{16,128}$/;
 
 // Submits a Seamless ACH debit (deposit) to the user's verified funding source.
