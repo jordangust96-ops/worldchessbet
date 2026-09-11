@@ -297,6 +297,14 @@ Deno.serve(async (req) => {
         } else {
           const targetUserId = disputeCase.hold_target_user_id;
           const amount = disputeCase.held_amount || 0;
+          const adoptedPayout = disputeCase.hold_status === 'post_settlement_hold'
+            ? (await base44.asServiceRole.entities.WalletTransaction.filter({
+                match_id: disputeCase.match_id, user_id: targetUserId, type: 'payout',
+                status: 'completed', payout_hold_status: 'held',
+              }))[0] : null;
+          if (adoptedPayout) {
+            return Response.json({ error: 'Resolve the contest review first. Pending winnings release automatically after the 24-hour minimum and all blocking reviews are cleared.' }, { status: 409 });
+          }
           if (targetUserId && amount > 0) {
             const entry = await applyBalanceHold(base44, {
               userId: targetUserId, amount, direction: 'release', matchId: disputeCase.match_id, actor: 'administrator', actorId: admin.id, triggerEvent: 'investigation_hold_release',
@@ -375,7 +383,9 @@ Deno.serve(async (req) => {
               if (disputeCase.game_id) {
                 await base44.asServiceRole.functions.invoke('settleMatch', { gameId: disputeCase.game_id }).catch(() => {});
               }
-            } else if (disputeCase.hold_target_user_id && disputeCase.held_amount > 0) {
+             } else if (disputeCase.hold_target_user_id && disputeCase.held_amount > 0 &&
+              !(pendingPayout && pendingPayout.user_id === disputeCase.hold_target_user_id &&
+                disputeCase.hold_status === 'post_settlement_hold')) {
               const entry = await applyBalanceHold(base44, {
                 userId: disputeCase.hold_target_user_id, amount: disputeCase.held_amount, direction: 'release',
                 matchId: disputeCase.match_id, actor: 'administrator', actorId: admin.id, triggerEvent: 'investigation_hold_release',
@@ -772,19 +782,10 @@ Deno.serve(async (req) => {
           effectsSummary = 'This case has been referred for external review.';
         }
 
-        // Any pending-winnings hold not already consumed by a reversal/void
-        // above is released now that the case has concluded — no_violation,
-        // account_suspended/closed, funds_forfeited (data-model only per its
-        // own comment above), and referred all leave the contest result and
-        // its payout standing.
+        // The scheduled sweep is the sole pending-winnings release writer.
+        // Resolving a case never bypasses the 24-hour minimum or other flags.
         if (pendingPayout && !pendingPayoutConsumed) {
-          await applyBalanceHold(base44, {
-            userId: pendingPayout.user_id, amount: pendingPayout.amount, direction: 'release',
-            matchId: disputeCase.match_id, actor: 'administrator', actorId: admin.id, triggerEvent: 'pending_winnings_release',
-            walletTransactionId: pendingPayout.id,
-          });
-          await base44.asServiceRole.entities.WalletTransaction.update(pendingPayout.id, { payout_hold_status: 'released' });
-          effectsSummary = `${effectsSummary} The pending winnings hold on this contest was released to Available Balance.`.trim();
+          effectsSummary = `${effectsSummary} Pending winnings remain held until the 24-hour review ends and all blocking reviews are cleared.`;
         }
 
         await base44.asServiceRole.entities.CaseResolution.create(resolutionFields);

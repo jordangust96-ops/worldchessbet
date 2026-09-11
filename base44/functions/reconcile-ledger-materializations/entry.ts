@@ -1,3 +1,4 @@
+import { allLedgerRows } from '../../shared/ledgerPagination.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 import { rebuildLedgerBalances } from '../../shared/ledger.ts';
 import { acquireLedgerLock, releaseLedgerLock } from '../../shared/seamlessAtomicStore.ts';
@@ -20,11 +21,7 @@ Deno.serve(async (req) => {
       return Response.json({ skipped: true, reason: 'ledger_busy' }, { status: 202 });
     }
 
-    const batches = await base44.asServiceRole.entities.LedgerJournalBatch.filter(
-      { launch_epoch: 2 },
-      'created_at',
-      5000
-    );
+    const batches = await allLedgerRows(base44.asServiceRole.entities.LedgerJournalBatch, { launch_epoch: 2 }, 'created_at');
     let materializedLegs = 0;
     for (const batch of batches) {
       let legs;
@@ -74,11 +71,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    const entries = await base44.asServiceRole.entities.LedgerEntry.filter(
-      { launch_epoch: 2 },
-      'created_date',
-      5000
-    );
+    const entries = await allLedgerRows(base44.asServiceRole.entities.LedgerEntry, { launch_epoch: 2 });
     const groups = new Map();
     for (const entry of entries) {
       const group = groups.get(entry.ledger_group_id) || { debit: 0, credit: 0 };

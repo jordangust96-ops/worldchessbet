@@ -1,6 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { requireAdminMfa } from '../../shared/mfa.ts';
-import { applyBalanceHold } from '../../shared/ledger.ts';
 import { buildFairPlayAnalysisEvidence } from '../../shared/fairPlayEvidence.ts';
 
 // Admin-only actions on an existing IntegrityFlag. Every action writes an
@@ -17,42 +16,6 @@ const VALID_ACTIONS = [
   'request_identity_verification',
   'open_case',
 ];
-
-// Releases this flag's match's pending-winnings hold (settleMatch /
-// releasePendingWinnings) to Available Balance, if one is still held and no
-// other open case or fair-play/reconciliation flag on the match is also
-// blocking it. Used when a flag that was itself holding a payout (an
-// autonomous, unreported Fair Play flag — see releasePendingWinnings) is
-// cleared without a case ever being opened — otherwise those funds would
-// stay held indefinitely with nothing left to release them.
-async function releaseMatchPendingPayoutIfUnblocked(base44, { matchId, admin }) {
-  if (!matchId) return;
-  const payoutTransactions = await base44.asServiceRole.entities.WalletTransaction.filter({ match_id: matchId, type: 'payout' });
-  const pendingPayout = payoutTransactions.find((t) => t.payout_hold_status === 'held');
-  if (!pendingPayout) return;
-
-  const [cases, flags] = await Promise.all([
-    base44.asServiceRole.entities.DisputeCase.filter({ match_id: matchId }),
-    base44.asServiceRole.entities.IntegrityFlag.filter({ match_id: matchId, user_id: pendingPayout.user_id }),
-  ]);
-  if (cases.some((c) => !['resolved', 'closed'].includes(c.status))) return;
-  if (
-    flags.some(
-      (f) =>
-        ['open', 'under_review'].includes(f.status) &&
-        (f.flag_type === 'settlement_reconciliation_required' ||
-          (f.flag_type === 'engine_assistance_suspected' && f.severity !== 'low'))
-    )
-  ) {
-    return;
-  }
-
-  await applyBalanceHold(base44, {
-    userId: pendingPayout.user_id, amount: pendingPayout.amount, direction: 'release',
-    matchId, actor: 'administrator', actorId: admin.id, triggerEvent: 'pending_winnings_release',
-  });
-  await base44.asServiceRole.entities.WalletTransaction.update(pendingPayout.id, { payout_hold_status: 'released' });
-}
 
 Deno.serve(async (req) => {
   try {
@@ -247,15 +210,8 @@ Deno.serve(async (req) => {
 
     const updatedFlag = await base44.asServiceRole.entities.IntegrityFlag.update(flagId, flagUpdates);
 
-    // Clearing a fair-play flag that was itself the only thing holding a
-    // match's pending winnings (an autonomous, unreported flag — see
-    // releasePendingWinnings) must actually release those funds, or they
-    // stay held indefinitely with nothing left to release them.
-    if (action === 'mark_cleared' && flag.flag_type === 'engine_assistance_suspected' && flag.match_id) {
-      await releaseMatchPendingPayoutIfUnblocked(base44, { matchId: flag.match_id, admin }).catch((error) => {
-        console.error(JSON.stringify({ event: 'pending_payout_release_on_clear_failed', flag_id: flagId, error: error?.message || 'unknown_error' }));
-      });
-    }
+    // Pending winnings are released only by releasePendingWinnings after
+    // the deadline and after all remaining cases and flags are checked.
 
     await base44.asServiceRole.entities.IntegrityAuditLog.create({
       flag_id: flagId,

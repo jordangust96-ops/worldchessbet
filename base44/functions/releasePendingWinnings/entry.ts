@@ -1,101 +1,66 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { applyBalanceHold } from '../../shared/ledger.ts';
+import { allLedgerRows } from '../../shared/ledgerPagination.ts';
+import { REPORT_WINDOW_MS } from '../../shared/reportWindow.ts';
 
-// System sweep (invoked on a schedule — no user session involved, so this
-// never checks auth.me()): releases a winner's payout out of Held Balance
-// into Available Balance once the 24-hour contest reporting window
-// (submitContestReport) has passed with no report filed and no open Fair
-// Play / settlement-integrity flag against the winner for this match.
-//
-// settleMatch credits every decisive-result payout into Held Balance (see
-// its 'creditHeld' leg and the doc comment above its Deno.serve handler)
-// instead of Available Balance, and stamps payout_hold_status: 'held' plus
-// payout_release_at (now + 24h) on the winner's WalletTransaction at the
-// moment of creation. This sweep is the other half of that: it is what
-// actually makes the money spendable/withdrawable when nothing intervened.
-//
-// If a DisputeCase exists for the match, this leaves the hold in place —
-// resolving that case (manageDisputeCase's resolve_case) is what decides
-// whether the payout is released or reversed. If no case exists but an open
-// engine_assistance_suspected or settlement_reconciliation_required
-// IntegrityFlag exists for the winner on this match — an autonomous
-// Stockfish/reconciliation flag with no player report — this also leaves
-// the hold in place, so an admin has a chance to act (see
-// manageIntegrityFlag's open_case action) before the money becomes
-// withdrawable. Clearing that flag (mark_cleared) or converting it into a
-// case both give the admin an explicit way to resolve this either direction.
+// The only writer that releases automatic pending winnings. Admin actions
+// resolve cases/flags; this sweep enforces the deadline even after resolution.
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-
-    // status: 'completed' excludes any losing/failed settlement-election
-    // candidate that still carried a stale payout_hold_status of 'held' at
-    // creation time before settleMatch's canonical-transaction election
-    // resolved it (markSettlementAttempt now voids that field on the loser,
-    // but this filter is defense-in-depth against any legacy/pre-fix rows).
-    const heldPayouts = await base44.asServiceRole.entities.WalletTransaction.filter(
-      { type: 'payout', status: 'completed', payout_hold_status: 'held' },
-      '-created_date',
-      200
-    );
-
-    const now = Date.now();
+    const cutoff = new Date().toISOString();
+    // Collect all due candidates before changing their status, so offset
+    // pagination cannot skip rows removed from the held set by this sweep.
+    const heldPayouts = await allLedgerRows(base44.asServiceRole.entities.WalletTransaction,
+      { type: 'payout', status: 'completed', payout_hold_status: 'held',
+        payout_release_at: { $lte: cutoff } }, 'payout_release_at');
     const releasedIds = [];
-
+    const failedIds = [];
     for (const candidate of heldPayouts) {
-      const releaseAtMs = candidate.payout_release_at ? new Date(candidate.payout_release_at).getTime() : NaN;
-      if (!Number.isFinite(releaseAtMs) || now < releaseAtMs) continue;
       if (!candidate.match_id || !candidate.user_id || !(candidate.amount > 0)) continue;
-
-      // Re-fetch fresh state before doing any further work — never act on
-      // the query snapshot above, which can be stale by the time a later
-      // candidate in a large sweep is reached (an admin could have resolved
-      // a case, or a previous sweep run could already have released this
-      // exact transaction).
-      const transaction = await base44.asServiceRole.entities.WalletTransaction.get(candidate.id);
-      if (!transaction || transaction.status !== 'completed' || transaction.payout_hold_status !== 'held') continue;
-
-      const [openCases, flags] = await Promise.all([
-        base44.asServiceRole.entities.DisputeCase.filter({ match_id: transaction.match_id }),
-        base44.asServiceRole.entities.IntegrityFlag.filter({ match_id: transaction.match_id, user_id: transaction.user_id }),
-      ]);
-      const hasOpenCase = openCases.some((c) => !['resolved', 'closed'].includes(c.status));
-      if (hasOpenCase) continue;
-      // A 'monitor'-band engine_assistance_suspected flag (severity 'low')
-      // is a soft signal — not, by itself, grounds to hold a payout
-      // indefinitely. A 'review'-band flag (always severity 'medium' from
-      // requestFairPlayAnalysis) is what actually warrants holding it, same
-      // as settlement_reconciliation_required (always warrants holding,
-      // regardless of severity — it means the settlement itself is unresolved).
-      const hasOpenFairPlayFlag = flags.some(
-        (f) =>
-          ['open', 'under_review'].includes(f.status) &&
-          (f.flag_type === 'settlement_reconciliation_required' ||
-            (f.flag_type === 'engine_assistance_suspected' && f.severity !== 'low'))
-      );
-      if (hasOpenFairPlayFlag) continue;
-
-      // Final guard, taken fresh right before committing: the same race this
-      // whole sweep exists to close still applies between the checks above
-      // and this write (a case or flag could appear, or an admin could
-      // resolve/consume this exact hold, in that window).
-      const preCommit = await base44.asServiceRole.entities.WalletTransaction.get(transaction.id);
-      if (!preCommit || preCommit.status !== 'completed' || preCommit.payout_hold_status !== 'held') continue;
-
-      await applyBalanceHold(base44, {
-        userId: transaction.user_id,
-        amount: transaction.amount,
-        direction: 'release',
-        matchId: transaction.match_id,
-        actor: 'system',
-        triggerEvent: 'pending_winnings_auto_release',
-        walletTransactionId: transaction.id,
-      });
-      await base44.asServiceRole.entities.WalletTransaction.update(transaction.id, { payout_hold_status: 'released' });
-      releasedIds.push(transaction.id);
+      try {
+        const entries = await applyBalanceHold(base44, {
+          userId: candidate.user_id, amount: candidate.amount, direction: 'release',
+          matchId: candidate.match_id, actor: 'system',
+          triggerEvent: 'pending_winnings_auto_release', walletTransactionId: candidate.id,
+          // Preserve the settlement transaction's original timestamp and linkage.
+          updateTransactions: false,
+          beforePost: async () => {
+            const tx = await base44.asServiceRole.entities.WalletTransaction.get(candidate.id);
+            if (!tx || tx.status !== 'completed' || tx.payout_hold_status !== 'held') return false;
+            if (tx.amount !== candidate.amount || tx.user_id !== candidate.user_id || tx.match_id !== candidate.match_id) return false;
+            const [cases, flags, records] = await Promise.all([
+              allLedgerRows(base44.asServiceRole.entities.DisputeCase, { match_id: tx.match_id }),
+              allLedgerRows(base44.asServiceRole.entities.IntegrityFlag, { match_id: tx.match_id, user_id: tx.user_id }),
+              allLedgerRows(base44.asServiceRole.entities.ContestRecord, { match_id: tx.match_id }),
+            ]);
+            const releaseAt = Date.parse(tx.payout_release_at || '');
+            const settledAt = Date.parse(records[0]?.settlement_timestamp || '');
+            if (!Number.isFinite(releaseAt) || !Number.isFinite(settledAt)) return false;
+            // Reporting starts at the permanent settlement record, which can
+            // be later than payout creation. Both deadlines must have elapsed.
+            if (Date.now() <= Math.max(releaseAt, settledAt + REPORT_WINDOW_MS)) return false;
+            const hasOpenCase = cases.some(c => !['resolved', 'closed'].includes(c.status));
+            if (hasOpenCase) return false;
+            if (flags.some(f => ['open', 'under_review'].includes(f.status) &&
+              (f.flag_type === 'settlement_reconciliation_required' ||
+                (f.flag_type === 'engine_assistance_suspected' && f.severity !== 'low')))) return false;
+            return true;
+          },
+          // Mark released before relinquishing the ledger lock. If this write
+          // fails, the same deterministic group repairs the posting on retry.
+          afterPost: async () => {
+            await base44.asServiceRole.entities.WalletTransaction.update(candidate.id, { payout_hold_status: 'released' });
+          },
+        });
+        if (entries) releasedIds.push(candidate.id);
+      } catch (error) {
+        failedIds.push(candidate.id);
+        console.error(JSON.stringify({ event: 'pending_winnings_release_failed',
+          wallet_transaction_id: candidate.id, error: error?.message || 'unknown_error' }));
+      }
     }
-
-    return Response.json({ releasedCount: releasedIds.length, releasedIds });
+    return Response.json({ releasedCount: releasedIds.length, releasedIds, failedIds });
   } catch (error) {
     console.error(JSON.stringify({ event: 'backend_function_failed', error: error?.message || 'unknown_error' }));
     return Response.json({ error: 'internal_error' }, { status: 500 });

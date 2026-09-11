@@ -1,3 +1,4 @@
+import { allLedgerRows } from './ledgerPagination.ts';
 import { recordIntegrationEvent } from './integrationEvents.ts';
 import { acquireLedgerLock, releaseLedgerLock } from './seamlessAtomicStore.ts';
 
@@ -48,11 +49,7 @@ export async function rebuildLedgerBalances(base44, { userIds = [], systemAccoun
   for (const userId of [...new Set(userIds.filter(Boolean))]) {
     const [wallet, entries] = await Promise.all([
       ensureWallet(base44, userId),
-      base44.asServiceRole.entities.LedgerEntry.filter(
-        { launch_epoch: 2, user_id: userId },
-        'created_date',
-        5000
-      ),
+      allLedgerRows(base44.asServiceRole.entities.LedgerEntry, { launch_epoch: 2, user_id: userId }),
     ]);
     const totals = entries.reduce((sum, entry) => {
       const legacyAvailable = number(entry.credit_amount) - number(entry.debit_amount);
@@ -86,11 +83,7 @@ export async function rebuildLedgerBalances(base44, { userIds = [], systemAccoun
   for (const accountName of [...new Set(systemAccounts.filter(Boolean))]) {
     const [account, entries] = await Promise.all([
       ensureSystemAccount(base44, accountName),
-      base44.asServiceRole.entities.LedgerEntry.filter(
-        { launch_epoch: 2, ledger_account: accountName },
-        'created_date',
-        5000
-      ),
+      allLedgerRows(base44.asServiceRole.entities.LedgerEntry, { launch_epoch: 2, ledger_account: accountName }),
     ]);
     const balance = Math.round(entries.reduce(
       (sum, entry) => sum - number(entry.debit_amount) + number(entry.credit_amount),
@@ -111,7 +104,7 @@ export async function rebuildLedgerBalances(base44, { userIds = [], systemAccoun
 // If a worker disappears after step 2, retrying the deterministic group (or
 // the scheduled materialization sweep) repairs every projection without
 // moving money twice.
-export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletTransactionId, actor, actorId, triggerEvent, externalRefType, externalRefId, legs, updateTransactions = true }) {
+export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletTransactionId, actor, actorId, triggerEvent, externalRefType, externalRefId, legs, updateTransactions = true, beforePost = null, afterPost = null }) {
   const correlationId = matchId || walletTransactionId || groupId;
   if (!groupId || !Array.isArray(legs) || legs.length < 1) {
     throw new Error('Invalid ledger posting request');
@@ -150,6 +143,8 @@ export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletT
       'ledger_leg_index',
       100
     );
+    // Eligibility is re-read while the global financial lock is held.
+    if (beforePost && !await beforePost()) return null;
     const existingIndexes = new Set(existing.map((entry) => number(entry.ledger_leg_index)));
     if (existing.length > legs.length || existingIndexes.size !== existing.length) {
       throw new Error('ledger_group_integrity_error');
@@ -352,6 +347,7 @@ export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletT
       },
     });
 
+    if (afterPost) await afterPost(existing);
     return existing;
   } finally {
     try { await releaseLedgerLock(lockOwner); } catch { /* Lease expiry is the safe fallback. */ }
@@ -360,12 +356,14 @@ export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletT
 
 // Moves value between a user's Available and Held balances through the same
 // durable journal-first pipeline used for every other money movement.
-export async function applyBalanceHold(base44, { userId, amount, direction, matchId, actor = 'administrator', actorId = '', triggerEvent, walletTransactionId = '', updateTransactions = true }) {
+export async function applyBalanceHold(base44, { userId, amount, direction, matchId, actor = 'administrator', actorId = '', triggerEvent, walletTransactionId = '', updateTransactions = true, beforePost = null, afterPost = null }) {
   if (amount <= 0) return null;
   const holding = direction === 'hold';
   return postLedgerLegs(base44, {
     groupId: `${triggerEvent}:${walletTransactionId || matchId || userId}:${holding ? 'hold' : 'release'}`,
     updateTransactions,
+    beforePost,
+    afterPost,
     matchId: matchId || '',
     walletTransactionId: walletTransactionId || '',
     actor,
