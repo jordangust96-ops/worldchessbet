@@ -24,6 +24,21 @@
     "amount": {
       "type": "number"
     },
+    "deposit_processing_fee": {
+      "type": "number",
+      "description": "Customer-paid ACH processing fee, separate from wallet principal."
+    },
+    "deposit_bank_debit": {
+      "type": "number",
+      "description": "Total authorized bank debit including processing fee."
+    },
+    "deposit_pricing_version": {
+      "type": "string"
+    },
+    "deposit_fee_accepted_at": {
+      "type": "string",
+      "format": "date-time"
+    },
     "match_id": {
       "type": "string",
       "description": "Related match ID if applicable"
