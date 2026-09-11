@@ -253,8 +253,9 @@ export default function SeamlessFundingPanel({
   const availableBalance = wallet?.available_balance || 0;
   const meetsMinimum = direction === "deposit" ? parsedAmount >= MIN_DEPOSIT_AMOUNT : parsedAmount > 0;
   const exceedsAvailableBalance = direction === "withdrawal" && parsedAmount > availableBalance + 0.005;
+  const exceedsWithdrawalLimit = direction === "withdrawal" && parsedAmount > 1100;
   const canSubmit =
-    !ineligible && bankReadyForDirection && !busy && Number.isFinite(parsedAmount) && /^\d+(?:\.\d{1,2})?$/.test(amount) && (direction !== "deposit" || !!quote) && meetsMinimum && !exceedsAvailableBalance && transferDirectionEnabled;
+    !ineligible && bankReadyForDirection && !busy && Number.isFinite(parsedAmount) && /^\d+(?:\.\d{1,2})?$/.test(amount) && (direction !== "deposit" || !!quote) && meetsMinimum && !exceedsAvailableBalance && !exceedsWithdrawalLimit && transferDirectionEnabled;
   const transferBusy = busy === direction;
   const formattedAmount = Number.isFinite(parsedAmount) && parsedAmount > 0
     ? parsedAmount.toFixed(2)
@@ -529,7 +530,7 @@ export default function SeamlessFundingPanel({
                   type="number"
                   inputMode="decimal"
                   min="0"
-                  max={direction === "deposit" ? 1094 : availableBalance}
+                  max={direction === "deposit" ? 1094 : Math.min(1100, availableBalance)}
                   step="0.01"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
@@ -570,13 +571,21 @@ export default function SeamlessFundingPanel({
               {direction === "withdrawal" && availableBalance > 0 && (
                 <button
                   type="button"
-                  onClick={() => setAmount(String(availableBalance.toFixed(2)))}
+                  onClick={() => setAmount(String(Math.min(1100, availableBalance).toFixed(2)))}
                   disabled={ineligible || !withdrawalsEnabled || !!busy}
                   className="w-full text-center text-xs font-medium text-[#C9A84C] hover:underline disabled:opacity-40"
                 >
-                  Withdraw full balance (${availableBalance.toFixed(2)}) — no fee
+                  {availableBalance > 1100 ? "Withdraw $1,100.00 — no fee" : `Withdraw full balance ($${availableBalance.toFixed(2)}) — no fee`}
                 </button>
               )}
+
+              {direction === "withdrawal" && (
+                <p role="note" className="text-center text-xs leading-relaxed text-white/60">
+                  Up to $1,100 per request. Bank transfers share a platform allowance of $1,100 over 24 hours and $22,000 over 31 days. If capacity is full, your funds stay in your wallet so you can try again later. Requests are not queued automatically. Bank processing time is additional.
+                </p>
+              )}
+
+              {exceedsWithdrawalLimit && <p role="alert" className="text-center text-xs text-red-400">Enter $1,100.00 or less. Remaining funds stay in your wallet.</p>}
 
               {exceedsAvailableBalance && (
                 <p className="text-center text-xs text-red-400">
@@ -644,6 +653,8 @@ export default function SeamlessFundingPanel({
                     ? "Withdrawals are temporarily unavailable"
                     : !formattedAmount
                       ? "Enter an amount"
+                      : exceedsWithdrawalLimit
+                        ? "Maximum withdrawal is $1,100.00"
                       : exceedsAvailableBalance
                         ? "Amount exceeds available balance"
                         : "Withdraw $" + formattedAmount + " to bank"
