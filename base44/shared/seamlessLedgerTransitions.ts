@@ -197,6 +197,29 @@ export async function releaseSeamlessWithdrawal(base44, transaction, rawAmount, 
   });
 }
 
+// Debt is derived from immutable return receivables, so replaying an interrupted
+// return cannot increment the customer's amount due twice.
+async function recordedReturnDebt(base44, userId) {
+  let total = 0;
+  for (let skip = 0; ; skip += 500) {
+    const transactions = await base44.asServiceRole.entities.WalletTransaction.filter(
+      { user_id: userId, type: 'deposit' }, 'created_date', 500, skip
+    );
+    if (transactions.length) {
+      for (let rowSkip = 0; ; rowSkip += 500) {
+        const entries = await base44.asServiceRole.entities.LedgerEntry.filter({
+          launch_epoch: 2, ledger_account: 'ach_return_receivable',
+          wallet_transaction_id: { $in: transactions.map(tx => tx.id) },
+        }, 'created_date', 500, rowSkip);
+        total += entries.reduce((sum, entry) => sum + Number(entry.debit_amount || 0) - Number(entry.credit_amount || 0), 0);
+        if (entries.length < 500) break;
+      }
+    }
+    if (transactions.length < 500) break;
+  }
+  return money(total);
+}
+
 export async function reverseSeamlessSettlement(base44, transaction, rawAmount, providerRef, sourceEvent) {
   const amount = money(rawAmount);
   const groupId = transaction.type === 'deposit'
@@ -215,7 +238,7 @@ export async function reverseSeamlessSettlement(base44, transaction, rawAmount, 
     );
     const recovered = money(heldRecovery + availableRecovery);
     shortfall = money(amount - recovered);
-    const legs = [
+    let legs = [
       {
         ledgerAccount: 'user_account',
         userId: transaction.user_id,
@@ -241,6 +264,21 @@ export async function reverseSeamlessSettlement(base44, transaction, rawAmount, 
       credit: amount,
       transactionType: 'refund',
     });
+    if (isFeeDeposit(transaction)) {
+      const saved = (await base44.asServiceRole.entities.LedgerJournalBatch.filter(
+        { ledger_group_id: groupId }, '-created_at', 1
+      ))[0];
+      if (saved) {
+        const entries = JSON.parse(saved.legs_json);
+        shortfall = money(entries.find(entry => entry.ledger_account === 'ach_return_receivable')?.debit_amount);
+        legs = entries.map(entry => ({
+          ledgerAccount: entry.ledger_account, userId: entry.user_id || undefined,
+          debit: entry.debit_amount, credit: entry.credit_amount,
+          availableDelta: entry.available_delta, heldDelta: entry.held_delta,
+          totalDepositedDelta: entry.total_deposited_delta, transactionType: entry.transaction_type,
+        }));
+      }
+    }
     await postLedgerLegs(base44, {
       groupId,
       walletTransactionId: transaction.id,
@@ -256,7 +294,9 @@ export async function reverseSeamlessSettlement(base44, transaction, rawAmount, 
       const user = await base44.asServiceRole.entities.User.get(transaction.user_id);
       await base44.asServiceRole.entities.User.update(transaction.user_id, {
         withdrawal_hold: true,
-        ach_return_balance_due: money(Number(user.ach_return_balance_due || 0) + shortfall),
+        ach_return_balance_due: isFeeDeposit(transaction)
+          ? await recordedReturnDebt(base44, transaction.user_id)
+          : money(Number(user.ach_return_balance_due || 0) + shortfall),
       });
     }
     await base44.asServiceRole.entities.WalletTransaction.update(transaction.id, {
