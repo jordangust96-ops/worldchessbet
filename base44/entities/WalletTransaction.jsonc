@@ -35,6 +35,31 @@
     "deposit_pricing_version": {
       "type": "string"
     },
+    "deposit_reconciliation_status": {
+      "type": "string",
+      "enum": [
+        "awaiting_evidence",
+        "matched",
+        "mismatch"
+      ]
+    },
+    "deposit_reconciliation_reason": {
+      "type": "string",
+      "maxLength": 200
+    },
+    "deposit_settlement_evidence_id": {
+      "type": "string"
+    },
+    "deposit_return_reconciliation_status": {
+      "type": "string",
+      "enum": [
+        "awaiting_evidence",
+        "matched"
+      ]
+    },
+    "deposit_return_evidence_id": {
+      "type": "string"
+    },
     "deposit_fee_accepted_at": {
       "type": "string",
       "format": "date-time"
