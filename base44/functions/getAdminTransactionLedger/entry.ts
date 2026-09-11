@@ -82,12 +82,12 @@ async function loadIndex(service) {
 
   const [users, transactionScan, pendingTransactions, processingTransactions, reviewTransactions, submittedTransactions, uncertainTransactions, journals, ledgerOperations, seamlessOperations, statusRecoveries, bankAccounts, integrationEvents, settlementEvidence] = await Promise.all([
     safeList('User'),
-    safeList('WalletTransaction'),
-    safeFilter('WalletTransaction', { status: 'pending' }),
-    safeFilter('WalletTransaction', { status: 'processing' }),
-    safeFilter('WalletTransaction', { status: 'review_required' }),
-    safeFilter('WalletTransaction', { integration_status: 'submitted' }),
-    safeFilter('WalletTransaction', { integration_status: 'uncertain' }),
+    safeFilter('WalletTransaction', { launch_epoch: 2 }, '-created_date'),
+    safeFilter('WalletTransaction', { launch_epoch: 2, status: 'pending' }),
+    safeFilter('WalletTransaction', { launch_epoch: 2, status: 'processing' }),
+    safeFilter('WalletTransaction', { launch_epoch: 2, status: 'review_required' }),
+    safeFilter('WalletTransaction', { launch_epoch: 2, integration_status: 'submitted' }),
+    safeFilter('WalletTransaction', { launch_epoch: 2, integration_status: 'uncertain' }),
     safeList('LedgerJournalBatch'),
     safeList('LedgerOperation'),
     safeList('SeamlessOperation', '-updated_at'),
@@ -107,7 +107,11 @@ async function loadIndex(service) {
     ...reviewTransactions,
     ...submittedTransactions,
     ...uncertainTransactions,
-  ]);
+  ]).filter((row) =>
+    Number(row.launch_epoch) === 2 &&
+    !String(row.source_event || '').startsWith('prelaunch_') &&
+    !String(row.source_event || '').startsWith('legacy_')
+  );
 
   const userById = new Map(users.map((row) => [row.id, row]));
   const journalByWallet = new Map();
@@ -571,6 +575,8 @@ Deno.serve(async (req) => {
     const walletRows = index.transactions.map((transaction) => buildTransactionRow(transaction, index));
     const walletIds = new Set(index.transactions.map((row) => row.id));
     const ledgerOnlyRows = index.journals
+      .filter((journal) => Number(journal.launch_epoch) === 2)
+      .filter((journal) => !String(journal.trigger_event || '').startsWith('prelaunch_') && !String(journal.trigger_event || '').startsWith('legacy_'))
       .filter((journal) => !journal.wallet_transaction_id || !walletIds.has(journal.wallet_transaction_id))
       .map((journal) => buildLedgerOnlyRow(journal, index));
 
