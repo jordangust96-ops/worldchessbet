@@ -11,6 +11,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import ReactMarkdown from "react-markdown";
+import PlatformServiceFeeScheduleTable from "@/components/legal/PlatformServiceFeeScheduleTable";
 import { LEGAL_DOCUMENT_TYPES } from "@/lib/legalDocumentTypes";
 import SEO from "@/components/seo/SEO";
 import { SITE_URL } from "@/lib/seoConfig";
@@ -167,9 +168,13 @@ export default function LegalDocumentPage({ policyType }) {
                     {s.title}
                   </AccordionTrigger>
                   <AccordionContent>
-                    <div className="prose prose-invert prose-sm max-w-none text-white/60 prose-headings:text-white/80 prose-strong:text-white/80">
-                      <ReactMarkdown>{s.content}</ReactMarkdown>
-                    </div>
+                    {policyType === "official_rules" && s.id === "platform-service-fee-schedule" ? (
+                      <PlatformServiceFeeScheduleTable />
+                    ) : (
+                      <div className="prose prose-invert prose-sm max-w-none text-white/60 prose-headings:text-white/80 prose-strong:text-white/80">
+                        <ReactMarkdown>{s.content}</ReactMarkdown>
+                      </div>
+                    )}
                   </AccordionContent>
                 </AccordionItem>
               ))}
