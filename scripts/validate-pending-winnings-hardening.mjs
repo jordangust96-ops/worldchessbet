@@ -29,7 +29,7 @@ function entity(initial = []) {
     },
     async create(value) { const r = { id: 'row-' + rows.length, created_date: new Date().toISOString(), ...value }; rows.push(r); return structuredClone(r); },
     async bulkCreate(values) { return Promise.all(values.map(v => this.create(v))); },
-    async update(id, patch) { if (failUpdate) { failUpdate = false; throw Error('simulated write interruption'); } Object.assign(rows.find(r => r.id === id), patch); },
+    async update(id, patch) { if (failUpdate) { failUpdate = false; throw Error('simulated write interruption'); } Object.assign(rows.find(r => r.id === id), patch); return this.get(id); },
   };
 }
 const now = Date.now();
@@ -125,6 +125,42 @@ for (const kind of ['case','flag']) {
   assert.equal(e.Wallet.rows[0].available_balance,10);
   assert.equal(e.SystemLedgerAccount.rows[0].balance,10);
 }
+
+// Administrative resolution/flag clearing must not move the pending payout,
+// including when an investigation has adopted that exact automatic hold.
+{
+  const db=database([due('admin-test',now+23*3600000)]); const e=db.asServiceRole.entities;
+  db.auth={me:async()=>({id:'admin',role:'admin',full_name:'Test Admin'})};
+  e.DisputeCase.rows.push({id:'case',case_number:1001,match_id:'admin-test',status:'open',
+    hold_status:'post_settlement_hold',hold_target_user_id:'admin-test',held_amount:10});
+  e.Match=entity([{id:'admin-test',status:'completed'}]);
+  e.CaseResolution=entity(); e.ContestRecordAnnotation=entity(); e.DisputeCaseNote=entity();
+  const dispute=await loadBackend('base44/functions/manageDisputeCase/entry.ts',{
+    'npm:@base44/sdk@0.8.38':{createClientFromRequest:()=>db},
+    '../../shared/mfa.ts':{requireAdminMfa:async()=>null},
+    '../../shared/ledger.ts':ledger,
+    '../../shared/integrationEvents.ts':{recordIntegrationEvent:async()=>{}},
+  });
+  const request=body=>({json:async()=>body,headers:new Headers()});
+  assert.equal((await dispute.handler(request({caseId:'case',action:'release_hold'}))).status,409);
+  const resolution=await dispute.handler(request({caseId:'case',action:'resolve_case',
+    payload:{resolutionType:'no_violation',internalRationale:'Test resolution'}}));
+  assert.equal(resolution.status,200);
+  assert.equal(e.DisputeCase.rows[0].status,'resolved');
+  assert.equal(e.WalletTransaction.rows[0].payout_hold_status,'held');
+  assert.equal(e.LedgerJournalBatch.rows.length,0);
+  e.IntegrityFlag.rows.push({id:'flag',match_id:'admin-test',user_id:'admin-test',status:'open',flag_type:'engine_assistance_suspected'});
+  e.IntegrityAuditLog=entity();
+  const flag=await loadBackend('base44/functions/manageIntegrityFlag/entry.ts',{
+    'npm:@base44/sdk@0.8.38':{createClientFromRequest:()=>db},
+    '../../shared/mfa.ts':{requireAdminMfa:async()=>null},
+    '../../shared/fairPlayEvidence.ts':{buildFairPlayAnalysisEvidence:async()=>({})},
+  });
+  assert.equal((await flag.handler(request({flagId:'flag',action:'mark_cleared'}))).status,200);
+  assert.equal(e.LedgerJournalBatch.rows.length,0);
+  assert.equal(e.WalletTransaction.rows[0].payout_hold_status,'held');
+}
+
 const [flag,dispute,wallet] = await Promise.all([
   'base44/functions/manageIntegrityFlag/entry.ts','base44/functions/manageDisputeCase/entry.ts','src/pages/WalletPage.jsx',
 ].map(p=>readFile(new URL('../'+p,import.meta.url),'utf8')));
