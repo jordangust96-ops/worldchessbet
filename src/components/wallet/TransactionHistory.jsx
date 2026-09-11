@@ -326,6 +326,12 @@ export default function TransactionHistory({
                       label={tx.status === "completed" ? "Transaction amount" : "Referenced amount"}
                       value={amountLabel}
                     />
+                    {tx.type === "deposit" && tx.deposit_pricing_version && (
+                      <>
+                        <DetailItem label="Deposit processing fee" value={`$${formatMoney(tx.deposit_processing_fee)}`} />
+                        <DetailItem label="Authorized bank charge" value={`$${formatMoney(tx.deposit_bank_debit)}`} />
+                      </>
+                    )}
                     {match && (
                       <>
                         <DetailItem label="Opponent" value={opponentName || "Opponent"} />
