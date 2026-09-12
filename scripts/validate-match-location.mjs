@@ -155,13 +155,13 @@ for(const name of ['finalizeMatchStart','getOrCreateGame']) {
 // no reservation or certification is repeated, on either success or failure.
 for (const status of ['approved', 'verification_failed']) {
   let checks=0, reservations=0, otherCalls=0;
-  const req=new Request('https://example.invalid',{method:'POST',body:JSON.stringify({matchId:'m'})});
+  const req=new Request('https://example.invalid',{method:'POST',body:JSON.stringify({matchId:'m',browserGeoPermission:'granted',browserLatitude:42.33,browserLongitude:-83.05,browserAccuracyMeters:55})});
   const sdk={auth:{me:async()=>({id:'p1'})},asServiceRole:{entities:{Match:{get:async()=>({...match})}}},
     functions:{invoke:async(name)=>{otherCalls++;assert.equal(name,'finalizeMatchStart');return {data:{match:{...match,status:'in_progress'}}};}}};
   const loaded=load('base44/functions/confirmMatchReadiness/entry.ts',{
     'npm:@base44/sdk@0.8.38':{createClientFromRequest:()=>sdk},
     '../../shared/lockWager.ts':{lockWager:async()=>{reservations++;throw Error('duplicate reservation');}},
-    '../../shared/matchLocation.ts':{verifyMatchLocation:async(original)=>{checks++;assert.equal(original,req);return {status};}}
+    '../../shared/matchLocation.ts':{verifyMatchLocation:async(original,checkedMatch,context)=>{checks++;assert.equal(original,req);assert.equal(context.browserLatitude,42.33);assert.equal(context.browserGeoPermission,'granted');return {status};}}
   });
   const response=await loaded.handler(req);
   assert.equal(response.status,status==='approved'?200:403);
@@ -172,7 +172,7 @@ for (const status of ['approved', 'verification_failed']) {
 const confirm=fs.readFileSync('base44/functions/confirmMatchReadiness/entry.ts','utf8');
 assert.ok(confirm.includes('await lockWager(req, {'));
 assert.ok(confirm.includes('alreadyReserved && match.status'));
-assert.ok(confirm.includes('await verifyMatchLocation(req, match)'));
+assert.ok(confirm.includes('await verifyMatchLocation(req, match, {'));
 const lock=fs.readFileSync('base44/shared/lockWager.ts','utf8');
 assert.ok(lock.indexOf('await verifyMatchLocation(req, match')<lock.indexOf('await postLedgerLegs('));
 for(const name of ['createMatch','acceptMatch'])

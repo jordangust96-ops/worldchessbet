@@ -61,7 +61,9 @@ Deno.serve(async (req) => {
     // A funded player can refresh expired location evidence without reserving
     // funds a second time. Only this explicit player request calls MaxMind.
     if (alreadyReserved && match.status !== 'in_progress') {
-      const location = await verifyMatchLocation(req, match);
+      const location = await verifyMatchLocation(req, match, {
+        browserGeoPermission, browserLatitude, browserLongitude, browserAccuracyMeters, deviceFingerprintHash,
+      });
       if (location.status !== 'approved') return Response.json({
         error: location.reason || 'Unable to verify your location.',
         action: 'match_location_required', requiredUserIds: [user.id],
