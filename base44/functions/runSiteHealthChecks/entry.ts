@@ -340,8 +340,18 @@ Deno.serve(async (req) => {
     let saved = previous ? await svc.SiteHealthSnapshot.update(previous.id, payload) : await svc.SiteHealthSnapshot.create(payload);
     let emailAccepted = false;
     if (send) {
+      let activity: any = null;
+      if (digest) {
+        stage = 'collect_daily_activity';
+        try { activity = await collectDailyActivity(base44, now); }
+        catch {
+          // Activity reporting must never suppress the health digest. Fail
+          // visibly inside the email instead of substituting partial totals.
+          activity = { unavailable: true, reason: 'Daily activity totals could not be fully verified. Open Site Activity to investigate.' };
+        }
+      }
       stage = 'format_email';
-      const email = formatHealthEmail(checks, checkedAt, digest, notification.recovered);
+      const email = formatHealthEmail(checks, checkedAt, digest, notification.recovered, activity);
       try {
         await base44.asServiceRole.integrations.Core.SendEmail({
           to: 'hello@worldchessbet.com',
