@@ -101,13 +101,14 @@ export function formatHealthEmail(checks: any[], checkedAt: string, digest = fal
     '<p style="margin:12px 0 0;font-size:14px;line-height:1.6;color:#334155;">' + attention.length + ' need attention · ' + unknown.length + ' unverified · ' + healthy.length + ' passed</p></td></tr></table>' +
     '<p style="margin:12px 0 0;font-size:13px;line-height:1.5;color:#64748b;">Checked ' + escape(checked) + ' (Detroit time)</p>' +
     (recovered ? '<p style="margin:16px 0;padding:12px;background:#f0fdf4;font-size:14px;line-height:1.6;">Previously alerted checks recovered. Any unverified checks below still need confirmation.</p>' : '') +
+    activityHtml +
     section('Needs attention', attention, 'No warning or critical findings in this report.') +
     section('Not yet verified', unknown, 'No unknown checks in this report.', true) +
     section('Checks passed', healthy, 'No checks are confirmed healthy in this report.', true) +
     '<p style="margin:28px 0 18px;"><a href="https://worldchessbet.com/admin/health" style="display:inline-block;padding:13px 18px;background:#0f172a;color:#ffffff;text-decoration:none;font-size:15px;font-weight:bold;">Open Site Health dashboard</a></p>' +
     '<p style="margin:0;font-size:12px;line-height:1.6;color:#64748b;">This is a snapshot, not a capacity guarantee. Unknown means insufficient evidence, not confirmed downtime. Monitoring observes and reports; it does not change games, money, accounts, or infrastructure.</p>' +
     '</td></tr></table></td></tr></table></body></html>';
-  return { subject: 'ChessBet health: ' + status.toUpperCase() + (digest ? ' — daily summary' : recovered ? ' — recovery' : ' — ' + attention.length + ' need attention'), body };
+  return { subject: digest ? 'ChessBet daily: ' + status.toUpperCase() + ' health + activity' : 'ChessBet health: ' + status.toUpperCase() + (recovered ? ' — recovery' : ' — ' + attention.length + ' need attention'), body };
 }
 
 // Bound serialized size as well as entry count: the storage bridge can reject
