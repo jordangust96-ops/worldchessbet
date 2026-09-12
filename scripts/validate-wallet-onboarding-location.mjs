@@ -32,12 +32,12 @@ for(const status of ['approved','blocked','verification_failed']) {
  '../../shared/requestJurisdiction.ts':{getRequestJurisdiction:async(req,context,policy)=>{
  calls++;assert.equal(context.triggerEvent,'wallet_onboarding');
  assert.equal(policy.fresh,true);assert.equal(policy.requireLocation,true);
- assert.equal(req.headers.get('cf-connecting-ip'),'192.0.2.1');
+ assert.equal(req.headers.get('true-client-ip'),'192.0.2.1');
  rows.push(evidence({verification_result:status,pre_bypass_verification_result:status}));
  return Response.json({status});}},
  '../../shared/seamlessAtomicStore.ts':{acquireUserWalletLock:async()=>{locks++;return true;},releaseUserWalletLock:async()=>{releases++;}}
  });
- const request=()=>new Request('https://test.invalid',{method:'POST',headers:{'cf-connecting-ip':'192.0.2.1'},
+ const request=()=>new Request('https://test.invalid',{method:'POST',headers:{'true-client-ip':'192.0.2.1'},
  body:JSON.stringify({userId:'other',approved:true,state:'GA'})});
  let response=await handler(request());assert.equal(response.status,200);
  assert.equal((await response.json()).allowed,status==='approved');

@@ -46,7 +46,7 @@ function load(path, dependencies, globals={}) {
 const policyModule={isMatchLocationEvidence};
 const helpers=load('base44/shared/matchLocation.ts',{
   './requestJurisdiction.ts':{getRequestJurisdiction:async(req,context,policy)=>{
-    assert.equal(req.headers.get('cf-connecting-ip'),'198.51.100.1');
+    assert.equal(req.headers.get('true-client-ip'),'198.51.100.1');
     assert.equal(context.triggerEvent,'match_readiness');
     assert.equal(context.relatedEntityId,'m');
     assert.equal(policy.fresh,true); assert.equal(policy.requireLocation,true);
@@ -54,7 +54,7 @@ const helpers=load('base44/shared/matchLocation.ts',{
   }},
   './matchLocationPolicy.js':policyModule
 },{Deno:{env:{get:()=> 'true'}}}).exports;
-await helpers.verifyMatchLocation(new Request('https://example.invalid',{headers:{'cf-connecting-ip':'198.51.100.1'}}),match);
+await helpers.verifyMatchLocation(new Request('https://example.invalid',{headers:{'true-client-ip':'198.51.100.1','cf-connecting-ip':'74.220.48.45','x-forwarded-for':'198.51.100.77'}}),match);
 let logs={p1:evidence('p1'),p2:evidence('p2')};
 const client={asServiceRole:{entities:{JurisdictionVerificationLog:{filter:async q=>[logs[q.user_id]]}}}};
 assert.equal((await helpers.getMatchLocationReadiness(client,match)).ready,true);
@@ -85,7 +85,7 @@ for(const role of ['user','admin']) {
     });}
   }).exports;
   const result=await (await geo.getRequestJurisdiction(
-    new Request('https://example.invalid',{headers:{'cf-connecting-ip':'198.51.100.1'}}),
+    new Request('https://example.invalid',{headers:{'true-client-ip':'198.51.100.1','cf-connecting-ip':'74.220.48.45','x-forwarded-for':'198.51.100.77'}}),
     {triggerEvent:'match_readiness',relatedEntityType:'match',relatedEntityId:'m'},
     {fresh:true,requireLocation:true}
   )).json();
@@ -123,7 +123,7 @@ for (const c of [
       subdivisions:[{iso_code:c.state||'GA',confidence:c.stateConfidence}],location:{accuracy_radius:c.radius??5,latitude:33.75,longitude:-84.39},traits:{is_anonymous_vpn:!!c.vpn}})
   }).exports;
   const result=await (await geo.getRequestJurisdiction(
-    new Request('https://example.invalid',{headers:{'cf-connecting-ip':'198.51.100.1'}}),
+    new Request('https://example.invalid',{headers:{'true-client-ip':'198.51.100.1','cf-connecting-ip':'74.220.48.45','x-forwarded-for':'198.51.100.77'}}),
     {triggerEvent:'manual',...(c.browser?{browserGeoPermission:'granted',browserLatitude:42.33,browserLongitude:-83.05,browserAccuracyMeters:55}:{})},{fresh:true,requireLocation:true}
   )).json();
   assert.equal(result.status,c.expected,JSON.stringify(c));

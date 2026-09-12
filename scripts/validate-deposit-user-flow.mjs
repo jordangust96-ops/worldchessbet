@@ -26,7 +26,7 @@ async function depositHarness({verified=true,hold=false,location='approved',bank
  '../../shared/integrationEvents.ts':{recordIntegrationEvent:async()=>{}},
  '../../shared/seamlessAtomicStore.ts':{acquireUserWalletLock:async()=>true,releaseUserWalletLock:async()=>{},claimDepositOperation:async(id,key,amount)=>op||{amount,state:'new'},saveDepositOperation:async(id,key,p)=>op=p}
  });
- return {send:(amount=10)=>handler(new Request('https://test.invalid/deposit',{method:'POST',headers:{'cf-connecting-ip':ip},body:JSON.stringify({amount,idempotencyKey:'deposit-test-key-123',bankSourceId:'bank1'})})),state:()=>({calls,created,geoCalls,op,tx})};
+ return {send:(amount=10)=>handler(new Request('https://test.invalid/deposit',{method:'POST',headers:{'true-client-ip':ip},body:JSON.stringify({amount,idempotencyKey:'deposit-test-key-123',bankSourceId:'bank1'})})),state:()=>({calls,created,geoCalls,op,tx})};
 }
 for(const opts of [{verified:false},{hold:true},{location:'blocked'},{location:'unknown'},{location:'verification_failed'},{bankVerified:false},{primaryChanges:true}]){
  const h=await depositHarness(opts);assert.ok((await h.send()).status>=400);assert.equal(h.state().calls,0,JSON.stringify(opts)+' never reaches provider');
@@ -46,7 +46,7 @@ const {exports:geo}=await loadBackend('base44/shared/requestJurisdiction.ts',{
  'npm:@base44/sdk@0.8.38':{createClientFromRequest:()=>geoSdk},
  './jurisdictionGates.js':gates,'./jurisdictionRegions.js':regions
 },{MAXMIND_GEOIP_ENABLED:'true'});
-r=await geo.getRequestJurisdiction(new Request('https://test.invalid',{headers:{'cf-connecting-ip':ip}}),{triggerEvent:'deposit'});
+r=await geo.getRequestJurisdiction(new Request('https://test.invalid',{headers:{'true-client-ip':ip}}),{triggerEvent:'deposit'});
 assert.equal((await r.json()).status,'approved');
 r=await geo.getRequestJurisdiction(new Request('https://test.invalid',{headers:{'x-forwarded-for':ip}}),{triggerEvent:'deposit',ip});
 assert.equal((await r.json()).status,'unknown','body/XFF cannot impersonate trusted edge IP');

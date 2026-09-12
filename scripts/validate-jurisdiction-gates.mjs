@@ -19,6 +19,7 @@ const {
   isGeoipEnforcementEnabled,
   canAdminForceLiveCheck,
   isReusableVerification,
+  getOriginalClientIp,
   VERIFICATION_CACHE_TTL_MS,
 } = await import('../base44/shared/jurisdictionGates.js');
 
@@ -227,3 +228,13 @@ ok(depositSrc.includes('await walletOnboardingLocation(base44, user.id)') && !de
 
 console.log(`jurisdiction-gates: ${pass} assertions passed (no network).`);
 for(const patch of [{subdivision_confidence:10},{accuracy_radius_km:1000},{geo_mismatch_flag:true},{country_confidence:undefined},{accuracy_radius_km:undefined},{is_anycast:true},{is_satellite_provider:true}]) assert.equal(isReusableVerification(reusableBase(patch),IP,now,undefined,UID),false,JSON.stringify(patch));
+
+// Original visitor transport regression: intermediary and forwarded IPs cannot authorize.
+const ipRequest = headers => new Request('https://example.invalid', {headers});
+assert.equal(getOriginalClientIp(ipRequest({'true-client-ip':'172.56.124.196','cf-connecting-ip':'74.220.48.45','x-forwarded-for':'198.51.100.77'})), '172.56.124.196');
+assert.equal(getOriginalClientIp(ipRequest({'cf-connecting-ip':'74.220.48.45','x-forwarded-for':'172.56.124.196'})), '');
+for (const value of ['999.1.2.3','01.2.3.4','172.56.124.196, 198.51.100.77','example.com','']) {
+  assert.equal(getOriginalClientIp(ipRequest({'true-client-ip':value})), '');
+}
+assert.equal(getOriginalClientIp(ipRequest({'true-client-ip':'2607:fb91:4c1f:d952:b8ee:c77b:263d:4254'})), '2607:fb91:4c1f:d952:b8ee:c77b:263d:4254');
+console.log('Original-client IP transport regression checks passed');

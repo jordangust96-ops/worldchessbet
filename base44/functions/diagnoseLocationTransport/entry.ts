@@ -28,7 +28,7 @@ Deno.serve(async req => {
     }
     integrityProbe=results;
   }
-  return Response.json({ok:true,integrityProbe,usedByJurisdiction:'cf-connecting-ip',
+  return Response.json({ok:true,integrityProbe,usedByJurisdiction:'true-client-ip',
     candidates,warning:'Diagnostic only. Forwarded header values are not independently authenticated visitor locations.'},
     {headers:{'Cache-Control':'no-store'}});
  } catch {return Response.json({error:'Transport inspection failed'},{status:500});}
