@@ -1,0 +1,47 @@
+{
+  "name": "Wallet Deposit Reminders",
+  "description": "Hourly check for a one-time deposit reminder after five days of inactivity following verified bank connection. Respects unsubscribe preferences, pending deposits, funded wallets, and account readiness.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "0 * * * *",
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "wallet_deposit_reminders",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "send_wallet_deposit_reminders": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "processWalletDepositReminders",
+            "args": {
+              "dryRun": false
+            }
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Send Wallet Deposit Reminders",
+            "description": "Send the one-time branded five-day reminder to eligible users"
+          }
+        }
+      }
+    ]
+  }
+}
