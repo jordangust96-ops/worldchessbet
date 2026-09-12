@@ -75,8 +75,8 @@ export async function requireVerifiedDeposit(base44, tx, suppliedRef) {
 }
 
 // Together with the principal settlement group, incoming settlement debits
-// total the gross bank charge. The fee is passed through and cleared to zero;
-// it is never posted as ChessBet platform revenue.
+// total the gross bank charge. Actual provider deductions clear to zero;
+// the evidenced remainder is separate deposit-fee revenue, not player money.
 export async function postDepositFeePassThrough(base44, tx, verified) {
   if (!verified) return;
   const fee = verified.fee / 100;
@@ -91,6 +91,10 @@ export async function postDepositFeePassThrough(base44, tx, verified) {
     legs: [
       leg('settlement', fee, 0), leg('processor_fee_clearing', 0, fee),
       leg('processor_fee_clearing', fee, 0), leg('settlement', 0, fee),
+      ...(verified.retained > 0 ? [
+        leg('settlement', verified.retained / 100, 0),
+        leg('deposit_fee_revenue', 0, verified.retained / 100),
+      ] : []),
     ],
   });
 }

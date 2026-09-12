@@ -71,7 +71,7 @@ export default function DepositReconciliationPanel() {
           {tx && <>
             <div className="rounded-lg bg-black/20 p-3 text-sm space-y-1">
               <p>Seamless payment ID: <span className="break-all">{tx.provider_reference_id || 'Awaiting provider reference'}</span></p>
-              <p>Authorized: bank charge {usd(tx.bank_debit)} · processor fee {usd(tx.processing_fee)} · wallet credit {usd(tx.amount)}</p>
+              <p>Authorized: bank charge {usd(tx.bank_debit)} · customer deposit fee {usd(tx.processing_fee)} · wallet credit {usd(tx.amount)}</p>
               <p>Settlement: {tx.reconciliation_status.replaceAll('_', ' ')} · Return fees: {(tx.return_reconciliation_status || 'not reviewed').replaceAll('_', ' ')}</p>
               {tx.reconciliation_reason && <p className="text-amber-300">Review reason: {tx.reconciliation_reason.replaceAll('_', ' ')}</p>}
             </div>

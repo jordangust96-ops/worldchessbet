@@ -3,17 +3,17 @@ import { depositQuote } from '../base44/shared/depositPricing.js';
 import { buildDepositBody } from '../base44/shared/seamlessAchPure.js';
 import { loadBackend } from './helpers/load-backend.mjs';
 
-for (let cents = 1000; cents <= 109400; cents++) {
+for (let cents = 1000; cents <= 109380; cents++) {
   const q = depositQuote(cents / 100);
   assert.ok(q);
   const gross = Math.round(q.bankDebit * 100);
-  const fee = Math.round(gross * 0.005 + 50);
+  const fee = Math.round(gross * 0.005 + 70);
   assert.equal(gross - fee, cents, 'exact net wallet credit at every supported cent');
 }
-assert.equal(depositQuote(10).bankDebit, 10.55);
-assert.equal(depositQuote(100).bankDebit, 101.01);
-assert.equal(depositQuote(1094).bankDebit, 1100);
-for (const invalid of [0, 9.99, 1094.01, 10000, NaN, Infinity, 10.001]) assert.equal(depositQuote(invalid), null);
+assert.equal(depositQuote(10).bankDebit, 10.75);
+assert.equal(depositQuote(100).bankDebit, 101.21);
+assert.equal(depositQuote(1093.80).bankDebit, 1100);
+for (const invalid of [0, 9.99, 1093.81, 10000, NaN, Infinity, 10.001]) assert.equal(depositQuote(invalid), null);
 
 let operation = null, pending = null, calls = 0, submittedBody;
 const user = { id: 'user-test', withdrawal_hold: false };
@@ -59,11 +59,11 @@ assert.equal(calls,0);
 assert.equal((await send({...payload,depositPricingVersion:undefined})).status,409);
 assert.equal(calls,0);
 assert.equal((await send(payload)).status,200);
-assert.equal(Number(submittedBody.amount),101.01);
+assert.equal(Number(submittedBody.amount),101.21);
 assert.equal(submittedBody.sender,'provider-test');
 assert.equal(pending.amount,100);
-assert.equal(pending.deposit_processing_fee,1.01);
-assert.equal(pending.deposit_bank_debit,101.01);
+assert.equal(pending.deposit_processing_fee,1.21);
+assert.equal(pending.deposit_bank_debit,101.21);
 assert.equal(pending.status,'pending');
 assert.equal((await send(payload)).status,200);
 assert.equal(calls,1,'retries must not create a second debit');

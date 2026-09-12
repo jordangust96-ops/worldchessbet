@@ -13,6 +13,7 @@
         "ach_return_receivable",
         "settlement_reconciliation_adjustment",
         "processor_fee_clearing",
+        "deposit_fee_revenue",
         "processor_fee_expense",
         "ach_return_fee_expense"
       ],

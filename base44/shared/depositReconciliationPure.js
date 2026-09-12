@@ -18,7 +18,7 @@ export function moneyCents(value) {
 }
 
 export function expectedDeposit(tx) {
-  const quote = depositQuote(tx.amount);
+  const quote = depositQuote(tx.amount, tx.deposit_pricing_version);
   if (!quote || tx.deposit_pricing_version !== quote.version ||
       moneyCents(tx.deposit_bank_debit) !== moneyCents(quote.bankDebit) ||
       moneyCents(tx.deposit_processing_fee) !== moneyCents(quote.fee) ||
@@ -50,19 +50,27 @@ export function verifySettlementEvidence(tx, evidence, providerRef) {
       evidence.wallet_transaction_id !== tx.id || evidence.provider_reference_id !== providerRef ||
       evidence.pricing_version !== tx.deposit_pricing_version ||
       moneyCents(evidence.bank_debit) !== expected.gross ||
-      moneyCents(evidence.processing_fee) !== expected.fee ||
-      moneyCents(evidence.net_received) !== expected.net ||
+      !settlementMatches(tx, evidence) ||
       !evidence.evidence_reference || !evidence.recorded_by ||
       !['seamless_statement', 'seamless_support'].includes(evidence.source)) {
     throw new Error('settlement_evidence_required');
   }
-  return expected;
+  const actualFee = moneyCents(evidence.processing_fee);
+  return { ...expected, fee: actualFee, retained: expected.fee - actualFee };
 }
 
 export function settlementMatches(tx, values) {
   const expected = expectedDeposit(tx);
   const gross = moneyCents(values.bank_debit), fee = moneyCents(values.processing_fee);
   const net = moneyCents(values.net_received);
+  if (tx.deposit_pricing_version === 'same-day-ach-v2') {
+    // The dashboard may include the separately billed balance check in Fee.
+    // Accept only the contracted ACH deduction, with or without that $0.10,
+    // and require sourced evidence of the exact corresponding cash proceeds.
+    const achFee = Math.floor((expected.gross + 100) / 200) + 50;
+    return gross === expected.gross && [achFee, achFee + 10].includes(fee) &&
+      gross - fee === net && net >= expected.net;
+  }
   return gross === expected.gross && fee === expected.fee && net === expected.net && gross - fee === net;
 }
 

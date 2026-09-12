@@ -339,7 +339,7 @@ export default function TransactionHistory({
                     />
                     {tx.type === "deposit" && tx.deposit_pricing_version && (
                       <>
-                        <DetailItem label="Deposit processing fee" value={`$${formatMoney(tx.deposit_processing_fee)}`} />
+                        <DetailItem label="Deposit fee" value={`$${formatMoney(tx.deposit_processing_fee)}`} />
                         <DetailItem label="Authorized bank charge" value={`$${formatMoney(tx.deposit_bank_debit)}`} />
                       </>
                     )}

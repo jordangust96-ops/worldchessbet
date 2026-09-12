@@ -16,7 +16,7 @@ import {
 import { depositQuote } from '../../shared/depositPricing.js';
 
 const MIN_DEPOSIT_AMOUNT = 10; // Minimum $10 to cover $5 contest + $1 platform fee
-const MAX_AMOUNT = 1094; // $1,100 bank debit limit less processing fee.
+const MAX_AMOUNT = 1093.8; // $1,100 bank debit limit less processing fee.
 const IDEMPOTENCY_KEY = /^[A-Za-z0-9._:-]{16,128}$/;
 
 // Submits a Seamless ACH debit (deposit) to the user's verified funding source.
@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: `Deposit amount must be between $${MIN_DEPOSIT_AMOUNT} and $${MAX_AMOUNT}` }, { status: 400 });
     }
     const quote = depositQuote(value);
-    if (!quote) return Response.json({ error: 'Enter a deposit between $10.00 and $1,094.00 (bank debit limit includes the fee).' }, { status: 400 });
+    if (!quote) return Response.json({ error: 'Enter a deposit between $10.00 and $1,093.80 (bank debit limit includes the fee).' }, { status: 400 });
     if (depositPricingVersion !== quote.version || authorizedBankDebit !== quote.bankDebit) {
       return Response.json({ error: 'Review the deposit processing fee and total bank charge before submitting. Refresh your wallet if needed.', action: 'review_deposit_fee' }, { status: 409 });
     }
