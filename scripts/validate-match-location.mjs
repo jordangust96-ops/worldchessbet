@@ -262,3 +262,16 @@ for(const c of [
  assert.equal(lookups,c.bypass?0:1);
 }
 console.log('Designated test-account bypass passed: exact session identity only, body spoof rejected, explicit required-check exemption verified.');
+
+const testers=[{id:'6a4ed72636c51cb3280d2bc7',email:'jordangust96@gmail.com'}, {id:'6a791a1983246f5f71e66c09',email:'jordan.gust@na.scio-automation.com'}];
+const testClient={asServiceRole:{entities:{User:{get:async id=>testers.find(u=>u.id===id)},JurisdictionVerificationLog:{filter:async()=>[]}}}};
+const testHelpers=load('base44/shared/matchLocation.ts',{'./jurisdictionGates.js':gates,'./requestJurisdiction.ts':{},'./matchLocationPolicy.js':policyModule},{Deno:{env:{get:()=> 'true'}}}).exports;
+const walletHelper=load('base44/shared/walletOnboardingLocation.ts',{'./jurisdictionGates.js':gates,'./jurisdictionRegions.js':regions}).exports;
+for(const user of testers) {
+ assert.equal((await walletHelper.walletOnboardingLocation(testClient,user.id)).allowed,true);
+ assert.equal(gates.isLocationTestAccount({...user,email:'impostor@example.invalid'}),false);
+}
+assert.equal((await testHelpers.getMatchLocationReadiness(testClient,{...match,player1_id:testers[0].id,player2_id:testers[1].id})).ready,true);
+const mixed=await testHelpers.getMatchLocationReadiness(testClient,{...match,player1_id:testers[0].id,player2_id:'ordinary-user'});
+assert.equal(mixed.ready,false);assert.deepEqual([...mixed.requiredUserIds],['ordinary-user']);
+console.log('Both named testers pass wallet and final match gates without location evidence; ordinary opponents remain gated.');
