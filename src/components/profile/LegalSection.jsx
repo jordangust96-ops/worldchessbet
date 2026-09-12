@@ -1,4 +1,5 @@
 import React from "react";
+import { openCookieSettings } from "@/lib/privacy";
 import { Link } from "react-router-dom";
 import { ChevronRight, Shield, ShieldCheck, FileText, Scroll } from "lucide-react";
 
@@ -13,6 +14,7 @@ export default function LegalSection() {
   return (
     <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-5 space-y-1">
       <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">Legal</p>
+      <button onClick={openCookieSettings} className="w-full py-3 text-left text-sm text-white hover:underline">Cookie settings</button>
       {legalLinks.map(({ to, icon: Icon, label }) => (
         <Link
           key={to}
