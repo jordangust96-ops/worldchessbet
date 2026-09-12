@@ -40,12 +40,14 @@ Deno.serve(async (req) => {
     const deviceHash = await sha256Hex(req.headers.get('user-agent') || '');
     if (deviceHash !== session.device_hash) {
       await base44.asServiceRole.entities.MfaSession.update(session.id, { revoked: true });
-      await base44.asServiceRole.entities.MfaAuditLog.create({
-        user_id: user.id,
-        email: user.email,
-        event: 'session_rejected',
-        detail: 'MFA session device binding mismatch',
-      });
+      try {
+        await base44.asServiceRole.entities.MfaAuditLog.create({
+          user_id: user.id,
+          email: user.email,
+          event: 'session_rejected',
+          detail: 'MFA session device binding mismatch',
+        });
+      } catch { /* audit failure must not fail the validation */ }
       return Response.json({ valid: false }, { status: 401 });
     }
 

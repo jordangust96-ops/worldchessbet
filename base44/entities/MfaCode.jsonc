@@ -37,6 +37,10 @@
       ],
       "default": "active"
     },
+    "verification_token": {
+      "type": "string",
+      "description": "Server-generated unique token used for atomic compare-and-swap during code verification. Prevents concurrent verify calls from both creating sessions."
+    },
     "description": {
       "type": "string",
       "maxLength": 1000,
