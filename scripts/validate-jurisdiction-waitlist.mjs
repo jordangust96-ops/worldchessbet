@@ -203,18 +203,18 @@ ok(!/lookupWithMaxMind|geoip\.maxmind\.com|\bgetCurrentJurisdiction\b/.test(work
 const depositSrc = await read('src/components/wallet/DepositLocationStep.jsx');
 ok(depositSrc.includes('blocked && !checking && decision.promptEligible && <JurisdictionWaitlistOptIn'), 'deposit waitlist is shown only for a positively blocked jurisdiction');
 ok(depositSrc.includes('userEmail={user?.email}'), 'deposit waitlist uses authenticated email');
-ok(depositSrc.includes('onClick={startDeposit}'), 'location lookup requires explicit deposit intent');
+ok(depositSrc.includes('onClick={checkLocation}'), 'location lookup requires explicit deposit intent');
 ok(!/useEffect|setTimeout|setInterval|addEventListener/.test(depositSrc), 'no automatic location checks');
-ok(depositSrc.includes('getJurisdictionCheck(user.id'), 'concurrent checks remain deduplicated');
+ok(depositSrc.includes('inProgress.current'), 'concurrent checks remain deduplicated');
 ok(depositSrc.includes('APPROVED_STATES') && depositSrc.includes('getRegionName'), 'deposit failure shows approved jurisdictions');
-ok(depositSrc.includes('keep browsing'), 'failed deposit setup preserves browsing');
+ok(!/contact support|mailto:|keep browsing/i.test(depositSrc), 'location results omit removed support and browsing notes');
 
 const optInSrc = await read('src/components/jurisdiction/JurisdictionWaitlistOptIn.jsx');
 ok(optInSrc.includes('ISO_COUNTRIES'), 'opt-in lists all ISO countries');
 ok(optInSrc.includes('US_REGIONS'), 'opt-in lists all US regions');
 ok(!/<input[^>]*type=["']email["']/.test(optInSrc), 'opt-in never renders a free-form email input');
 ok(optInSrc.includes('upsertJurisdictionInterest'), 'opt-in calls the upsert function');
-ok(/export default function JurisdictionWaitlistOptIn\(\s*\{\s*userEmail\s*\}/.test(optInSrc), 'opt-in takes userEmail prop (not a free-form field)');
+ok(/export default function JurisdictionWaitlistOptIn\(\s*\{\s*userEmail\s*[,}]/.test(optInSrc), 'opt-in takes userEmail prop (not a free-form field)');
 
 // JurisdictionPanel demand section present (admin aggregate).
 const panelSrc = await read('src/components/integrity/JurisdictionPanel.jsx');
@@ -259,3 +259,5 @@ ok(!/run_token|JURISDICTION_PROCESSOR_RUN_TOKEN|timingSafeStringEqual/.test(proc
 }
 
 console.log(`jurisdiction-waitlist: ${pass} assertions passed (no network, no email).`);
+ok(optInSrc.includes('Get notified when ChessBet becomes available') && optInSrc.includes('Notify me'), 'notification invitation is explained');
+ok(optInSrc.includes('initialCountry') && optInSrc.includes('initialRegion'), 'detected jurisdiction can prefill the editable choice');
