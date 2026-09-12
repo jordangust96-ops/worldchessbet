@@ -1,3 +1,6 @@
+import AccountBalance from '@/components/layout/AccountBalance';
+import Logo from '@/components/Logo';
+import { Link } from 'react-router-dom';
 import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -56,6 +59,7 @@ function LoadingScreen() {
 
 function RoutedApplication() {
   const {
+    user,
     isAuthenticated,
     isLoadingAuth,
     isLoadingPublicSettings,
@@ -77,6 +81,10 @@ function RoutedApplication() {
 
   return (
     <Suspense fallback={<LoadingScreen />}>
+      {isAuthenticated && user && <header className="flex min-h-[88px] items-center justify-between gap-4 bg-background px-5 py-4">
+        <Link to="/play" aria-label="ChessBet home"><Logo size="sm" /></Link>
+        <AccountBalance />
+      </header>}
       <Routes>
         <Route path="/" element={isAuthenticated ? <Navigate to="/play" replace /> : <Landing />} />
         <Route path="/features" element={<Navigate to="/about#features" replace />} />
