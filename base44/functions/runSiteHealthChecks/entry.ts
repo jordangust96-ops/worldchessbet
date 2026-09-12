@@ -1,5 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 import { check, overall, creditCheck, parseJson, telemetryChecks, timeMs, shouldNotify, formatHealthEmail, boundedHealthHistory } from '../../shared/siteHealthPolicy.ts';
+import { buildActivityMetrics, inRange, journalLegs, readAll, PRODUCTION_START } from '../../shared/siteActivityMetrics.js';
+import { isWalletLocationEvidence } from '../../shared/walletOnboardingLocation.ts';
 
 // Single scheduled writer. No agent tool can invoke this collector. No
 // transactions, provider enrollments, analysis jobs, financial Redis keys,
