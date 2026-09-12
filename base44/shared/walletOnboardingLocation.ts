@@ -23,7 +23,11 @@ function publicStatus(row) {
     promptEligible: blocked,
     reason: approved || !row ? '' : blocked
       ? 'Wallet setup is not available from your location. Identity verification cannot continue.'
-      : 'We could not verify your location. Turn off any VPN or proxy, or try another connection.',
+      : row.vpn_or_proxy_detected === true
+        ? 'A VPN, proxy, or anonymous network was detected. Turn it off and check your location again.'
+        : row.geo_mismatch_flag === true
+          ? 'Your location signals disagree. Try a different Wi-Fi or mobile connection, or contact support.'
+          : 'Your network did not provide a reliable location. Try a different Wi-Fi or mobile connection, or contact support.',
   };
 }
 export async function walletOnboardingLocation(base44, userId) {
@@ -42,6 +46,6 @@ export async function walletOnboardingLocation(base44, userId) {
   const last = recent[0];
   if (last?.user_id === userId && last.verification_result === 'approved')
     return {allowed:false,status:'verification_failed',verifiedAt:null,promptEligible:false,
-      reason:'Your previous location estimate was too uncertain. Please verify your location again using another connection.'};
+      reason:'Your previous location check did not meet our verification requirements. Try a different Wi-Fi or mobile connection, or contact support.'};
   return publicStatus(last && last.user_id === userId ? last : null);
 }
