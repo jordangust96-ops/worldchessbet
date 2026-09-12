@@ -88,13 +88,15 @@ Deno.serve(async (req) => {
 
     const bodyHtml = `
       <p>Hi ${firstName},</p>
-      <p>Welcome to ChessBet&mdash;we're glad you're here.</p>
-      <p>ChessBet is built for players who believe every game should mean something. Challenge opponents, compete head-to-head, and put your skills to the test.</p>
-      <p>To get started:</p>
-      <p style="margin:4px 0;">&#9823; Complete your account eligibility steps</p>
-      <p style="margin:4px 0;">&#129309; Create or accept public and private challenges when eligible</p>
-      <p style="margin:4px 0;">&#128640; Review contest terms before committing funds</p>
-      <p>We're glad to have you here.</p>
+      <p>Welcome to ChessBet&mdash;we're happy you've joined us!</p>
+      <p>You're part of a community that loves chess and the thrill of head-to-head competition. Your next great game starts here.</p>
+      <p><strong>Ready for your first real-money chess game?</strong></p>
+      <ol style="margin:12px 0;padding-left:22px;">
+        <li style="margin:8px 0;">Open your <strong>ChessBet wallet</strong>, complete the verification steps shown, and make a deposit to fund your first match.</li>
+        <li style="margin:8px 0;">Once your deposit is available, head to <strong>Play</strong> to create a challenge or join an available one. You can also invite a friend to a private challenge.</li>
+        <li style="margin:8px 0;">Review the <strong>Entry Amount</strong>, <strong>Contest Prize</strong>, <strong>Platform Service Fee</strong>, and match terms before confirming your entry.</li>
+      </ol>
+      <p>We'll email you when your deposit is available to play. We're excited to see what you bring to the board.</p>
       <p>See you across the board.</p>
       <p>&mdash; The ChessBet Team</p>
     `;
@@ -102,10 +104,10 @@ Deno.serve(async (req) => {
     const html = buildChessBetEmailHtml({
       appUrl,
       headerTitle: 'Welcome to ChessBet',
-      headerSubtitle: 'Wager. Compete. Win.',
+      headerSubtitle: 'Your next great game starts here.',
       bodyHtml,
-      ctaText: 'Start Playing',
-      ctaUrl: appUrl || undefined,
+      ctaText: 'Fund Your ChessBet Wallet',
+      ctaUrl: appUrl ? `${appUrl}/wallet` : undefined,
       supportEmail,
     });
 
