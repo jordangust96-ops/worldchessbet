@@ -1,6 +1,6 @@
 {
   "name": "Site Health Monitoring",
-  "description": "Every 15 minutes, collect bounded read-only availability, connection and capacity observations. Send incident/recovery alerts and a 9 AM Detroit daily health digest to hello@worldchessbet.com. No transactions or provider evaluations.",
+  "description": "Every 15 minutes, collect bounded read-only availability, connection and capacity observations. Send incident/recovery alerts and a 9 AM Detroit daily health + prior-24-hour activity digest to hello@worldchessbet.com. Monitoring and reporting are read-only.",
   "trigger": {
     "condition": null,
     "config": {
