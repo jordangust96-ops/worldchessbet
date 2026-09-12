@@ -3,7 +3,7 @@ import { HelmetProvider } from "react-helmet-async";
 import { BrowserRouter as Router, useLocation } from "react-router-dom";
 import ScrollToTop from "@/components/ScrollToTop";
 import GoogleAnalyticsTracker from "@/components/GoogleAnalyticsTracker";
-import MetaPixelTracker from "@/components/MetaPixelTracker";
+import CookiePreferences from "@/components/CookiePreferences";
 import Landing from "@/pages/Landing";
 
 const AuthenticatedApplication = lazy(() => import("@/AuthenticatedApplication"));
@@ -41,7 +41,7 @@ function ApplicationRouter() {
     <>
       <ScrollToTop />
       <GoogleAnalyticsTracker />
-      <MetaPixelTracker />
+      <CookiePreferences />
       {showLeanPublicLanding ? (
         <Landing />
       ) : (
