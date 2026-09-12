@@ -6,7 +6,8 @@ export default function FunnelPanel({ funnel }) {
 
   return (
     <div>
-      <p className="text-[10px] uppercase tracking-widest text-white/30 mb-2">Conversion Funnel</p>
+      <p className="text-[10px] uppercase tracking-widest text-white/30 mb-2">Player Activity · Unique Players</p>
+      <p className="text-xs text-white/40 mb-3">Independent counts in the selected range; these are not a sequential conversion funnel.</p>
       <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4 space-y-3">
         {funnel.map((f) => {
           const width = f.count == null ? 0 : Math.max(4, Math.round((f.count / maxCount) * 100));
