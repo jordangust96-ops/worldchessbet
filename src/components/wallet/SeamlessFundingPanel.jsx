@@ -644,7 +644,7 @@ export default function SeamlessFundingPanel({
                       ? "Enter an amount"
                       : !meetsMinimum
                         ? "Minimum deposit is $" + MIN_DEPOSIT_AMOUNT.toFixed(2)
-                        : "Deposit $" + formattedAmount + " · Pay $" + (quote?.bankDebit.toFixed(2) || "")
+                        : "Deposit $" + (quote?.bankDebit.toFixed(2) || "")
                 ) : (
                   !withdrawalsEnabled
                     ? "Withdrawals are temporarily unavailable"
