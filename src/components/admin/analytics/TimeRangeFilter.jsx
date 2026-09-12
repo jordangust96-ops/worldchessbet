@@ -27,9 +27,10 @@ export default function TimeRangeFilter({ preset, customStart, customEnd, onPres
         </button>
       ))}
       {preset === "custom" && (
-        <div className="flex items-center gap-2 ml-1">
+        <div className="flex flex-wrap items-center gap-2 ml-1">
           <input
             type="date"
+            aria-label="Start date (UTC)"
             value={customStart}
             onChange={(e) => onCustomChange(e.target.value, customEnd)}
             className="bg-white/[0.03] border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white"
@@ -37,6 +38,7 @@ export default function TimeRangeFilter({ preset, customStart, customEnd, onPres
           <span className="text-white/30 text-xs">to</span>
           <input
             type="date"
+            aria-label="End date (UTC)"
             value={customEnd}
             onChange={(e) => onCustomChange(customStart, e.target.value)}
             className="bg-white/[0.03] border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white"
