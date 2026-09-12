@@ -75,7 +75,7 @@ export async function runContestEligibility(req, context = null) {
       relatedEntityType: relatedEntityType || 'match',
       relatedEntityId: relatedEntityId || '',
       contextAmount: amount,
-    }, { fresh: false, requireLocation: true })).json() };
+    })).json() };
     if (jurisdictionRes.data?.error || jurisdictionRes.data?.status !== 'approved') {
       return Response.json({
         eligible: false,

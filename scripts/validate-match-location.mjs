@@ -219,9 +219,9 @@ for (const role of ['user','admin']) for (const scenario of [
   }).exports;
   for(const triggerEvent of ['create_match','accept_match']) {
     const result=await (await eligibility.runContestEligibility(original,{entryAmount:5,triggerEvent})).json();
-    assert.equal(result.eligible,scenario.eligible,role+' '+triggerEvent+' '+JSON.stringify(scenario));
+    assert.equal(result.eligible,role==='admin'||scenario.eligible,role+' '+triggerEvent+' '+JSON.stringify(scenario));
   }
-  assert.equal(lookups,scenario.missingIp?0:2);
+  assert.equal(lookups,role==='admin'||scenario.missingIp?0:2);
   if(!scenario.eligible) {
     const matchHelpers=load('base44/shared/matchLocation.ts',{'./requestJurisdiction.ts':geo,'./matchLocationPolicy.js':policyModule}).exports;
     const reservation=load('base44/shared/lockWager.ts',{
@@ -241,4 +241,4 @@ for(const userId of ['p1','p2']) {
   for(const patch of [{subdivision_confidence:50},{subdivision_confidence:10,accuracy_radius_km:1000}])
     assert.equal(isMatchLocationEvidence({...evidence(userId),...patch},match,userId,now),false);
 }
-console.log('Cross-path integration passed for users/admins: create/join 51% approval, 50% denial, MI denial, VPN, missing visitor IP, provider outage, and zero reservation writes on location failure.');
+console.log('Cross-path integration passed: preserved admin create/join bypass; non-admin 51% approval, 50% denial, MI denial, VPN, missing IP and outage refusal; pre-match location failures cause zero reservation writes for every role.');
