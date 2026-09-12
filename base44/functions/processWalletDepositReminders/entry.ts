@@ -110,7 +110,7 @@ Deno.serve(async req => {
         stats.failed++;
         // The durable row prevents a resend even if the provider accepted the
         // message but its response/a later audit write failed.
-        if (delivery && stats.sent >= 0) {
+        if (delivery) {
           try {
             await svc.CampaignEmailLog.create({
               campaign_key:REMINDER_CAMPAIGN,user_id:userId,recipient_email:data.user.email,
