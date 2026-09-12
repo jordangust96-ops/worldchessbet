@@ -1,38 +1,38 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { MapPin, WalletCards, ShieldCheck } from "lucide-react";
+import { WalletCards, Timer, Trophy } from "lucide-react";
 
 const ITEMS = [
   {
-    icon: MapPin,
-    title: "Where you can play",
-    description: "Cash-prize play requires age, identity, and location eligibility.",
-    link: "/official-rules#eligibility",
-    linkLabel: "Official Rules",
-  },
-  {
     icon: WalletCards,
-    title: "How you get paid",
-    description: "Winnings remain pending during the 24-hour report window, with a documented review path for disputes.",
-    link: "/faq#how-payouts-work",
-    linkLabel: "Payout FAQ",
+    title: "Choose your stakes",
+    description: "Pick an Entry Amount and put more meaning behind every move.",
+    link: "/register",
+    linkLabel: "Create account",
   },
   {
-    icon: ShieldCheck,
-    title: "How cheating is caught",
-    description: "Server-verified games and Stockfish screening flag evidence for human review.",
-    link: "/fair-play-integrity#how-cheating-is-caught",
-    linkLabel: "Fair Play",
+    icon: Timer,
+    title: "Play at your pace",
+    description: "Blitz, Rapid, or Classical — choose the time control that fits your game.",
+    link: "/about",
+    linkLabel: "Explore ChessBet",
+  },
+  {
+    icon: Trophy,
+    title: "Play to win",
+    description: "Win a decisive contest and earn 100% of the combined Contest Entry Amounts.",
+    link: "/faq#how-payouts-work",
+    linkLabel: "How payouts work",
   },
 ];
 
 export default function PlayerProtectionCallout() {
   return (
-    <section aria-labelledby="player-protection-title" className="relative z-10 mx-auto w-full max-w-5xl px-6 py-14">
+    <section aria-labelledby="possibilities-title" className="relative z-10 mx-auto w-full max-w-5xl px-6 py-14">
       <div className="text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#C9A84C]">Know before you play</p>
-        <h2 id="player-protection-title" className="mt-2 text-2xl font-bold text-white">
-          Clear rules. Protected results.
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#C9A84C]">Chess for real stakes</p>
+        <h2 id="possibilities-title" className="mt-2 text-2xl font-bold text-white">
+          Chess gets more interesting when something’s on the line.
         </h2>
       </div>
 
@@ -50,7 +50,7 @@ export default function PlayerProtectionCallout() {
       </div>
 
       <p className="mt-5 text-center text-xs text-white/35">
-        Funding, withdrawals, and cash-prize contests require verified identity, supported location, and applicable account eligibility.
+        Create a challenge or join one already waiting. Your next game can have more on the line.
       </p>
     </section>
   );
