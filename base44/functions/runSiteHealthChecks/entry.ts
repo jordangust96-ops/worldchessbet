@@ -64,6 +64,129 @@ async function redisProbe(prefix: string, key: string, label: string) {
       null, '', ms);
   } catch (error) { const failure = probeFailure(error); return check(key, label, failure.status, 'Redis health probe could not complete (' + failure.category + ').', null, '', Date.now() - started); }
 }
+const DAY_MS = 24 * 60 * 60 * 1000;
+function detroitParts(date: Date) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Detroit', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', hourCycle: 'h23',
+  }).formatToParts(date);
+  const get = (type: string) => parts.find(p => p.type === type)?.value || '';
+  return { year: get('year'), month: get('month'), day: get('day'), hour: get('hour') };
+}
+function localDateKey(date: Date) {
+  const p = detroitParts(date); return `${p.year}-${p.month}-${p.day}`;
+}
+function localHourKey(date: Date) {
+  const p = detroitParts(date); return `${p.year}${p.month}${p.day}${p.hour}`;
+}
+function activityRange(now: number) {
+  // The scheduler lands a few minutes after the hour. Report the 24 most
+  // recently completed hours so internal metrics and GA4 share a stable window.
+  const end = new Date(now); end.setUTCMinutes(0, 0, 0);
+  const start = new Date(+end - DAY_MS);
+  const dayKeys: string[] = [];
+  for (let t = Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()); t <= +end; t += DAY_MS)
+    dayKeys.push(new Date(t).toISOString().slice(0, 10));
+  return { start, end, dayKeys };
+}
+function amount(value: any) {
+  const n = Number(value ?? 0); if (!Number.isFinite(n)) throw new Error('invalid_activity_money');
+  return Math.round(n * 100) / 100;
+}
+async function dailyGa4(base44: any, range: any) {
+  const propertyId = String(Deno.env.get('GA4_PROPERTY_ID') || '').trim();
+  if (!propertyId) return { available: false, reason: 'GA4 property ID is not configured.' };
+  let accessToken = '';
+  try { accessToken = (await base44.asServiceRole.connectors.getConnection('google_analytics'))?.accessToken || ''; }
+  catch { return { available: false, reason: 'Google Analytics connector is not connected.' }; }
+  if (!accessToken) return { available: false, reason: 'Google Analytics access token is unavailable.' };
+  try {
+    const response = await deadline(fetch(`https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`, {
+      method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        dateRanges: [{ startDate: localDateKey(range.start), endDate: localDateKey(new Date(+range.end - 1)) }],
+        dimensions: [{ name: 'dateHour' }],
+        metrics: [{ name: 'sessions' }, { name: 'screenPageViews' }, { name: 'newUsers' }],
+        dimensionFilter: { filter: { fieldName: 'hostName', inListFilter: { values: ['worldchessbet.com', 'www.worldchessbet.com'] } } },
+        limit: 100,
+      }),
+    }), 12000);
+    const data = await response.json().catch(() => null);
+    if (!response.ok || !data) return { available: false, reason: `GA4 report failed (${response.status}).` };
+    const startKey = localHourKey(range.start), endKey = localHourKey(range.end);
+    let sessions = 0, pageViews = 0, newUsers = 0;
+    for (const row of data.rows || []) {
+      const key = row?.dimensionValues?.[0]?.value || '';
+      if (key < startKey || key >= endKey) continue;
+      sessions += Number(row?.metricValues?.[0]?.value || 0);
+      pageViews += Number(row?.metricValues?.[1]?.value || 0);
+      newUsers += Number(row?.metricValues?.[2]?.value || 0);
+    }
+    return { available: true, sessions: Math.round(sessions), pageViews: Math.round(pageViews), newUsers: Math.round(newUsers) };
+  } catch { return { available: false, reason: 'GA4 report request did not complete.' }; }
+}
+async function collectDailyActivity(base44: any, now: number) {
+  const range = activityRange(now), svc = base44.asServiceRole.entities;
+  const sinceProduction = { launch_epoch: 2, created_date: { $gte: PRODUCTION_START } };
+  const specs: any[] = [
+    ['users','User',{},['id','created_date']],
+    ['matches','Match',sinceProduction,['id','created_date','launch_epoch','status','wager_amount','preparation_started_at','completed_at','player1_id','player2_id']],
+    ['transactions','WalletTransaction',sinceProduction,['id','created_date','launch_epoch','user_id','type','amount','status','integration_status','source_event','deposit_hold_status']],
+    ['journals','LedgerJournalBatch',sinceProduction,['id','created_date','created_at','launch_epoch','ledger_group_id','wallet_transaction_id','trigger_event','legs_json','leg_count','total_credit','total_debit']],
+    ['declines','MatchDeclineLog',{ created_date: { $gte: range.start.toISOString(), $lt: range.end.toISOString() } },['id','created_date','match_id']],
+    ['wallets','Wallet',{},['id','created_date','available_balance','held_balance']],
+    ['locations','JurisdictionVerificationLog',{},['id','created_date','user_id','provider','verification_result','pre_bypass_verification_result','geolocation_enforcement_enabled','enforcement_bypassed','vpn_or_proxy_detected','ip_address','detected_country','detected_state','trigger_event','verified_at','country_confidence','subdivision_confidence','accuracy_radius_km']],
+    ['identities','SocureIdentityVerification',{ environment: 'production' },['id','created_date','user_id','status','environment','completed_at','requested_at','expires_at']],
+    ['banks','SeamlessBankAccount',{},['id','created_date','updated_date','user_id','source_id','status','added_at','verified_at']],
+  ];
+  const sources: any = {};
+  for (let i = 0; i < specs.length; i += 3) await Promise.all(specs.slice(i, i + 3).map(async ([key, entity, query, fields]) => {
+    sources[key] = await readAll(svc[entity], query, fields);
+  }));
+  const metrics = buildActivityMetrics(sources, range, isWalletLocationEvidence, new Date(now));
+  const legs = journalLegs(sources.journals).filter((row: any) => inRange(row.occurred_at, range.start, range.end));
+  const depositLegs = legs.filter((row: any) => row.ledger_account === 'user_account' && Number(row.total_deposited_delta || 0) > 0);
+  const locationRows = sources.locations.filter((row: any) => inRange(row.verified_at, range.start, range.end));
+  const approved = locationRows.filter((row: any) => row.verification_result === 'approved' && row.enforcement_bypassed !== true).length;
+  const blocked = locationRows.filter((row: any) => row.verification_result === 'blocked' && row.enforcement_bypassed !== true).length;
+  const byTrigger: any = {};
+  for (const row of locationRows) {
+    const key = String(row.trigger_event || 'unknown').replace(/[^a-z0-9_-]/gi, '_').slice(0, 60) || 'unknown';
+    byTrigger[key] = (byTrigger[key] || 0) + 1;
+  }
+  const created = sources.matches.filter((row: any) => inRange(row.created_date, range.start, range.end));
+  const accepted = sources.matches.filter((row: any) => inRange(row.preparation_started_at, range.start, range.end));
+  const breakdown = new Map<string, any>();
+  const bucket = (value: any) => {
+    const entryAmount = amount(value), key = entryAmount.toFixed(2);
+    if (!breakdown.has(key)) breakdown.set(key, { entryAmount, created: 0, accepted: 0, completed: 0 });
+    return breakdown.get(key);
+  };
+  for (const match of sources.matches) {
+    if (inRange(match.created_date, range.start, range.end)) bucket(match.wager_amount).created++;
+    if (inRange(match.preparation_started_at, range.start, range.end)) bucket(match.wager_amount).accepted++;
+    if (match.status === 'completed' && inRange(match.completed_at, range.start, range.end)) bucket(match.wager_amount).completed++;
+  }
+  return {
+    window: { start: range.start.toISOString(), end: range.end.toISOString() },
+    traffic: await dailyGa4(base44, range), registrations: metrics.internal.registrations,
+    locations: { checks: locationRows.length, uniqueUsers: new Set(locationRows.map((r: any) => r.user_id).filter(Boolean)).size,
+      approved, blocked, unresolved: locationRows.length - approved - blocked, byTrigger },
+    identity: { verified: metrics.onboarding.idAccepted, verifiedUsers: metrics.onboarding.idVerifiedUsers,
+      rejected: metrics.onboarding.idRejected, review: metrics.onboarding.idReview, failed: metrics.onboarding.idFailed },
+    banks: { connected: metrics.onboarding.banksConnected, verified: metrics.onboarding.banksVerified },
+    funding: { depositingPlayers: new Set(depositLegs.map((r: any) => r.user_id).filter(Boolean)).size,
+      depositEvents: metrics.internal.deposits, depositVolume: metrics.internal.depositVolume,
+      depositReturns: metrics.internal.depositReturns, depositsReleased: metrics.internal.depositsReleased,
+      withdrawalCount: metrics.internal.withdrawalCount, withdrawalVolume: metrics.internal.withdrawalVolume,
+      failedTransfers: metrics.internal.failedTransfers },
+    matches: { created: metrics.internal.matchesHosted, accepted: metrics.internal.matchesAccepted, completed: metrics.internal.matchesCompleted,
+      uniquePlayers: new Set([...created.map((r: any) => r.player1_id), ...accepted.map((r: any) => r.player2_id)].filter(Boolean)).size,
+      avgEntryAmountCreated: metrics.internal.avgWager, totalWagerVolume: metrics.internal.totalWagerVolume,
+      breakdown: [...breakdown.values()].sort((a, b) => a.entryAmount - b.entryAmount) },
+    platformRevenue: metrics.internal.platformRevenue,
+  };
+}
 async function collect(svc: any, config: any, previous: any, now: number) {
   const checks: any[] = [], since = new Date(now - 86400000).toISOString();
   async function read(key: string, label: string, work: () => Promise<any>, derive: (rows: any[]) => any) {
