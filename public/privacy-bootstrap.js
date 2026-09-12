@@ -15,6 +15,7 @@
     return { decided: !!p, analytics: !!p && p.analytics && !gpc(), marketing: !!p && p.marketing && !gpc(), gpc: gpc() };
   }
   function publicPage() {
+    if (location.search || location.hash) return false;
     try {
       if (localStorage.getItem("base44_access_token") || localStorage.getItem("token")) return false;
     } catch (_) { return false; }
