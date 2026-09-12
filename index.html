@@ -2,6 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script src="/privacy-bootstrap.js"></script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="https://media.base44.com/images/public/6a4ed72536c51cb3280d2bc6/7eb5eb625_logo-removebg-preview.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -60,15 +61,9 @@
       }
     </script>
 
-    <!-- GA4, Meta Pixel, and product analytics are queued by the application
-         and downloaded after first paint/interaction, keeping third-party code
-         off the mobile critical rendering path. -->
+    <!-- Optional tracking is initialized only after a privacy choice. -->
   </head>
   <body>
-    <noscript>
-      <img height="1" width="1" style="display:none"
-        src="https://www.facebook.com/tr?id=1729629144899462&ev=PageView&noscript=1" />
-    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
