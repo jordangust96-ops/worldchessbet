@@ -5,7 +5,7 @@ import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClientInstance } from "@/lib/query-client";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/lib/AuthContext";
 import UserNotRegisteredError from "@/components/UserNotRegisteredError";
 
@@ -57,6 +57,11 @@ function LoadingScreen() {
   );
 }
 
+// Paths where the global app header (Logo + AccountBalance) is the intended
+// header. Public pages (blog, faq, about, unsubscribe, legal docs, etc.) each
+// render their own logo/branding, so the global header must not appear there.
+const APP_HEADER_PATHS = ["/play", "/wallet", "/profile", "/my-reports", "/admin"];
+
 function RoutedApplication() {
   const {
     user,
@@ -66,8 +71,14 @@ function RoutedApplication() {
     authError,
     navigateToLogin,
   } = useAuth();
+  const location = useLocation();
 
   if (isLoadingPublicSettings || isLoadingAuth) return <LoadingScreen />;
+
+  const showAppHeader =
+    isAuthenticated &&
+    user &&
+    APP_HEADER_PATHS.some((p) => location.pathname.startsWith(p));
 
   if (authError) {
     if (authError.type === "user_not_registered") {
@@ -81,7 +92,7 @@ function RoutedApplication() {
 
   return (
     <Suspense fallback={<LoadingScreen />}>
-      {isAuthenticated && user && <header className="flex min-h-[88px] items-center justify-between gap-4 bg-background px-5 py-4">
+      {showAppHeader && <header className="flex min-h-[88px] items-center justify-between gap-4 bg-background px-5 py-4">
         <Link to="/play" aria-label="ChessBet home"><Logo size="sm" /></Link>
         <AccountBalance />
       </header>}
