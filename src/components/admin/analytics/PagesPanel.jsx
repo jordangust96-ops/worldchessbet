@@ -30,8 +30,8 @@ export default function PagesPanel({ pages }) {
       <p className="text-[10px] uppercase tracking-widest text-white/30 mb-2">Pages</p>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <PageList title="Top Landing Pages" items={pages.landingPages || []} valueKey="sessions" />
-        <PageList title="Top Exit Pages" items={pages.exitPages || []} valueKey="views" />
-        <PageList title="Avg Time Per Page" items={pages.avgTimePerPage || []} valueKey="avgSeconds" suffix="s" />
+        <PageList title="Most Viewed Pages" items={pages.exitPages || []} valueKey="views" />
+        <PageList title="Engagement Per Page View" items={pages.avgTimePerPage || []} valueKey="avgSeconds" suffix="s" />
       </div>
     </div>
   );
