@@ -1,3 +1,4 @@
+import { buildMfaEmail } from '../../shared/mfaEmail.js';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 
 const OTP_TTL_MS = 10 * 60 * 1000;
@@ -76,7 +77,8 @@ Deno.serve(async (req) => {
     await base44.asServiceRole.integrations.Core.SendEmail({
       to: user.email,
       subject: 'Your ChessBet verification code',
-      body: `Your ChessBet verification code is: ${code}\n\nThis code expires in 10 minutes. If you didn't request this, you can safely ignore this email.`,
+      body: buildMfaEmail(code, OTP_TTL_MS / 60000),
+      from_name: 'ChessBet',
     });
 
     await base44.asServiceRole.entities.MfaAuditLog.create({
