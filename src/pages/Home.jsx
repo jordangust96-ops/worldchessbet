@@ -371,7 +371,7 @@ export default function Home() {
   }, [activeMatch?.id, activeMatch?.status, activeMatch?.result, activeMatch?.winner_id, user?.id]);
 
   return (
-    <div className="min-h-screen px-5 pt-2 lg:h-[calc(100dvh-88px)] lg:overflow-hidden lg:flex lg:flex-col lg:pb-24">
+    <div className="min-h-screen px-5 pt-2 lg:min-h-0 lg:h-[calc(100dvh-88px)] lg:overflow-hidden lg:flex lg:flex-col lg:pb-24">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
