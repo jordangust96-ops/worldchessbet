@@ -1,4 +1,4 @@
-import { hasReliableLocationEvidence } from './jurisdictionGates.js';
+import { hasReliableLocationEvidence, isLocationTestAccountId, isLocationTestAccount } from './jurisdictionGates.js';
 import { isLocationApproved } from './jurisdictionRegions.js';
 // Wallet onboarding evidence must continue to satisfy the current quality policy.
 // Reuse genuine approvals recorded before this policy change, never User fields
@@ -33,6 +33,10 @@ function publicStatus(row) {
 }
 export async function walletOnboardingLocation(base44, userId) {
   if (!userId) return publicStatus(null);
+  if (isLocationTestAccountId(userId) && isLocationTestAccount(await base44.asServiceRole.entities.User.get(userId))) {
+    return {allowed:true,status:'approved',verifiedAt:null,promptEligible:false,
+      testingBypass:true,verificationSkipped:true,reason:'Testing account location exemption.'};
+  }
   const logs = base44.asServiceRole.entities.JurisdictionVerificationLog;
   const approved = await logs.filter({
     user_id: userId, verification_result: 'approved', provider: 'MaxMind',

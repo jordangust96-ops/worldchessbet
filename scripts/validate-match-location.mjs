@@ -52,7 +52,7 @@ const helpers=load('base44/shared/matchLocation.ts',{
     assert.equal(policy.fresh,true); assert.equal(policy.requireLocation,true);
     return Response.json({status:'approved'});
   }},
-  './matchLocationPolicy.js':policyModule
+  './jurisdictionGates.js':gates,'./matchLocationPolicy.js':policyModule
 },{Deno:{env:{get:()=> 'true'}}}).exports;
 await helpers.verifyMatchLocation(new Request('https://example.invalid',{headers:{'true-client-ip':'198.51.100.1','cf-connecting-ip':'74.220.48.45','x-forwarded-for':'198.51.100.77'}}),match);
 let logs={p1:evidence('p1'),p2:evidence('p2')};
@@ -223,7 +223,7 @@ for (const role of ['user','admin']) for (const scenario of [
   }
   assert.equal(lookups,role==='admin'||scenario.missingIp?0:2);
   if(!scenario.eligible) {
-    const matchHelpers=load('base44/shared/matchLocation.ts',{'./requestJurisdiction.ts':geo,'./matchLocationPolicy.js':policyModule}).exports;
+    const matchHelpers=load('base44/shared/matchLocation.ts',{'./requestJurisdiction.ts':geo,'./jurisdictionGates.js':gates,'./matchLocationPolicy.js':policyModule}).exports;
     const reservation=load('base44/shared/lockWager.ts',{
       ...dependencies,'./matchLocation.ts':matchHelpers,
       './ledger.ts':{postLedgerLegs:async()=>{writes++;throw Error('unexpected ledger write');}},
@@ -248,7 +248,7 @@ for(const c of [
  {id:'6a791a1983246f5f71e66c09',email:'jordan.gust@na.scio-automation.com',bypass:true},
  {id:'other-user',email:'jordan.gust@na.scio-automation.com',bypass:false},
  {id:'6a791a1983246f5f71e66c09',email:'other@example.invalid',bypass:false},
- {id:'6a791a1983246f5f71e66c09',email:'jordan.gust@na.scio-automation.com',requireLocation:true,bypass:false},
+ {id:'6a791a1983246f5f71e66c09',email:'jordan.gust@na.scio-automation.com',requireLocation:true,bypass:true},
 ]) {
  let lookups=0;
  const sdk={auth:{me:async()=>({...c,role:'user'})},asServiceRole:{entities:{User:{update:async()=>{}},JurisdictionVerificationLog:{filter:async()=>[],create:async()=>{}}}}};
@@ -261,4 +261,4 @@ for(const c of [
  assert.equal(result.testingBypass===true,c.bypass);
  assert.equal(lookups,c.bypass?0:1);
 }
-console.log('Designated test-account bypass passed: exact session identity only, body spoof rejected, mandatory wallet/match evidence preserved.');
+console.log('Designated test-account bypass passed: exact session identity only, body spoof rejected, explicit required-check exemption verified.');

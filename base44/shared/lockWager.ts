@@ -124,7 +124,11 @@ export async function lockWager(req, context = null) {
     if (jurisdictionRes.data?.error || jurisdictionRes.data?.status !== 'approved') {
       return Response.json({ error: jurisdictionRes.data?.reason || 'You are not currently eligible to fund a contest entry from your location.' }, { status: 403 });
     }
-    if (!meetsStateAge(await base44.asServiceRole.entities.User.get(user.id), jurisdictionRes.data?.state)) {
+    const ageUser = await base44.asServiceRole.entities.User.get(user.id);
+    const ageEligible = jurisdictionRes.data?.testingBypass === true
+      ? ageUser.identity_age_verified === true && ageUser.identity_age_over_21 === true
+      : meetsStateAge(ageUser, jurisdictionRes.data?.state);
+    if (!ageEligible) {
       return Response.json({ eligible: false, error: 'Identity verification and age 21+ are required in an approved state.', reason: 'Identity verification and age 21+ are required in an approved state.' }, { status: 403 });
     }
 

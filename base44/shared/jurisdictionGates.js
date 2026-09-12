@@ -81,3 +81,13 @@ export function hasReliableLocationEvidence(row) {
     !['is_anonymous_vpn','is_anonymous_proxy','is_public_proxy','is_hosting_provider',
       'is_anonymous','is_tor_exit_node','is_residential_proxy','is_anycast','is_satellite_provider'].some(k=>row[k]===true);
 }
+
+// Owner-authorized location-only exceptions. Server identity only; no client flags.
+const LOCATION_TEST_ACCOUNTS = Object.freeze({
+  '6a4ed72636c51cb3280d2bc7': 'jordangust96@gmail.com',
+  '6a791a1983246f5f71e66c09': 'jordan.gust@na.scio-automation.com',
+});
+export function isLocationTestAccountId(id) { return Object.hasOwn(LOCATION_TEST_ACCOUNTS, id || ''); }
+export function isLocationTestAccount(user) {
+  return isLocationTestAccountId(user?.id) && LOCATION_TEST_ACCOUNTS[user.id] === String(user.email || '').toLowerCase();
+}

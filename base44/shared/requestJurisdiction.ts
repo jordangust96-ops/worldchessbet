@@ -5,6 +5,7 @@ import {
   isReusableVerification,
   hasReliableLocationEvidence,
   getOriginalClientIp,
+  isLocationTestAccount,
 } from './jurisdictionGates.js';
 import { isLocationApproved } from './jurisdictionRegions.js';
 
@@ -242,12 +243,10 @@ export async function getRequestJurisdiction(req, context = null, policy = { fre
       // No body provided — defaults above are fine.
     }
 
-    // General location bypass for admins and the owner's designated test account.
-    // Match readiness and wallet verification explicitly require real evidence.
-    // Match both immutable account ID and authenticated email; never trust body fields.
-    const testingAccount = user.id === '6a791a1983246f5f71e66c09' &&
-      String(user.email || '').toLowerCase() === 'jordan.gust@na.scio-automation.com';
-    if ((user.role === 'admin' || testingAccount) && !policy.requireLocation) {
+    // These two owner-authorized accounts bypass every location gate only.
+    // Other admins retain their existing general create/join exception.
+    const testingAccount = isLocationTestAccount(user);
+    if (testingAccount || (user.role === 'admin' && !policy.requireLocation)) {
       const now = new Date().toISOString();
       await base44.asServiceRole.entities.User.update(user.id, {
         jurisdiction_status: 'approved',

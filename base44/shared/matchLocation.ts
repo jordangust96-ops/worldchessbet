@@ -1,8 +1,9 @@
+import { isLocationTestAccountId, isLocationTestAccount } from './jurisdictionGates.js';
 import { getRequestJurisdiction } from './requestJurisdiction.ts';
 import { isMatchLocationEvidence } from './matchLocationPolicy.js';
 
 // Called with the original edge Request, never a server-to-server invoke's IP.
-// Always obtains new provider evidence, including for admin participants.
+// Obtains fresh evidence except for the two owner-authorized testing accounts.
 export async function verifyMatchLocation(req, match, context = {}) {
   return await (await getRequestJurisdiction(req, {
     ...context,
@@ -16,18 +17,20 @@ export async function verifyMatchLocation(req, match, context = {}) {
 // IP, and never performs paid lookups from an automatic retry or sweep.
 export async function getMatchLocationReadiness(base44, match) {
   const userIds = [match.player1_id, match.player2_id];
-  if (Deno.env.get('MAXMIND_GEOIP_ENABLED') !== 'true' ||
-      !userIds[0] || !userIds[1] || userIds[0] === userIds[1]) {
+  if (!userIds[0] || !userIds[1] || userIds[0] === userIds[1]) {
     return { ready: false, requiredUserIds: userIds.filter(Boolean) };
   }
-  const latest = await Promise.all(userIds.map(userId =>
+  const exempt = await Promise.all(userIds.map(async userId =>
+    isLocationTestAccountId(userId) && isLocationTestAccount(await base44.asServiceRole.entities.User.get(userId))
+  ));
+  const latest = await Promise.all(userIds.map((userId, i) => exempt[i] ? [] :
     base44.asServiceRole.entities.JurisdictionVerificationLog.filter(
       { user_id: userId }, '-verified_at', 1
     )
   ));
   const now = Date.now();
   const requiredUserIds = userIds.filter((userId, i) =>
-    !isMatchLocationEvidence(latest[i]?.[0], match, userId, now)
+    !exempt[i] && (Deno.env.get('MAXMIND_GEOIP_ENABLED') !== 'true' || !isMatchLocationEvidence(latest[i]?.[0], match, userId, now))
   );
   return { ready: requiredUserIds.length === 0, requiredUserIds };
 }
