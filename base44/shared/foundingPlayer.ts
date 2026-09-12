@@ -32,9 +32,10 @@ export async function awardFoundingPlayerBadge(base44, targetUser, appUrl) {
 
   const bodyHtml = `
     <p>Hi ${firstName},</p>
-    <p>We wanted to personally recognize you as one of ChessBet's first 250 players &mdash; a <strong>Founding Player</strong>.</p>
-    <p>Founding Player status is our way of saying thank you for being among ChessBet's first players and helping shape the platform. You'll now see a subtle Founding Player badge on your profile.</p>
-    <p>Thanks for being part of ChessBet from the beginning.</p>
+    <p>Thank you for joining ChessBet! As one of our first 250 players, you're officially a <strong>Founding Player</strong>.</p>
+    <p>Your <strong>Founding Player badge</strong> is now on your profile&mdash;a little recognition for being part of our community from the beginning.</p>
+    <p>Chess is even better with a friend. Invite someone to join ChessBet, set up a private challenge, and enjoy a game together.</p>
+    <p>We're glad you're here. See you across the board!</p>
     <p>&mdash; The ChessBet Team</p>
   `;
 
@@ -43,8 +44,8 @@ export async function awardFoundingPlayerBadge(base44, targetUser, appUrl) {
     headerTitle: 'Welcome, Founding Player',
     headerSubtitle: "You're one of our first 250 players",
     bodyHtml,
-    ctaText: 'Go to ChessBet',
-    ctaUrl: appUrl || undefined,
+    ctaText: 'Start Playing',
+    ctaUrl: appUrl ? `${appUrl}/play` : undefined,
     supportEmail,
     unsubscribeUrl,
   });
