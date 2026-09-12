@@ -11,6 +11,7 @@ const match = { id:'m', launch_epoch:2, status:'preparing', player1_id:'p1', pla
   preparation_started_at:new Date(now-60000).toISOString(),
   player1_certified:true, player2_certified:true, player1_deposited:true, player2_deposited:true };
 const evidence = userId => ({ user_id:userId, related_entity_type:'match', related_entity_id:'m',
+  country_confidence:99, subdivision_confidence:99, accuracy_radius_km:5,
   trigger_event:'match_readiness', verification_result:'approved', provider:'MaxMind',
   geolocation_enforcement_enabled:true, enforcement_bypassed:false, vpn_or_proxy_detected:false,
   ip_address:userId==='p1'?'198.51.100.1':'203.0.113.2',
@@ -80,7 +81,7 @@ for(const role of ['user','admin']) {
   },{
     Deno:{env:{get:name=>({MAXMIND_GEOIP_ENABLED:'true',MAXMIND_ACCOUNT_ID:'test-account',MAXMIND_LICENSE_KEY:'test-key'})[name]}},
     fetch:async url=>{lookups++;assert.ok(url.endsWith('/198.51.100.1'));return Response.json({
-      country:{iso_code:'US',confidence:99},subdivisions:[{iso_code:'GA',confidence:99}],traits:{}
+      country:{iso_code:'US',confidence:99},subdivisions:[{iso_code:'GA',confidence:99}],location:{accuracy_radius:5},traits:{}
     });}
   }).exports;
   const result=await (await geo.getRequestJurisdiction(
@@ -96,15 +97,17 @@ for(const role of ['user','admin']) {
 // State-confidence boundary regression: execute the real handler with mocked
 // provider/SDK so these checks never call MaxMind or change player records.
 for (const c of [
-  {stateConfidence:10,countryConfidence:99,expected:'approved'},
-  {stateConfidence:9,countryConfidence:99,expected:'verification_failed'},
+  {stateConfidence:10,countryConfidence:99,radius:1000,expected:'verification_failed'},
+  {stateConfidence:99,countryConfidence:99,radius:1000,expected:'verification_failed'},
+  {stateConfidence:90,countryConfidence:99,expected:'approved'},
+  {stateConfidence:89,countryConfidence:99,expected:'verification_failed'},
   {stateConfidence:undefined,countryConfidence:99,expected:'verification_failed'},
-  {stateConfidence:10,countryConfidence:49,expected:'verification_failed'},
-  {stateConfidence:10,countryConfidence:50,expected:'approved'},
-  {stateConfidence:10,countryConfidence:99,vpn:true,expected:'verification_failed'},
-  {stateConfidence:10,countryConfidence:99,state:'MI',expected:'blocked'},
-  {stateConfidence:10,countryConfidence:99,override:'30',expected:'verification_failed'},
-  {stateConfidence:9,countryConfidence:99,override:'0',expected:'verification_failed'}
+  {stateConfidence:90,countryConfidence:49,expected:'verification_failed'},
+  {stateConfidence:90,countryConfidence:50,expected:'approved'},
+  {stateConfidence:90,countryConfidence:99,vpn:true,expected:'verification_failed'},
+  {stateConfidence:90,countryConfidence:99,state:'MI',expected:'blocked'},
+  {stateConfidence:90,countryConfidence:99,override:'95',expected:'verification_failed'},
+  {stateConfidence:89,countryConfidence:99,override:'0',expected:'verification_failed'}
 ]) {
   const rows=[];
   const sdk={auth:{me:async()=>({id:'confidence-test',role:'user'})},asServiceRole:{entities:{
@@ -116,7 +119,7 @@ for (const c of [
   },{
     Deno:{env:{get:name=>({MAXMIND_GEOIP_ENABLED:'true',MAXMIND_ACCOUNT_ID:'test',MAXMIND_LICENSE_KEY:'test',MAXMIND_MIN_SUBDIVISION_CONFIDENCE:c.override})[name]}},
     fetch:async()=>Response.json({country:{iso_code:'US',confidence:c.countryConfidence},
-      subdivisions:[{iso_code:c.state||'GA',confidence:c.stateConfidence}],traits:{is_anonymous_vpn:!!c.vpn}})
+      subdivisions:[{iso_code:c.state||'GA',confidence:c.stateConfidence}],location:{accuracy_radius:c.radius??5},traits:{is_anonymous_vpn:!!c.vpn}})
   }).exports;
   const result=await (await geo.getRequestJurisdiction(
     new Request('https://example.invalid',{headers:{'cf-connecting-ip':'198.51.100.1'}}),
@@ -126,7 +129,7 @@ for (const c of [
   assert.equal(rows.length,1);
   assert.equal(rows[0].verification_result,c.expected);
 }
-console.log('State confidence: 9 boundary cases passed, including 10% acceptance, country floor, VPN and region restrictions.');
+console.log('State confidence: 11 boundary cases passed, including false GA approval, radius, country, VPN and region restrictions.');
 
 // Execute both actual start handlers: invalid evidence must cause zero writes,
 // zero game creation and zero downstream start calls.

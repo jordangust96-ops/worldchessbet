@@ -1,13 +1,15 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {loadBackend} from './helpers/load-backend.mjs';
-const {exports:location} = await loadBackend('base44/shared/walletOnboardingLocation.ts');
-const evidence = (patch={}) => ({user_id:'u',provider:'MaxMind',verification_result:'approved',
+import * as gates from '../base44/shared/jurisdictionGates.js';
+import * as regions from '../base44/shared/jurisdictionRegions.js';
+const {exports:location} = await loadBackend('base44/shared/walletOnboardingLocation.ts',{'./jurisdictionGates.js':gates,'./jurisdictionRegions.js':regions});
+const evidence = (patch={}) => ({country_confidence:99,subdivision_confidence:99,accuracy_radius_km:5,user_id:'u',provider:'MaxMind',verification_result:'approved',
  pre_bypass_verification_result:'approved',geolocation_enforcement_enabled:true,enforcement_bypassed:false,
  vpn_or_proxy_detected:false,ip_address:'192.0.2.1',detected_country:'US',detected_state:'GA',
  trigger_event:'wallet_onboarding',verified_at:'2026-09-01T00:00:00.000Z',...patch});
 assert.equal(location.isWalletLocationEvidence(evidence(), 'u'),true);
-for(const patch of [{user_id:'other'},{provider:'Other'},{verification_result:'blocked'},
+for(const patch of [{subdivision_confidence:10,accuracy_radius_km:1000},{subdivision_confidence:89},{accuracy_radius_km:101},{geo_mismatch_flag:true},{detected_state:'MI'},{user_id:'other'},{provider:'Other'},{verification_result:'blocked'},
  {pre_bypass_verification_result:'blocked'},{geolocation_enforcement_enabled:false},
  {enforcement_bypassed:true},{vpn_or_proxy_detected:true},{ip_address:''},{detected_country:'CA'},
  {detected_state:''},{verified_at:'bad'},{verified_at:'2999-01-01'},

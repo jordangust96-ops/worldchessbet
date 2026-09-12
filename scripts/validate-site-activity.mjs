@@ -4,8 +4,10 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import {computeRange, readAll, buildActivityMetrics, journalLegs, ms} from '../base44/shared/siteActivityMetrics.js';
 
-const locationSource = fs.readFileSync('base44/shared/walletOnboardingLocation.ts','utf8').replaceAll('export ', '');
-const ctx = vm.createContext({Date});
+import {hasReliableLocationEvidence} from '../base44/shared/jurisdictionGates.js';
+import {isLocationApproved} from '../base44/shared/jurisdictionRegions.js';
+const locationSource = fs.readFileSync('base44/shared/walletOnboardingLocation.ts','utf8').replaceAll('export ', '').replace(/^import .*;$/gm,'');
+const ctx = vm.createContext({Date,hasReliableLocationEvidence,isLocationApproved});
 vm.runInContext(locationSource, ctx);
 const validLocation = ctx.isWalletLocationEvidence;
 let checks = 0;
@@ -55,7 +57,7 @@ const sources={
  wallets:[{available_balance:12.34,held_balance:10}],declines:[],
  locations:[],identities:[],banks:[]
 };
-const loc={id:'loc',user_id:'new-user',provider:'MaxMind',verification_result:'approved',pre_bypass_verification_result:'approved',geolocation_enforcement_enabled:true,enforcement_bypassed:false,vpn_or_proxy_detected:false,ip_address:'192.0.2.1',detected_country:'US',detected_state:'MI',trigger_event:'wallet_onboarding',verified_at:at};
+const loc={country_confidence:99,subdivision_confidence:99,accuracy_radius_km:5,id:'loc',user_id:'new-user',provider:'MaxMind',verification_result:'approved',pre_bypass_verification_result:'approved',geolocation_enforcement_enabled:true,enforcement_bypassed:false,vpn_or_proxy_detected:false,ip_address:'192.0.2.1',detected_country:'US',detected_state:'GA',trigger_event:'wallet_onboarding',verified_at:at};
 sources.locations=[loc,{...loc,id:'retry'}, {...loc,id:'blocked',verification_result:'blocked'},
  {...loc,id:'failure',verification_result:'verification_failed'}, {...loc,id:'bypass',enforcement_bypassed:true},
  {...loc,id:'gameplay',user_id:'game-user',trigger_event:'create_match'},

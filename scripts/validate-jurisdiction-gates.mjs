@@ -54,6 +54,7 @@ ok(canAdminForceLiveCheck(true) === true, 'admin force gate set -> may bypass (w
 
 // ---------- 5. Cache-reuse predicate (tightened behavior) ----------
 const reusableBase = (overrides = {}) => ({
+  country_confidence:99, subdivision_confidence:99, accuracy_radius_km:5, vpn_or_proxy_detected:false,
   user_id: UID,
   ip_address: IP,
   provider: 'MaxMind',
@@ -169,7 +170,7 @@ ok(
 );
 ok(/!lookup\.ok/.test(entrySrc) && /status\s*=\s*'verification_failed'/.test(entrySrc), 'provider lookup failure -> verification_failed (fail-closed preserved)');
 ok(entrySrc.includes("MIN_COUNTRY_CONFIDENCE = confidenceFloor('MAXMIND_MIN_COUNTRY_CONFIDENCE')"), 'real-money gate requires a minimum MaxMind country confidence');
-ok(entrySrc.includes("MIN_SUBDIVISION_CONFIDENCE = confidenceFloor('MAXMIND_MIN_SUBDIVISION_CONFIDENCE', 10)"), 'real-money gate requires a minimum MaxMind subdivision confidence');
+ok(entrySrc.includes("MIN_SUBDIVISION_CONFIDENCE = confidenceFloor('MAXMIND_MIN_SUBDIVISION_CONFIDENCE', 90)"), 'real-money gate requires a minimum MaxMind subdivision confidence');
 ok(/!hasSufficientLocationConfidence\(lookup\)/.test(entrySrc) && /status\s*=\s*'verification_failed'/.test(entrySrc), 'low-confidence geography fails closed before allowlist approval');
 ok(!entrySrc.includes('VERIFICATION_CACHE_TTL_MS = 15'), 'TTL constant moved to the pure shared module (no duplicate)');
 
