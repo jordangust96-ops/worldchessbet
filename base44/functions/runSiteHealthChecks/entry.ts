@@ -321,7 +321,8 @@ Deno.serve(async (req) => {
     const part = (type: string) => parts.find(p => p.type === type)?.value || '';
     const date = part('year') + '-' + part('month') + '-' + part('day');
     const digest = part('hour') === '09' && previous?.last_digest_date !== date;
-    const send = config.alerts_enabled === true && config.alert_email === 'hello@worldchessbet.com' && (notification.send || digest);
+    const previewDaily = body.preview_daily === true;
+    const send = config.alerts_enabled === true && config.alert_email === 'hello@worldchessbet.com' && (notification.send || digest || previewDaily);
     const payload: any = {
       key: 'current', checked_at: checkedAt, status, checks_json: JSON.stringify(checks), history_json: JSON.stringify(history),
       last_alert_attempt_at: previous?.last_alert_attempt_at || '', last_alert_sent_at: previous?.last_alert_sent_at || '',
@@ -341,7 +342,7 @@ Deno.serve(async (req) => {
     let emailAccepted = false;
     if (send) {
       let activity: any = null;
-      if (digest) {
+      if (digest || previewDaily) {
         stage = 'collect_daily_activity';
         try { activity = await collectDailyActivity(base44, now); }
         catch {
@@ -351,7 +352,7 @@ Deno.serve(async (req) => {
         }
       }
       stage = 'format_email';
-      const email = formatHealthEmail(checks, checkedAt, digest, notification.recovered, activity);
+      const email = formatHealthEmail(checks, checkedAt, digest || previewDaily, notification.recovered, activity);
       try {
         await base44.asServiceRole.integrations.Core.SendEmail({
           to: 'hello@worldchessbet.com',
