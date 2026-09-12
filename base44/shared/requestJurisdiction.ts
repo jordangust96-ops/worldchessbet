@@ -242,18 +242,12 @@ export async function getRequestJurisdiction(req, context = null, policy = { fre
       // No body provided — defaults above are fine.
     }
 
-    // Platform administrators bypass geolocation enforcement entirely so they
-    // can access every page and exercise every feature for testing and site
-    // maintenance regardless of where they connect from. No MaxMind lookup is
-    // performed and no JurisdictionVerificationLog is written (there is no
-    // provider event to audit). This is the single authoritative admin bypass:
-    // every downstream consumer — the client JurisdictionAccessGuard,
-    // runContestEligibility, submitSeamlessDeposit, and lockWager — reads the
-    // approved status returned here, so admins are never blocked by a
-    // location check. It does not waive hosted bank verification, MFA,
-    // balance, bank verification, ledger safeguards, or the
-    // SEAMLESS_DEPOSITS_ENABLED funding gate.
-    if (user.role === 'admin' && !policy.requireLocation) {
+    // General location bypass for admins and the owner's designated test account.
+    // Match readiness and wallet verification explicitly require real evidence.
+    // Match both immutable account ID and authenticated email; never trust body fields.
+    const testingAccount = user.id === '6a791a1983246f5f71e66c09' &&
+      String(user.email || '').toLowerCase() === 'jordan.gust@na.scio-automation.com';
+    if ((user.role === 'admin' || testingAccount) && !policy.requireLocation) {
       const now = new Date().toISOString();
       await base44.asServiceRole.entities.User.update(user.id, {
         jurisdiction_status: 'approved',
@@ -273,7 +267,8 @@ export async function getRequestJurisdiction(req, context = null, policy = { fre
         provider: PROVIDER,
         enforcementEnabled: ENABLE_GEOLOCATION_ENFORCEMENT,
         verificationSkipped: true,
-        adminBypass: true,
+        adminBypass: user.role === 'admin',
+        testingBypass: testingAccount,
         cached: false,
         verifiedAt: now,
       });

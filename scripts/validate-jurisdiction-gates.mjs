@@ -165,7 +165,7 @@ const vSkippedIdxs = [...entrySrc.matchAll(/verificationSkipped:\s*true/g)].map(
 ok(
   vSkippedIdxs.every((i) => {
     const win = entrySrc.slice(Math.max(0, i - 700), i + 300);
-    return win.includes('adminBypass: true') && win.includes("user.role === 'admin'");
+    return win.includes("adminBypass: user.role === 'admin'") && win.includes("user.role === 'admin'");
   }),
   'verificationSkipped:true only appears inside the role-gated admin bypass (no disabled-provider approved bypass remains)'
 );

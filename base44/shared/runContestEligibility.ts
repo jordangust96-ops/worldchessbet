@@ -82,7 +82,13 @@ export async function runContestEligibility(req, context = null) {
         reason: jurisdictionRes.data?.reason || 'You are not currently eligible to enter a contest from your location.',
       });
     }
-    if (!meetsStateAge(await base44.asServiceRole.entities.User.get(user.id), jurisdictionRes.data?.state)) {
+    const verifiedUser = await base44.asServiceRole.entities.User.get(user.id);
+    const locationBypassed = jurisdictionRes.data?.verificationSkipped === true &&
+      (jurisdictionRes.data?.adminBypass === true || jurisdictionRes.data?.testingBypass === true);
+    const ageEligible = locationBypassed
+      ? verifiedUser.identity_age_verified === true && verifiedUser.identity_age_over_21 === true
+      : meetsStateAge(verifiedUser, jurisdictionRes.data?.state);
+    if (!ageEligible) {
       return Response.json({ eligible: false, error: 'Identity verification and age 21+ are required in an approved state.', reason: 'Identity verification and age 21+ are required in an approved state.' }, { status: 403 });
     }
 

@@ -195,7 +195,7 @@ for (const role of ['user','admin']) for (const scenario of [
     ...(scenario.missingIp?{}:{'true-client-ip':'172.56.124.196'}),
     'cf-connecting-ip':'74.220.48.45','x-forwarded-for':'198.51.100.77'
   },body:'{}'});
-  const currentUser={id:'p1',role};
+  const currentUser={id:'p1',role,identity_age_verified:true,identity_age_over_21:true};
   const sdk={auth:{me:async()=>currentUser},asServiceRole:{entities:{
     User:{get:async()=>currentUser,update:async()=>{}},
     Wallet:{filter:async()=>[{available_balance:100}]},
