@@ -31,7 +31,8 @@
     "test:pending-winnings": "node scripts/validate-pending-winnings.mjs && node scripts/validate-pending-winnings-hardening.mjs",
     "test:ratings": "node scripts/validate-ratings.mjs && node scripts/validate-rating-architecture.mjs",
     "test:launch": "node scripts/validate-launch-boundaries.mjs && node scripts/validate-launch-readiness.mjs",
-    "test:site-health": "node scripts/validate-site-health.mjs"
+    "test:site-health": "node scripts/validate-site-health.mjs",
+    "test:site-activity": "node scripts/validate-site-activity.mjs"
   },
   "dependencies": {
     "@base44/sdk": "^0.8.48",
