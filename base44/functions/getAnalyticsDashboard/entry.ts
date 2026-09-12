@@ -1,72 +1,16 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
+import { computeRange, readAll, buildActivityMetrics, PRODUCTION_START } from '../../shared/siteActivityMetrics.js';
+import { isWalletLocationEvidence } from '../../shared/walletOnboardingLocation.ts';
 
 // Restricted to the same admin account as the rest of the Site Activity /
 // Analytics dashboard.
 const ALLOWED_ADMIN_EMAIL = 'jordangust96@gmail.com';
 const GA_API_BASE = 'https://analyticsdata.googleapis.com/v1beta';
-const FETCH_LIMIT = 5000;
-const MAX_DAYS = 92;
-
-function computeRange(body) {
-  const preset = body?.preset || '7d';
-  const now = new Date();
-  let gaStart, gaEnd, start, end;
-  if (preset === 'today') {
-    gaStart = 'today'; gaEnd = 'today';
-    start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-    end = now;
-  } else if (preset === 'yesterday') {
-    gaStart = 'yesterday'; gaEnd = 'yesterday';
-    const y = new Date(now); y.setUTCDate(y.getUTCDate() - 1);
-    start = new Date(Date.UTC(y.getUTCFullYear(), y.getUTCMonth(), y.getUTCDate()));
-    end = new Date(start.getTime() + 24 * 60 * 60 * 1000 - 1);
-  } else if (preset === '30d') {
-    gaStart = '30daysAgo'; gaEnd = 'today';
-    start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    end = now;
-  } else if (preset === '90d') {
-    gaStart = '90daysAgo'; gaEnd = 'today';
-    start = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-    end = now;
-  } else if (preset === 'custom' && body?.startDate && body?.endDate) {
-    gaStart = body.startDate; gaEnd = body.endDate;
-    start = new Date(`${body.startDate}T00:00:00Z`);
-    end = new Date(`${body.endDate}T23:59:59Z`);
-  } else {
-    gaStart = '7daysAgo'; gaEnd = 'today';
-    start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    end = now;
-  }
-  return { preset, gaStart, gaEnd, start, end };
-}
-
-function buildDayKeys(start, end) {
-  const keys = [];
-  const cursor = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()));
-  const last = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate()));
-  let guard = 0;
-  while (cursor <= last && guard < MAX_DAYS) {
-    keys.push(cursor.toISOString().slice(0, 10));
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
-    guard++;
-  }
-  return keys;
-}
-
-function dayKey(dateStr) {
-  return new Date(dateStr).toISOString().slice(0, 10);
-}
-
-function inRange(dateStr, start, end) {
-  if (!dateStr) return false;
-  const t = new Date(dateStr).getTime();
-  return t >= start.getTime() && t <= end.getTime();
-}
-
 async function getConnectedAccountEmail(accessToken) {
   try {
     const res = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
       headers: { Authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return null;
     const data = await res.json();
@@ -80,7 +24,10 @@ async function runGA4Batch(accessToken, propertyId, requests) {
   const res = await fetch(`${GA_API_BASE}/properties/${propertyId}:batchRunReports`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ requests }),
+    body: JSON.stringify({ requests: requests.map(request => ({ ...request,
+      dimensionFilter: { filter: { fieldName: 'hostName', inListFilter: { values: ['worldchessbet.com', 'www.worldchessbet.com'] } } },
+    })) }),
+    signal: AbortSignal.timeout(15000),
   });
   const data = await res.json();
   if (!res.ok) {
@@ -117,15 +64,17 @@ function bucketSourceMedium(sourceMedium) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
+    const user = await base44.auth.me().catch(() => null);
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     if (user.role !== 'admin' || user.email !== ALLOWED_ADMIN_EMAIL) {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const body = await req.json().catch(() => ({}));
-    const { preset, gaStart, gaEnd, start, end } = computeRange(body);
-    const dayKeys = buildDayKeys(start, end);
+    let range;
+    try { range = computeRange(body); }
+    catch (error) { return Response.json({ error: error.message }, { status: 400 }); }
+    const { preset, gaStart, gaEnd } = range;
 
     // ---------- GA4 ----------
     const connector = { connected: false, accountEmail: null, propertyId: null, error: null };
@@ -157,6 +106,10 @@ Deno.serve(async (req) => {
             { dateRanges, dimensions: [{ name: 'country' }], metrics: [{ name: 'activeUsers' }], limit: 10, orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }] },
           ]);
 
+          if (batchA.length !== 5) throw new Error('Incomplete GA4 report response');
+          connector.timeZone = batchA[0]?.metadata?.timeZone || 'GA4 property timezone';
+          connector.dataWarnings = batchA.some(report => report.metadata?.subjectToThresholding || report.metadata?.dataLossFromOtherRow)
+            ? ['Google applied reporting thresholds or grouped some data.'] : [];
           const overviewRow = batchA[0]?.rows?.[0];
           const totalUsers = metricVal(overviewRow, 0);
           const newUsers = metricVal(overviewRow, 1);
@@ -166,11 +119,10 @@ Deno.serve(async (req) => {
             newUsers,
             sessions: metricVal(overviewRow, 2),
             engagedSessions: metricVal(overviewRow, 3),
-            avgEngagementTimeSeconds: Math.round(metricVal(overviewRow, 4)),
+            avgSessionDurationSeconds: Math.round(metricVal(overviewRow, 4)),
             bounceRate: Math.round(metricVal(overviewRow, 5) * 1000) / 10,
             views: metricVal(overviewRow, 6),
             uniqueVisitors: totalUsers,
-            returningVisitors: Math.max(0, totalUsers - newUsers),
           };
 
           const trafficSeries = (batchA[1]?.rows || []).map((row) => {
@@ -199,8 +151,7 @@ Deno.serve(async (req) => {
               { dateRanges, dimensions: [{ name: 'region' }], metrics: [{ name: 'activeUsers' }], limit: 10, orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }] },
               { dateRanges, dimensions: [{ name: 'city' }], metrics: [{ name: 'activeUsers' }], limit: 10, orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }] },
               { dateRanges, dimensions: [{ name: 'landingPage' }], metrics: [{ name: 'sessions' }], limit: 10, orderBys: [{ metric: { metricName: 'sessions' }, desc: true }] },
-              // GA4's Data API has no true "exits" metric — screenPageViews is the
-              // closest supported proxy for identifying high-traffic exit candidates.
+              // Page views are page views; never label them as exits.
               { dateRanges, dimensions: [{ name: 'pagePath' }], metrics: [{ name: 'screenPageViews' }], limit: 10, orderBys: [{ metric: { metricName: 'screenPageViews' }, desc: true }] },
               { dateRanges, dimensions: [{ name: 'pagePath' }], metrics: [{ name: 'userEngagementDuration' }, { name: 'screenPageViews' }], limit: 10, orderBys: [{ metric: { metricName: 'screenPageViews' }, desc: true }] },
             ]);
@@ -238,113 +189,36 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ---------- Internal metrics ----------
-    const [users, matches, walletTxs, ledgerEntries, declines] = await Promise.all([
-      base44.asServiceRole.entities.User.list('-created_date', FETCH_LIMIT),
-      base44.asServiceRole.entities.Match.list('-created_date', FETCH_LIMIT),
-      base44.asServiceRole.entities.WalletTransaction.list('-created_date', FETCH_LIMIT),
-      base44.asServiceRole.entities.LedgerEntry.list('-created_date', FETCH_LIMIT),
-      base44.asServiceRole.entities.MatchDeclineLog.list('-created_date', FETCH_LIMIT),
-    ]);
-
-    const registrations = users.filter((u) => inRange(u.created_date, start, end));
-    const verifiedUsers = users.filter((u) => inRange(u.identity_verified_at, start, end));
-    const deposits = walletTxs.filter((t) => t.type === 'deposit' && t.status === 'completed' && inRange(t.created_date, start, end));
-    const depositUserIds = new Set(deposits.map((d) => d.user_id));
-    const depositVolume = deposits.reduce((s, d) => s + (d.amount || 0), 0);
-
-    const matchesHosted = matches.filter((m) => inRange(m.created_date, start, end));
-    const matchesAccepted = matches.filter((m) => inRange(m.preparation_started_at, start, end));
-    const matchesDeclined = declines.filter((d) => inRange(d.created_date, start, end));
-    const matchesCompleted = matches.filter((m) => m.status === 'completed' && inRange(m.completed_at, start, end));
-    const activeGames = matches.filter((m) => m.status === 'in_progress').length;
-    const avgWager = matchesHosted.length > 0 ? matchesHosted.reduce((s, m) => s + (m.wager_amount || 0), 0) / matchesHosted.length : 0;
-    const totalWagerVolume = matchesHosted.reduce((s, m) => s + (m.wager_amount || 0), 0);
-    const platformRevenue = ledgerEntries
-      .filter((l) => l.ledger_account === 'platform_revenue' && l.transaction_type === 'platform_fee' && inRange(l.created_date, start, end))
-      .reduce((s, l) => s + (l.credit_amount || 0), 0);
-
-    // Today's platform service fee total is always "today" regardless of the
-    // selected dashboard range, so admins can see it at a glance.
-    const todayStart = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate()));
-    const todayEnd = new Date();
-    const platformRevenueToday = ledgerEntries
-      .filter((l) => l.ledger_account === 'platform_revenue' && l.transaction_type === 'platform_fee' && inRange(l.created_date, todayStart, todayEnd))
-      .reduce((s, l) => s + (l.credit_amount || 0), 0);
-
-    const waitTimes = matchesAccepted
-      .filter((m) => m.created_date && m.preparation_started_at)
-      .map((m) => (new Date(m.preparation_started_at).getTime() - new Date(m.created_date).getTime()) / 1000);
-    const avgMatchWaitSeconds = waitTimes.length > 0 ? Math.round(waitTimes.reduce((s, v) => s + v, 0) / waitTimes.length) : 0;
-
-    const internal = {
-      registrations: registrations.length,
-      verifiedUsers: verifiedUsers.length,
-      deposits: deposits.length,
-      depositVolume: Math.round(depositVolume * 100) / 100,
-      depositConversion: registrations.length > 0 ? Math.round((depositUserIds.size / registrations.length) * 1000) / 10 : 0,
-      matchesHosted: matchesHosted.length,
-      matchesAccepted: matchesAccepted.length,
-      matchesDeclined: matchesDeclined.length,
-      matchesCompleted: matchesCompleted.length,
-      activeGames,
-      avgWager: Math.round(avgWager * 100) / 100,
-      totalWagerVolume: Math.round(totalWagerVolume * 100) / 100,
-      platformRevenue: Math.round(platformRevenue * 100) / 100,
-      platformRevenueToday: Math.round(platformRevenueToday * 100) / 100,
-      avgMatchWaitSeconds,
-    };
-
-    // ---------- Funnel ----------
-    const hostUserIds = new Set(matchesHosted.map((m) => m.player1_id).filter(Boolean));
-    const acceptUserIds = new Set(matchesAccepted.map((m) => m.player2_id).filter(Boolean));
-    const completeUserIds = new Set();
-    for (const m of matchesCompleted) {
-      if (m.player1_id) completeUserIds.add(m.player1_id);
-      if (m.player2_id) completeUserIds.add(m.player2_id);
-    }
-    const funnelSteps = [
-      { step: 'Visitors', count: ga4 ? ga4.overview.totalUsers : null },
-      { step: 'Registration', count: registrations.length },
-      { step: 'Identity Verification', count: verifiedUsers.length },
-      { step: 'Deposit', count: depositUserIds.size },
-      { step: 'Host Match', count: hostUserIds.size },
-      { step: 'Accept Match', count: acceptUserIds.size },
-      { step: 'Complete Match', count: completeUserIds.size },
+    // ---------- Read-only platform sources ----------
+    const svc = base44.asServiceRole.entities;
+    const sinceProduction = { launch_epoch: 2, created_date: { $gte: PRODUCTION_START } };
+    const sourceSpecs = [
+      ['users', 'User', {}, ['id','created_date']],
+      ['matches', 'Match', sinceProduction, ['id','created_date','launch_epoch','status','wager_amount','preparation_started_at','completed_at','player1_id','player2_id']],
+      ['transactions', 'WalletTransaction', sinceProduction, ['id','created_date','launch_epoch','user_id','type','amount','status','integration_status','source_event','deposit_hold_status']],
+      ['journals', 'LedgerJournalBatch', sinceProduction, ['id','created_date','created_at','launch_epoch','ledger_group_id','wallet_transaction_id','trigger_event','legs_json','leg_count','total_credit','total_debit']],
+      ['declines', 'MatchDeclineLog', { created_date: { $gte: range.start.toISOString(), $lte: range.end.toISOString() } }, ['id','created_date','match_id']],
+      ['wallets', 'Wallet', {}, ['id','created_date','available_balance','held_balance']],
+      ['locations', 'JurisdictionVerificationLog', {}, ['id','created_date','user_id','provider','verification_result','pre_bypass_verification_result','geolocation_enforcement_enabled','enforcement_bypassed','vpn_or_proxy_detected','ip_address','detected_country','detected_state','trigger_event','verified_at']],
+      ['identities', 'SocureIdentityVerification', { environment: 'production' }, ['id','created_date','user_id','status','environment','completed_at','requested_at','expires_at']],
+      ['banks', 'SeamlessBankAccount', {}, ['id','created_date','updated_date','user_id','source_id','status','added_at','verified_at']],
     ];
-    const funnel = funnelSteps.map((s, i) => {
-      const prev = i > 0 ? funnelSteps[i - 1].count : null;
-      const conversionRate = i > 0 && prev ? Math.round((s.count / prev) * 1000) / 10 : null;
-      return { ...s, conversionRate };
-    });
-
-    // ---------- Daily charts ----------
-    const trafficByDay = {};
-    for (const row of ga4?.trafficSeries || []) trafficByDay[row.date] = row.sessions;
-
-    const charts = dayKeys.map((day) => {
-      const dayMatches = matchesHosted.filter((m) => dayKey(m.created_date) === day);
-      const dayDeposits = deposits.filter((d) => dayKey(d.created_date) === day);
-      const dayRegs = registrations.filter((u) => dayKey(u.created_date) === day);
-      const dayRevenue = ledgerEntries.filter((l) => l.ledger_account === 'platform_revenue' && l.transaction_type === 'platform_fee' && dayKey(l.created_date) === day);
-      return {
-        date: day,
-        traffic: trafficByDay[day] || 0,
-        registrations: dayRegs.length,
-        deposits: dayDeposits.reduce((s, d) => s + (d.amount || 0), 0),
-        matches: dayMatches.length,
-        revenue: dayRevenue.reduce((s, l) => s + (l.credit_amount || 0), 0),
-        avgWager: dayMatches.length > 0 ? Math.round((dayMatches.reduce((s, m) => s + (m.wager_amount || 0), 0) / dayMatches.length) * 100) / 100 : 0,
-      };
-    });
-
+    const sources = {};
+    // Bounded concurrency avoids a burst of entity calls; every page must load.
+    for (let index = 0; index < sourceSpecs.length; index += 3) {
+      await Promise.all(sourceSpecs.slice(index, index + 3).map(async ([key, entity, query, fields]) => {
+        try { sources[key] = await readAll(svc[entity], query, fields); }
+        catch { throw new Error('Could not load complete ' + entity + ' records. Refresh to retry; totals were not calculated.'); }
+      }));
+    }
+    const metrics = buildActivityMetrics(sources, range, isWalletLocationEvidence);
+    const trafficByDay = new Map((ga4?.trafficSeries || []).map(row => [row.date, row.sessions]));
+    metrics.charts = metrics.charts.map(row => ({ ...row, traffic: ga4 ? (trafficByDay.get(row.date) ?? 0) : null }));
     return Response.json({
-      range: { preset, startDate: dayKeys[0], endDate: dayKeys[dayKeys.length - 1] },
-      connector,
-      ga4,
-      internal,
-      funnel,
-      charts,
+      range: { preset, startDate: gaStart, endDate: gaEnd, timeZone: 'UTC' },
+      generatedAt: new Date().toISOString(),
+      financialStart: PRODUCTION_START,
+      connector, ga4, ...metrics,
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
