@@ -4,7 +4,7 @@ Implemented September 7, 2026. Alert recipient: hello@worldchessbet.com.
 
 ## What runs
 
-Site Health Monitoring is an active one-step Base44 workflow, every 15 minutes at minutes 03, 18, 33 and 48 UTC. It reads operational records, checks the public homepage, sends read-only PING to the two configured Upstash stores, and reads the analyzer health endpoint without submitting an analysis job. Incident/recovery notifications have a one-hour cooldown; a daily digest is sent in the 9 AM America/Detroit hour. Email status “accepted” means the Base44 mail service accepted the request, not proof of mailbox receipt.
+Site Health Monitoring is an active one-step Base44 workflow, every 15 minutes at minutes 03, 18, 33 and 48 UTC. It reads operational records, checks the public homepage, sends read-only PING to the two configured Upstash stores, and reads the analyzer health endpoint without submitting an analysis job. Incident/recovery notifications have a one-hour cooldown; a daily digest is sent in the 9 AM America/Detroit hour. The daily digest also includes the 24 most recently completed hours of aggregate site activity: GA4 sessions/page views/new users when GA4 is available, registrations, all jurisdiction checks, identity outcomes, bank connections/verifications, ledger-verified deposits and withdrawals, match creation/acceptance/completion by Entry Amount, participating-player counts, and net platform revenue. Activity collection runs only for the daily digest; if a complete source cannot be verified, the email reports that section unavailable instead of presenting partial totals. Email status “accepted” means the Base44 mail service accepted the request, not proof of mailbox receipt.
 
 The existing chessbet_operations agent now has the read-only getSiteHealth tool. Its existing restrictions remain. The daily operations brief includes the health snapshot and cannot claim there are no exceptions when monitoring coverage is unknown.
 
@@ -17,7 +17,7 @@ The admin dashboard is implemented at /admin/health, linked from Profile → Adm
 - Reads are bounded to 501 records per check. Saturated scans are lower bounds. Browser data is a recent, incomplete, client-reported sample and cannot support player enforcement.
 - The collector retains 24 snapshots (about six hours) in one current record. Missing or older-than-35-minute observations are unknown.
 - An unauthenticated publicSiteHealth function returns only coarse availability and 503 for stale/missing/critical monitoring state. This endpoint is ready for a separate dead-man monitor; no independent heartbeat alert is configured yet.
-- Base44 cannot report its own complete outage by email. DigitalOcean's independent homepage check continues outside Base44, but its notification delivery is awaiting mailbox verification.
+- Base44 cannot report its own complete outage by email. DigitalOcean's independent homepage check continues outside Base44. Native DigitalOcean CPU/memory/resource metrics are not imported into the digest; ChessBet records whether those independent alerts are configured, not their live readings.
 - No financial, gameplay, account, provider configuration or infrastructure resource state is changed by health collection. Seamless checks read saved records; they do not prove end-to-end provider transaction or webhook delivery.
 
 ## DigitalOcean
