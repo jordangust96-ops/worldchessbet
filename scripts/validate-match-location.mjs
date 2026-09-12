@@ -242,3 +242,23 @@ for(const userId of ['p1','p2']) {
     assert.equal(isMatchLocationEvidence({...evidence(userId),...patch},match,userId,now),false);
 }
 console.log('Cross-path integration passed: preserved admin create/join bypass; non-admin 51% approval, 50% denial, MI denial, VPN, missing IP and outage refusal; pre-match location failures cause zero reservation writes for every role.');
+
+// Explicit test-account exception is session-bound and cannot waive required evidence.
+for(const c of [
+ {id:'6a791a1983246f5f71e66c09',email:'jordan.gust@na.scio-automation.com',bypass:true},
+ {id:'other-user',email:'jordan.gust@na.scio-automation.com',bypass:false},
+ {id:'6a791a1983246f5f71e66c09',email:'other@example.invalid',bypass:false},
+ {id:'6a791a1983246f5f71e66c09',email:'jordan.gust@na.scio-automation.com',requireLocation:true,bypass:false},
+]) {
+ let lookups=0;
+ const sdk={auth:{me:async()=>({...c,role:'user'})},asServiceRole:{entities:{User:{update:async()=>{}},JurisdictionVerificationLog:{filter:async()=>[],create:async()=>{}}}}};
+ const geo=load('base44/shared/requestJurisdiction.ts',{
+  'npm:@base44/sdk@0.8.38':{createClientFromRequest:()=>sdk},'./jurisdictionGates.js':gates,'./jurisdictionRegions.js':regions
+ },{Deno:{env:{get:name=>({MAXMIND_GEOIP_ENABLED:'true',MAXMIND_ACCOUNT_ID:'test',MAXMIND_LICENSE_KEY:'test'})[name]}},
+ fetch:async()=>{lookups++;return Response.json({country:{iso_code:'US',confidence:99},subdivisions:[{iso_code:'MI',confidence:70}],location:{accuracy_radius:100},traits:{}});}}).exports;
+ const result=await (await geo.getRequestJurisdiction(new Request('https://example.invalid',{headers:{'true-client-ip':'172.56.124.196'}}),{testingBypass:true,email:'jordan.gust@na.scio-automation.com'},{fresh:true,requireLocation:!!c.requireLocation})).json();
+ assert.equal(result.status,c.bypass?'approved':'blocked');
+ assert.equal(result.testingBypass===true,c.bypass);
+ assert.equal(lookups,c.bypass?0:1);
+}
+console.log('Designated test-account bypass passed: exact session identity only, body spoof rejected, mandatory wallet/match evidence preserved.');
