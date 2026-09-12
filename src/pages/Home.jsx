@@ -371,22 +371,13 @@ export default function Home() {
   }, [activeMatch?.id, activeMatch?.status, activeMatch?.result, activeMatch?.winner_id, user?.id]);
 
   return (
-    <div className="min-h-screen px-5 pt-6 lg:h-dvh lg:overflow-hidden lg:flex lg:flex-col lg:pb-24">
+    <div className="min-h-screen px-5 pt-2 lg:h-[calc(100dvh-88px)] lg:overflow-hidden lg:flex lg:flex-col lg:pb-24">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         className="mb-6 lg:mb-4 lg:shrink-0"
       >
-        <div className="flex items-center justify-between">
-          <Logo size="sm" />
-          <div className="text-right">
-            <p className="text-[10px] uppercase tracking-widest text-white/40 mb-0.5">Balance</p>
-            <p className="text-lg font-bold text-[#C9A84C]">
-              ${wallet?.balance?.toFixed(2) || "0.00"}
-            </p>
-          </div>
-        </div>
         <div className="mt-3 space-y-3">
           <RestrictedModeBanner />
         </div>

@@ -128,10 +128,8 @@ export default function Profile() {
 
   if (loadError) {
     return (
-      <div className="min-h-screen px-5 pt-8">
-        <Link to="/play" className="inline-block">
-          <Logo size="sm" />
-        </Link>
+      <div className="min-h-screen px-5 pt-2">
+
         <div className="mt-8 rounded-2xl bg-white/[0.03] border border-white/5 p-6 text-center">
           <p className="text-sm text-white/60">{loadError}</p>
           <Button
@@ -146,15 +144,13 @@ export default function Profile() {
   }
 
   return (
-    <div className="min-h-screen px-5 pt-8">
+    <div className="min-h-screen px-5 pt-2">
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         className="space-y-6">
 
-        <Link to="/play" className="inline-block">
-          <Logo size="sm" />
-        </Link>
+
 
         {/* Profile Header */}
         <div className="text-center space-y-3">

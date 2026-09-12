@@ -222,15 +222,13 @@ export default function WalletPage() {
   if (loadError) return <div role="alert" className="mx-auto max-w-md p-6 text-center text-white"><p>Unable to load your wallet. Check Transaction History after reconnecting before retrying a transfer.</p><button onClick={() => {setLoading(true); loadData();}} className="mt-4 rounded-xl gold-gradient px-4 py-3 text-black">Retry wallet connection</button></div>;
 
   return (
-    <div className="min-h-screen px-4 pb-24 pt-6 sm:px-6 sm:pt-8">
+    <div className="min-h-screen px-4 pb-24 pt-2 sm:px-6 sm:pt-2">
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         className="mx-auto max-w-4xl space-y-5"
       >
-        <Link to="/play" className="inline-block">
-          <Logo size="sm" />
-        </Link>
+
         <RestrictedModeBanner />
 
         {/* Balance Card */}
