@@ -13,6 +13,10 @@ export default function DepositLocationStep({ decision, onDecision }) {
   const [checking, setChecking] = useState(false);
   const inProgress = useRef(false);
   const approved = decision?.allowed === true;
+  const hasResult = !!decision && decision.status !== "not_started" && !checking;
+  const blocked = decision?.status === "blocked";
+  const failed = hasResult && !approved;
+  const resultTitle = approved ? "Location verified" : blocked ? "Location not supported" : "Location verification failed";
   const checkLocation = async () => {
     if (approved || inProgress.current || !user?.id) return;
     inProgress.current = true;
@@ -29,9 +33,20 @@ export default function DepositLocationStep({ decision, onDecision }) {
   };
   return (
     <WalletSetupStep number={1} label="Location verification"
-      title={approved ? "Location Verified" : checking ? "Checking location" : decision?.status === "blocked" ? "Location not approved" : "Verify your location"}
-      complete={approved} pending={checking}
-      description={approved ? null : decision?.reason || "A one-time check before identity verification."}>
+      title={approved ? "Location Verified" : checking ? "Checking location" : "Location verification"}
+      complete={approved} pending={checking} attention={failed}
+      description={checking ? "Checking your connection. Please wait for the result." : hasResult ? null : "A one-time check before identity verification."}>
+      {hasResult && (
+        <div role="status" aria-live="polite" aria-atomic="true"
+          className={"mt-3 rounded-xl border p-4 sm:p-5 " + (approved ? "border-emerald-400/40 bg-emerald-400/10" : "border-amber-400/50 bg-amber-400/10")}>
+          <p className={"text-lg font-bold leading-6 " + (approved ? "text-emerald-200" : "text-amber-200")}>{resultTitle}</p>
+          <p className="mt-2 text-base font-medium leading-6 text-white">
+            {approved ? "Location check complete." : "Wallet setup cannot continue until your location is approved."}
+          </p>
+          {!approved && <p className="mt-2 text-base leading-6 text-white/90">{decision.reason || "The location check did not complete. Please try again."}</p>}
+          {!approved && <a href="mailto:hello@worldchessbet.com" className="mt-3 inline-block text-sm font-semibold text-amber-200 underline underline-offset-4">Contact support</a>}
+        </div>
+      )}
       {!approved && (
         <button type="button" onClick={checkLocation} disabled={checking || !user?.id}
           className="mt-3 w-full rounded-xl gold-gradient px-4 py-3 text-sm font-semibold text-black disabled:opacity-40 sm:w-auto">
@@ -39,8 +54,7 @@ export default function DepositLocationStep({ decision, onDecision }) {
         </button>
       )}
       {decision && decision.status !== "not_started" && !approved && (
-        <div className="mt-3 space-y-3 text-xs text-white/60">
-          <p>You can keep browsing and access your balance and withdrawals.</p>
+        <div className="mt-4 space-y-3 text-sm leading-6 text-white/70">
           <p>Approved U.S. jurisdictions: {APPROVED_STATES.map(s => getRegionName(s) || s).join(", ")}.</p>
           {decision.promptEligible && <JurisdictionWaitlistOptIn userEmail={user?.email} />}
         </div>
