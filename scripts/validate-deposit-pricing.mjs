@@ -69,4 +69,4 @@ assert.equal((await send(payload)).status,200);
 assert.equal(calls,1,'retries must not create a second debit');
 
 // Settlement, fee journals, release, and returns execute the real ledger in validate-deposit-reconciliation.mjs.
-console.log('PASS: 108,401 cent values, exact net quote, authorized bank debit, fee consent/tampering, and retry deduplication.');
+console.log('PASS: 108,381 cent values, exact net quote, authorized bank debit, fee consent/tampering, and retry deduplication.');

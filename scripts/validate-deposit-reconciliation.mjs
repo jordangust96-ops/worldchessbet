@@ -44,8 +44,9 @@ async function harness(version = 'same-day-ach-v1') {
     finishWebhookEvent: async (key, ref, owner, state) => { events.set(key, state); occupied = false; },
   };
   const eventModule = { recordIntegrationEvent: async () => {} };
+  const { exports: pagination } = await loadBackend('base44/shared/ledgerPagination.ts', {});
   const { exports: ledger } = await loadBackend('base44/shared/ledger.ts', {
-    './integrationEvents.ts': eventModule, './seamlessAtomicStore.ts': atomic,
+    './ledgerPagination.ts': pagination, './integrationEvents.ts': eventModule, './seamlessAtomicStore.ts': atomic,
   });
   const providerApi = { ...ach, seamlessRequest: async () => clone(provider) };
   const { exports: reconciliation } = await loadBackend('base44/shared/depositReconciliation.ts', {
@@ -215,3 +216,22 @@ for (const key of ['deposit_pricing_version','deposit_bank_debit','deposit_proce
 assert.equal((await legacy.send(legacy.settlement)).status,409,'legacy deposits excluded from new review');
 
 console.log('PASS: real handlers and ledger; amount mismatch, missing evidence, admin authorization, balanced gross/fee/net, clearing, duplicate/racing requests, return fees, and interrupted-write recovery.');
+
+// v2 preserves the player's exact principal and records only evidenced surplus.
+for(const actualFee of [1.01,1.11]) {
+ const v2=await harness('same-day-ach-v2');
+ v2.provider.check.amount=101.21;
+ const payload={...v2.settlement,bankDebit:'101.21',processingFee:actualFee.toFixed(2),netReceived:(101.21-actualFee).toFixed(2)};
+ assert.equal((await v2.send(payload)).status,200);
+ assert.equal(v2.db.Wallet[0].held_balance,100);
+ const retained=Math.round((1.21-actualFee)*100)/100;
+ assert.equal(v2.db.SystemLedgerAccount.find(r=>r.account_name==='deposit_fee_revenue').balance,retained);
+ assert.equal(v2.db.SystemLedgerAccount.find(r=>r.account_name==='settlement').balance,-(100+retained));
+ const count=v2.db.LedgerEntry.length;
+ assert.equal((await v2.send(payload)).status,200);
+ assert.equal(v2.db.LedgerEntry.length,count);
+ balanced(v2.db);
+}
+assert.equal(depositQuote(10,'same-day-ach-v1').bankDebit,10.55);
+assert.equal(depositQuote(10,'same-day-ach-v2').bankDebit,10.75);
+console.log('v2 passed: actual processor deductions separated from retained revenue, principal unchanged, repeats idempotent, v1 pricing preserved.');
