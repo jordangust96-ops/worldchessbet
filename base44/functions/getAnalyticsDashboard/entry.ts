@@ -44,7 +44,7 @@ function metricVal(row, index) {
 }
 
 function dimVal(row, index) {
-  return row?.dimensionValues?.[index]?.value || '(not set)';
+  return row?.dimensionValues?.[index]?.value || '(unknown)';
 }
 
 function bucketSourceMedium(sourceMedium) {
