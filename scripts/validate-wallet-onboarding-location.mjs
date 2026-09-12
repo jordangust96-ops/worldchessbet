@@ -9,7 +9,7 @@ const evidence = (patch={}) => ({country_confidence:99,subdivision_confidence:99
  vpn_or_proxy_detected:false,ip_address:'192.0.2.1',detected_country:'US',detected_state:'GA',
  trigger_event:'wallet_onboarding',verified_at:'2026-09-01T00:00:00.000Z',...patch});
 assert.equal(location.isWalletLocationEvidence(evidence(), 'u'),true);
-for(const patch of [{subdivision_confidence:10,accuracy_radius_km:1000},{subdivision_confidence:89},{accuracy_radius_km:101},{geo_mismatch_flag:true},{detected_state:'MI'},{user_id:'other'},{provider:'Other'},{verification_result:'blocked'},
+for(const patch of [{subdivision_confidence:10,accuracy_radius_km:1000},{subdivision_confidence:50},{accuracy_radius_km:101},{geo_mismatch_flag:true},{detected_state:'MI'},{user_id:'other'},{provider:'Other'},{verification_result:'blocked'},
  {pre_bypass_verification_result:'blocked'},{geolocation_enforcement_enabled:false},
  {enforcement_bypassed:true},{vpn_or_proxy_detected:true},{ip_address:''},{detected_country:'CA'},
  {detected_state:''},{verified_at:'bad'},{verified_at:'2999-01-01'},
