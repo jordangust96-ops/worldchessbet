@@ -9,7 +9,7 @@ export default function MetricCardGrid({ title, metrics }) {
         {metrics.map(({ label, value }) => (
           <div key={label} className="rounded-2xl bg-white/[0.03] border border-white/5 p-4 text-center">
             <p className="text-lg font-bold text-white">{value}</p>
-            <p className="text-[10px] text-white/40 uppercase tracking-wider mt-1">{label}</p>
+            <p className="text-[10px] text-white/60 uppercase tracking-wider mt-1">{label}</p>
           </div>
         ))}
       </div>
