@@ -4,6 +4,7 @@ import {
   canAdminForceLiveCheck,
   isReusableVerification,
   hasReliableLocationEvidence,
+  getOriginalClientIp,
 } from './jurisdictionGates.js';
 import { isLocationApproved } from './jurisdictionRegions.js';
 
@@ -278,10 +279,10 @@ export async function getRequestJurisdiction(req, context = null, policy = { fre
       });
     }
 
-    // cf-connecting-ip is set by Cloudflare's edge and cannot be spoofed by
-    // the client; x-forwarded-for is client-influenceable and must never be
-    // trusted as the primary source for a jurisdiction decision.
-    const ip = req.headers.get('cf-connecting-ip') || '';
+    // Base44 ingress preserves the visitor in True-Client-IP and replaces
+    // forged values (verified on both app hostnames). CF-Connecting-IP is an
+    // internal hop here; never fall back to it or the spoofable forwarded chain.
+    const ip = getOriginalClientIp(req);
     const deviceIdentifier = req.headers.get('user-agent') || '';
     const liveCheckForcedByAdmin =
       forceLiveCheck && user.role === 'admin' && canAdminForceLiveCheck(MAXMIND_ADMIN_FORCE_LIVE_CHECKS);
