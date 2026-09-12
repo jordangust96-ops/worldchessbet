@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { openCookieSettings } from "@/lib/privacy";
 import { Link } from "react-router-dom";
 import { Crown, Zap, Shield, CircleCheck, WalletCards } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -258,6 +259,7 @@ export default function Landing() {
           <Link to="/faq" className="text-white/55 hover:text-[#C9A84C]">FAQ</Link>
           <Link to="/terms-of-service" className="text-white/55 hover:text-[#C9A84C]">Terms</Link>
           <Link to="/privacy-policy" className="text-white/55 hover:text-[#C9A84C]">Privacy</Link>
+          <button onClick={openCookieSettings} className="text-white/55 hover:text-[#C9A84C]">Cookie settings</button>
         </nav>
         <p className="text-white/45 text-xs">© 2026 ChessBet. All rights reserved.</p>
       </footer>
