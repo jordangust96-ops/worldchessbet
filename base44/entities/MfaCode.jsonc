@@ -37,6 +37,16 @@
       ],
       "default": "active"
     },
+    "delivery_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "delivered",
+        "failed"
+      ],
+      "default": "pending",
+      "description": "Email delivery state. 'pending' when created but not yet sent; 'delivered' after SendEmail success; 'failed' if delivery errored. Resume only returns 'delivered' codes; verify only accepts 'delivered' codes."
+    },
     "verification_token": {
       "type": "string",
       "description": "Server-generated unique token used for atomic compare-and-swap during code verification. Prevents concurrent verify calls from both creating sessions."

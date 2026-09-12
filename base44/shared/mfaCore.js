@@ -26,3 +26,29 @@ export function normalizeOtpCode(input) {
   const cleaned = input.trim().replace(/[\s-]/g, '');
   return /^\d{6}$/.test(cleaned) ? cleaned : null;
 }
+
+// Returns true if the date string is a valid, parseable timestamp.
+export function isValidTimestamp(dateStr) {
+  if (!dateStr || typeof dateStr !== 'string') return false;
+  const d = new Date(dateStr);
+  return !isNaN(d.getTime());
+}
+
+// Expiry check: returns true if the code has expired or has an invalid timestamp.
+// Uses >= so exact-expiry is treated as expired (no grace second).
+export function isExpired(expiresAtStr, now = new Date()) {
+  if (!isValidTimestamp(expiresAtStr)) return true;
+  return now.getTime() >= new Date(expiresAtStr).getTime();
+}
+
+// Returns true if the code is locked out due to too many wrong attempts.
+export function isLockedOut(attempts, maxAttempts = MAX_ATTEMPTS) {
+  return (Number(attempts) || 0) >= maxAttempts;
+}
+
+// Compute remaining cooldown seconds for a code created at createdDate.
+export function cooldownRemaining(createdDateStr, now = new Date(), cooldownMs = RESEND_COOLDOWN_MS) {
+  if (!isValidTimestamp(createdDateStr)) return 0;
+  const elapsed = now.getTime() - new Date(createdDateStr).getTime();
+  return Math.max(0, Math.ceil((cooldownMs - elapsed) / 1000));
+}

@@ -14,102 +14,141 @@ function formatTime(seconds) {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+function secondsUntil(deadlineMs) {
+  if (!deadlineMs) return 0;
+  return Math.max(0, Math.round((deadlineMs - Date.now()) / 1000));
+}
+
 export default function VerifyMfa() {
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [busy, setBusy] = useState(false);
+  const [action, setAction] = useState("idle"); // 'idle' | 'sending' | 'verifying'
   const [loading, setLoading] = useState(true);
-  const [expiresIn, setExpiresIn] = useState(0);
-  const [cooldown, setCooldown] = useState(0);
+  const [hasChallenge, setHasChallenge] = useState(false);
+  const [expiryDeadline, setExpiryDeadline] = useState(0); // absolute ms timestamp
+  const [cooldownDeadline, setCooldownDeadline] = useState(0); // absolute ms timestamp
   const [attemptsRemaining, setAttemptsRemaining] = useState(5);
-  const mountedRef = useRef(false);
+  const [, setTick] = useState(0); // force re-render for deadline display
 
-  const applyResponse = useCallback((data) => {
+  const busyRef = useRef(false); // synchronous guard for overlapping handlers
+
+  const applyMetadata = useCallback((data) => {
+    if (!data) return;
     if (data.expires_at) {
-      const secondsLeft = Math.max(0, Math.round((new Date(data.expires_at).getTime() - Date.now()) / 1000));
-      setExpiresIn(secondsLeft);
+      setExpiryDeadline(new Date(data.expires_at).getTime());
+      setHasChallenge(true);
     }
     if (data.cooldown_seconds != null) {
-      setCooldown(data.cooldown_seconds);
+      setCooldownDeadline(Date.now() + data.cooldown_seconds * 1000);
     } else if (data.retry_after_seconds != null) {
-      setCooldown(data.retry_after_seconds);
+      setCooldownDeadline(Date.now() + data.retry_after_seconds * 1000);
     }
     if (data.attempts_remaining != null) {
       setAttemptsRemaining(data.attempts_remaining);
     }
   }, []);
 
+  // Apply error metadata from any error response — used in ALL error paths.
+  const applyError = useCallback((errData, fallbackMessage) => {
+    const message = errData?.message || fallbackMessage || "Something went wrong. Please try again.";
+    setError(message);
+    setInfo("");
+    if (errData?.expires_at) {
+      setExpiryDeadline(new Date(errData.expires_at).getTime());
+      setHasChallenge(true);
+    } else if (errData?.error === "expired" || errData?.error === "too_many_attempts") {
+      setHasChallenge(false);
+    }
+    if (errData?.retry_after_seconds != null) {
+      setCooldownDeadline(Date.now() + errData.retry_after_seconds * 1000);
+    }
+    if (errData?.attempts_remaining != null) {
+      setAttemptsRemaining(errData.attempts_remaining);
+    }
+  }, []);
+
   // --- Initial mount: resume existing challenge or request new ---
   useEffect(() => {
-    if (mountedRef.current) return;
-    mountedRef.current = true;
+    let active = true;
     (async () => {
       try {
         const { data } = await base44.functions.invoke("requestMfaOtp", { mode: "resume" });
-        applyResponse(data);
-        if (!data.resumed) {
-          setInfo("A new verification code has been sent to your email.");
+        if (!active) return;
+        applyMetadata(data);
+        if (data.resumed || data.success) {
+          setHasChallenge(true);
+          if (!data.resumed) {
+            setInfo("A new verification code has been sent to your email.");
+          }
         }
       } catch (err) {
-        setError(err?.response?.data?.message || "We couldn't load your verification challenge. Please try again.");
+        if (!active) return;
+        const errData = err?.response?.data;
+        applyError(errData, "We couldn't load your verification challenge. Please try again.");
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     })();
-  }, [applyResponse]);
+    return () => { active = false; };
+  }, [applyMetadata, applyError]);
 
-  // --- Expiry countdown ---
+  // --- Absolute-deadline countdown (recalculates from Date.now each tick) ---
   useEffect(() => {
-    if (expiresIn <= 0) return;
-    const timer = setInterval(() => setExpiresIn((s) => Math.max(0, s - 1)), 1000);
+    const timer = setInterval(() => setTick((t) => t + 1), 1000);
     return () => clearInterval(timer);
-  }, [expiresIn > 0]);
+  }, []);
 
-  // --- Cooldown countdown ---
+  // --- Recalculate on visibility/focus (catches time elapsed while tab hidden) ---
   useEffect(() => {
-    if (cooldown <= 0) return;
-    const timer = setInterval(() => setCooldown((s) => Math.max(0, s - 1)), 1000);
-    return () => clearInterval(timer);
-  }, [cooldown > 0]);
+    const recalc = () => setTick((t) => t + 1);
+    document.addEventListener("visibilitychange", recalc);
+    window.addEventListener("focus", recalc);
+    return () => {
+      document.removeEventListener("visibilitychange", recalc);
+      window.removeEventListener("focus", recalc);
+    };
+  }, []);
+
+  const expiresIn = secondsUntil(expiryDeadline);
+  const cooldown = secondsUntil(cooldownDeadline);
 
   // --- Resend ---
   const handleResend = async () => {
-    if (busy || cooldown > 0) return;
+    if (busyRef.current || cooldown > 0) return;
+    busyRef.current = true;
     setBusy(true);
+    setAction("sending");
     setError("");
     setInfo("");
     setCode("");
     try {
       const { data } = await base44.functions.invoke("requestMfaOtp", { mode: "resend" });
-      applyResponse(data);
+      applyMetadata(data);
+      setHasChallenge(true);
       setInfo("A new verification code has been sent to your email.");
     } catch (err) {
       const errData = err?.response?.data;
-      if (errData?.error === "cooldown" || errData?.error === "rate_limited") {
-        setError(errData.message);
-        if (errData.retry_after_seconds != null) setCooldown(errData.retry_after_seconds);
-        if (errData.expires_at) {
-          const s = Math.max(0, Math.round((new Date(errData.expires_at).getTime() - Date.now()) / 1000));
-          setExpiresIn(s);
-        }
-      } else {
-        setError(errData?.message || "We couldn't send your verification code. Please try again.");
-      }
+      applyError(errData, "We couldn't send your verification code. Please try again.");
     } finally {
+      busyRef.current = false;
       setBusy(false);
+      setAction("idle");
     }
   };
 
   // --- Verify ---
   const handleVerify = async () => {
-    if (busy) return;
-    const cleaned = code.replace(/\D/g, "");
+    if (busyRef.current) return;
+    const cleaned = code.replace(/\s/g, "");
     if (!/^\d{6}$/.test(cleaned)) {
       setError("Please enter all 6 digits.");
       return;
     }
+    busyRef.current = true;
     setBusy(true);
+    setAction("verifying");
     setError("");
     setInfo("");
     try {
@@ -118,23 +157,12 @@ export default function VerifyMfa() {
       window.location.href = getPostAuthRedirect() || "/play";
     } catch (err) {
       const errData = err?.response?.data;
-      if (errData?.error === "too_many_attempts") {
-        setError(errData.message);
-        setAttemptsRemaining(0);
-      } else if (errData?.error === "expired") {
-        setError(errData.message);
-        setExpiresIn(0);
-      } else if (errData?.error === "already_used") {
-        setError(errData.message);
-      } else if (errData?.error === "invalid") {
-        setError(errData.message || "Invalid code. Please try again.");
-        if (errData.attempts_remaining != null) setAttemptsRemaining(errData.attempts_remaining);
-      } else {
-        setError(errData?.message || "Verification failed. Please try again.");
-      }
+      applyError(errData, "Verification failed. Please try again.");
       setCode("");
     } finally {
+      busyRef.current = false;
       setBusy(false);
+      setAction("idle");
     }
   };
 
@@ -172,9 +200,10 @@ export default function VerifyMfa() {
             maxLength={6}
             value={code}
             onChange={(val) => setCode(val.replace(/\D/g, "").slice(0, 6))}
+            pasteTransformer={(pasted) => pasted.replace(/[\s-]/g, "")}
             autoFocus
             autoComplete="one-time-code"
-            disabled={busy}
+            disabled={busy || attemptsRemaining <= 0}
           >
             <InputOTPGroup>
               <InputOTPSlot index={0} />
@@ -188,20 +217,27 @@ export default function VerifyMfa() {
         </div>
 
         <p className="text-center text-xs text-muted-foreground mb-6">
-          {expiresIn > 0
-            ? `Code expires in ${formatTime(expiresIn)}`
-            : "Code expired — request a new one"}
+          {!hasChallenge
+            ? "No active verification challenge — request a new code"
+            : expiresIn > 0
+              ? `Code expires in ${formatTime(expiresIn)}`
+              : "Code expired — request a new one"}
         </p>
 
         <Button
           className="w-full h-12 font-medium"
           onClick={handleVerify}
-          disabled={busy || code.length < 6 || expiresIn <= 0}
+          disabled={busy || code.length < 6 || expiresIn <= 0 || attemptsRemaining <= 0}
         >
-          {busy ? (
+          {action === "verifying" ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               Verifying...
+            </>
+          ) : action === "sending" ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Sending...
             </>
           ) : (
             "Verify"
@@ -215,7 +251,7 @@ export default function VerifyMfa() {
             disabled={cooldown > 0 || busy}
             className="text-primary font-medium hover:underline disabled:text-muted-foreground disabled:no-underline"
           >
-            {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend Code"}
+            {action === "sending" ? "Sending..." : cooldown > 0 ? `Resend in ${cooldown}s` : "Resend Code"}
           </button>
         </p>
 
