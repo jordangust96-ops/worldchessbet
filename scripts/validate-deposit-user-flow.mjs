@@ -1,3 +1,4 @@
+import * as pricing from '../base44/shared/depositPricing.js';
 import assert from 'node:assert/strict';
 import {loadBackend} from './helpers/load-backend.mjs';
 import * as ages from '../base44/shared/playerAgePolicy.js';
@@ -16,6 +17,7 @@ async function depositHarness({verified=true,hold=false,location='approved',bank
  }}};
  const {handler}=await loadBackend('base44/functions/submitSeamlessDeposit/entry.ts',{
  'npm:@base44/sdk@0.8.38':{createClientFromRequest:()=>sdk},
+ '../../shared/depositPricing.js':pricing,
  '../../shared/seamlessFundingConfig.ts':{seamlessDepositsEnabled:()=>true},
  '../../shared/complianceEvidence.ts':{extendComplianceEvidenceRetention:async()=>({authorization_id:'auth1'})},
  '../../shared/playerAgePolicy.js':ages,
@@ -26,7 +28,7 @@ async function depositHarness({verified=true,hold=false,location='approved',bank
  '../../shared/integrationEvents.ts':{recordIntegrationEvent:async()=>{}},
  '../../shared/seamlessAtomicStore.ts':{acquireUserWalletLock:async()=>true,releaseUserWalletLock:async()=>{},claimDepositOperation:async(id,key,amount)=>op||{amount,state:'new'},saveDepositOperation:async(id,key,p)=>op=p}
  });
- return {send:(amount=10)=>handler(new Request('https://test.invalid/deposit',{method:'POST',headers:{'true-client-ip':ip},body:JSON.stringify({amount,idempotencyKey:'deposit-test-key-123',bankSourceId:'bank1'})})),state:()=>({calls,created,geoCalls,op,tx})};
+ return {send:(amount=10)=>handler(new Request('https://test.invalid/deposit',{method:'POST',headers:{'true-client-ip':ip},body:JSON.stringify({amount,depositPricingVersion:pricing.depositQuote(amount)?.version,authorizedBankDebit:pricing.depositQuote(amount)?.bankDebit,idempotencyKey:'deposit-test-key-123',bankSourceId:'bank1'})})),state:()=>({calls,created,geoCalls,op,tx})};
 }
 for(const opts of [{verified:false},{hold:true},{location:'blocked'},{location:'unknown'},{location:'verification_failed'},{bankVerified:false},{primaryChanges:true}]){
  const h=await depositHarness(opts);assert.ok((await h.send()).status>=400);assert.equal(h.state().calls,0,JSON.stringify(opts)+' never reaches provider');
@@ -40,7 +42,7 @@ h=await depositHarness({outcome:'declined'});r=await h.send();assert.equal(r.sta
 h=await depositHarness({outcome:'timeout'});assert.equal((await h.send()).status,202);assert.equal((await h.send()).status,202);assert.equal(h.state().calls,1);assert.equal(h.state().tx.status,'pending');
 h=await depositHarness({admin:true});assert.equal((await h.send()).status,200,'existing admin location policy still requires verified 21+ KYC');
 h=await depositHarness({admin:true,verified:false});assert.equal((await h.send()).status,403);
-const cache={user_id:'u1',ip_address:ip,provider:'MaxMind',geolocation_enforcement_enabled:true,enforcement_bypassed:false,verification_result:'approved',detected_country:'US',detected_state:'TX',verified_at:new Date().toISOString()};
+const cache={country_confidence:99,subdivision_confidence:99,accuracy_radius_km:5,vpn_or_proxy_detected:false,user_id:'u1',ip_address:ip,provider:'MaxMind',geolocation_enforcement_enabled:true,enforcement_bypassed:false,verification_result:'approved',detected_country:'US',detected_state:'TX',verified_at:new Date().toISOString()};
 const geoSdk={auth:{me:async()=>({id:'u1',role:'user'})},asServiceRole:{entities:{User:{update:async()=>{}},JurisdictionVerificationLog:{filter:async()=>[cache],create:async()=>{}}}}};
 const {exports:geo}=await loadBackend('base44/shared/requestJurisdiction.ts',{
  'npm:@base44/sdk@0.8.38':{createClientFromRequest:()=>geoSdk},
