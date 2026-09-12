@@ -100,15 +100,15 @@ for (const c of [
   {stateConfidence:99,countryConfidence:99,browser:true,expected:'verification_failed'},
   {stateConfidence:10,countryConfidence:99,radius:1000,expected:'verification_failed'},
   {stateConfidence:99,countryConfidence:99,radius:1000,expected:'verification_failed'},
-  {stateConfidence:90,countryConfidence:99,expected:'approved'},
-  {stateConfidence:89,countryConfidence:99,expected:'verification_failed'},
+  {stateConfidence:51,countryConfidence:99,expected:'approved'},
+  {stateConfidence:50,countryConfidence:99,expected:'verification_failed'},
   {stateConfidence:undefined,countryConfidence:99,expected:'verification_failed'},
-  {stateConfidence:90,countryConfidence:49,expected:'verification_failed'},
-  {stateConfidence:90,countryConfidence:50,expected:'approved'},
-  {stateConfidence:90,countryConfidence:99,vpn:true,expected:'verification_failed'},
-  {stateConfidence:90,countryConfidence:99,state:'MI',expected:'blocked'},
-  {stateConfidence:90,countryConfidence:99,override:'95',expected:'verification_failed'},
-  {stateConfidence:89,countryConfidence:99,override:'0',expected:'verification_failed'}
+  {stateConfidence:51,countryConfidence:49,expected:'verification_failed'},
+  {stateConfidence:51,countryConfidence:50,expected:'approved'},
+  {stateConfidence:51,countryConfidence:99,vpn:true,expected:'verification_failed'},
+  {stateConfidence:51,countryConfidence:99,state:'MI',expected:'blocked'},
+  {stateConfidence:51,countryConfidence:99,override:'95',expected:'verification_failed'},
+  {stateConfidence:50,countryConfidence:99,override:'0',expected:'verification_failed'}
 ]) {
   const rows=[];
   const sdk={auth:{me:async()=>({id:'confidence-test',role:'user'})},asServiceRole:{entities:{

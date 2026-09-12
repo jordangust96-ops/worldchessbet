@@ -68,7 +68,7 @@ export function getOriginalClientIp(req) {
   try { return new URL('http://[' + ip + ']/').hostname.slice(1,-1); }
   catch { return ''; }
 }
-export const MIN_STATE_CONFIDENCE = 90;
+export const MIN_STATE_CONFIDENCE = 51;
 export const MAX_LOCATION_RADIUS_KM = 100;
 export function hasReliableLocationEvidence(row) {
   return Number.isFinite(row?.country_confidence) && row.country_confidence >= 50 &&

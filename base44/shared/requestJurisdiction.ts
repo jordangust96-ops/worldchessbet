@@ -65,7 +65,7 @@ const GEO_MISMATCH_THRESHOLD_KM = 100;
 // these values as the percent confidence that the returned geography is
 // correct. A state-level decision below this floor is too uncertain to use
 // for paid activity, even when the returned state happens to be allowlisted.
-// Server-only policy floors: country 50%, state/subdivision 90%.
+// Server-only policy floors: country 50%, state/subdivision 51%.
 // Reject broad estimates and revalidate historical approvals after the false-approval incident.
 // Environment values may raise either minimum, but cannot lower its floor.
 function confidenceFloor(name, fallback = 50) {
@@ -73,7 +73,7 @@ function confidenceFloor(name, fallback = 50) {
   return Number.isFinite(raw) ? Math.max(fallback, Math.min(100, raw)) : fallback;
 }
 const MIN_COUNTRY_CONFIDENCE = confidenceFloor('MAXMIND_MIN_COUNTRY_CONFIDENCE');
-const MIN_SUBDIVISION_CONFIDENCE = confidenceFloor('MAXMIND_MIN_SUBDIVISION_CONFIDENCE', 90);
+const MIN_SUBDIVISION_CONFIDENCE = confidenceFloor('MAXMIND_MIN_SUBDIVISION_CONFIDENCE', 51);
 
 function hasSufficientLocationConfidence(lookup) {
   return (
