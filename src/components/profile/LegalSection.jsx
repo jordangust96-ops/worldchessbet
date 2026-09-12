@@ -1,7 +1,7 @@
 import React from "react";
 import { openCookieSettings } from "@/lib/privacy";
 import { Link } from "react-router-dom";
-import { ChevronRight, Shield, ShieldCheck, FileText, Scroll } from "lucide-react";
+import { ChevronRight, Shield, ShieldCheck, FileText, Scroll, Cookie } from "lucide-react";
 
 const legalLinks = [
   { to: "/privacy-policy", icon: Shield, label: "Privacy Policy" },
@@ -14,7 +14,17 @@ export default function LegalSection() {
   return (
     <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-5 space-y-1">
       <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">Legal</p>
-      <button onClick={openCookieSettings} className="w-full py-3 text-left text-sm text-white hover:underline">Cookie settings</button>
+      <button
+        type="button"
+        onClick={openCookieSettings}
+        className="flex w-[calc(100%+0.5rem)] items-center justify-between py-3 -mx-1 px-1 text-left hover:bg-white/[0.03] rounded-xl transition-colors"
+      >
+        <span className="flex items-center gap-3">
+          <Cookie size={16} className="text-white/40" aria-hidden="true" />
+          <span className="text-sm text-white">Cookie settings</span>
+        </span>
+        <ChevronRight size={16} className="text-white/20" aria-hidden="true" />
+      </button>
       {legalLinks.map(({ to, icon: Icon, label }) => (
         <Link
           key={to}
