@@ -52,3 +52,15 @@ export function cooldownRemaining(createdDateStr, now = new Date(), cooldownMs =
   const elapsed = now.getTime() - new Date(createdDateStr).getTime();
   return Math.max(0, Math.ceil((cooldownMs - elapsed) / 1000));
 }
+
+// Deterministic total order for MFA codes: newer = later created_date, then
+// later unique id when timestamps tie (same millisecond). Returns negative if
+// a is older, positive if a is newer, 0 only for the same record (same id).
+// Used consistently in request invalidation, resume selection, and verify
+// selection so equal-timestamp codes never leave multiple valid winners.
+export function compareCodes(a, b) {
+  const aMs = isValidTimestamp(a?.created_date) ? new Date(a.created_date).getTime() : 0;
+  const bMs = isValidTimestamp(b?.created_date) ? new Date(b.created_date).getTime() : 0;
+  if (aMs !== bMs) return aMs - bMs;
+  return String(a?.id || '').localeCompare(String(b?.id || ''));
+}

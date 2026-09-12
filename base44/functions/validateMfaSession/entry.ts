@@ -1,10 +1,5 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
-
-async function sha256Hex(text) {
-  const data = new TextEncoder().encode(text);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, '0')).join('');
-}
+import { processValidateSession } from '../../shared/mfaVerify.js';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 
 Deno.serve(async (req) => {
   try {
@@ -12,46 +7,41 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ valid: false, error: 'unauthorized' }, { status: 401 });
 
-    // Administrators can grant a permanent MFA bypass for account recovery.
-    if (user.mfa_bypass === true) {
-      return Response.json({ valid: true, bypass: true });
+    const body = await req.json().catch(() => ({}));
+    const userAgent = req.headers.get('user-agent') || '';
+
+    const store = {
+      getSessions: (userId, tokenHash) =>
+        base44.asServiceRole.entities.MfaSession.filter({
+          user_id: userId,
+          token_hash: tokenHash,
+          revoked: false,
+        }, '-created_date', 1),
+      revokeSession: (userId, sessionId) =>
+        base44.asServiceRole.entities.MfaSession.update(sessionId, { revoked: true }),
+      audit: async (userId, email, event, detail) => {
+        try {
+          await base44.asServiceRole.entities.MfaAuditLog.create({ user_id: userId, email, event, detail });
+        } catch { /* audit failure must not fail the validation */ }
+      },
+    };
+
+    const result = await processValidateSession({
+      sessionToken: body.sessionToken,
+      user,
+      store,
+      userAgent,
+    });
+
+    if (result.valid) {
+      const resBody = { valid: true };
+      if (result.bypass) resBody.bypass = true;
+      if (result.expires_at) resBody.expires_at = result.expires_at;
+      return Response.json(resBody, { status: 200 });
     }
-
-    const { sessionToken } = await req.json();
-    if (typeof sessionToken !== 'string' || sessionToken.length < 32 || sessionToken.length > 256) {
-      return Response.json({ valid: false }, { status: 401 });
-    }
-
-    const tokenHash = await sha256Hex(sessionToken);
-    const sessions = await base44.asServiceRole.entities.MfaSession.filter({
-      user_id: user.id,
-      token_hash: tokenHash,
-      revoked: false,
-    }, '-created_date', 1);
-    const session = sessions[0];
-    if (!session) return Response.json({ valid: false }, { status: 401 });
-
-    const now = new Date();
-    if (now >= new Date(session.expires_at)) {
-      await base44.asServiceRole.entities.MfaSession.update(session.id, { revoked: true });
-      return Response.json({ valid: false, expired: true }, { status: 401 });
-    }
-
-    const deviceHash = await sha256Hex(req.headers.get('user-agent') || '');
-    if (deviceHash !== session.device_hash) {
-      await base44.asServiceRole.entities.MfaSession.update(session.id, { revoked: true });
-      try {
-        await base44.asServiceRole.entities.MfaAuditLog.create({
-          user_id: user.id,
-          email: user.email,
-          event: 'session_rejected',
-          detail: 'MFA session device binding mismatch',
-        });
-      } catch { /* audit failure must not fail the validation */ }
-      return Response.json({ valid: false }, { status: 401 });
-    }
-
-    return Response.json({ valid: true, expires_at: session.expires_at });
+    const resBody = { valid: false };
+    if (result.expired) resBody.expired = true;
+    return Response.json(resBody, { status: 401 });
   } catch (error) {
     console.error(JSON.stringify({ event: 'validate_mfa_session_failed', error: error?.message || 'unknown_error' }));
     return Response.json({ valid: false, error: 'internal_error' }, { status: 500 });

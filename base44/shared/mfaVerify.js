@@ -4,6 +4,7 @@ import {
   isValidTimestamp,
   isExpired,
   isLockedOut,
+  compareCodes,
   MAX_ATTEMPTS,
   MFA_SESSION_TTL_MS,
 } from './mfaCore.js';
@@ -18,15 +19,24 @@ import {
 //   createSession(data) -> Promise<MfaSession>
 //   revokeSessions(userId) -> Promise<any>
 //   audit(userId, email, event, detail) -> Promise<void>  (must not throw)
-export async function processVerify({ code, user, store, userAgent = '', now = new Date() }) {
+export async function processVerify({ code, user, store, userAgent = '', now, clock }) {
+  // Resolve the clock: explicit clock wins; a fixed `now` is wrapped as a
+  // constant clock; otherwise the real wall clock is used. The CAS calls the
+  // clock again for a fresh time, so a test clock can advance between the
+  // pre-check and the CAS to simulate expiry during async verification.
+  const getNow = clock || (now ? () => now : () => new Date());
+  const checkNow = getNow();
+
   const normalized = normalizeOtpCode(code);
   if (!normalized) {
     return { status: 400, body: { error: 'invalid', message: 'Please enter the 6-digit code.' } };
   }
 
   const codes = await store.getActiveCodes(user.id, 10);
-  // Find the newest delivered active code.
-  const mfaCode = codes.find((c) => c.delivery_status === 'delivered');
+  // Find the newest delivered active code by deterministic order (created_date, then id).
+  const mfaCode = codes
+    .filter((c) => c.delivery_status === 'delivered')
+    .sort((a, b) => compareCodes(b, a))[0];
 
   if (!mfaCode) {
     // Check if there's a pending code (email still being sent).
@@ -45,7 +55,7 @@ export async function processVerify({ code, user, store, userAgent = '', now = n
   }
 
   // --- Expiry: >= not >, reject invalid timestamps ---
-  if (isExpired(mfaCode.expires_at, now)) {
+  if (isExpired(mfaCode.expires_at, checkNow)) {
     await store.updateCode(user.id, mfaCode.id, { status: 'active' }, { $set: { status: 'expired' } });
     await store.audit(user.id, user.email, 'otp_expired', 'Code expired before verification');
     return { status: 400, body: { error: 'expired', message: 'Your code has expired. Please request a new one.' } };
@@ -92,13 +102,16 @@ export async function processVerify({ code, user, store, userAgent = '', now = n
   }
 
   // --- Correct code: atomic CAS with full predicate ---
-  // The filter includes attempts < MAX_ATTEMPTS and expires_at >= now, so a
-  // racing fifth wrong attempt or expiry cannot bypass this transition.
+  // The filter includes delivery_status: 'delivered', attempts < MAX_ATTEMPTS,
+  // and expires_at > now (strict), so a racing fifth wrong attempt, a code
+  // whose delivery was invalidated, or expiry during the async window cannot
+  // bypass this transition. Time is refreshed immediately before the CAS.
   const verificationToken = crypto.randomUUID();
-  const nowISO = now.toISOString();
+  const casNow = getNow();
+  const casNowISO = casNow.toISOString();
   await store.updateCode(
     user.id, mfaCode.id,
-    { status: 'active', attempts: { $lt: MAX_ATTEMPTS }, expires_at: { $gte: nowISO } },
+    { status: 'active', delivery_status: 'delivered', attempts: { $lt: MAX_ATTEMPTS }, expires_at: { $gt: casNowISO } },
     { $set: { status: 'verified', verification_token: verificationToken } }
   );
   const verifiedCode = await store.getCode(user.id, mfaCode.id);
@@ -117,7 +130,7 @@ export async function processVerify({ code, user, store, userAgent = '', now = n
     .replaceAll('=', '');
   const tokenHash = await sha256Hex(sessionToken);
   const deviceHash = await sha256Hex(userAgent || '');
-  const sessionExpiresAt = new Date(now.getTime() + MFA_SESSION_TTL_MS).toISOString();
+  const sessionExpiresAt = new Date(casNow.getTime() + MFA_SESSION_TTL_MS).toISOString();
 
   // Revoke all previous sessions for this user.
   await store.revokeSessions(user.id);
@@ -126,7 +139,7 @@ export async function processVerify({ code, user, store, userAgent = '', now = n
     user_id: user.id,
     token_hash: tokenHash,
     device_hash: deviceHash,
-    verified_at: now.toISOString(),
+    verified_at: casNow.toISOString(),
     expires_at: sessionExpiresAt,
     revoked: false,
   });
@@ -137,7 +150,7 @@ export async function processVerify({ code, user, store, userAgent = '', now = n
     status: 200,
     body: {
       success: true,
-      verified_at: now.toISOString(),
+      verified_at: casNow.toISOString(),
       expires_at: sessionExpiresAt,
       session_token: sessionToken,
     },

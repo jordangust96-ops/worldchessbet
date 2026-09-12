@@ -37,6 +37,7 @@ function loadMfaModules() {
     module.isExpired = isExpired;
     module.isLockedOut = isLockedOut;
     module.cooldownRemaining = cooldownRemaining;
+    module.compareCodes = compareCodes;
     module.OTP_TTL_MS = OTP_TTL_MS;
     module.RESEND_COOLDOWN_MS = RESEND_COOLDOWN_MS;
     module.MAX_REQUESTS_PER_HOUR = MAX_REQUESTS_PER_HOUR;
@@ -89,6 +90,7 @@ function createMockStore(initialCodes = [], initialSessions = []) {
         if (val.$lt !== undefined && !(doc.attempts < val.$lt)) return false;
       } else if (key === 'expires_at' && typeof val === 'object') {
         if (val.$gte !== undefined && !(doc.expires_at >= val.$gte)) return false;
+        if (val.$gt !== undefined && !(doc.expires_at > val.$gt)) return false;
       } else if (typeof val === 'object' && val !== null) {
         // Unknown operator — fail safe (no match)
         return false;
@@ -659,6 +661,104 @@ const USER = { id: 'user-1', email: 'user@test.invalid' };
     code: '  12 34 56  ', user: USER, store, userAgent: 'TestBrowser/1.0',
   });
   assertEqual(result.status, 200, 'whitespace-stripped code verifies');
+}
+
+// Test 35: Equal-timestamp codes — deterministic order by id breaks ties (resume)
+{
+  const store = createMockStore();
+  const ts = new Date('2026-01-01T12:00:00Z').toISOString();
+  const codeA = await createDeliveredCode(store, USER.id, '111111', { createdDate: ts });
+  codeA.id = 'code_alpha';
+  const codeB = await createDeliveredCode(store, USER.id, '222222', { createdDate: ts });
+  codeB.id = 'code_beta';
+  // Same created_date — id breaks the tie: 'code_beta' > 'code_alpha'
+  const emailSender = async () => {};
+  const result = await mfa.processRequest({
+    mode: 'resume', user: USER, store, emailSender,
+    now: new Date('2026-01-01T12:00:05Z'),
+  });
+  assertEqual(result.status, 200, 'equal-timestamp resume status');
+  assert(result.body.resumed, 'equal-timestamp resume returned resumed');
+  assertEqual(result.body.expires_at, codeB.expires_at, 'resume returns newer-id code (beta)');
+}
+
+// Test 36: Equal-timestamp codes — verify selects by deterministic order
+{
+  const store = createMockStore();
+  const ts = new Date('2026-01-01T12:00:00Z').toISOString();
+  const codeA = await createDeliveredCode(store, USER.id, '111111', { createdDate: ts });
+  codeA.id = 'code_alpha';
+  const codeB = await createDeliveredCode(store, USER.id, '222222', { createdDate: ts });
+  codeB.id = 'code_beta';
+  const result = await mfa.processVerify({
+    code: '222222', user: USER, store, userAgent: 'TestBrowser/1.0',
+    now: new Date('2026-01-01T12:00:05Z'),
+  });
+  assertEqual(result.status, 200, 'equal-timestamp verify selects winner');
+  assertEqual(store.codes.find(c => c.id === 'code_beta').status, 'verified', 'beta verified (winner)');
+  assertEqual(store.codes.find(c => c.id === 'code_alpha').status, 'active', 'alpha not selected');
+}
+
+// Test 37: Out-of-order delivery — late older sender reports superseded
+{
+  const store = createMockStore();
+  // Simulate: request A creates code_A (pending). While A's email is sending,
+  // request B creates a newer code, sends email, marks delivered, invalidates A.
+  // Then A finishes and discovers it was superseded by B.
+  const emailSenderA = async () => {
+    const bCode = await store.createCode({
+      user_id: USER.id, email: USER.email,
+      code_hash: await mfa.sha256Hex('saltB' + '222222'),
+      salt: 'saltB',
+      expires_at: new Date(Date.now() + mfa.OTP_TTL_MS).toISOString(),
+      attempts: 0, status: 'active', delivery_status: 'pending',
+    });
+    await store.updateCode(USER.id, bCode.id,
+      { status: 'active', delivery_status: 'pending' },
+      { $set: { delivery_status: 'delivered' } }
+    );
+    // B invalidates strictly older active codes (including A's pending code)
+    const allActive = store.codes.filter(c => c.user_id === USER.id && c.status === 'active');
+    for (const c of allActive) {
+      if (c.id !== bCode.id && mfa.compareCodes(c, bCode) < 0) {
+        await store.updateCode(USER.id, c.id, { status: 'active' }, { $set: { status: 'invalidated' } });
+      }
+    }
+  };
+  const result = await mfa.processRequest({
+    mode: 'resend', user: USER, store, emailSender: emailSenderA,
+  });
+  assertEqual(result.status, 200, 'superseded status');
+  assert(result.body.superseded, 'superseded flag set');
+  assert(!result.body.resumed, 'not resumed (new issuance superseded)');
+  const winner = store.codes.find(c => c.status === 'active' && c.delivery_status === 'delivered');
+  assertEqual(result.body.expires_at, winner.expires_at, 'superseded returns winner expires_at');
+}
+
+// Test 38: Expiry during async verification — CAS catches it with strict $gt
+{
+  const store = createMockStore();
+  const code = '123456';
+  const expiry = new Date('2026-01-01T12:00:00Z');
+  await createDeliveredCode(store, USER.id, code, {
+    expiresAt: expiry.toISOString(),
+    now: new Date('2026-01-01T11:50:00Z'),
+  });
+  // Clock: 1st call (pre-check) → 11:59:59 (before expiry), 2nd call (CAS) →
+  // 12:00:01 (after expiry). Pre-check passes, but CAS with strict $gt fails
+  // because expires_at (12:00:00) is not > 12:00:01.
+  let callCount = 0;
+  const clock = () => {
+    callCount++;
+    if (callCount === 1) return new Date('2026-01-01T11:59:59Z');
+    return new Date('2026-01-01T12:00:01Z');
+  };
+  const result = await mfa.processVerify({
+    code, user: USER, store, userAgent: 'TestBrowser/1.0', clock,
+  });
+  assertEqual(result.status, 409, 'expiry during async verify — CAS rejected');
+  assertEqual(result.body.error, 'already_used', 'already_used when CAS fails on expiry');
+  assertEqual(store.codes.find(c => c.user_id === USER.id).status, 'active', 'code still active (CAS did not verify)');
 }
 
 // --- Summary ---

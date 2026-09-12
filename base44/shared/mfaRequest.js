@@ -8,6 +8,7 @@ import {
   isValidTimestamp,
   isExpired,
   cooldownRemaining,
+  compareCodes,
 } from './mfaCore.js';
 import { buildMfaEmail } from './mfaEmail.js';
 
@@ -32,13 +33,16 @@ import { buildMfaEmail } from './mfaEmail.js';
 export async function processRequest({ mode, user, store, emailSender, now = new Date() }) {
   const recentCodes = await store.getRecentCodes(user.id, 10);
 
-  // Find an existing delivered, active, non-expired challenge.
-  const deliveredActive = recentCodes.find(
-    (c) => c.status === 'active' &&
-          c.delivery_status === 'delivered' &&
-          isValidTimestamp(c.expires_at) &&
-          !isExpired(c.expires_at, now)
-  );
+  // Find the newest delivered, active, non-expired challenge by deterministic
+  // order (created_date, then id) so equal-timestamp ties are broken consistently.
+  const deliveredActive = recentCodes
+    .filter(
+      (c) => c.status === 'active' &&
+            c.delivery_status === 'delivered' &&
+            isValidTimestamp(c.expires_at) &&
+            !isExpired(c.expires_at, now)
+    )
+    .sort((a, b) => compareCodes(b, a))[0];
 
   // RESUME: return existing delivered active challenge without issuing a new one.
   if (mode === 'resume' && deliveredActive) {
@@ -132,22 +136,60 @@ export async function processRequest({ mode, user, store, emailSender, now = new
     };
   }
 
-  // --- Email succeeded: mark as delivered ---
+  // --- Email succeeded: try to promote own code to delivered ---
   await store.updateCode(
     user.id, newCode.id,
     { status: 'active', delivery_status: 'pending' },
     { $set: { delivery_status: 'delivered' } }
   );
 
-  // --- Invalidate strictly OLDER active codes (never newer, never self) ---
-  // Deterministic ordering by created_date: only codes older than this code
-  // are invalidated. This prevents two concurrent senders from invalidating
-  // each other — the newer one always wins, the older one is always invalidated.
-  const newCreatedMs = new Date(newCode.created_date).getTime();
+  // --- Re-read own code: a newer concurrent sender may have invalidated it ---
+  // While we were sending email, a newer request could have created a later
+  // code, marked it delivered, and invalidated ours. If our code is no longer
+  // active+delivered, we must NOT report our own (invalidated) code as the
+  // current challenge. Re-read the delivered winner and return its metadata
+  // with an honest superseded flag.
+  const selfCheck = await store.getCode(user.id, newCode.id);
+  if (!selfCheck || selfCheck.status !== 'active' || selfCheck.delivery_status !== 'delivered') {
+    const allActive = await store.getActiveCodes(user.id, 20);
+    const winner = allActive
+      .filter((c) => c.delivery_status === 'delivered' &&
+                     isValidTimestamp(c.expires_at) &&
+                     !isExpired(c.expires_at, now))
+      .sort((a, b) => compareCodes(b, a))[0];
+    if (winner) {
+      await store.audit(user.id, user.email, 'otp_superseded', 'A newer code superseded this one');
+      return {
+        status: 200,
+        body: {
+          success: true,
+          superseded: true,
+          expires_at: winner.expires_at,
+          cooldown_seconds: cooldownRemaining(winner.created_date, now),
+          attempts_remaining: MAX_ATTEMPTS - (winner.attempts || 0),
+        },
+      };
+    }
+    // No delivered winner — our code was invalidated and nothing replaced it
+    await store.audit(user.id, user.email, 'otp_failed', 'Code invalidated during delivery and no replacement found');
+    return {
+      status: 502,
+      body: {
+        error: 'delivery_failed',
+        message: 'We couldn\'t send your verification code. Please try again in a moment.',
+      },
+    };
+  }
+
+  // --- Our code IS the delivered winner: invalidate strictly older active codes ---
+  // Deterministic ordering by (created_date, then id): only codes strictly
+  // older than this code are invalidated. This prevents two concurrent senders
+  // from invalidating each other — the newer one always wins. Equal-timestamp
+  // ties are broken by id so both senders agree on the winner.
   const allActive = await store.getActiveCodes(user.id, 20);
   await Promise.all(
     allActive
-      .filter((c) => c.id !== newCode.id && new Date(c.created_date).getTime() < newCreatedMs)
+      .filter((c) => c.id !== newCode.id && compareCodes(c, newCode) < 0)
       .map((c) =>
         store.updateCode(user.id, c.id, { status: 'active' }, { $set: { status: 'invalidated' } })
       )

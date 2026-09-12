@@ -18,6 +18,8 @@ Deno.serve(async (req) => {
         base44.asServiceRole.entities.MfaCode.filter({ user_id: userId, status: 'active' }, '-created_date', limit),
       createCode: (data) =>
         base44.asServiceRole.entities.MfaCode.create(data),
+      getCode: (userId, codeId) =>
+        base44.asServiceRole.entities.MfaCode.get(codeId),
       updateCode: (userId, codeId, filter, update) =>
         base44.asServiceRole.entities.MfaCode.updateMany({ user_id: userId, id: codeId, ...filter }, update),
       audit: async (userId, email, event, detail) => {
