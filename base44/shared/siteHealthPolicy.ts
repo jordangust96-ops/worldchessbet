@@ -66,10 +66,8 @@ export function formatHealthEmail(checks: any[], checkedAt: string, digest = fal
     } else {
       const traffic = activity.traffic?.available
         ? metric('Site visits', activity.traffic.sessions, 'GA4 sessions') + metric('Page views', activity.traffic.pageViews, activity.traffic.newUsers + ' new visitor(s)')
-        : metric('Site visits', 'Unavailable', activity.traffic?.reason || 'GA4 could not be verified') + metric('New registrations', activity.registrations);
-      const trafficRows = activity.traffic?.available
-        ? '<tr>' + traffic + '</tr><tr>' + metric('New registrations', activity.registrations) + metric('Location checks', activity.locations.checks, activity.locations.uniqueUsers + ' unique user(s)') + '</tr>'
-        : '<tr>' + traffic + '</tr><tr>' + metric('Location checks', activity.locations.checks, activity.locations.uniqueUsers + ' unique user(s)') + metric('ID verifications approved', activity.identity.verified, activity.identity.rejected + ' rejected · ' + activity.identity.review + ' review') + '</tr>';
+        : metric('Site visits', 'Unavailable', activity.traffic?.reason || 'GA4 could not be verified') + metric('Page views', 'Unavailable', 'GA4 could not be verified');
+      const trafficRows = '<tr>' + traffic + '</tr><tr>' + metric('New registrations', activity.registrations) + metric('Location checks', activity.locations.checks, activity.locations.uniqueUsers + ' unique user(s)') + '</tr>';
       const wagerRows = (activity.matches.breakdown || []).map((row: any) => '<tr><td style="padding:8px 0;border-bottom:1px solid #e2e8f0;font-size:14px;">' + money(row.entryAmount) + '</td>' +
         '<td align="right" style="padding:8px 0;border-bottom:1px solid #e2e8f0;font-size:14px;">' + escape(row.created) + '</td>' +
         '<td align="right" style="padding:8px 0;border-bottom:1px solid #e2e8f0;font-size:14px;">' + escape(row.accepted) + '</td>' +
