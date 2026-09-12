@@ -201,7 +201,7 @@ ok(!/lookupWithMaxMind|geoip\.maxmind\.com|\bgetCurrentJurisdiction\b/.test(work
 //     route order / cache / fail-closed behavior (static)
 // ---------------------------------------------------------------------------
 const depositSrc = await read('src/components/wallet/DepositLocationStep.jsx');
-ok(depositSrc.includes('decision.promptEligible && <JurisdictionWaitlistOptIn'), 'deposit waitlist is shown only for a positively blocked jurisdiction');
+ok(depositSrc.includes('blocked && !checking && decision.promptEligible && <JurisdictionWaitlistOptIn'), 'deposit waitlist is shown only for a positively blocked jurisdiction');
 ok(depositSrc.includes('userEmail={user?.email}'), 'deposit waitlist uses authenticated email');
 ok(depositSrc.includes('onClick={startDeposit}'), 'location lookup requires explicit deposit intent');
 ok(!/useEffect|setTimeout|setInterval|addEventListener/.test(depositSrc), 'no automatic location checks');

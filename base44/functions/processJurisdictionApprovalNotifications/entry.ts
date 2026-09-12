@@ -39,8 +39,6 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'APP_URL not configured' }, { status: 500 });
     }
 
-    const policies = await svc.PrivacyPolicyConfig.filter({ policy_type: 'privacy_policy', is_active: true });
-    const supportEmail = policies[0]?.support_email || '';
 
     // At-most-once selection: only pending active rows. Processing/notified/
     // failed rows are never selected here, so a sent row can never be re-sent.
@@ -89,7 +87,7 @@ Deno.serve(async (req) => {
           bodyHtml,
           ctaText: 'Play ChessBet',
           ctaUrl: appUrl,
-          supportEmail,
+          supportEmail: '',
         });
 
         await base44.asServiceRole.integrations.Core.SendEmail({

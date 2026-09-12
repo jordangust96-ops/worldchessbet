@@ -29,10 +29,10 @@ import {
 // the District of Columbia. Confirms the selected location before saving and
 // gives clear success, validation, and safe retryable error states.
 
-export default function JurisdictionWaitlistOptIn({ userEmail }) {
+export default function JurisdictionWaitlistOptIn({ userEmail, initialCountry = "", initialRegion = "" }) {
   const [phase, setPhase] = useState("ask"); // ask | form | confirm | saving | success | error | declined
-  const [country, setCountry] = useState("");
-  const [region, setRegion] = useState("");
+  const [country, setCountry] = useState(ISO_COUNTRIES.some(c => c.code === initialCountry) ? initialCountry : "");
+  const [region, setRegion] = useState(initialCountry === "US" && US_REGIONS.some(r => r.code === initialRegion) ? initialRegion : "");
   const [validationError, setValidationError] = useState("");
   const [submitError, setSubmitError] = useState("");
 
@@ -100,7 +100,7 @@ export default function JurisdictionWaitlistOptIn({ userEmail }) {
           <span className="text-sm font-semibold text-foreground">You're on the list</span>
         </div>
         <p className="font-body text-sm text-muted-foreground">
-          Thanks — we'll email <span className="text-foreground">{userEmail || "you"}</span> when real-money play is available in your selected location.
+          Thanks — we'll email <span className="text-foreground">{userEmail || "you"}</span> if real-money play becomes available in your selected location.
         </p>
       </div>
     );
@@ -131,10 +131,14 @@ export default function JurisdictionWaitlistOptIn({ userEmail }) {
 
   if (phase === "ask") {
     return (
-      <div className={cardClass + " flex items-center justify-center gap-2"}>
-        <Button variant="default" size="sm" onClick={handleYes}>Yes</Button>
-        <Button variant="outline" size="sm" onClick={handleNo}>No</Button>
-      </div>
+      <section className={cardClass} aria-label="Jurisdiction availability notifications">
+        <p className="text-base font-semibold text-foreground">Get notified when ChessBet becomes available</p>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">Choose your jurisdiction and opt in to an email if it becomes approved for real-money play.</p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button variant="default" onClick={handleYes}>Notify me</Button>
+          <Button variant="outline" onClick={handleNo}>Not now</Button>
+        </div>
+      </section>
     );
   }
 
@@ -196,7 +200,7 @@ export default function JurisdictionWaitlistOptIn({ userEmail }) {
         <div className="flex items-start gap-2 text-xs text-muted-foreground">
           <Mail className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
           <span>
-            We'll use <span className="text-foreground">{userEmail || "your account email"}</span> — we never ask for your email here.
+            We'll use <span className="text-foreground">{userEmail || "your account email"}</span> for this notification.
           </span>
         </div>
 

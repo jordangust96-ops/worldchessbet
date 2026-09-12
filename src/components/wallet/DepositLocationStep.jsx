@@ -44,7 +44,6 @@ export default function DepositLocationStep({ decision, onDecision }) {
             {approved ? "Location check complete." : "Wallet setup cannot continue until your location is approved."}
           </p>
           {!approved && <p className="mt-2 text-base leading-6 text-white/90">{decision.reason || "The location check did not complete. Please try again."}</p>}
-          {!approved && <a href="mailto:hello@worldchessbet.com" className="mt-3 inline-block text-sm font-semibold text-amber-200 underline underline-offset-4">Contact support</a>}
         </div>
       )}
       {!approved && (
@@ -56,7 +55,7 @@ export default function DepositLocationStep({ decision, onDecision }) {
       {decision && decision.status !== "not_started" && !approved && (
         <div className="mt-4 space-y-3 text-sm leading-6 text-white/70">
           <p>Approved U.S. jurisdictions: {APPROVED_STATES.map(s => getRegionName(s) || s).join(", ")}.</p>
-          {decision.promptEligible && <JurisdictionWaitlistOptIn userEmail={user?.email} />}
+          {blocked && !checking && decision.promptEligible && <JurisdictionWaitlistOptIn key={`${decision.country}:${decision.state}`} userEmail={user?.email} initialCountry={decision.country} initialRegion={decision.state} />}
         </div>
       )}
     </WalletSetupStep>

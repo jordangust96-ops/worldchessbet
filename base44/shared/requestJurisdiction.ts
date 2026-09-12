@@ -373,7 +373,7 @@ export async function getRequestJurisdiction(req, context = null, policy = { fre
 
     if (geoMismatchFlag && status === 'approved') {
       status = 'verification_failed';
-      reason = 'Your location signals disagree. Please try another connection or contact support.';
+      reason = 'Your location signals disagree. Please try another connection.';
     }
 
     // Disabled/missing MaxMind configuration is a failure, never an approval.
