@@ -55,6 +55,19 @@ export function isReusableVerification(latest, ip, now, ttlMs, userId) {
  
 // Minimum evidence quality for both new decisions and historical approvals.
 // IP location remains an estimate; browser evidence can veto, never grant.
+// On ChessBet's Base44 ingress, CF-Connecting-IP identifies an internal hop.
+// True-Client-IP preserves the visitor address. Live forged-header probes on
+// both base44.app and worldchessbet.com confirmed it is replaced at ingress.
+// Never fall back to CF-Connecting-IP or a client-influenced forwarded chain.
+export function getOriginalClientIp(req) {
+  const ip = String(req?.headers?.get('true-client-ip') || '').trim();
+  if (/^(?:\d{1,3}\.){3}\d{1,3}$/.test(ip)) {
+    return ip.split('.').every(part => Number(part) <= 255 && String(Number(part)) === part) ? ip : '';
+  }
+  if (!ip.includes(':') || !/^[0-9a-f:]+$/i.test(ip)) return '';
+  try { return new URL('http://[' + ip + ']/').hostname.slice(1,-1); }
+  catch { return ''; }
+}
 export const MIN_STATE_CONFIDENCE = 90;
 export const MAX_LOCATION_RADIUS_KM = 100;
 export function hasReliableLocationEvidence(row) {
