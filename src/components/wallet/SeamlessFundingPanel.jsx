@@ -320,9 +320,6 @@ export default function SeamlessFundingPanel({
       {!bankReady && (
         <div className="rounded-3xl border border-white/5 bg-white/[0.03] p-5 space-y-4">
           <div className="flex items-start gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#C9A84C]/15 text-sm font-bold text-[#C9A84C]">
-              3
-            </div>
             <div>
               <h4 className="text-base font-semibold text-white">Connect your bank</h4>
               <p className="mt-1 text-xs leading-relaxed text-white/45">
