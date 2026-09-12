@@ -91,4 +91,43 @@ for(const path of ['base44/functions/getAnalyticsDashboard/entry.ts','src/pages/
  const output=ts.transpileModule(fs.readFileSync(path,'utf8'),{fileName:path,reportDiagnostics:true,compilerOptions:{jsx:ts.JsxEmit.ReactJSX,module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}});
  eq((output.diagnostics||[]).filter(d=>d.category===ts.DiagnosticCategory.Error).length,0);
 }
-console.log('PASS: '+checks+' Site Activity regression checks (read-only fixtures).');
+
+const handlerSource=fs.readFileSync('base44/functions/getAnalyticsDashboard/entry.ts','utf8').replace(/^import .*;\n/gm,'');
+let caller={role:'admin',email:'jordangust96@gmail.com'}, failSource=false, reads=0;
+const service=new Proxy({}, {get:()=>({filter:async()=>{reads++;if(failSource)throw new Error('unavailable');return [];}})});
+let handler;
+const apiContext=vm.createContext({
+ createClientFromRequest:()=>({auth:{me:async()=>caller},asServiceRole:{entities:service}}),
+ computeRange,readAll,buildActivityMetrics,isWalletLocationEvidence:validLocation,PRODUCTION_START:'2026-09-09T22:59:21.815Z',
+ Deno:{serve:fn=>{handler=fn;},env:{get:()=>''}},Response,Date,Map,Set,AbortSignal,
+});
+vm.runInContext(handlerSource,apiContext);
+caller=null;eq((await handler({json:async()=>({})})).status,401);eq(reads,0);
+caller={role:'user',email:'jordangust96@gmail.com'};eq((await handler({json:async()=>({})})).status,403);
+caller={role:'admin',email:'another@example.invalid'};eq((await handler({json:async()=>({})})).status,403);
+caller={role:'admin',email:'jordangust96@gmail.com'};
+eq((await handler({json:async()=>({preset:'custom',startDate:'invalid',endDate:'invalid'})})).status,400);eq(reads,0);
+const healthy=await handler({json:async()=>({preset:'today'})});
+eq(healthy.status,200);
+const json=await healthy.json();eq(json.ga4,null);eq(json.charts[0].traffic,null);eq(json.internal.depositVolume,0);
+assert.equal(JSON.stringify(json).includes('ip_address'),false);checks++;
+failSource=true;eq((await handler({json:async()=>({preset:'today'})})).status,500);
+
+const tasks=[], inserted=[];
+const analyticsSource=fs.readFileSync('src/lib/deferredAnalytics.js','utf8').replace('export function','function');
+const analyticsContext=vm.createContext({
+ window:{dataLayer:[],requestAnimationFrame:fn=>tasks.push(fn),setTimeout:(fn)=>{tasks.push(fn);return tasks.length;},addEventListener:()=>{},removeEventListener:()=>{},clearTimeout:()=>{}},
+ document:{readyState:'loading',getElementById:id=>inserted.find(s=>s.id===id),createElement:()=>({}),head:{appendChild:el=>inserted.push(el)}}
+});
+vm.runInContext(analyticsSource,analyticsContext);vm.runInContext('scheduleDeferredAnalytics()',analyticsContext);
+tasks.shift()();tasks.shift()();
+eq(inserted[0].id,'chessbet-ga4');eq(inserted.length,1);
+const pageEvents=[],ref={current:null};let location={pathname:'/play',search:''};
+const tracker=fs.readFileSync('src/components/GoogleAnalyticsTracker.jsx','utf8').replace(/^import .*;\n/gm,'').replace('export default function','function');
+const trackerContext=vm.createContext({useLocation:()=>location,useRef:()=>ref,useEffect:fn=>fn(),window:{gtag:(...args)=>pageEvents.push(args),location:{href:'https://worldchessbet.com/play'}},document:{title:'ChessBet'}});
+vm.runInContext(tracker,trackerContext);
+vm.runInContext('GoogleAnalyticsTracker(); GoogleAnalyticsTracker();',trackerContext);
+eq(pageEvents.length,1);
+location={pathname:'/wallet',search:''};vm.runInContext('GoogleAnalyticsTracker()',trackerContext);eq(pageEvents.length,2);
+console.log('PASS: '+checks+' total checks, including authorization, unavailable sources, GA failure, early collector load, and duplicate page-view protection.');
+
