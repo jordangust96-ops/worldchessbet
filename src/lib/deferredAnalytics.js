@@ -51,6 +51,11 @@ export function scheduleDeferredAnalytics() {
   // Install tiny queues immediately so application events are retained even
   // though the third-party libraries themselves are not on the render path.
   prepareGoogleAnalyticsQueue();
+  // Load the traffic collector immediately after the first paint. A 15-second
+  // wait systematically missed short visits; heavier pixels/replay stay deferred.
+  window.requestAnimationFrame(() => window.setTimeout(() => {
+    loadScript("chessbet-ga4", `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`);
+  }, 0));
   prepareMetaPixelQueue();
 
   let loaded = false;
