@@ -1,115 +1,45 @@
-const GA_MEASUREMENT_ID = "G-JLHMN26FS2";
-const META_PIXEL_ID = "1729629144899462";
-const PASSIVE_LOAD_DELAY_MS = 15000;
-const INTERACTION_LOAD_DELAY_MS = 1500;
-const SESSION_REPLAY_DELAY_MS = 10000;
-
-function prepareGoogleAnalyticsQueue() {
-  window.dataLayer = window.dataLayer || [];
-  window.gtag =
-    window.gtag ||
-    function gtag() {
-      window.dataLayer.push(arguments);
-    };
-
-  window.gtag("js", new Date());
-  // The SPA tracker sends the initial and subsequent page views. Disabling the
-  // automatic config page view prevents double-counting after deferred load.
-  window.gtag("config", GA_MEASUREMENT_ID, { send_page_view: false });
-}
-
-function prepareMetaPixelQueue() {
-  if (typeof window.fbq === "function") return;
-
-  const fbq = function pixelQueue() {
-    if (fbq.callMethod) fbq.callMethod.apply(fbq, arguments);
-    else fbq.queue.push(arguments);
-  };
-  fbq.push = fbq;
-  fbq.loaded = false;
-  fbq.version = "2.0";
-  fbq.queue = [];
-  window.fbq = fbq;
-  window._fbq = fbq;
-
-  fbq("init", META_PIXEL_ID);
-  fbq("track", "PageView");
-}
-
-function loadScript(id, src) {
+import { canTrack, safePage } from "./privacy";
+const GA_ID = "G-JLHMN26FS2";
+let lastGA = "", lastMeta = "";
+function script(id, src) {
   if (document.getElementById(id)) return;
-  const script = document.createElement("script");
-  script.id = id;
-  script.async = true;
-  script.src = src;
-  document.head.appendChild(script);
+  const el = document.createElement("script");
+  el.id = id; el.async = true; el.src = src;
+  document.head.appendChild(el);
 }
-
+export function syncOptionalAnalytics() {
+  if (canTrack("analytics")) {
+    window["ga-disable-" + GA_ID] = false;
+    if (!window.gtag) {
+      window.dataLayer = [];
+      window.gtag = function() { window.dataLayer.push(arguments); };
+      window.gtag("consent", "default", { analytics_storage: "granted", ad_storage: "denied", ad_user_data: "denied", ad_personalization: "denied" });
+      window.gtag("js", new Date());
+      window.gtag("config", GA_ID, { send_page_view: false, allow_google_signals: false, allow_ad_personalization_signals: false, cookie_expires: 15552000, ...safePage() });
+      window.__chessbetTrackingLoaded = true;
+      script("chessbet-ga4", "https://www.googletagmanager.com/gtag/js?id=" + GA_ID);
+    }
+    if (lastGA !== location.pathname) {
+      lastGA = location.pathname;
+      window.gtag("event", "page_view", safePage());
+    }
+  }
+  // Meta reads the document URL itself. Never load it on URLs with parameters.
+  if (canTrack("marketing") && !location.search && !location.hash) {
+    if (!window.fbq) {
+      const fbq = function() { if (fbq.callMethod) fbq.callMethod.apply(fbq, arguments); else fbq.queue.push(arguments); };
+      fbq.push = fbq; fbq.loaded = true; fbq.version = "2.0"; fbq.queue = [];
+      window.fbq = fbq; window._fbq = fbq;
+      fbq("consent", "grant");
+      fbq("set", "autoConfig", false, "1729629144899462");
+      fbq("init", "1729629144899462");
+      window.__chessbetTrackingLoaded = true;
+      script("chessbet-meta-pixel", "https://connect.facebook.net/en_US/fbevents.js");
+    }
+    if (lastMeta !== location.pathname) { lastMeta = location.pathname; window.fbq("track", "PageView"); }
+  }
+}
 export function scheduleDeferredAnalytics() {
-  if (typeof window === "undefined") return;
-
-  // Install tiny queues immediately so application events are retained even
-  // though the third-party libraries themselves are not on the render path.
-  prepareGoogleAnalyticsQueue();
-  // Load the traffic collector immediately after the first paint. A 15-second
-  // wait systematically missed short visits; heavier pixels/replay stay deferred.
-  window.requestAnimationFrame(() => window.setTimeout(() => {
-    loadScript("chessbet-ga4", `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`);
-  }, 0));
-  prepareMetaPixelQueue();
-
-  let loaded = false;
-  let timerId;
-
-  const load = () => {
-    if (loaded) return;
-    loaded = true;
-    if (timerId) window.clearTimeout(timerId);
-    window.removeEventListener("load", schedulePassiveLoad);
-    window.removeEventListener("pointerdown", scheduleAfterInteraction);
-    window.removeEventListener("keydown", scheduleAfterInteraction);
-
-    loadScript(
-      "chessbet-ga4",
-      `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`
-    );
-    loadScript(
-      "chessbet-meta-pixel",
-      "https://connect.facebook.net/en_US/fbevents.js"
-    );
-
-    // Session replay is the most CPU-intensive telemetry dependency. Start it
-    // well after conversion pixels so it cannot interrupt navigation or the
-    // first meaningful interaction on a low-end mobile device.
-    window.setTimeout(() => {
-      import("@heycatch/sdk")
-        .then(({ analytics }) =>
-          analytics.init({
-            projectKey: "hck_pk_Q3LEgDjnK_AjVkiSmzmd6bQl0SEtDlNr",
-            install: { framework: "vite-react", agent: "other" },
-          })
-        )
-        .catch(() => {
-          // Telemetry must never delay or break the visitor experience.
-        });
-    }, SESSION_REPLAY_DELAY_MS);
-  };
-
-  const schedulePassiveLoad = () => {
-    timerId = window.setTimeout(load, PASSIVE_LOAD_DELAY_MS);
-  };
-
-  const scheduleAfterInteraction = () => {
-    if (loaded) return;
-    if (timerId) window.clearTimeout(timerId);
-    timerId = window.setTimeout(load, INTERACTION_LOAD_DELAY_MS);
-  };
-
-  if (document.readyState === "complete") schedulePassiveLoad();
-  else window.addEventListener("load", schedulePassiveLoad, { once: true });
-
-  // Preserve measurement for engaged visitors without making their first tap
-  // compete with analytics, pixels, or session replay on the main thread.
-  window.addEventListener("pointerdown", scheduleAfterInteraction, { once: true, passive: true });
-  window.addEventListener("keydown", scheduleAfterInteraction, { once: true });
+  window.addEventListener("chessbet:privacy-change", syncOptionalAnalytics);
 }
+
