@@ -27,7 +27,7 @@ function mount(invoke, decision = null, user = { id: "test-user", email: "test@e
     return dependencies[name];
   } });
   const tree = module.exports.default({ decision, onDecision: d => delivered.push(d) });
-  return { tree, delivered, button: tree.props.children[0] };
+  return { tree, delivered, button: React.Children.toArray(tree.props.children).find(child => child.type === "button") || false };
 }
 let calls = 0, resolve;
 const mounted = mount((name, payload) => {
