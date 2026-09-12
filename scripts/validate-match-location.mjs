@@ -179,3 +179,66 @@ for(const name of ['createMatch','acceptMatch'])
   assert.ok(fs.readFileSync('base44/functions/'+name+'/entry.ts','utf8').includes('await runContestEligibility(req, {'));
 assert.ok(fs.readFileSync('base44/shared/runContestEligibility.ts','utf8').includes('getRequestJurisdiction(req, {'));
 console.log('Match location passed: match/user binding, two-player freshness, failure/expiry refusal, original edge IP, fresh provider checks for every role, and no game creation on invalid evidence.');
+
+// Integrate the actual create/join eligibility and reservation handlers with
+// actual shared geolocation. Only provider, account storage and ledger are mocked.
+for (const role of ['user','admin']) for (const scenario of [
+  {state:'GA',confidence:51,eligible:true},
+  {state:'GA',confidence:50,eligible:false},
+  {state:'MI',confidence:70,eligible:false},
+  {state:'GA',confidence:99,vpn:true,eligible:false},
+  {state:'GA',confidence:99,missingIp:true,eligible:false},
+  {state:'GA',confidence:99,outage:true,eligible:false},
+]) {
+  let lookups=0, writes=0;
+  const original=new Request('https://example.invalid',{method:'POST',headers:{
+    ...(scenario.missingIp?{}:{'true-client-ip':'172.56.124.196'}),
+    'cf-connecting-ip':'74.220.48.45','x-forwarded-for':'198.51.100.77'
+  },body:'{}'});
+  const currentUser={id:'p1',role};
+  const sdk={auth:{me:async()=>currentUser},asServiceRole:{entities:{
+    User:{get:async()=>currentUser,update:async()=>{}},
+    Wallet:{filter:async()=>[{available_balance:100}]},
+    Match:{get:async()=>({...match,player1_deposited:false,wager_amount:5,platform_service_fee:1}),update:async()=>{writes++;throw Error('unexpected financial mutation');}},
+    JurisdictionVerificationLog:{filter:async()=>[],create:async row=>{assert.equal(row.ip_address,scenario.missingIp?'':'172.56.124.196');}}
+  }}};
+  const geo=load('base44/shared/requestJurisdiction.ts',{
+    'npm:@base44/sdk@0.8.38':{createClientFromRequest:req=>{assert.equal(req,original);return sdk;}},
+    './jurisdictionGates.js':gates,'./jurisdictionRegions.js':regions
+  },{Deno:{env:{get:name=>({MAXMIND_GEOIP_ENABLED:'true',MAXMIND_ACCOUNT_ID:'test',MAXMIND_LICENSE_KEY:'test'})[name]}},
+    fetch:async url=>{lookups++;assert.ok(url.endsWith('/172.56.124.196'));if(scenario.outage)throw Error('provider unavailable');return Response.json({country:{iso_code:'US',confidence:99},subdivisions:[{iso_code:scenario.state,confidence:scenario.confidence}],location:{accuracy_radius:100},traits:{is_anonymous_vpn:!!scenario.vpn}});}
+  }).exports;
+  const dependencies={
+    'npm:@base44/sdk@0.8.38':{createClientFromRequest:()=>sdk},
+    './seamlessFundingConfig.ts':{paidContestsEnabled:()=>true},
+    './playerAgePolicy.js':{meetsStateAge:()=>true},
+    './identityEligibility.js':{hasVerifiedIdentity:async()=>true},
+  };
+  const eligibility=load('base44/shared/runContestEligibility.ts',{
+    ...dependencies,'./requestJurisdiction.ts':geo
+  }).exports;
+  for(const triggerEvent of ['create_match','accept_match']) {
+    const result=await (await eligibility.runContestEligibility(original,{entryAmount:5,triggerEvent})).json();
+    assert.equal(result.eligible,scenario.eligible,role+' '+triggerEvent+' '+JSON.stringify(scenario));
+  }
+  assert.equal(lookups,scenario.missingIp?0:2);
+  if(!scenario.eligible) {
+    const matchHelpers=load('base44/shared/matchLocation.ts',{'./requestJurisdiction.ts':geo,'./matchLocationPolicy.js':policyModule}).exports;
+    const reservation=load('base44/shared/lockWager.ts',{
+      ...dependencies,'./matchLocation.ts':matchHelpers,
+      './ledger.ts':{postLedgerLegs:async()=>{writes++;throw Error('unexpected ledger write');}},
+      './integrationEvents.ts':{recordIntegrationEvent:async()=>{}},
+      './seamlessAtomicStore.ts':{acquireUserWalletLock:async()=>true,releaseUserWalletLock:async()=>{}}
+    }).exports;
+    const result=await reservation.lockWager(original,{matchId:'m'});
+    assert.equal(result.status,403,role+' reservation '+JSON.stringify(scenario));
+    assert.equal(writes,0);
+  }
+}
+// The final gate applies the same 51% evidence quality to both players.
+for(const userId of ['p1','p2']) {
+  assert.equal(isMatchLocationEvidence({...evidence(userId),subdivision_confidence:51},match,userId,now),true);
+  for(const patch of [{subdivision_confidence:50},{subdivision_confidence:10,accuracy_radius_km:1000}])
+    assert.equal(isMatchLocationEvidence({...evidence(userId),...patch},match,userId,now),false);
+}
+console.log('Cross-path integration passed for users/admins: create/join 51% approval, 50% denial, MI denial, VPN, missing visitor IP, provider outage, and zero reservation writes on location failure.');
