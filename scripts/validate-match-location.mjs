@@ -97,6 +97,7 @@ for(const role of ['user','admin']) {
 // State-confidence boundary regression: execute the real handler with mocked
 // provider/SDK so these checks never call MaxMind or change player records.
 for (const c of [
+  {stateConfidence:99,countryConfidence:99,browser:true,expected:'verification_failed'},
   {stateConfidence:10,countryConfidence:99,radius:1000,expected:'verification_failed'},
   {stateConfidence:99,countryConfidence:99,radius:1000,expected:'verification_failed'},
   {stateConfidence:90,countryConfidence:99,expected:'approved'},
@@ -119,17 +120,17 @@ for (const c of [
   },{
     Deno:{env:{get:name=>({MAXMIND_GEOIP_ENABLED:'true',MAXMIND_ACCOUNT_ID:'test',MAXMIND_LICENSE_KEY:'test',MAXMIND_MIN_SUBDIVISION_CONFIDENCE:c.override})[name]}},
     fetch:async()=>Response.json({country:{iso_code:'US',confidence:c.countryConfidence},
-      subdivisions:[{iso_code:c.state||'GA',confidence:c.stateConfidence}],location:{accuracy_radius:c.radius??5},traits:{is_anonymous_vpn:!!c.vpn}})
+      subdivisions:[{iso_code:c.state||'GA',confidence:c.stateConfidence}],location:{accuracy_radius:c.radius??5,latitude:33.75,longitude:-84.39},traits:{is_anonymous_vpn:!!c.vpn}})
   }).exports;
   const result=await (await geo.getRequestJurisdiction(
     new Request('https://example.invalid',{headers:{'cf-connecting-ip':'198.51.100.1'}}),
-    {triggerEvent:'manual'},{fresh:true,requireLocation:true}
+    {triggerEvent:'manual',...(c.browser?{browserGeoPermission:'granted',browserLatitude:42.33,browserLongitude:-83.05,browserAccuracyMeters:55}:{})},{fresh:true,requireLocation:true}
   )).json();
   assert.equal(result.status,c.expected,JSON.stringify(c));
   assert.equal(rows.length,1);
   assert.equal(rows[0].verification_result,c.expected);
 }
-console.log('State confidence: 11 boundary cases passed, including false GA approval, radius, country, VPN and region restrictions.');
+console.log('State confidence: 12 boundary cases passed, including false GA approval, radius, country, VPN and region restrictions.');
 
 // Execute both actual start handlers: invalid evidence must cause zero writes,
 // zero game creation and zero downstream start calls.

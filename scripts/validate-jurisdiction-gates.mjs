@@ -226,3 +226,4 @@ ok(!depositSrc.includes('getRequestJurisdiction'), 'deposits do not repeat curre
 ok(depositSrc.includes('await walletOnboardingLocation(base44, user.id)') && !depositSrc.includes('getRequestJurisdiction'), 'deposit requires saved approval, never current location');
 
 console.log(`jurisdiction-gates: ${pass} assertions passed (no network).`);
+for(const patch of [{subdivision_confidence:10},{accuracy_radius_km:1000},{geo_mismatch_flag:true},{country_confidence:undefined},{accuracy_radius_km:undefined},{is_anycast:true},{is_satellite_provider:true}]) assert.equal(isReusableVerification(reusableBase(patch),IP,now,undefined,UID),false,JSON.stringify(patch));
