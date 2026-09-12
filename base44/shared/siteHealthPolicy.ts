@@ -1,6 +1,6 @@
 
 /** Email-safe HTML: explicit block spacing survives clients that collapse raw newlines. */
-export function formatHealthEmail(checks: any[], checkedAt: string, digest = false, recovered = false) {
+export function formatHealthEmail(checks: any[], checkedAt: string, digest = false, recovered = false, activity: any = null) {
   const escape = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]!));
   const status = overall(checks);
   const themes: Record<string, { title: string; color: string; background: string }> = {
@@ -47,7 +47,49 @@ export function formatHealthEmail(checks: any[], checkedAt: string, digest = fal
     '<h2 style="margin:28px 0 4px;font-size:19px;line-height:1.4;">' + title + ' (' + items.length + ')</h2>' +
     (items.length ? '<table role="presentation" width="100%" cellspacing="0" cellpadding="0">' + cards(items, compact) + '</table>' :
       '<p style="margin:10px 0;font-size:14px;line-height:1.6;color:#475569;">' + empty + '</p>');
-  const kind = digest ? 'Daily summary' : recovered ? 'Recovery update' : 'Health alert';
+  const money = (value: unknown) => '$' + Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const activityTime = (value: unknown) => {
+    const date = new Date(String(value || ''));
+    return Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Detroit', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+    }).format(date) : '';
+  };
+  const metric = (label: string, value: unknown, detail = '') => '<td width="50%" valign="top" style="padding:10px 8px;border-bottom:1px solid #e2e8f0;">' +
+    '<p style="margin:0 0 3px;font-size:12px;color:#64748b;">' + escape(label) + '</p>' +
+    '<p style="margin:0;font-size:20px;font-weight:bold;color:#0f172a;">' + escape(value) + '</p>' +
+    (detail ? '<p style="margin:3px 0 0;font-size:12px;line-height:1.4;color:#64748b;">' + escape(detail) + '</p>' : '') + '</td>';
+  let activityHtml = '';
+  if (digest && activity) {
+    if (activity.unavailable) {
+      activityHtml = '<h2 style="margin:28px 0 8px;font-size:19px;">Last 24 hours</h2>' +
+        '<p style="margin:0;padding:12px;background:#fff7ed;border-left:4px solid #c2410c;font-size:14px;line-height:1.6;">' + escape(activity.reason || 'Activity totals are unavailable.') + '</p>';
+    } else {
+      const traffic = activity.traffic?.available
+        ? metric('Site visits', activity.traffic.sessions, 'GA4 sessions') + metric('Page views', activity.traffic.pageViews, activity.traffic.newUsers + ' new visitor(s)')
+        : metric('Site visits', 'Unavailable', activity.traffic?.reason || 'GA4 could not be verified') + metric('New registrations', activity.registrations);
+      const trafficRows = activity.traffic?.available
+        ? '<tr>' + traffic + '</tr><tr>' + metric('New registrations', activity.registrations) + metric('Location checks', activity.locations.checks, activity.locations.uniqueUsers + ' unique user(s)') + '</tr>'
+        : '<tr>' + traffic + '</tr><tr>' + metric('Location checks', activity.locations.checks, activity.locations.uniqueUsers + ' unique user(s)') + metric('ID verifications approved', activity.identity.verified, activity.identity.rejected + ' rejected · ' + activity.identity.review + ' review') + '</tr>';
+      const wagerRows = (activity.matches.breakdown || []).map((row: any) => '<tr><td style="padding:8px 0;border-bottom:1px solid #e2e8f0;font-size:14px;">' + money(row.entryAmount) + '</td>' +
+        '<td align="right" style="padding:8px 0;border-bottom:1px solid #e2e8f0;font-size:14px;">' + escape(row.created) + '</td>' +
+        '<td align="right" style="padding:8px 0;border-bottom:1px solid #e2e8f0;font-size:14px;">' + escape(row.accepted) + '</td>' +
+        '<td align="right" style="padding:8px 0;border-bottom:1px solid #e2e8f0;font-size:14px;">' + escape(row.completed) + '</td></tr>').join('');
+      activityHtml = '<h2 style="margin:28px 0 4px;font-size:19px;">Last 24 hours</h2>' +
+        '<p style="margin:0 0 12px;font-size:12px;color:#64748b;">' + escape(activityTime(activity.window.start)) + ' → ' + escape(activityTime(activity.window.end)) + ' Detroit time · 24 most recently completed hours</p>' +
+        '<table role="presentation" width="100%" cellspacing="0" cellpadding="0">' + trafficRows +
+        '<tr>' + metric('ID verifications approved', activity.identity.verified, activity.identity.verifiedUsers + ' unique user(s)') + metric('Bank accounts connected', activity.banks.connected, activity.banks.verified + ' verified') + '</tr>' +
+        '<tr>' + metric('Players who deposited', activity.funding.depositingPlayers, activity.funding.depositEvents + ' deposit event(s)') + metric('Deposited', money(activity.funding.depositVolume), activity.funding.depositReturns ? money(activity.funding.depositReturns) + ' returned' : 'principal credited') + '</tr>' +
+        '<tr>' + metric('Matches created', activity.matches.created, 'avg entry ' + money(activity.matches.avgEntryAmountCreated)) + metric('Matches accepted', activity.matches.accepted, activity.matches.completed + ' completed') + '</tr>' +
+        '<tr>' + metric('Players in created/accepted matches', activity.matches.uniquePlayers) + metric('Platform revenue', money(activity.platformRevenue), 'net ledger revenue in window') + '</tr>' +
+        '</table>' +
+        '<p style="margin:18px 0 6px;font-size:14px;font-weight:bold;">Location outcomes</p>' +
+        '<p style="margin:0;font-size:14px;line-height:1.6;color:#475569;">' + escape(activity.locations.approved) + ' approved · ' + escape(activity.locations.blocked) + ' blocked · ' + escape(activity.locations.unresolved) + ' unresolved/failed.</p>' +
+        '<p style="margin:18px 0 6px;font-size:14px;font-weight:bold;">Match entry amounts</p>' +
+        (wagerRows ? '<table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><th align="left" style="padding:6px 0;font-size:12px;color:#64748b;">Entry amount</th><th align="right" style="font-size:12px;color:#64748b;">Created</th><th align="right" style="font-size:12px;color:#64748b;">Accepted</th><th align="right" style="font-size:12px;color:#64748b;">Completed</th></tr>' + wagerRows + '</table>' : '<p style="margin:0;font-size:14px;color:#64748b;">No match activity in this window.</p>') +
+        '<p style="margin:12px 0 0;font-size:12px;line-height:1.5;color:#64748b;">Financial amounts come from validated balanced journal batches. Location and onboarding figures are aggregate counts only; no personal location or identity data is included.</p>';
+    }
+  }
+  const kind = digest ? 'Daily health + activity' : recovered ? 'Recovery update' : 'Health alert';
   const body = '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>' +
     '<body style="margin:0;padding:16px;background:#f3f4f6;color:#0f172a;font-family:Arial,Helvetica,sans-serif;">' +
     '<table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center">' +
