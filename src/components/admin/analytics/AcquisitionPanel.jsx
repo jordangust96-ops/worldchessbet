@@ -10,6 +10,7 @@ export default function AcquisitionPanel({ acquisition }) {
   return (
     <div>
       <p className="text-[10px] uppercase tracking-widest text-white/30 mb-2">Acquisition</p>
+      <p className="text-xs text-white/40 mb-3">Percentages show the share of reported source rows (top 50). Source breakdowns can differ from the overall session total.</p>
       <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4 space-y-2">
         {BUCKET_ORDER.map((key) => {
           const value = buckets[key] || 0;
