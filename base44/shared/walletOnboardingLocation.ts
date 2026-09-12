@@ -1,10 +1,12 @@
-// Wallet onboarding approval is permanent; gameplay uses separate fresh evidence.
+import { hasReliableLocationEvidence } from './jurisdictionGates.js';
+import { isLocationApproved } from './jurisdictionRegions.js';
+// Wallet onboarding evidence must continue to satisfy the current quality policy.
 // Reuse genuine approvals recorded before this policy change, never User fields
 // or an identity/bank status. Later gameplay checks cannot grant/revoke onboarding.
 const LEGACY_CUTOFF = '2026-09-10T23:32:05.000Z';
 export function isWalletLocationEvidence(row, userId) {
   const time = Date.parse(row?.verified_at || '');
-  return !!row && row.user_id === userId && row.provider === 'MaxMind' &&
+  return !!row && hasReliableLocationEvidence(row) && isLocationApproved(row.detected_country,row.detected_state) && row.user_id === userId && row.provider === 'MaxMind' &&
     row.verification_result === 'approved' && row.pre_bypass_verification_result === 'approved' &&
     row.geolocation_enforcement_enabled === true && row.enforcement_bypassed === false &&
     row.vpn_or_proxy_detected === false && !!row.ip_address &&
@@ -38,5 +40,8 @@ export async function walletOnboardingLocation(base44, userId) {
   const recent = await logs.filter({user_id: userId, trigger_event: 'wallet_onboarding'}, '-verified_at', 1);
   // An invalid approval is never represented as approved.
   const last = recent[0];
-  return publicStatus(last && last.user_id === userId && last.verification_result !== 'approved' ? last : null);
+  if (last?.user_id === userId && last.verification_result === 'approved')
+    return {allowed:false,status:'verification_failed',verifiedAt:null,promptEligible:false,
+      reason:'Your previous location estimate was too uncertain. Please verify your location again using another connection.'};
+  return publicStatus(last && last.user_id === userId ? last : null);
 }

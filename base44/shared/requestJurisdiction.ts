@@ -3,6 +3,7 @@ import {
   isGeoipEnforcementEnabled,
   canAdminForceLiveCheck,
   isReusableVerification,
+  hasReliableLocationEvidence,
 } from './jurisdictionGates.js';
 import { isLocationApproved } from './jurisdictionRegions.js';
 
@@ -54,8 +55,8 @@ const BLOCKED_MESSAGE =
 
 // A mismatch beyond this distance between the MaxMind IP-derived location and
 // the browser-reported location is flagged for administrative/forensic
-// review only. It never blocks or restricts the user — browser geolocation
-// is always a secondary, non-authoritative signal.
+// review. A credible conflict rejects approval; browser coordinates can
+// never grant approval or override the provider allowlist.
 const GEO_MISMATCH_THRESHOLD_KM = 100;
 
 // Real-money jurisdiction decisions require a minimum level of MaxMind
@@ -63,22 +64,25 @@ const GEO_MISMATCH_THRESHOLD_KM = 100;
 // these values as the percent confidence that the returned geography is
 // correct. A state-level decision below this floor is too uncertain to use
 // for paid activity, even when the returned state happens to be allowlisted.
-// Server-only policy floors: country 50%, state/subdivision 10%.
-// State confidence temporarily lowered by operator request on 2026-09-10.
+// Server-only policy floors: country 50%, state/subdivision 90%.
+// Reject broad estimates and revalidate historical approvals after the false-approval incident.
 // Environment values may raise either minimum, but cannot lower its floor.
 function confidenceFloor(name, fallback = 50) {
   const raw = Number(Deno.env.get(name));
   return Number.isFinite(raw) ? Math.max(fallback, Math.min(100, raw)) : fallback;
 }
 const MIN_COUNTRY_CONFIDENCE = confidenceFloor('MAXMIND_MIN_COUNTRY_CONFIDENCE');
-const MIN_SUBDIVISION_CONFIDENCE = confidenceFloor('MAXMIND_MIN_SUBDIVISION_CONFIDENCE', 10);
+const MIN_SUBDIVISION_CONFIDENCE = confidenceFloor('MAXMIND_MIN_SUBDIVISION_CONFIDENCE', 90);
 
 function hasSufficientLocationConfidence(lookup) {
   return (
     Number.isFinite(lookup?.countryConfidence) &&
     lookup.countryConfidence >= MIN_COUNTRY_CONFIDENCE &&
     Number.isFinite(lookup?.subdivisionConfidence) &&
-    lookup.subdivisionConfidence >= MIN_SUBDIVISION_CONFIDENCE
+    lookup.subdivisionConfidence >= MIN_SUBDIVISION_CONFIDENCE &&
+    hasReliableLocationEvidence({ country_confidence:lookup.countryConfidence,
+      subdivision_confidence:lookup.subdivisionConfidence, accuracy_radius_km:lookup.accuracyRadiusKm,
+      vpn_or_proxy_detected:lookup.vpnDetected, is_anycast:lookup.isAnycast, is_satellite_provider:lookup.isSatelliteProvider })
   );
 }
 
@@ -303,7 +307,7 @@ export async function getRequestJurisdiction(req, context = null, policy = { fre
       status = 'unknown';
       reason = UNKNOWN_MESSAGE;
     } else {
-      cachedVerification = liveCheckForcedByAdmin || policy.fresh ? null : await getReusableVerification(base44, user.id, ip);
+      cachedVerification = liveCheckForcedByAdmin || policy.fresh || browserGeoPermission === 'granted' ? null : await getReusableVerification(base44, user.id, ip);
       if (cachedVerification) {
         status = cachedVerification.status;
         reason = cachedVerification.reason;
@@ -346,6 +350,31 @@ export async function getRequestJurisdiction(req, context = null, policy = { fre
       }
     }
 
+    // Browser coordinates cannot approve a location, but a credible conflict vetoes approval.
+    let geoMismatchKm;
+    let geoMismatchFlag = false;
+    if (
+      Number.isFinite(browserLatitude) && Math.abs(browserLatitude) <= 90 &&
+      Number.isFinite(browserLongitude) && Math.abs(browserLongitude) <= 180 &&
+      typeof lookupDetails.latitude === 'number' &&
+      typeof lookupDetails.longitude === 'number'
+    ) {
+      geoMismatchKm = haversineDistanceKm(
+        lookupDetails.latitude,
+        lookupDetails.longitude,
+        browserLatitude,
+        browserLongitude
+      );
+      geoMismatchFlag = browserGeoPermission === 'granted' &&
+        Number.isFinite(browserAccuracyMeters) && browserAccuracyMeters >= 0 && browserAccuracyMeters <= 10000 &&
+        geoMismatchKm > GEO_MISMATCH_THRESHOLD_KM + browserAccuracyMeters / 1000;
+    }
+
+    if (geoMismatchFlag && status === 'approved') {
+      status = 'verification_failed';
+      reason = 'Your location signals disagree. Please try another connection or contact support.';
+    }
+
     // Disabled/missing MaxMind configuration is a failure, never an approval.
     // Keep this field for historical audit compatibility; new decisions never
     // use an enforcement bypass.
@@ -381,27 +410,6 @@ export async function getRequestJurisdiction(req, context = null, policy = { fre
       jurisdiction_verification_provider: PROVIDER,
       jurisdiction_vpn_detected: vpnDetected,
     });
-
-    // Secondary, non-authoritative signal: compare the browser-reported
-    // coordinates (if the client requested and was granted permission) with
-    // MaxMind's IP-derived coordinates. Purely informational/forensic — it
-    // never affects `status` above and never blocks or restricts the user.
-    let geoMismatchKm;
-    let geoMismatchFlag = false;
-    if (
-      typeof browserLatitude === 'number' &&
-      typeof browserLongitude === 'number' &&
-      typeof lookupDetails.latitude === 'number' &&
-      typeof lookupDetails.longitude === 'number'
-    ) {
-      geoMismatchKm = haversineDistanceKm(
-        lookupDetails.latitude,
-        lookupDetails.longitude,
-        browserLatitude,
-        browserLongitude
-      );
-      geoMismatchFlag = geoMismatchKm > GEO_MISMATCH_THRESHOLD_KM;
-    }
 
     // Immutable audit log entry — every verification event is recorded, one
     // row per event, never updated or deleted. Captures every available

@@ -38,7 +38,7 @@ export function canAdminForceLiveCheck(maxmindAdminForceLiveChecks) {
 // never reusable — the earlier activation-test bypass cannot be reused once
 // enforcement is active.
 export function isReusableVerification(latest, ip, now, ttlMs, userId) {
-  if (!latest) return false;
+  if (!latest || !hasReliableLocationEvidence(latest)) return false;
   if (latest.user_id !== userId) return false;
   if (latest.ip_address !== ip) return false;
   if (latest.provider !== 'MaxMind') return false;
@@ -51,4 +51,20 @@ export function isReusableVerification(latest, ip, now, ttlMs, userId) {
   const windowMs = ttlMs == null ? VERIFICATION_CACHE_TTL_MS : ttlMs;
   if (now - verifiedAtMs > windowMs || now - verifiedAtMs < 0) return false;
   return true;
+}
+ 
+// Minimum evidence quality for both new decisions and historical approvals.
+// IP location remains an estimate; browser evidence can veto, never grant.
+export const MIN_STATE_CONFIDENCE = 90;
+export const MAX_LOCATION_RADIUS_KM = 100;
+export function hasReliableLocationEvidence(row) {
+  return Number.isFinite(row?.country_confidence) && row.country_confidence >= 50 &&
+    row.country_confidence <= 100 &&
+    Number.isFinite(row?.subdivision_confidence) && row.subdivision_confidence >= MIN_STATE_CONFIDENCE &&
+    row.subdivision_confidence <= 100 &&
+    Number.isFinite(row?.accuracy_radius_km) && row.accuracy_radius_km >= 0 &&
+    row.accuracy_radius_km <= MAX_LOCATION_RADIUS_KM &&
+    row.geo_mismatch_flag !== true && row.vpn_or_proxy_detected === false &&
+    !['is_anonymous_vpn','is_anonymous_proxy','is_public_proxy','is_hosting_provider',
+      'is_anonymous','is_tor_exit_node','is_residential_proxy','is_anycast','is_satellite_provider'].some(k=>row[k]===true);
 }
