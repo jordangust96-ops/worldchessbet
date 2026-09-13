@@ -25,8 +25,8 @@
   function clean() {
     var c = { analytics: allowed("analytics"), marketing: allowed("marketing") };
     var blocked = function(k) {
-      return /^ph_|^base44_analytics_|^lastExternalReferrer/.test(k) ||
-        (!c.analytics && /^_ga(?:_|$)|^_gid$|^_gat/.test(k)) ||
+      return /^ph_|^lastExternalReferrer/.test(k) ||
+        (!c.analytics && (/^base44_analytics_|^_ga(?:_|$)|^_gid$|^_gat/.test(k))) ||
         (!c.marketing && /^_fbp$|^_fbc$/.test(k));
     };
     ["localStorage", "sessionStorage"].forEach(function(name) {
@@ -42,6 +42,7 @@
     });
   }
   function save(p) {
+    var previouslyAllowedAnalytics = allowed("analytics");
     memory = { version: VERSION, savedAt: Date.now(), analytics: p.analytics === true && !gpc(), marketing: p.marketing === true && !gpc() };
     var persisted = true;
     try { localStorage.setItem(KEY, JSON.stringify(memory)); } catch (_) { persisted = false; }
@@ -49,12 +50,25 @@
     if (!allowed("marketing") && typeof window.fbq === "function") window.fbq("consent", "revoke");
     clean();
     window.dispatchEvent(new Event("chessbet:privacy-change"));
+    if (allowed("analytics") && !previouslyAllowedAnalytics) reportBase44PageView();
     return persisted;
+  }
+  function reportBase44PageView() {
+    if (!allowed("analytics")) return false;
+    try {
+      var appId = localStorage.getItem("base44_app_id");
+      if (!appId) return false;
+      var segments = location.pathname.split("/").filter(Boolean);
+      var pageName = segments[0] || "home";
+      originalFetch("/api/app-logs/" + encodeURIComponent(appId) + "/log-user-in-app/" + encodeURIComponent(pageName), { method: "POST" }).catch(function() {});
+      return true;
+    } catch (_) { return false; }
   }
   function blockedUrl(input) {
     try {
       var u = new URL(typeof input === "string" || input instanceof URL ? String(input) : input.url, location.href);
-      if (u.origin === location.origin && (/^\/api\/runtime\/session-recordings\//.test(u.pathname) || /^\/api\/app-logs\/[^/]+\/log-user-in-app\//.test(u.pathname) || /^\/api\/apps\/[^/]+\/analytics\//.test(u.pathname))) return true;
+      if (u.origin === location.origin && /^\/api\/runtime\/session-recordings\//.test(u.pathname)) return true;
+      if (u.origin === location.origin && (/^\/api\/app-logs\/[^/]+\/log-user-in-app\//.test(u.pathname) || /^\/api\/apps\/[^/]+\/analytics\//.test(u.pathname))) return !allowed("analytics");
       if (/(^|\.)heycatch\.(ai|com)$/.test(u.hostname)) return true;
       if (/(^|\.)(google-analytics\.com|googletagmanager\.com)$/.test(u.hostname)) return !allowed("analytics");
       if (/(^|\.)(facebook\.com|facebook\.net)$/.test(u.hostname)) return !allowed("marketing");
@@ -82,7 +96,7 @@
       return original(state, title, url);
     };
   });
-  window.ChessBetPrivacy = { read: read, choice: choice, allowed: allowed, publicPage: publicPage, save: save, clean: clean };
+  window.ChessBetPrivacy = { read: read, choice: choice, allowed: allowed, publicPage: publicPage, save: save, clean: clean, reportBase44PageView: reportBase44PageView };
   window.addEventListener("storage", function(e) {
     if (e.key === KEY || e.key === null) { clean(); location.reload(); }
   });
