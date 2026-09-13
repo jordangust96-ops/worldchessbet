@@ -320,7 +320,7 @@ Deno.serve(async (req) => {
     const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Detroit', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(now));
     const part = (type: string) => parts.find(p => p.type === type)?.value || '';
     const date = part('year') + '-' + part('month') + '-' + part('day');
-    const digest = part('hour') === '09' && previous?.last_digest_date !== date;
+    const digest = part('hour') === '06' && previous?.last_digest_date !== date;
     const previewDaily = body.preview_daily === true;
     const send = config.alerts_enabled === true && config.alert_email === 'hello@worldchessbet.com' && (notification.send || digest || previewDaily);
     const payload: any = {
