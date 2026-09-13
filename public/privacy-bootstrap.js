@@ -1,6 +1,7 @@
 /* Runs before platform-injected scripts. Keep this synchronous. */
 (function () {
   var KEY = "chessbet_cookie_preferences_v1", VERSION = 1, TTL = 180 * 86400000;
+  var APP_ID = "6a4ed72536c51cb3280d2bc6";
   var memory = null;
   var publicPaths = ["/", "/about", "/faq", "/blog", "/fair-play-integrity", "/privacy-policy", "/terms-of-service", "/official-rules"];
   function gpc() { return navigator.globalPrivacyControl === true; }
@@ -56,8 +57,7 @@
   function reportBase44PageView() {
     if (!allowed("analytics")) return false;
     try {
-      var appId = localStorage.getItem("base44_app_id");
-      if (!appId) return false;
+      var appId = localStorage.getItem("base44_app_id") || APP_ID;
       var segments = location.pathname.split("/").filter(Boolean);
       var pageName = segments[0] || "home";
       originalFetch("/api/app-logs/" + encodeURIComponent(appId) + "/log-user-in-app/" + encodeURIComponent(pageName), { method: "POST" }).catch(function() {});
