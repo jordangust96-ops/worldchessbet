@@ -4,7 +4,7 @@ const bodyFor=(f,extra={})=>({playMode:'free',entryAmount:0,serviceFee:0,creatio
 async function call(f,who,action,body={}) {return (await f.makeSdk(who).functions.invoke('manageChallenge',{action,...body})).data;}
 async function made(f,extra={}) {return (await call(f,'p1','create',bodyFor(f,extra))).match;}
 async function available(f,m) {await call(f,'p1','presence',{inviteCode:f.get(m.id).invite_code,presenceId:'free_creator_presence_123456',visible:true});return f.get(m.id);}
-async function accepted(f,m,who='p2') {await call(f,who,'accept',{inviteCode:f.get(m.id).invite_code,agree:true,entryAmount:0,serviceFee:0});return f.get(m.id);}
+async function accepted(f,m,who='p2') {await call(f,who,'accept',{inviteCode:f.get(m.id).invite_code,entryAmount:0,serviceFee:0});return f.get(m.id);}
 async function started(f,m){for(const who of ['p1','p2'])await call(f,who,'ready',{matchId:m.id,presenceId:'free_ready_session_123456',agree:true,attestationVersion:f.policy.FAIR_PLAY_ATTESTATION_VERSION});await call(f,'p1','finalize',{matchId:m.id});return f.table('Game')[0];}
 function noMoney(f){equal(f.state.lookups,0,'No location request');equal(f.state.creationLookups||0,0);equal(f.table('LedgerJournalBatch').length,0);equal(f.table('WalletTransaction').length,0);equal(f.table('LedgerEntry').length,4,'Seed money untouched');equal(f.barriers.size,0);}
 function freeFixture(){const f=fixture();f.state.location=false;f.state.paid=false;f.state.noMoney=true;for(const u of f.table('User'))Object.assign(u,{verified:false,account_state:'unverified',withdrawal_hold:true});f.table('Wallet').length=0;f.table('SeamlessBankAccount').length=0;return f;}
@@ -79,7 +79,7 @@ for(const patch of [{platform_service_fee:1},{wager_amount:5},{player1_deposited
 }
 {
  const f=freeFixture(),m=await made(f);await available(f,m);f.state.now+=10001;
- await assert.rejects(()=>accepted(f,m));equal(f.get(m.id).player2_id,undefined);noMoney(f);
+ await accepted(f,m);equal(f.get(m.id).player2_id,'p2');equal(f.get(m.id).player2_certified,false);equal(f.table('Game').length,0);await started(f,m);noMoney(f);
 }
 {
  const f=freeFixture(),m=await made(f);await available(f,m);
