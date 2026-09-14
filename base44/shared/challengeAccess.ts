@@ -1,7 +1,7 @@
 import { processValidateSession } from './mfaVerify.js';
 import { hasVerifiedIdentity } from './identityEligibility.js';
 import { paidContestsEnabled } from './seamlessFundingConfig.ts';
-import { cents } from './challengePolicy.js';
+import { cents, validEntry } from './challengePolicy.js';
 
 export class ChallengeError extends Error {
   code: string; status: number; details: any;
@@ -46,7 +46,7 @@ export async function findConflictingMatch(base44: any, userId: string, exceptId
   for (const field of ['player1_id', 'player2_id', 'challenge_claimant_id']) {
     const active = await base44.asServiceRole.entities.Match.filter({
       launch_epoch: 2, [field]: userId,
-      status: { $in: ['preparing', 'both_ready', 'in_progress', 'settling', 'cancelling'] },
+      status: { $in: ['preparing', 'both_ready', 'in_progress', 'settling', 'cancelling', 'disputed'] },
     }, '-created_date', 10);
     const conflict = active.find((m: any) => m.id !== exceptId);
     if (conflict) return conflict;
@@ -62,6 +62,8 @@ export async function findConflictingMatch(base44: any, userId: string, exceptId
 // Read-only, cost-aware gates. Available Balance only; neither pending deposits
 // nor Held Balance (including pending winnings) can qualify a player.
 export async function inspectChallengePlayer(base44: any, userId: string, match: any) {
+  if (!validEntry(match.wager_amount) || !Number.isFinite(Number(match.platform_service_fee)) || Number(match.platform_service_fee) < 0)
+    return { ready: false, code: 'invalid_terms', reason: 'This challenge has invalid financial terms.' };
   if (!paidContestsEnabled()) return { ready: false, code: 'paid_contests_disabled', reason: 'Money matches are temporarily unavailable.' };
   const user = await base44.asServiceRole.entities.User.get(userId);
   if (!user || ['suspended', 'closed'].includes(user.account_state) || user.withdrawal_hold)
@@ -82,6 +84,7 @@ export async function inspectChallengePlayer(base44: any, userId: string, match:
   return { ready: true, availableBalance: available / 100, totalRequired: required / 100 };
 }
 
+// Provider and policy details stay private when explaining a counterparty failure.
 export async function requireChallengePlayer(base44: any, userId: string, match: any, isCreator = false) {
   const state = await inspectChallengePlayer(base44, userId, match);
   if (!state.ready) {
