@@ -102,6 +102,10 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
             <Button onClick={()=>share(card)} className="h-11 rounded-xl gold-gradient font-bold text-black"><Share2 size={15} className="mr-2"/>Share</Button>
             <Button variant="outline" onClick={()=>cancel(card)} disabled={Boolean(busyId)} className="h-11 rounded-xl border-white/15 text-white/65">{busyId===card.id?'Cancelling…':'Cancel'}</Button>
           </div>
+          <button onClick={()=>copyUrl(card)} className="flex w-full items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/25 px-3 py-2.5 text-left transition hover:border-[#C9A84C]/30" aria-label="Copy challenge URL only">
+            <span className="min-w-0 truncate text-xs text-white/55">{`${window.location.origin}${card.path}`}</span>
+            <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-[#E5CA7A]">{copiedId===card.id?<><Check size={14}/>Copied</>:<><Copy size={14}/>Copy URL</>}</span>
+          </button>
           <p className="text-xs text-white/45">{card.playMode==='free'?'You can leave this screen. We’ll email you when someone accepts.':card.creatorFundsReserved ? `${Number(card.totalRequired).toFixed(2)} reserved for this match. We’ll email you when someone accepts.` : 'Both players must qualify before acceptance.'}</p>
         </>}
         {card.status==='open' && card.playMode!=='free' && !card.creatorFundsReserved && <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
