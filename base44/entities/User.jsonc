@@ -1,5 +1,22 @@
 {
   "properties": {
+    "challenge_context_code": {
+      "type": "string",
+      "rls": {
+        "read": false,
+        "write": false
+      },
+      "description": "Most recent invitation explicitly saved during wallet setup. Nonexclusive context only; never reserves funds or a match."
+    },
+    "challenge_context_saved_at": {
+      "type": "string",
+      "format": "date-time",
+      "rls": {
+        "read": false,
+        "write": false
+      },
+      "description": "When nonexclusive invitation context was saved."
+    },
     "role": {
       "type": "string",
       "description": "The role of the user in the app",
