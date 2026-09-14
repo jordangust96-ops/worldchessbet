@@ -11,7 +11,7 @@ export function walletJourneyCopy({ wallet = {}, funding = {}, pendingDeposits =
   const anotherDeposit = pending || clearing || funded || completed;
   let message = "Complete the checks below when you want to add money.";
   if (pending) message = "Deposit pending. Your request is already in progress; no need to submit it again. Follow processing and clearing in Transaction History.";
-  else if (clearing) message = "Your deposit is being verified for play. Withdrawals have a separate bank hold. Follow progress in Transaction History.";
+  else if (clearing) message = "Your deposit is being verified for play. Follow progress in Transaction History.";
   else if (funded) message = "Your wallet has available funds. See your balance above and activity in Transaction History.";
   else if (completed) message = "Your previous deposit is complete. Your current balance and transaction history are shown here.";
   else if (identity.status === "rejected") message = "Identity verification was not approved. Review the status below for next steps.";
