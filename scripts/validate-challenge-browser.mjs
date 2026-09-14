@@ -211,7 +211,9 @@ try{
     await page.getByRole('button',{name:'Create Challenge Link',exact:true}).click();
     await page.getByRole('heading',{name:'Your next match starts here',exact:true}).waitFor();
       assert.equal(new URL(page.url()).pathname+new URL(page.url()).search,'/play');
-    await page.getByRole('link',{name:'Challenge details & visibility',exact:true}).click();
+    assert.equal(await page.getByRole('link',{name:'Challenge details & visibility',exact:true}).count(),0);checks++;
+    await page.getByRole('link',{name:'Fund Wallet',exact:true}).click();
+    await page.getByRole('link',{name:'Return to Challenge',exact:true}).click();
     assert.equal(await toggle.getAttribute('aria-checked'),'true');checks++;
     assert.equal(await page.evaluate(()=>window.__challengeQA.calls.find(c=>c.body.action==='create').body.publiclyListed),true);checks++;
     await toggle.click();
@@ -247,7 +249,9 @@ try{
       await page.getByRole('heading',{name:'Your next match starts here',exact:true}).waitFor();
       assert.equal(new URL(page.url()).pathname+new URL(page.url()).search,'/play');checks++;
       assert.equal(await page.getByRole('heading',{name:'Your challenge is ready',exact:true}).count(),0);checks++;
-      await page.getByRole('link',{name:'Challenge details & visibility',exact:true}).click();
+      assert.equal(await page.getByRole('link',{name:'Challenge details & visibility',exact:true}).count(),0);checks++;
+    await page.getByRole('link',{name:'Fund Wallet',exact:true}).click();
+    await page.getByRole('link',{name:'Return to Challenge',exact:true}).click();
       await page.getByText('Host or accept a challenge to begin playing',{exact:true}).waitFor({state:'attached'});checks++;
       assert.equal(await page.getByLabel('Your shareable challenge link').inputValue(),'http://localhost:5173/challenge/'+code);checks++;
       await page.reload({waitUntil:'networkidle'});
@@ -266,7 +270,9 @@ try{
     await page.getByRole('button',{name:'Create Rematch Link',exact:true}).click();
     await page.getByRole('heading',{name:'Your next match starts here',exact:true}).waitFor();
       assert.equal(new URL(page.url()).pathname+new URL(page.url()).search,'/play');checks++;
-    await page.getByRole('link',{name:'Challenge details & visibility',exact:true}).click();
+    assert.equal(await page.getByRole('link',{name:'Challenge details & visibility',exact:true}).count(),0);checks++;
+    await page.getByRole('link',{name:'Fund Wallet',exact:true}).click();
+    await page.getByRole('link',{name:'Return to Challenge',exact:true}).click();
     await page.getByText('Host or accept a challenge to begin playing',{exact:true}).waitFor({state:'attached'});checks++;
     assert.equal(await page.getByRole('switch',{name:'Show in Find an Opponent',exact:true}).isEnabled(),false);checks++;
     assert.equal(await page.evaluate(()=>window.__challengeQA.calls.find(c=>c.body.action==='create').body.rematchOf),'qa-match');checks++;
