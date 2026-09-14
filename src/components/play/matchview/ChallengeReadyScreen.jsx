@@ -15,6 +15,9 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
   const [busy,setBusy] = useState(false);
   const [error,setError] = useState('');
   const [armed,setArmed] = useState(false);
+  const [acknowledgedUntil,setAcknowledgedUntil] = useState(0);
+  const [connectionMessage,setConnectionMessage] = useState('');
+  const latest = useRef(null);
   const [now,setNow] = useState(Date.now());
   const inFlight = useRef(false);
   const actionBusy = useRef(false);
@@ -25,8 +28,11 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
   const isP1 = match.player1_id === userId;
   const myAt = Date.parse(match[isP1 ? 'challenge_player1_ready_at' : 'challenge_player2_ready_at'] || '');
   const otherAt = Date.parse(match[isP1 ? 'challenge_player2_ready_at' : 'challenge_player1_ready_at'] || '');
-  const myReady = myAt <= now && now-myAt < CHALLENGE_READY_MS;
-  const otherReady = otherAt <= now && now-otherAt < CHALLENGE_READY_MS;
+  // The one-second countdown snapshot can predate a just-arrived heartbeat.
+  const currentTime = Date.now();
+  const myReady = armed && present.current && (acknowledgedUntil > currentTime || (myAt <= currentTime && currentTime-myAt < CHALLENGE_READY_MS));
+  const otherReady = otherAt <= currentTime && currentTime-otherAt < CHALLENGE_READY_MS;
+  latest.current={match,onRefresh,remaining:Math.max(0,challengeStartDeadline(match)-currentTime),myReady,otherReady};
   const remaining = Math.max(0,Math.ceil((challengeStartDeadline(match)-now)/1000));
   const total = Math.round((Number(match.wager_amount)+Number(match.platform_service_fee))*100)/100;
   useEffect(()=>{
@@ -34,12 +40,38 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
   },[opponentId]);
   useEffect(()=>{
     const timer=setInterval(()=>setNow(Date.now()),1000);
-    const withdraw=()=>{present.current=false;armedRef.current=false;setArmed(false);challengeRequest('unready',{matchId:match.id,presenceId:presenceId.current}).catch(()=>{});};
+    const withdraw=()=>{setAcknowledgedUntil(0);present.current=false;armedRef.current=false;setArmed(false);challengeRequest('unready',{matchId:match.id,presenceId:presenceId.current}).catch(()=>{});};
     const hide=()=>{if(document.visibilityState!=='visible')withdraw();else present.current=true;};
     window.addEventListener('pagehide',withdraw);
     document.addEventListener('visibilitychange',hide);
     return()=>{clearInterval(timer);document.removeEventListener('visibilitychange',hide);window.removeEventListener('pagehide',withdraw);withdraw();};
   },[match.id]);
+  const transient = err => {
+    const status=err?.response?.status, code=err?.response?.data?.action;
+    return (!status || status===429 || status>=500 || ['busy','wallet_busy','retry','start_retry'].includes(code));
+  };
+  const connectionError = err => transient(err)
+    ? 'Connection interrupted. Please try confirming readiness again.'
+    : challengeErrorMessage(err);
+  const acknowledge = (data,startedAt) => {
+    if(data?.ready && present.current){
+      // Count only the remaining portion of the server lease, never extend it
+      // by response latency. The server still authorizes every game start.
+      setAcknowledgedUntil(startedAt+CHALLENGE_READY_MS);
+      setConnectionMessage('');setError('');
+    }
+  };
+  const requestReady = async (action,body) => {
+    for(let attempt=0;;attempt++){
+      if(!present.current || document.visibilityState!=='visible')return null;
+      try{return await challengeRequest(action,body);}
+      catch(err){
+        if(!transient(err) || attempt>=2)throw err;
+        setConnectionMessage('Reconnecting…');
+        await new Promise(resolve=>setTimeout(resolve,350+Math.random()*350+attempt*400));
+      }
+    }
+  };
   useEffect(()=>{
     let active=true;
     const maintain=async()=>{
@@ -48,31 +80,43 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
       let finishMaintenance;
       maintenanceDone.current=new Promise(resolve=>{finishMaintenance=resolve;});
       try {
-        if(remaining===0) {
+        const state=latest.current;
+        if(state.remaining===0) {
           await challengeRequest('recover',{matchId:match.id});
-        } else {
-          if(armedRef.current && present.current) {
-            const heartbeat=await challengeRequest('heartbeat',{matchId:match.id,visible:true,presenceId:presenceId.current});
-            if(heartbeat.needsReady && active){armedRef.current=false;setArmed(false);}
-            if(!present.current || document.visibilityState!=='visible'){await challengeRequest('unready',{matchId:match.id,presenceId:presenceId.current});return;}
-          }
-          if(armedRef.current && present.current && document.visibilityState==='visible' && myReady && otherReady) await challengeRequest('finalize',{matchId:match.id});
+        } else if(armedRef.current && present.current) {
+          const startedAt=Date.now();
+          const heartbeat=await requestReady('heartbeat',{matchId:match.id,visible:true,presenceId:presenceId.current});
+          if(!active)return;
+          if(heartbeat?.needsReady){armedRef.current=false;setArmed(false);setAcknowledgedUntil(0);setConnectionMessage('Please confirm readiness again.');}
+          else acknowledge(heartbeat,startedAt);
+          if(!present.current || document.visibilityState!=='visible'){await challengeRequest('unready',{matchId:match.id,presenceId:presenceId.current});return;}
+          // Use this heartbeat's server snapshot, not stale props from before
+          // a slow refresh. Finalize itself enforces both fresh ready leases.
+          const snapshot=heartbeat?.match;
+          const both=snapshot && ['player1','player2'].every(role=>{
+            const at=Date.parse(snapshot['challenge_'+role+'_ready_at'] || '');
+            return Number.isFinite(at) && Math.abs(Date.now()-at)<CHALLENGE_READY_MS;
+          });
+          if(armedRef.current && both)await requestReady('finalize',{matchId:match.id});
         }
-        await onRefresh?.();
+        await latest.current.onRefresh?.();
+        if(active)setConnectionMessage(current=>current==='Reconnecting…'?'':current);
       } catch(err) {
         const action=err?.response?.data?.action;
-        if(active && action==='location_required') {armedRef.current=false;setArmed(false);setError('Please confirm readiness again to refresh your location.');}
+        if(active && action==='location_required') {armedRef.current=false;setArmed(false);setAcknowledgedUntil(0);setError('Please confirm readiness again to refresh your location.');}
         else if(active && action==='recovery_pending') {
-          setError('Confirming the existing reservation. No additional funds are being reserved.');
-          try { await challengeRequest('recover',{matchId:match.id}); await onRefresh?.(); } catch { /* Retry through the existing sweep. */ }
+          setConnectionMessage('Confirming your match…');
+          try { await challengeRequest('recover',{matchId:match.id}); await latest.current.onRefresh?.(); } catch {}
         }
-        else if(active && !['busy','wallet_busy','retry'].includes(action)) setError(challengeErrorMessage(err));
+        else if(active && transient(err))setConnectionMessage('Reconnecting…');
+        else if(active)setError(connectionError(err));
       } finally{inFlight.current=false;finishMaintenance();}
     };
-    maintain();
+    // Keep a stable cadence: parent refreshes and timestamp updates must not
+    // immediately trigger another heartbeat against the shared match lock.
     const timer=setInterval(maintain,3000);
     return()=>{active=false;clearInterval(timer);};
-  },[match.id,armed,myReady,otherReady,remaining===0,onRefresh]);
+  },[match.id]);
   const ready=async()=>{
     if(actionBusy.current || remaining===0 || !agree)return;
     actionBusy.current=true;
@@ -81,13 +125,16 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
       await maintenanceDone.current;
       const context=free?{}:await challengeLocationContext();
       if(!present.current || document.visibilityState!=='visible')return;
-      await challengeRequest('ready',{matchId:match.id,presenceId:presenceId.current,agree,attestationVersion:FAIR_PLAY_ATTESTATION_VERSION,...context});
+      const startedAt=Date.now();
+      const data=await requestReady('ready',{matchId:match.id,presenceId:presenceId.current,agree,attestationVersion:FAIR_PLAY_ATTESTATION_VERSION,...context});
+      if(!data)return;
+      acknowledge(data,startedAt);
       if(!present.current || document.visibilityState!=='visible'){await challengeRequest('unready',{matchId:match.id,presenceId:presenceId.current});return;}
       armedRef.current=true;setArmed(true);await onRefresh?.();
       if(!present.current || document.visibilityState!=='visible')return;
-      await challengeRequest('finalize',{matchId:match.id});await onRefresh?.();
+      await requestReady('finalize',{matchId:match.id});await onRefresh?.();
     } catch(err) {
-      if(!handleChallengeGate(err,navigate,`/play?match=${match.id}`))setError(challengeErrorMessage(err));
+      if(!handleChallengeGate(err,navigate,`/play?match=${match.id}`))setError(connectionError(err));
     } finally{actionBusy.current=false;setBusy(false);}
   };
   const cancel=async()=>{
@@ -108,6 +155,7 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
       <Button onClick={ready} disabled={busy || !agree || (armed && myReady)} className="h-12 w-full rounded-2xl gold-gradient font-bold text-black disabled:opacity-60">{busy && <Loader2 size={16} className="mr-2 animate-spin"/>}{armed && myReady?'Waiting for opponent…':'I’m Ready'}</Button>
       <p className="text-center text-xs text-white/45">Stay on this screen after confirming. Leaving withdraws your readiness; both players must be present to start.</p>
     </> : <p className="rounded-xl bg-white/5 p-3 text-sm text-white/60">{free?'The start window ended. This unstarted free game is closing.':'The start window ended. The system is closing this unstarted match and releasing both entries and fees.'}</p>}
+    {connectionMessage && <p role="status" className="text-sm text-white/60">{connectionMessage}</p>}
     {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
     <Button onClick={cancel} disabled={busy} variant="outline" className="h-10 w-full rounded-xl border-white/15 text-white/55">Cancel Before Start</Button>
   </section>;
