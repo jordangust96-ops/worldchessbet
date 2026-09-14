@@ -299,6 +299,7 @@ export async function reverseSeamlessSettlement(base44, transaction, rawAmount, 
 
   let shortfall = 0;
   if (transaction.type === 'deposit') {
+    await base44.asServiceRole.entities.WalletTransaction.update(transaction.id, { deposit_withdrawal_status: 'returned' });
     const wallet = (await base44.asServiceRole.entities.Wallet.filter({ user_id: transaction.user_id }))[0];
     const heldRecovery = transaction.deposit_hold_status === 'held'
       ? Math.min(amount, money(wallet?.held_balance))
@@ -399,6 +400,19 @@ export async function reverseSeamlessSettlement(base44, transaction, rawAmount, 
     source_event: sourceEvent,
     provider_last_checked_at: new Date().toISOString(),
   });
+  if (transaction.type === 'deposit') {
+    const findingKey = 'ach-return-review:' + transaction.id;
+    const existing = (await base44.asServiceRole.entities.OperationsFinding.filter({ finding_key: findingKey }, '-created_date', 1))[0];
+    if (!existing) await base44.asServiceRole.entities.OperationsFinding.create({
+      finding_key: findingKey, category: 'settlement_ledger', priority: shortfall > 0 ? 'critical' : 'high',
+      status: 'human_approval_required', authority_level: 'human_approval_required',
+      title: 'ACH deposit returned after settlement',
+      summary: 'Review the returned deposit, any balance due, inherited contest restrictions, and provider return fees. No additional customer fee was automatically charged.',
+      evidence: JSON.stringify({ wallet_transaction_id: transaction.id, shortfall }),
+      recommended_next_step: 'Reconcile the provider return and any related contest funds before resolving restrictions.',
+      is_approval_required: true, related_entity_type: 'wallet_transaction', related_entity_id: transaction.id,
+    });
+  }
   if (isFeeDeposit(transaction)) {
     await flagDepositReview(base44, transaction, 'returned_deposit_fee_evidence_required', 'return');
   }
@@ -426,7 +440,7 @@ export async function releaseDepositAvailability(base44, transaction) {
 
 async function releaseDepositAvailabilityUnlocked(base44, transaction) {
   const fresh = await base44.asServiceRole.entities.WalletTransaction.get(transaction.id);
-  if (fresh.type !== 'deposit' || fresh.status !== 'completed' || fresh.deposit_hold_status !== 'held') return false;
+  if (fresh.type !== 'deposit' || fresh.status !== 'completed' || fresh.deposit_hold_status !== 'held' || fresh.deposit_withdrawal_status === 'returned') return false;
   if (!PROCESSED_PLAY_ENABLED && !(Date.parse(fresh.deposit_release_at || '') <= Date.now())) return false;
   await verifyProcessedDeposit(base44, fresh);
   // Financial release and its source restriction commit in the SAME journal batch.
