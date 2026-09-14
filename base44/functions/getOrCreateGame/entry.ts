@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { matchId } = await req.json();
+    const { matchId, challengeStartOwner } = await req.json();
     if (!matchId) return Response.json({ error: 'matchId is required' }, { status: 400 });
 
     const match = await base44.asServiceRole.entities.Match.get(matchId);
@@ -46,6 +46,18 @@ Deno.serve(async (req) => {
 
     if (!LIVE_OR_POST_START_STATUSES.has(match.status)) {
       return Response.json({ error: 'This match is not in a state that can have a game attached' }, { status: 409 });
+    }
+
+    if (Number(match.challenge_version) === 1 && !match.game_id) {
+      // New invitation games can be created only by the live finalizer that
+      // still owns the match lease. Browser calls cannot start a funded but
+      // unready match or race a timeout release.
+      const { refreshContestLocks } = await import('../../shared/seamlessAtomicStore.ts');
+      const { bothChallengePlayersReady, challengeStartExpired } = await import('../../shared/challengePolicy.js');
+      if (typeof challengeStartOwner !== 'string' || !challengeStartOwner ||
+          !await refreshContestLocks(match.id, [], challengeStartOwner) ||
+          match.status !== 'both_ready' || challengeStartExpired(match) || !bothChallengePlayersReady(match))
+        return Response.json({ error:'Both players must explicitly ready up through the challenge.' },{ status:409 });
     }
 
     // Direct calls cannot bypass the same pre-start checks as the finalizer.
@@ -77,7 +89,9 @@ Deno.serve(async (req) => {
     let candidates = await base44.asServiceRole.entities.Game.filter({ match_id: matchId }, 'created_date', 10);
 
     if (candidates.length === 0) {
-      const tc = TIME_CONTROLS[match.time_control] || TIME_CONTROLS.rapid;
+      const tc = Number(match.challenge_version) === 1
+        ? { initialMs: 5 * 60 * 1000 }
+        : TIME_CONTROLS[match.time_control] || TIME_CONTROLS.rapid;
       await base44.asServiceRole.entities.Game.create({
         launch_epoch: 2,
         match_id: matchId,
