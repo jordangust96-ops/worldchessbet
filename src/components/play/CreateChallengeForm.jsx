@@ -26,7 +26,7 @@ export default function CreateChallengeForm({ initialAmount = 10, initialTimeCon
     if (request.current.terms !== terms) request.current = { terms, key:crypto.randomUUID().replaceAll('-','') };
     try {
       const result = await challengeRequest('create', { entryAmount:Number(amount), timeControl, publiclyListed, requestKey:request.current.key, ...(rematchOf ? { rematchOf } : {}) });
-      if (!result.path) throw new Error('The invitation was not returned. Please retry this request.');
+      if (!result.path || !/^[a-f0-9]{32}$/.test(result.inviteCode || '')) throw new Error('The invitation was not returned. Please retry this request.');
       if (onCreated) await onCreated(result);
       else navigate(`/play?challenge=${result.inviteCode}`);
     } catch (err) {
