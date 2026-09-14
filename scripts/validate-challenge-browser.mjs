@@ -53,6 +53,7 @@ async function scenario(name,{who=null,funded=false,status='open',hasChallenge=t
           if(body.action==='ping')return {data:{notified:true}};
           if(body.action==='recover')return {data:{match:{...match}}};
         }
+        if(name==='getOrCreateGame' && status==='completed')return {data:{game:{id:'qa-finished-game',match_id:'qa-match',launch_epoch:2,status:'completed',fen:'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',end_reason:'resignation',white_time_ms:300000,black_time_ms:300000}}};
         if(name==='ensureWallet')return {data:{wallet:{...wallet}}};
         if(name==='getUserDisplayNames')return {data:{names:{p1:'Jordan',p2:'Opponent'}}};
         if(name==='getLaunchAvailability')return {data:{paid_contests_enabled:true,deposits_enabled:true}};
