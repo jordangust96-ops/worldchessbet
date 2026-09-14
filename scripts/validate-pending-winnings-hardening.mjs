@@ -1,3 +1,4 @@
+import * as fundingPure from '../base44/shared/fundingProvenancePure.js';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { loadBackend } from './helpers/load-backend.mjs';
@@ -5,8 +6,9 @@ import { loadBackend } from './helpers/load-backend.mjs';
 const pagination = (await loadBackend('base44/shared/ledgerPagination.ts')).exports;
 let locked = false;
 let onLock = null;
+const funding = (await loadBackend('base44/shared/fundingProvenance.ts', {'./ledgerPagination.ts':pagination,'./fundingProvenancePure.js':fundingPure})).exports;
 const ledger = (await loadBackend('base44/shared/ledger.ts', {
-  './ledgerPagination.ts': pagination,
+  './ledgerPagination.ts': pagination, './fundingProvenance.ts': funding,
   './integrationEvents.ts': { recordIntegrationEvent: async () => {} },
   './seamlessAtomicStore.ts': {
     acquireLedgerLock: async () => { if (locked) return false; locked = true; if (onLock) { const f=onLock; onLock=null; f(); } return true; },
@@ -24,7 +26,7 @@ function entity(initial = []) {
     async get(id) { return structuredClone(rows.find(r => r.id === id)); },
     async filter(query, sort = 'created_date', limit = 500, skip = 0) {
       const matches = rows.filter(r => Object.entries(query).every(([k,v]) =>
-        v && typeof v === 'object' ? ('$lte' in v && r[k] <= v.$lte) : r[k] === v));
+        v && typeof v === 'object' ? ('$lte' in v ? r[k] <= v.$lte : '$in' in v ? (Array.isArray(r[k]) ? r[k].some(x=>v.$in.includes(x)) : v.$in.includes(r[k])) : '$gt' in v && r[k] > v.$gt) : r[k] === v));
       const key = sort.replace(/^-/, '');
       matches.sort((a,b) => String(a[key] ?? '').localeCompare(String(b[key] ?? '')) * (sort.startsWith('-') ? -1 : 1));
       return structuredClone(matches.slice(skip, skip + limit));
@@ -45,7 +47,7 @@ function database(payouts) {
     WalletTransaction: entity(payouts),
     Wallet: entity(payouts.map(p => ({ id: p.id, user_id: p.user_id, available_balance: 0, held_balance: 30 }))),
     SystemLedgerAccount: entity(),
-    LedgerEntry: entity(payouts.map(p => ({ id: 'seed-' + p.id, user_id: p.user_id, launch_epoch: 2,
+    LedgerEntry: entity(payouts.map(p => ({ id: 'seed-' + p.id, user_id: p.user_id, match_id: p.match_id, launch_epoch: 2,
       available_delta: 0, held_delta: 30, created_date: '2020-01-01', ledger_account: 'user_account' }))),
     LedgerJournalBatch: entity(),
     DisputeCase: entity(),

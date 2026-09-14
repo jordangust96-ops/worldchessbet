@@ -18,7 +18,7 @@ function matches(row,query) {
     if(key==='$and')return value.every(q=>matches(row,q));
     const actual=row[key];
     if(value && typeof value==='object' && !Array.isArray(value))return Object.entries(value).every(([op,v])=>
-      op==='$in'?v.includes(actual):op==='$nin'?!v.includes(actual):op==='$ne'?actual!==v:
+      op==='$in'?(Array.isArray(actual)?actual.some(x=>v.includes(x)):v.includes(actual)):op==='$nin'?!v.includes(actual):op==='$ne'?actual!==v:
       op==='$gte'?actual>=v:op==='$lte'?actual<=v:op==='$gt'?actual>v:op==='$lt'?actual<v:
       op==='$exists'?(actual!==undefined)===v:false);
     return actual===value;
@@ -32,7 +32,7 @@ function fixture() {
   const entities=new Proxy({}, {get:(_,name)=>({
     filter:async(query={},sort='',limit=500,skip=0,fields)=>{
       let rows=table(name).filter(row=>matches(row,query));
-      if(sort){const reverse=sort[0]==='-';const field=reverse?sort.slice(1):sort;rows=[...rows].sort((a,b)=>String(a[field]??'').localeCompare(String(b[field]??''))*(reverse?-1:1));}
+      if(sort){const reverse=sort[0]==='-';const field=reverse?sort.slice(1):sort;rows=[...rows].sort((a,b)=>(typeof a[field]==='number' && typeof b[field]==='number'?a[field]-b[field]:String(a[field]??'').localeCompare(String(b[field]??'')))*(reverse?-1:1));}
       rows=rows.slice(skip,skip+limit);
       return clone(rows.map(row=>fields?Object.fromEntries(['id',...fields].filter(k=>row[k]!==undefined).map(k=>[k,row[k]])):row));
     },
@@ -103,7 +103,7 @@ function fixture() {
       return load(resolved).exports;
     };
     vm.runInNewContext(compiled,{module,exports:module.exports,require:req,Date:Clock,Request,Response,Headers,URL,AbortSignal,
-      TextEncoder,TextDecoder,Map,Set,crypto:crypto.webcrypto,console:{error:(...x)=>state.errors.push(x),log:()=>{}},
+      TextEncoder,TextDecoder,Map,Set,structuredClone,crypto:crypto.webcrypto,console:{error:(...x)=>state.errors.push(x),log:()=>{}},
       setInterval:()=>1,clearInterval:()=>{},setTimeout:fn=>{fn();return 1;},clearTimeout:()=>{},
       Deno:{env:{get:()=>undefined},serve:handler=>{result.handler=handler;}},
     },{filename:file});

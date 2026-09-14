@@ -1,3 +1,5 @@
+import * as fundingPure from '../base44/shared/fundingProvenancePure.js';
+import * as timing from '../base44/shared/depositTiming.js';
 import assert from 'node:assert/strict';
 import { loadBackend } from './helpers/load-backend.mjs';
 import * as pure from '../base44/shared/depositReconciliationPure.js';
@@ -12,13 +14,14 @@ async function harness(version = 'same-day-ach-v1') {
   const provider = { success: true, check: { check_id: 'provider-1', amount: 101.01, fee: 0, status: 'processed', label: 'chessbet-deposit-tx-1' } };
   const match = (row, query) => Object.entries(query).every(([key,value]) => {
     if (value && typeof value === 'object') {
-      if ('$in' in value) return value.$in.includes(row[key]);
+      if ('$in' in value) return Array.isArray(row[key]) ? row[key].some(x=>value.$in.includes(x)) : value.$in.includes(row[key]);
+      if ('$gt' in value) return row[key]>value.$gt;
       if ('$exists' in value) return (row[key] !== undefined) === value.$exists;
     }
     return row[key] === value;
   });
   const entities = Object.fromEntries(Object.keys(db).map(name => [name, {
-    filter: async (query = {}, sort, limit = 5000, skip = 0) => clone(db[name].filter(row => match(row, query)).slice(skip, skip + limit)),
+    filter: async (query = {}, sort, limit = 5000, skip = 0) => clone(db[name].filter(row => match(row, query)).sort((a,b)=>{const key=(sort||'').replace(/^-/, '');return (typeof a[key]==='number'?a[key]-b[key]:String(a[key]||'').localeCompare(String(b[key]||'')))*(sort?.startsWith('-')?-1:1);}).slice(skip, skip + limit)),
     get: async id => clone(db[name].find(row => row.id === id)),
     create: async fields => {
       const row = { id: name + '-' + ++serial, created_date: new Date().toISOString(), ...clone(fields) };
@@ -46,17 +49,19 @@ async function harness(version = 'same-day-ach-v1') {
   };
   const eventModule = { recordIntegrationEvent: async () => {} };
   const { exports: pagination } = await loadBackend('base44/shared/ledgerPagination.ts', {});
+  const funding = (await loadBackend('base44/shared/fundingProvenance.ts', {'./ledgerPagination.ts':pagination,'./fundingProvenancePure.js':fundingPure})).exports;
   const { exports: ledger } = await loadBackend('base44/shared/ledger.ts', {
-    './ledgerPagination.ts': pagination, './integrationEvents.ts': eventModule, './seamlessAtomicStore.ts': atomic,
+    './fundingProvenance.ts': funding, './ledgerPagination.ts': pagination, './integrationEvents.ts': eventModule, './seamlessAtomicStore.ts': atomic,
   });
   const providerApi = { ...ach, seamlessRequest: async () => clone(provider) };
   const { exports: reconciliation } = await loadBackend('base44/shared/depositReconciliation.ts', {
     './seamlessAch.ts': providerApi, './ledger.ts': ledger, './depositReconciliationPure.js': pure,
   });
   const { exports: transitions } = await loadBackend('base44/shared/seamlessLedgerTransitions.ts', {
+    './seamlessAch.ts': providerApi, './depositTiming.js': timing,
     './ledger.ts': ledger, './depositReconciliation.ts': reconciliation,
     './depositReconciliationPure.js': pure, './seamlessAtomicStore.ts': atomic,
-  });
+  }, { ACH_PROCESSED_PLAY_DISABLED: 'true' });
   const { handler } = await loadBackend('base44/functions/reconcileDepositSettlement/entry.ts', {
     'npm:@base44/sdk@0.8.48': { createClientFromRequest: () => base44 },
     '../../shared/seamlessAch.ts': providerApi,
@@ -120,7 +125,7 @@ h.db.WalletTransaction[0].deposit_release_at = '2999-01-01T00:00:00Z';
 assert.equal(await h.transitions.releaseDepositAvailability(h.base44,h.tx()),false);
 h.db.WalletTransaction[0].deposit_release_at = '2026-01-01T00:00:00Z';
 h.provider.check.status = 'processing';
-await assert.rejects(h.transitions.releaseDepositAvailability(h.base44,h.tx()),/deposit_reconciliation_required/);
+await assert.rejects(h.transitions.releaseDepositAvailability(h.base44,h.tx()),/deposit_provider_verification_failed/);
 assert.equal(h.db.Wallet[0].available_balance,0);
 h.provider.check.status = 'processed';
 h.setOccupied(true);

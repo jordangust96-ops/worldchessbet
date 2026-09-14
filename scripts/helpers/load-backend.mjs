@@ -9,7 +9,7 @@ export async function loadBackend(path, dependencies = {}, environment = {}) {
   const exports = {};
   let handler;
   const context = {
-    exports, Response, Request, URL, Date, JSON, console, Blob, CompressionStream, DecompressionStream,
+    exports, Response, Request, URL, Date, JSON, structuredClone, console, Blob, CompressionStream, DecompressionStream,
     crypto: webcrypto, TextEncoder, TextDecoder, btoa, atob,
     // The mocked lease store is deterministic; background refresh timers do
     // not execute in this isolated harness. Explicit lease checks still run.
