@@ -27,7 +27,7 @@ function response(value: any, status = 200) {
 }
 
 // Enabled only after the source, schema and adversarial checks are complete.
-const IMPLEMENTATION_ENABLED = false;
+const IMPLEMENTATION_ENABLED = true;
 Deno.serve(async (req) => {
   try {
     if (!IMPLEMENTATION_ENABLED) return response({ error:'Challenge invitations are being updated.', action:'temporarily_unavailable' },503);
