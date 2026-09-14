@@ -81,7 +81,7 @@ export async function viewChallenge(base44: any, match: any, user: any) {
   const host = await base44.asServiceRole.entities.User.get(match.player1_id);
   const card = publicChallenge(match, publicName(host));
   const role = user ? roleFor(match, user.id) : '';
-  return { challenge: card, role, participant: Boolean(role),
+  return { challenge: role==='player1' ? {...card,notifyOnAccept:match.notify_on_accept!==false} : card, role, participant: Boolean(role),
     // A signed-in claimant can resume a lost response; no other identity is exposed.
     ownOperation: Boolean(user && match.challenge_claimant_id === user.id && activeOperation(match)) };
 }
@@ -193,7 +193,7 @@ export async function listMyChallenges(base44: any, user: any) {
   const rows = await base44.asServiceRole.entities.Match.filter({ launch_epoch: 2, player1_id: user.id,
     challenge_version: CHALLENGE_VERSION, status: { $in: ['searching', 'preparing', 'both_ready', 'in_progress', 'cancelling'] } }, '-created_date', 100);
   return { challenges: rows.filter((m: any) => m.status !== 'searching' || !challengeExpired(m) || activeOperation(m)).map((m: any) => ({
-    ...publicChallenge(m, publicName(user)), inviteCode: m.invite_code, path: challengePath(m.invite_code),
+    ...publicChallenge(m, publicName(user)), notifyOnAccept:m.notify_on_accept!==false, inviteCode: m.invite_code, path: challengePath(m.invite_code),
   })) };
 }
 
