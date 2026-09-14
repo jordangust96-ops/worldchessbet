@@ -5,30 +5,36 @@ import { ShieldCheck, ScanSearch, Scale } from "lucide-react";
 const STEPS = [
   {
     icon: ShieldCheck,
-    title: "Server-verified games",
-    description: "Real players. Server-verified results."
+    title: "Server-verified play",
+    description: "Moves, clocks, and results are recorded by ChessBet."
   },
   {
     icon: ScanSearch,
-    title: "Stockfish screening",
-    description: "Engine checks help keep games clean."
+    title: "Integrity screening",
+    description: "Stockfish analysis helps surface unusual patterns after play."
   },
   {
     icon: Scale,
     title: "Human review + appeals",
-    description: "Report a concern. A person reviews it."
+    description: "Report a concern. A person reviews the full context."
   },
 ];
 
 export default function HowItWorksSection() {
   return (
-    <section aria-labelledby="fair-play-section-title" className="px-6 py-20">
-      <div className="max-w-4xl mx-auto space-y-16">
+    <section aria-labelledby="trust-section-title" className="px-6 py-20">
+      <div className="max-w-4xl mx-auto space-y-10">
         {/* Header */}
         <div className="text-center space-y-3">
-          <h2 id="fair-play-section-title" className="text-2xl sm:text-3xl font-extrabold tracking-widest text-[#C9A84C] uppercase">
-            How we keep it fair
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#C9A84C]">
+            Fair play, built in
+          </p>
+          <h2 id="trust-section-title" className="text-2xl sm:text-3xl font-extrabold text-white">
+            Skill decides the game. ChessBet protects the contest.
           </h2>
+          <p className="mx-auto max-w-2xl text-sm leading-relaxed text-white/55">
+            Real money deserves serious protection. Server-recorded play, integrity screening, and human review are built into every cash-prize match.
+          </p>
         </div>
 
         {/* Steps */}
