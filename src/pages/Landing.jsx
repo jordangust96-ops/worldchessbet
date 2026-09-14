@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { openCookieSettings } from "@/lib/privacy";
 import { Link } from "react-router-dom";
-import { Crown, Zap, Shield, CircleCheck, WalletCards } from "lucide-react";
+import { Banknote, Crown, Zap, CircleCheck, WalletCards } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Logo from "@/components/Logo";
 import SEO from "@/components/seo/SEO";
@@ -13,40 +13,40 @@ import PlayerProtectionCallout from "@/components/landing/PlayerProtectionCallou
 const LANDING_URL = `${SITE_URL}/`;
 const SEO_TITLE = "Play Chess for Real Money — Head-to-Head Cash Contests | ChessBet";
 const SEO_DESCRIPTION =
-  "Play head-to-head blitz, rapid, and classical chess for real money on ChessBet, with server-verified games, Stockfish screening, and human fair-play review.";
+  "Play head-to-head blitz, rapid, or classical chess for real USD. Choose an entry amount, win a decisive match, and take the full cash prize—with fair-play protection built in.";
 
 const HERO_FEATURES = [
   {
-    id: "fund-your-wallet",
+    id: "choose-your-entry",
     icon: WalletCards,
-    label: "Fund your\nwallet",
-    heading: "Add funds securely",
-    description: "Fund your ChessBet wallet before entering a cash challenge.",
-    points: ["Supported U.S. locations only", "Identity verification required", "Eligibility checked before funding"],
+    label: "Choose your\nentry",
+    heading: "Put your confidence on the board",
+    description: "Pick an entry amount that makes the match matter.",
+    points: ["Entry amounts in USD", "Clear terms before play", "You choose the amount"],
   },
   {
     id: "create-your-challenge",
     icon: Zap,
     label: "Create your\nchallenge",
-    heading: "Set the match terms",
-    description: "Choose the entry amount and time control, then invite an opponent.",
-    points: ["Clear terms", "Head-to-head", "Blitz, rapid, or classical"],
+    heading: "Set the matchup",
+    description: "Create a challenge or accept another player’s terms.",
+    points: ["Head-to-head", "Blitz, Rapid, or Classical", "Your choice of time control"],
   },
   {
     id: "play-to-win",
     icon: Crown,
     label: "Play to\nwin",
-    heading: "Skill decides the prize",
-    description: "Win the match. Win the cash prize.",
-    points: ["Chess only", "Your result counts", "Eligibility required"],
+    heading: "Let your chess decide",
+    description: "Win a decisive match. Win the cash prize.",
+    points: ["One player against another", "Every move matters", "Skill decides the result"],
   },
   {
-    id: "fair-play",
-    icon: Shield,
-    label: "Fair play\nprotected",
-    heading: "Built for fair play",
-    description: "Game results are verified and concerns get human review.",
-    points: ["Verified games", "Fair-play screening", "Human review"],
+    id: "win-real-usd",
+    icon: Banknote,
+    label: "Win real\nUSD",
+    heading: "Real dollars—not tokens",
+    description: "A confirmed winner earns 100% of the combined entry amounts.",
+    points: ["No tokens", "No crypto", "Platform fee shown separately"],
   },
 ];
 
@@ -66,8 +66,8 @@ const STRUCTURED_DATA = [
     "@context": "https://schema.org",
     "@type": "Product",
     "@id": `${LANDING_URL}#product`,
-    name: "ChessBet head-to-head chess contests",
-    description: "Skill-based head-to-head blitz, rapid, and classical chess contests with server-verified games, Stockfish screening, human fair-play review, and an appeals path.",
+    name: "ChessBet chess for real money",
+    description: "Head-to-head, skill-based blitz, rapid, and classical chess for real USD. Players choose entry amounts, and the confirmed winner of a decisive match receives the combined entry amounts, with fair-play protection built in.",
     category: "Skill-based online chess competition",
     brand: { "@id": `${SITE_URL}/#organization` },
     url: LANDING_URL,
@@ -76,8 +76,8 @@ const STRUCTURED_DATA = [
     "@context": "https://schema.org",
     "@type": "Service",
     "@id": `${LANDING_URL}#service`,
-    name: "ChessBet skill-based chess competitions",
-    description: "Head-to-head blitz, rapid, and classical chess competitions with server-verified games, Stockfish screening, and a human review and appeals path.",
+    name: "ChessBet real-money chess contests",
+    description: "One-on-one, skill-based chess contests for real USD, backed by server-verified results, integrity screening, human review, and an appeals path.",
     provider: { "@id": `${SITE_URL}/#organization` },
     isRelatedTo: { "@id": `${LANDING_URL}#product` },
     areaServed: "US",
@@ -134,7 +134,7 @@ export default function Landing() {
         title={SEO_TITLE}
         description={SEO_DESCRIPTION}
         canonicalUrl={LANDING_URL}
-        imageAlt="ChessBet — skill-based online chess contests"
+        imageAlt="ChessBet — chess for real money"
         structuredData={STRUCTURED_DATA}
       />
       <LandingAmbientGlow />
@@ -150,17 +150,20 @@ export default function Landing() {
 
       <main className="relative z-10 flex flex-1 flex-col">
         <section className="flex flex-1 flex-col items-center justify-center px-6 text-center">
-          <div className="space-y-8 max-w-md">
+          <div className="space-y-8 max-w-lg">
             <div className="space-y-4">
               <Logo size="lg" className="justify-center" />
+              <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#C9A84C]">
+                Chess for real money
+              </p>
               <h1 className="text-white text-3xl sm:text-4xl font-extrabold leading-tight max-w-md mx-auto">
                 Play chess. Win cash.
               </h1>
-              <p className="text-white/70 text-lg font-semibold leading-snug max-w-sm mx-auto">
-                Blitz, Rapid, and Classical Chess protected by Stockfish.
+              <p className="text-white/75 text-lg font-semibold leading-snug max-w-lg mx-auto">
+                One-on-one chess for real USD. Choose an entry amount, win a decisive match, and take the full cash prize.
               </p>
-              <p className="text-white/60 text-sm leading-relaxed max-w-sm mx-auto">
-                No luck. No bots. Fair-play review when you need it.
+              <p className="text-white/55 text-sm leading-relaxed max-w-sm mx-auto">
+                No crypto. No tokens. Your chess decides it.
               </p>
             </div>
 
@@ -177,9 +180,6 @@ export default function Landing() {
                 Cash-prize contests are limited to eligible players in supported U.S. locations — check eligibility before funding your account in the{" "}
                 <Link to="/official-rules#eligibility" className="font-semibold text-[#C9A84C] hover:underline underline-offset-4">Official Rules</Link>.
               </p>
-              <Link to="/fair-play-integrity#fair-play-and-appeals" className="mt-4 inline-flex text-sm font-semibold text-[#C9A84C] hover:underline underline-offset-4">
-                See how fair play and appeals work
-              </Link>
               <p className="text-white/50 text-xs mt-4">
                 Already have an account?{" "}
                 <Link to="/login" className="text-[#C9A84C] hover:underline">
@@ -246,8 +246,8 @@ export default function Landing() {
           </p>
         </section>
 
-        <HowItWorksSection />
         <PlayerProtectionCallout />
+        <HowItWorksSection />
       </main>
 
       <footer className="relative z-10 px-6 py-8 text-center border-t border-white/5">
