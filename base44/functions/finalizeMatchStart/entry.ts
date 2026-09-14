@@ -1,4 +1,5 @@
 import { getMatchLocationReadiness, matchLocationRequiredResponse } from '../../shared/matchLocation.ts';
+import { finalizeChallengeStart } from '../../shared/challengeLifecycle.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 
@@ -30,6 +31,7 @@ Deno.serve(async (req) => {
     let match = await base44.asServiceRole.entities.Match.get(matchId);
     if (!match) return Response.json({ error: 'Match not found' }, { status: 404 });
     if (Number(match.launch_epoch) !== 2) return Response.json({ error: 'Match not available' }, { status: 410 });
+    if (Number(match.challenge_version) === 1) return Response.json(await finalizeChallengeStart(base44, user, match.id));
 
     const isP1 = match.player1_id === user.id;
     const isP2 = match.player2_id === user.id;
@@ -127,6 +129,7 @@ Deno.serve(async (req) => {
 
     return Response.json({ match: updatedMatch });
   } catch (error) {
+    if (error?.code && error?.status) return Response.json({ error: error.message, code: error.code }, { status: error.status });
     if (error?.response?.data?.action === 'match_location_required')
       return Response.json(error.response.data, { status: 403 });
     return Response.json({ error: error.message }, { status: 500 });
