@@ -246,7 +246,10 @@ Deno.serve(async (req) => {
       const key=idempotencyKey+':fee';
       const rows=await base44.asServiceRole.entities.WalletTransaction.filter({user_id:user.id,type:'withdrawal_fee',idempotency_key:key},'-created_date',2);
       if(rows.length>1)throw Error('duplicate_withdrawal_fee');
-      const fee=rows[0]||await base44.asServiceRole.entities.WalletTransaction.create({launch_epoch:2,user_id:user.id,type:'withdrawal_fee',amount:withdrawalFee,status:'pending',integration_status:'reserved',direction:'debit',currency:'USD',description:'Withdrawal fee: 
+      const fee=rows[0]||await base44.asServiceRole.entities.WalletTransaction.create({launch_epoch:2,user_id:user.id,type:'withdrawal_fee',amount:withdrawalFee,status:'pending',integration_status:'reserved',direction:'debit',currency:'USD',description:'Withdrawal fee: $'+withdrawalFee.toFixed(2)+'.',idempotency_key:key,correlation_id:tx.id});
+      tx=await base44.asServiceRole.entities.WalletTransaction.update(tx.id,{withdrawal_fee_transaction_id:fee.id});
+    }
+    const totalDebitAmount = value + withdrawalFee;
 
     const reservationGroupId = await reserveWithdrawal(base44, tx, value, withdrawalFee);
     operation = await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, wallet_transaction_id: tx.id, reservation_ledger_group_id: reservationGroupId, state: 'reserved' });
@@ -347,142 +350,6 @@ Deno.serve(async (req) => {
       await settleQueuedWithdrawalFee(base44, await base44.asServiceRole.entities.WalletTransaction.get(tx.id));
       feeTransactionId=tx.withdrawal_fee_transaction_id;
     } else if (withdrawalFee > 0) {
-      try {
-        const feeGroupId = `seamless:withdrawal:fee:${tx.id}`;
-        const feeIdempotencyKey = `${idempotencyKey}:fee`;
-        let feeTx = (await base44.asServiceRole.entities.WalletTransaction.filter({ idempotency_key: feeIdempotencyKey }, '-created_date', 1))[0];
-        if (!feeTx) {
-          feeTx = await base44.asServiceRole.entities.WalletTransaction.create({
-            launch_epoch: 2,
-            user_id: user.id, type: 'withdrawal_fee', amount: withdrawalFee,
-            description: `Small-withdrawal fee: applies to withdrawals under $${SMALL_WITHDRAWAL_THRESHOLD.toFixed(2)} (this one was $${value.toFixed(2)})`,
-            status: 'pending', integration_status: 'internal_complete', currency: 'USD', direction: 'debit',
-            source_event: 'seamless_withdrawal_fee', initiating_actor: 'system', initiating_actor_id: '',
-            idempotency_key: feeIdempotencyKey, correlation_id: tx.id, schema_version: 1,
-          });
-        }
-        feeTransactionId = feeTx.id;
-        await postLedgerLegs(base44, {
-          groupId: feeGroupId, walletTransactionId: feeTx.id, actor: 'system', triggerEvent: 'withdrawal_fee',
-          externalRefType: 'provider_payout', externalRefId: providerRef,
-          legs: [
-            { ledgerAccount: 'user_account', userId: user.id, debit: withdrawalFee, credit: 0, transactionType: 'withdrawal_fee' },
-            { ledgerAccount: 'platform_revenue', debit: 0, credit: withdrawalFee, transactionType: 'withdrawal_fee' },
-          ],
-        });
-      } catch (feeError) {
-        // Best-effort: never fail an already-accepted withdrawal over a fee
-        // posting error. Logged for manual reconciliation.
-        console.error(JSON.stringify({ event: 'withdrawal_fee_charge_failed', wallet_transaction_id: tx.id, error: feeError?.message || String(feeError) }));
-      }
-    }
-    await upsertOperationAudit(base44, { user_id: user.id, idempotency_key: idempotencyKey, provider_reference_id: providerRef, wallet_transaction_id: tx.id, amount: value, status: 'submitted', reservation_ledger_group_id: reservationGroupId, attempts: 1 });
-    await recordIntegrationEvent(base44, {
-      eventType: 'financial.seamless_withdrawal_submitted', aggregateType: 'wallet_transaction', aggregateId: tx.id,
-      correlationId: tx.id, idempotencyKey: `seamless:withdrawal:submitted:${tx.id}`, actorType: 'user', actorId: user.id,
-      userId: user.id, walletTransactionId: tx.id, status: 'pending', amount: value, result: providerRef,
-      eventData: { provider: SEAMLESS_PROVIDER_KEY, provider_ref: providerRef, label, transfer_speed: transferSpeed || 'standard' },
-    });
-    const response = { enabled: true, transaction_id: tx.id, provider_reference_id: providerRef, status: 'pending', transfer_speed: transferSpeed || 'standard' };
-    if (withdrawalFee > 0) {
-      response.withdrawal_amount = value;
-      response.withdrawal_fee = withdrawalFee;
-      response.total_debit_amount = totalDebitAmount;
-      response.fee_transaction_id = feeTransactionId;
-    }
-    return Response.json(response);
-  } catch {
-    return Response.json({ error: 'Unable to submit withdrawal' }, { status: 503 });
-  } finally {
-    if (userId && lockOwner) {
-      try { await releaseUserWalletLock(userId, lockOwner); } catch { /* TTL safely releases an unavailable store lock. */ }
-    }
-  }
-});+withdrawalFee.toFixed(2)+'.',idempotency_key:key,correlation_id:tx.id});
-      tx=await base44.asServiceRole.entities.WalletTransaction.update(tx.id,{withdrawal_fee_transaction_id:fee.id});
-    }
-    const totalDebitAmount = value + withdrawalFee;
-
-    const reservationGroupId = await reserveWithdrawal(base44, tx, value, withdrawalFee);
-    operation = await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, wallet_transaction_id: tx.id, reservation_ledger_group_id: reservationGroupId, state: 'reserved' });
-    await upsertOperationAudit(base44, {
-      user_id: user.id, idempotency_key: idempotencyKey, wallet_transaction_id: tx.id, amount: value,
-      status: 'reserved', reservation_ledger_group_id: reservationGroupId, attempts: 1,
-    });
-
-    const label = `chessbet-withdrawal-${tx.id}`;
-    // Persist the client-known label before the provider request. If the network
-    // outcome is unknown, it supports manual/provider reconciliation without a
-    // second payout request.
-    const existingLabelRef = (await base44.asServiceRole.entities.IntegrationReference.filter({ external_reference_id: label }, '-created_date', 1))[0];
-    if (!existingLabelRef) {
-      await base44.asServiceRole.entities.IntegrationReference.create({
-        provider_key: SEAMLESS_PROVIDER_KEY, reference_type: 'payout', external_reference_id: label,
-        internal_entity_type: 'wallet_transaction', internal_entity_id: tx.id, correlation_id: tx.id,
-        idempotency_key: idempotencyKey, user_id: user.id, wallet_transaction_id: tx.id,
-        status: 'submitting', effective_at: new Date().toISOString(),
-        metadata_json: JSON.stringify({ provider: SEAMLESS_PROVIDER_KEY, direction: 'withdrawal', label, source_id: bank.source_id, transfer_speed: transferSpeed || 'standard' }),
-      });
-    }
-
-    operation = await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, wallet_transaction_id: tx.id, reservation_ledger_group_id: reservationGroupId, state: 'submitting', label });
-    await base44.asServiceRole.entities.WalletTransaction.update(tx.id, { integration_status: 'submitting', source_event: 'seamless_withdrawal_submitting' });
-    await upsertOperationAudit(base44, { user_id: user.id, idempotency_key: idempotencyKey, wallet_transaction_id: tx.id, amount: value, status: 'submitting', reservation_ledger_group_id: reservationGroupId, attempts: 1 });
-
-    let data;
-    try {
-      data = await sendLimitedWithdrawal(base44, tx.id, buildWithdrawalBody({
-        providerUserId: profile.provider_user_id, name: accountHolderName.fullName, amount: value,
-        description: 'Withdrawal', label, sourceId: bank.source_id, transferSpeed,
-      }));
-    } catch (error) {
-      const status = Number(error?.status || 0);
-      if (status >= 400 && status < 500) {
-        const releaseGroupId = await releaseWithdrawalReservation(base44, tx, value, 'provider_rejected');
-        await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, state: 'failed', release_ledger_group_id: releaseGroupId });
-        await upsertOperationAudit(base44, { user_id: user.id, idempotency_key: idempotencyKey, wallet_transaction_id: tx.id, amount: value, status: 'released', reservation_ledger_group_id: reservationGroupId, attempts: 1, last_error_code: 'provider_rejected' });
-        return Response.json({ error: error.payoutCapacity ? error.message : 'The bank transfer could not be submitted. Your withdrawal was returned to your wallet and no withdrawal fee was charged.', transaction_id: tx.id, request_terminal: true }, { status: error.payoutCapacity ? 429 : 400 });
-      }
-      await base44.asServiceRole.entities.WalletTransaction.update(tx.id, { integration_status: 'uncertain', source_event: 'seamless_withdrawal_uncertain' });
-      await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, state: 'uncertain', reconciliation_required: true });
-      await upsertOperationAudit(base44, { user_id: user.id, idempotency_key: idempotencyKey, wallet_transaction_id: tx.id, amount: value, status: 'uncertain', reservation_ledger_group_id: reservationGroupId, attempts: 1, last_error_code: 'provider_outcome_unknown' });
-      return Response.json({ enabled: true, transaction_id: tx.id, status: 'uncertain', reconciliation_required: true }, { status: 202 });
-    }
-
-    const providerRef = data?.check_id || data?.check?.id || data?.id || data?.check?.check_id || '';
-    if (!providerRef) {
-      await base44.asServiceRole.entities.WalletTransaction.update(tx.id, { integration_status: 'uncertain', source_event: 'seamless_withdrawal_uncertain' });
-      await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, state: 'uncertain', reconciliation_required: true });
-      return Response.json({ enabled: true, transaction_id: tx.id, status: 'uncertain', reconciliation_required: true }, { status: 202 });
-    }
-
-    await base44.asServiceRole.entities.IntegrationReference.create({
-      provider_key: SEAMLESS_PROVIDER_KEY, reference_type: 'payout', external_reference_id: providerRef,
-      internal_entity_type: 'wallet_transaction', internal_entity_id: tx.id, correlation_id: tx.id,
-      idempotency_key: idempotencyKey, user_id: user.id, wallet_transaction_id: tx.id,
-      status: 'submitted', effective_at: new Date().toISOString(),
-      metadata_json: JSON.stringify({ provider: SEAMLESS_PROVIDER_KEY, direction: 'withdrawal', label, source_id: bank.source_id, transfer_speed: transferSpeed || 'standard',
-        endpoint: `${seamlessBaseUrl((Deno.env.get('SEAMLESS_ACH_ENV') || '').trim())}${PATH_CHECK_SEND}` }),
-    });
-    await base44.asServiceRole.entities.WalletTransaction.update(tx.id, {
-      integration_status: 'submitted', direction: 'reserve', source_event: 'seamless_withdrawal_submitted',
-      ...(withdrawalFee > 0 ? { description: `Seamless ACH withdrawal (a $${withdrawalFee.toFixed(2)} small-withdrawal fee was separately charged)` } : {}),
-    });
-    await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, state: 'submitted', provider_reference_id: providerRef });
-
-    // Charge the small-withdrawal fee only now that Seamless has accepted the
-    // payout request. Charging earlier would mean refunding it on every
-    // synchronous rejection; charging here means the fee is only ever taken
-    // once the withdrawal is essentially guaranteed to proceed. This posts as
-    // its own WalletTransaction (type: withdrawal_fee) so it shows up as a
-    // clearly separate, visible line in the user's transaction history --
-    // and as a separate, immediately-completed ledger posting (not
-    // held/reserved) so it never touches the withdrawal's own
-    // reservation/settlement legs in the webhook -- those keep working
-    // exactly as before, unmodified, and stay reconcilable against the exact
-    // ACH amount Seamless received.
-    let feeTransactionId = '';
-    if (withdrawalFee > 0) {
       try {
         const feeGroupId = `seamless:withdrawal:fee:${tx.id}`;
         const feeIdempotencyKey = `${idempotencyKey}:fee`;
