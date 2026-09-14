@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { Copy, Share2, Loader2, ArrowLeft, Clock, Check } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
@@ -13,7 +13,6 @@ import { challengeRequest, challengeLocationContext, challengeErrorMessage, hand
   saveChallengeContext, CHALLENGE_TERMS, CHALLENGE_NOT_RESERVED, VALID_INVITE } from '@/lib/challengeApi';
 
 const usd = value => `$${Number(value || 0).toFixed(2)}`;
-const FREE_TERMS = 'I agree to the Fair Play requirements for this free chess game.';
 const walletCodes = ['identity_required','bank_required','funds_required'];
 
 export default function ChallengePanel({ inviteCode:providedInviteCode, embedded=false, onClose, onChanged }) {
@@ -25,6 +24,8 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
   const navigate = useNavigate();
   const path = `/challenge/${inviteCode}`;
   const returnPath = embedded ? `/play?challenge=${inviteCode}` : path;
+  const actionRef = useRef(false);
+  const refreshingRef = useRef(false);
   const [view, setView] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -44,11 +45,13 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
 
   const refresh = useCallback(async () => {
     if (!VALID_INVITE.test(inviteCode || '')) { setError('This challenge link is not valid.'); setLoading(false); return; }
+    if (refreshingRef.current || actionRef.current) return;
+    refreshingRef.current = true;
     try {
       const data = await challengeRequest('view', { inviteCode });
-      setView(data);
+      if (!actionRef.current) setView(data);
     } catch (err) { setError(challengeErrorMessage(err)); }
-    finally { setLoading(false); }
+    finally { refreshingRef.current = false; setLoading(false); }
   }, [inviteCode]);
   useEffect(() => {
     refresh();
@@ -79,7 +82,7 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
   // Show the creator's setup or explicit authorization directly; checking
   // eligibility here neither requests location nor authorizes any funds.
   useEffect(() => {
-    if (!open || !user || creator || !marketplaceReview) return;
+    if (free || !open || !user || creator || !marketplaceReview) return;
     let cancelled = false;
     setCreatorChecking(true); setError('');
     challengeRequest('readiness', { inviteCode }).then(state => {
@@ -94,7 +97,7 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
       }
     }).finally(() => { if (!cancelled) setCreatorChecking(false); });
     return () => { cancelled = true; setCreatorChecking(false); };
-  }, [creator,open,creatorReady,inviteCode,marketplaceReview,user?.id]);
+  }, [free,creator,open,inviteCode,marketplaceReview,user?.id]);
 
   useEffect(() => {
     if (!embedded && creator && open) navigate(`/play?challenge=${inviteCode}`, { replace:true });
@@ -107,7 +110,8 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
     return false;
   };
   const withAction = async (name, callback) => {
-    if (busy) return;
+    if (actionRef.current) return;
+    actionRef.current = true;
     setBusy(name); setError(''); setMessage('');
     try { await callback(); }
     catch (err) {
@@ -116,10 +120,11 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
         const detail = err?.response?.data;
         if (walletCodes.includes(detail?.code)) setReadiness({ ...detail, ready:false });
       }
-    } finally { setBusy(''); }
+    } finally { actionRef.current = false; setBusy(''); }
   };
   const begin = () => {
     if (!signedIn()) return;
+    if (free) { commit(); return; }
     withAction('check',async () => {
       const state = await challengeRequest('readiness',{ inviteCode });
       setReadiness(state);
@@ -181,17 +186,17 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
             <div className="grid grid-cols-2 gap-2"><Button onClick={share} className="h-11 rounded-xl gold-gradient font-bold text-black"><Share2 size={16} className="mr-2" />Share</Button>
               <Button onClick={copy} variant="outline" className="h-11 rounded-xl border-white/15 text-white"><Copy size={16} className="mr-2" />Copy Link</Button></div>
             <input aria-label="Your shareable challenge link" value={shareUrl} readOnly onFocus={e=>e.target.select()} className="h-10 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-xs text-white/55" />
-            <p className="text-sm leading-relaxed text-white/55">{free?'Share the link and stay on the Play screen so an opponent can accept.':card.creatorFundsReserved ? `${usd(card.totalRequired)} is reserved for this challenge. Cancel before the match starts to return it to your playable balance.` : 'Share the link and stay on the Play screen. An unfunded recipient cannot claim it.'}</p>
+            <p className="text-sm leading-relaxed text-white/55">{free?'Share the link. Both players confirm readiness before play.':card.creatorFundsReserved ? `${usd(card.totalRequired)} is reserved for this challenge. Cancel before the match starts to return it to your playable balance.` : 'Share the link and stay on the Play screen. An unfunded recipient cannot claim it.'}</p>
             <ChallengeVisibilityToggle checked={Boolean(card.publiclyListed)} disabled={Boolean(busy)} rematch={Boolean(card.isRematch)}
               onChange={publiclyListed=>withAction('visibility',async()=>{ await challengeRequest('visibility',{inviteCode,publiclyListed}); await refresh(); })} />
             {!free && <Button onClick={fund} disabled={Boolean(busy)} variant="outline" className="w-full rounded-xl">Fund Wallet</Button>}
             <ChallengeAvailability card={{...card,inviteCode}} onChanged={refresh}/>
           </div>}
-          {open && !creator && (!marketplaceReview || !user) && stage === 'preview' && <Button disabled={Boolean(busy)} onClick={begin} className="h-12 w-full rounded-2xl gold-gradient font-bold text-black">
-            {busy === 'check' && <Loader2 size={16} className="mr-2 animate-spin" />}Accept Challenge
+          {open && !creator && (free || !marketplaceReview || !user) && stage === 'preview' && <Button disabled={Boolean(busy)} onClick={begin} className="h-12 w-full rounded-2xl gold-gradient font-bold text-black">
+            {busy && <Loader2 size={16} className="mr-2 animate-spin" />}{busy === 'accept' ? 'Joining…' : 'Accept Challenge'}
           </Button>}
-          {open && (creatorChecking || busy === 'check') && <p role="status" className="flex items-center gap-2 text-sm text-white/55"><Loader2 size={16} className="animate-spin" />Checking your eligibility…</p>}
-          {open && stage === 'setup' && <div className="space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4">
+          {!free && open && (creatorChecking || busy === 'check') && <p role="status" className="flex items-center gap-2 text-sm text-white/55"><Loader2 size={16} className="animate-spin" />Checking your eligibility…</p>}
+          {!free && open && stage === 'setup' && <div className="space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4">
             <h2 className="font-bold">{readiness?.code === 'funds_required' ? 'Available funds required' : 'Complete your setup'}</h2>
             <p className="text-sm text-white/60">{readiness?.reason}</p>
             {readiness?.availableBalance != null && <p className="text-sm text-white/60">Available: {usd(readiness.availableBalance)} · Required: {usd(card.totalRequired)}</p>}
@@ -199,11 +204,11 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
             {walletCodes.includes(readiness?.code) ? <Button onClick={fund} disabled={Boolean(busy)} className="h-11 w-full rounded-xl gold-gradient text-black font-semibold">Open Wallet Setup</Button> : <Link to="/play" className="text-[#C9A84C]">Return to Play</Link>}
             <button onClick={begin} className="w-full py-1 text-sm text-white/50">Check again</button>
           </div>}
-          {open && !creator && stage === 'confirm' && <div className="space-y-3">
+          {!free && open && !creator && stage === 'confirm' && <div className="space-y-3">
             {!creator && !creatorReady && <div className="rounded-xl bg-white/5 p-3 text-sm text-white/60">{free?'Waiting for the creator to return to the Play screen.':'Waiting for the creator to return to the Play screen with enough available funds. No opponent or funds are reserved.'}
               <button disabled={Boolean(busy)} onClick={()=>withAction('ping',async()=>{ const data=await challengeRequest('ping',{inviteCode}); setMessage(data.notified ? 'The creator was notified. The challenge is still open.' : 'A notification could not be sent. Share the link with the creator.'); })} className="mt-2 block font-semibold text-[#C9A84C]">Notify Creator</button></div>}
             <label className="flex items-start gap-3 rounded-xl border border-white/10 p-3 text-xs leading-relaxed text-white/65"><input type="checkbox" checked={agree} onChange={e=>setAgree(e.target.checked)} className="mt-1 h-4 w-4 shrink-0" />
-              <span>{free ? FREE_TERMS : creator ? CHALLENGE_TERMS : `I agree to the Official Rules and Fair Play requirements and authorize ${usd(card.totalRequired)} (${usd(card.entryAmount)} entry plus ${usd(card.serviceFee)} fee) to be reserved only if both players qualify and the challenge is successfully claimed.`}</span></label>
+              <span>{creator ? CHALLENGE_TERMS : `I agree to the Official Rules and Fair Play requirements and authorize ${usd(card.totalRequired)} (${usd(card.entryAmount)} entry plus ${usd(card.serviceFee)} fee) to be reserved only if both players qualify and the challenge is successfully claimed.`}</span></label>
             <Button disabled={!agree || Boolean(busy) || (!creator && !creatorReady)} onClick={commit} className="h-12 w-full rounded-2xl gold-gradient font-bold text-black disabled:opacity-40">
               {busy && <Loader2 size={16} className="mr-2 animate-spin" />}{free ? 'Accept Free Challenge' : creator ? 'Enable Acceptance for 2 Minutes' : `Accept & Reserve ${usd(card.totalRequired)}`}</Button>
             {creator && <p className="text-xs text-white/45">Enabling acceptance reserves nothing. Both players are checked again at final acceptance.</p>}
@@ -215,11 +220,11 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
           {open && creator && <button disabled={Boolean(busy)} onClick={()=>withAction('cancel',async()=>{ await challengeRequest('cancel',{inviteCode}); await refresh(); await onChanged?.(); })} className="w-full py-2 text-sm text-white/45 hover:text-red-300">Cancel Open Challenge</button>}
           {open && <p className="text-center text-xs text-white/35">Expires {new Date(card.expiresAt).toLocaleString()}</p>}
         </section>
-        <p className="text-center text-xs leading-relaxed text-white/40">Money play requires account, identity and location eligibility, a verified bank connection, and sufficient available funds. Pending deposits cannot be used to accept a challenge.</p>
+        {!free && <p className="text-center text-xs leading-relaxed text-white/40">Money play requires account, identity and location eligibility, a verified bank connection, and sufficient available funds. Pending deposits cannot be used to accept a challenge.</p>}
       </> : <div className="rounded-2xl border border-white/10 p-6"><h1 className="text-xl font-bold">Challenge unavailable</h1><Link to="/play" className="mt-4 inline-block text-[#C9A84C]">Create your own challenge</Link></div>}
       {error && <p role="alert" className="rounded-xl border border-red-500/20 bg-red-500/5 p-3 text-sm text-red-300">{error}</p>}
       {message && <p role="status" className="flex items-start gap-2 rounded-xl bg-white/5 p-3 text-sm text-[#E5CA7A]"><Check size={16} className="mt-0.5 shrink-0" />{message}</p>}
-      <div className="flex justify-center gap-5 text-xs text-white/40"><Link to="/official-rules">Official Rules</Link><Link to="/fair-play-integrity">Fair Play</Link><Link to="/terms-of-service">Terms</Link></div>
+      {!free && <div className="flex justify-center gap-5 text-xs text-white/40"><Link to="/official-rules">Official Rules</Link><Link to="/fair-play-integrity">Fair Play</Link><Link to="/terms-of-service">Terms</Link></div>}
     </div>
   </Container>;
 }
