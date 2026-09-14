@@ -89,16 +89,15 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
       </div>
       {challenges.length > 0 && <div className="space-y-3">{challenges.map(card=><article key={card.id} className="space-y-3 rounded-2xl border border-[#C9A84C]/20 bg-gradient-to-br from-[#C9A84C]/10 to-transparent p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="rounded-full border border-[#C9A84C]/20 bg-[#C9A84C]/10 px-2.5 py-1 text-xs font-semibold text-[#E5CA7A]">{card.status==='open'?(card.publiclyListed?'Public challenge':'Link-only challenge'):card.status==='processing'?'Confirming…':'Accepted'}</span>
+          <span className="rounded-full border border-[#C9A84C]/20 bg-[#C9A84C]/10 px-2.5 py-1 text-xs font-semibold text-[#E5CA7A]">{card.status==='open'?'Waiting for an opponent':card.status==='processing'?'Pending':card.status==='claimed'?'Accepted':card.status==='expired'?'Expired':'Closed'}</span>
           <span className="text-xs text-white/55">{card.displayName} · No increment</span>
         </div>
         {card.playMode==='free' ? <p className="text-xl font-bold text-[#E5CA7A]">Free play</p> : <><div className="grid grid-cols-2 gap-3">
           <div><p className="text-xs text-white/50">Entry Amount</p><p className="mt-1 text-2xl font-bold text-white">${Number(card.entryAmount).toFixed(2)}</p></div>
           <div><p className="text-xs text-white/50">Winner award</p><p className="mt-1 text-2xl font-bold text-[#E5CA7A]">${Number(card.winnerAward).toFixed(2)}</p></div>
-        </div>
-        <p className="text-xs text-white/55">${Number(card.serviceFee).toFixed(2)} service fee · ${Number(card.totalRequired).toFixed(2)} required per player</p></>}
-        <p className="text-sm leading-relaxed text-white/65">{card.publiclyListed ? 'Your challenge is listed in Find an Opponent. Share the link with a friend, or play someone new.' : 'Your challenge is link-only. Share it with the person you want to play.'}</p>
-        {card.status==='open' && <>
+        </div></>}
+        <p className="text-sm leading-relaxed text-white/65">{card.status==='processing' ? 'Share your challenge link while it gets ready.' : card.publiclyListed ? 'Your challenge is listed in Find an Opponent. Share the link with a friend, or play someone new.' : 'Your challenge is link-only. Share it with the person you want to play.'}</p>
+        {['open','processing'].includes(card.status) && <>
           <div className="grid grid-cols-2 gap-2">
             <Button onClick={()=>share(card)} className="h-11 rounded-xl gold-gradient font-bold text-black"><Share2 size={15} className="mr-2"/>Share</Button>
             <Button variant="outline" onClick={()=>cancel(card)} disabled={Boolean(busyId)} className="h-11 rounded-xl border-white/15 text-white/65">{busyId===card.id?'Cancelling…':'Cancel'}</Button>
@@ -115,7 +114,6 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
           <Button asChild variant="outline" className="h-11 w-full rounded-xl border-[#C9A84C]/30 font-semibold text-[#E5CA7A]"><Link to={`/wallet?challenge=${card.inviteCode}`}>Fund Wallet</Link></Button>
         </div>}
         {card.status==='open' && card.creatorPresenceRequired !== false && <ChallengeAvailability card={card} onChanged={refresh}/>}
-        {card.status!=='open' && <Link to={`/play?challenge=${card.inviteCode}`} className="block text-xs font-semibold text-[#C9A84C]">Open Match</Link>}
       </article>)}</div>}
       {activePublic && <ActiveChallengeCard match={activePublic} onCancel={async()=>{await base44.functions.invoke('cancelMatch',{matchId:activePublic.id});await refresh();}}/>}
     </div>}
