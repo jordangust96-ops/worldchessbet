@@ -49,6 +49,12 @@ export async function prepareFundingCommit(base44, legs, context) {
     if (available !== cents(wallet?.available_balance) || held !== cents(wallet?.held_balance)) throw new Error('funding_projection_recovery_required');
   }
   const sources = await readFundingSources(base44, states);
+  if (context.triggerEvent === 'withdrawal_reservation') {
+    for (const userId of userIds) {
+      const amount = legs.filter(leg => leg.userId === userId).reduce((sum, leg) => sum + Number(leg.debit || 0), 0);
+      if (fundingSummary(states[userId], sources).available_to_withdraw + 0.001 < amount + Number(context.withdrawalFee || 0)) throw new Error('ach_withdrawal_hold');
+    }
+  }
   const users = transitionFunding(states, legs, context, sources);
   const latest = (await base44.asServiceRole.entities.LedgerJournalBatch.filter(
     { launch_epoch: 2, funding_sequence: { $gt: 0 } }, '-funding_sequence', 1))[0];

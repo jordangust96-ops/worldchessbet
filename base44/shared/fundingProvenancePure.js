@@ -12,7 +12,7 @@ export function heldBucket(matchId, transactionId) {
 }
 export function sourceState(tx, now = Date.now()) {
   if (!tx || tx.type !== 'deposit') return 'blocked';
-  if (['failed', 'reversed'].includes(tx.status) || tx.deposit_hold_status === 'returned') return 'blocked';
+  if (['failed', 'reversed'].includes(tx.status) || tx.deposit_hold_status === 'returned' || tx.deposit_withdrawal_status === 'returned') return 'blocked';
   const at = Date.parse(tx.deposit_release_at || '');
   return tx.status === 'completed' && tx.deposit_withdrawal_status === 'released' &&
     Number.isFinite(at) && at <= now && String(tx.provider_last_status || '').toLowerCase() === 'processed'
@@ -99,7 +99,7 @@ export function transitionFunding(states, legs, context, sources, now = Date.now
   }
   const allSources = [...new Set(Object.values(inputs).flat().flatMap(lot => lot.sources))];
   const crossUser = outputs.some(output => output.amount > (inputs[output.userId] || []).reduce((sum, lot) => sum + lot.cents, 0));
-  const spending = ['challenge_reservation', 'wager_lock', 'service_fee_charge', 'withdrawal_reservation', 'withdrawal_fee'].includes(context.triggerEvent);
+  const spending = ['challenge_reservation', 'match_entry', 'wager_lock', 'service_fee_charge', 'withdrawal_reservation', 'withdrawal_fee'].includes(context.triggerEvent);
   if (spending && allSources.some(id => sourceState(sources[id], now) === 'blocked')) throw new Error('ach_return_review_required');
   for (const output of outputs) {
     const inherited = crossUser ? allSources : [...new Set((inputs[output.userId] || []).flatMap(lot => lot.sources))];
