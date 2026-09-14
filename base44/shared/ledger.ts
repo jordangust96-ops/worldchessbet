@@ -1,6 +1,6 @@
 import { allLedgerRows } from './ledgerPagination.ts';
 import { recordIntegrationEvent } from './integrationEvents.ts';
-import { acquireLedgerLock, releaseLedgerLock, getUserWalletBarrier } from './seamlessAtomicStore.ts';
+import { acquireLedgerLock, releaseLedgerLock, refreshLedgerLock, getUserWalletBarrier } from './seamlessAtomicStore.ts';
 
 function number(value) {
   const parsed = Number(value || 0);
@@ -131,6 +131,16 @@ export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletT
 
   const lockOwner = crypto.randomUUID();
   if (!await acquireLedgerLock(lockOwner)) throw new Error('ledger_posting_in_progress');
+  let leaseLost = false;
+  const assertLedgerLease = async () => {
+    if (leaseLost || !await refreshLedgerLock(lockOwner)) {
+      leaseLost = true;
+      throw new Error('ledger_lease_lost');
+    }
+  };
+  const leaseTimer = setInterval(() => {
+    assertLedgerLease().catch(() => { leaseLost = true; });
+  }, 20000);
 
   try {
     const affectedUserIds = [...new Set(legs.map((leg) => leg.userId).filter(Boolean))];
@@ -156,7 +166,12 @@ export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletT
       throw new Error('ledger_group_integrity_error');
     }
 
-    if (existing.length === 0) {
+    const committedBatches = await base44.asServiceRole.entities.LedgerJournalBatch.filter(
+      { ledger_group_id: groupId }, '-created_at', 2);
+    if (committedBatches.length > 1) throw new Error('duplicate_ledger_journal_batch');
+    // Repairing an immutable commitment is not a new spend. Available funds
+    // can already reflect that commitment after an interrupted projection.
+    if (existing.length === 0 && committedBatches.length === 0) {
       const walletByUser = new Map();
       for (const userId of affectedUserIds) walletByUser.set(userId, await ensureWallet(base44, userId));
       const systemByName = new Map();
@@ -226,6 +241,7 @@ export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletT
       2
     );
     if (batches.length > 1) throw new Error('duplicate_ledger_journal_batch');
+    await assertLedgerLease();
     if (!batches[0]) {
       await base44.asServiceRole.entities.LedgerJournalBatch.create({
         ledger_group_id: groupId,
@@ -353,9 +369,11 @@ export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletT
       },
     });
 
+    await assertLedgerLease();
     if (afterPost) await afterPost(existing);
     return existing;
   } finally {
+    clearInterval(leaseTimer);
     try { await releaseLedgerLock(lockOwner); } catch { /* Lease expiry is the safe fallback. */ }
   }
 }
