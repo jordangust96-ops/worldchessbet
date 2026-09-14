@@ -176,7 +176,15 @@ function files(directory) {
 const terms = /PlayerRating|RatingEvent|RatingOperation|RatingSystemConfig|processEligibleRatings|rebuildAllRatings|getMyRating|myRatingRead|ratingPolicy|ratingAtomicStore|glicko2|MyRatingSection/;
 for (const path of files('base44/functions').filter((p) =>
   !/^base44\/functions\/(processEligibleRatings|rebuildAllRatings|getMyRating|getAvailableMatches)\//.test(p))) {
-  assert.doesNotMatch(read(path), terms, path);
+  const source = read(path);
+  // The completed free-game dispatcher may request the independent processor.
+  // It must not write ratings or introduce any rating work into money settlement.
+  if (path === 'base44/functions/runPostSettlementJobs/entry.ts') {
+    assert.match(source, /if \(isFreeMatch\(match\)\)/);
+    assert.equal([...source.matchAll(/invoke\('processEligibleRatings'/g)].length, 1);
+    assert.doesNotMatch(source.slice(source.indexOf('    const results =')), terms);
+    assert.doesNotMatch(source.replaceAll('processEligibleRatings', ''), terms);
+  } else assert.doesNotMatch(source, terms, path);
 }
 for (const path of files('src').filter((p) => /\.(jsx?|tsx?)$/.test(p) &&
   !['src/pages/Profile.jsx', 'src/components/profile/MyRatingSection.jsx'].includes(p))) {

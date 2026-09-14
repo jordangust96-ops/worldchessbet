@@ -1,6 +1,6 @@
 {
   "name": "Post-Settlement Integrity",
-  "description": "After a Match is fully settled and visible to players, independently runs integrity rules and Stockfish screening.",
+  "description": "After completion, runs lightweight integrity checks. Money games receive Stockfish screening; free games request ratings immediately and skip Stockfish.",
   "trigger": {
     "config": {
       "trigger_type": "entity",
@@ -32,7 +32,7 @@
           "then": "end",
           "x-base44": {
             "title": "Run Post-Settlement Jobs",
-            "description": "Run integrity and Stockfish work independently of financial settlement"
+            "description": "Dispatch post-game checks and free-game ratings outside the completion response"
           }
         }
       }

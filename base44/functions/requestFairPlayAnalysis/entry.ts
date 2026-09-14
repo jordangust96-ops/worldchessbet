@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { isFreeMatch } from '../../shared/challengePolicy.js';
 import { requireAdminMfa } from '../../shared/mfa.ts';
 
 // Queues one completed ChessBet game for the external Stockfish analyzer. The
@@ -63,6 +64,11 @@ Deno.serve(async (req) => {
     }
     if (game.status !== 'completed') {
       return Response.json({ error: 'Only completed games can be screened' }, { status: 400 });
+    }
+
+    // No queue record or analyzer request for free games, including forced retries.
+    if (isFreeMatch(match)) {
+      return Response.json({ accepted: true, skipped: true, reason: 'free_game', status: 'not_required' });
     }
 
     const existing = await base44.asServiceRole.entities.FairPlayAnalysis.filter({ match_id: match.id, game_id: game.id });

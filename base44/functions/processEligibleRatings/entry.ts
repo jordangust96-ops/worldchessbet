@@ -1,10 +1,10 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { calculateSequentialGame, roundRatingNumber } from '../../shared/glicko2.js';
-import { REPORT_WINDOW_MS } from '../../shared/reportWindow.ts';
 import {
   evaluateContestRatingEligibility,
   loadRatingConfig,
   ratingDefaults,
+  ratingEligibleAt,
 } from '../../shared/ratingPolicy.ts';
 import {
   acquireRatingProcessingLock,
@@ -390,87 +390,86 @@ Deno.serve(async (req) => {
     let permanentSkips = 0;
     const errors: string[] = [];
     const blockedPlayers = new Set<string>();
-    let stop = false;
-
-    // Page through the entire durable ContestRecord backlog. There is no hard
-    // scan ceiling: old already-rated rows may make discovery O(N), but they
-    // can never cause newer contests to become permanently unreachable.
-    for (let skip = 0; !stop && applied < MAX_APPLY_PER_RUN; skip += PAGE_SIZE) {
+    // Free results are eligible at completion; money results retain their
+    // reporting window. Order by eligibility so a recent money game cannot
+    // hide a ready free game later in the durable backlog. Rebuilds use the
+    // same recorded eligibility order.
+    const backlog: any[] = [];
+    for (let skip = 0; ; skip += PAGE_SIZE) {
+      if (!(await renewRatingProcessingLock(owner))) throw new Error('rating_processing_lock_lost');
       const page = await base44.asServiceRole.entities.ContestRecord.list('settlement_timestamp', PAGE_SIZE, skip);
-      if (!page.length) break;
+      backlog.push(...page);
+      if (page.length < PAGE_SIZE) break;
+    }
+    backlog.sort((a, b) =>
+      String(ratingEligibleAt(a)).localeCompare(String(ratingEligibleAt(b))) ||
+      String(a.id).localeCompare(String(b.id))
+    );
 
-      for (const contestRecord of page) {
-        if (applied >= MAX_APPLY_PER_RUN) break;
-        scanned += 1;
-        const settlementMs = new Date(contestRecord.settlement_timestamp || 0).getTime();
-        const historyStartMs = new Date(config.history_start_at || 0).getTime();
-        if (!Number.isFinite(settlementMs) || settlementMs < historyStartMs) continue;
+    for (const contestRecord of backlog) {
+      if (applied >= MAX_APPLY_PER_RUN) break;
+      scanned += 1;
+      if (scanned % 100 === 0 && !(await renewRatingProcessingLock(owner))) throw new Error('rating_processing_lock_lost');
+      const settlementMs = new Date(contestRecord.settlement_timestamp || 0).getTime();
+      const historyStartMs = new Date(config.history_start_at || 0).getTime();
+      const eligibleMs = new Date(ratingEligibleAt(contestRecord)).getTime();
+      if (!Number.isFinite(settlementMs) || !Number.isFinite(eligibleMs) || settlementMs < historyStartMs) continue;
+      if (Date.now() < eligibleMs) break;
 
-        // Ascending settlement order is a hard invariant for sequential
-        // ratings. Once we reach a record whose 24h window cannot have closed,
-        // no later record can be eligible in this run either.
-        if (Date.now() < settlementMs + REPORT_WINDOW_MS) {
-          stop = true;
-          break;
-        }
+      const existingOps = await base44.asServiceRole.entities.RatingOperation.filter({
+        operation_key: `rating-operation:${contestRecord.id}`,
+      });
+      if (existingOps.length > 1) {
+        errors.push(`duplicate_operation:${contestRecord.id}`);
+        blockedPlayers.add(contestRecord.white_player_id);
+        blockedPlayers.add(contestRecord.black_player_id);
+        continue;
+      }
+      const existingOperation = existingOps[0] || null;
+      if (existingOperation?.status === 'completed') continue;
+      if (existingOperation?.status === 'invalidated' && existingOperation.invalidated_reason !== 'superseded_by_rebuild') continue;
 
-        const existingOps = await base44.asServiceRole.entities.RatingOperation.filter({
-          operation_key: `rating-operation:${contestRecord.id}`,
-        });
-        if (existingOps.length > 1) {
-          errors.push(`duplicate_operation:${contestRecord.id}`);
-          blockedPlayers.add(contestRecord.white_player_id);
-          blockedPlayers.add(contestRecord.black_player_id);
-          continue;
-        }
-        const existingOperation = existingOps[0] || null;
-        if (existingOperation?.status === 'completed') continue;
-        if (existingOperation?.status === 'invalidated' && existingOperation.invalidated_reason !== 'superseded_by_rebuild') continue;
+      // If an earlier unresolved contest prevents either player's canonical
+      // state from being known, this contest must wait too. Propagate the
+      // block to the opponent, but keep processing unrelated player chains.
+      if (blockedPlayers.has(contestRecord.white_player_id) || blockedPlayers.has(contestRecord.black_player_id)) {
+        deferred += 1;
+        blockedPlayers.add(contestRecord.white_player_id);
+        blockedPlayers.add(contestRecord.black_player_id);
+        continue;
+      }
 
-        // If an earlier unresolved contest prevents either player's canonical
-        // state from being known, this contest must wait too. Propagate the
-        // block to the opponent, but keep processing unrelated player chains.
-        if (blockedPlayers.has(contestRecord.white_player_id) || blockedPlayers.has(contestRecord.black_player_id)) {
+      const eligibility = await evaluateContestRatingEligibility(base44, contestRecord, config);
+      if (!eligibility.eligible) {
+        if (eligibility.permanent) permanentSkips += 1;
+        else {
           deferred += 1;
           blockedPlayers.add(contestRecord.white_player_id);
           blockedPlayers.add(contestRecord.black_player_id);
-          continue;
         }
-
-        const eligibility = await evaluateContestRatingEligibility(base44, contestRecord, config);
-        if (!eligibility.eligible) {
-          if (eligibility.permanent) permanentSkips += 1;
-          else {
-            deferred += 1;
-            blockedPlayers.add(contestRecord.white_player_id);
-            blockedPlayers.add(contestRecord.black_player_id);
-          }
-          continue;
-        }
-
-        if (!(await renewRatingProcessingLock(owner))) {
-          throw new Error('rating_processing_lock_lost');
-        }
-
-        try {
-          // Always pass through prepareOperation. It is idempotent for a
-          // current prepared/applying/recovery row, and refreshes any stale
-          // old-generation operation that a rebuild marked as superseded.
-          const operation = await prepareOperation(base44, contestRecord, eligibility, defaults);
-          await applyPreparedOperation(base44, operation, contestRecord, defaults, owner);
-          applied += 1;
-        } catch (error) {
-          const message = error instanceof Error ? error.message : 'rating_processing_failed';
-          errors.push(`${contestRecord.id}:${message}`.slice(0, 500));
-          // Never leapfrog a failed earlier contest for either participant.
-          // Unrelated player chains may continue safely in the same sweep.
-          blockedPlayers.add(contestRecord.white_player_id);
-          blockedPlayers.add(contestRecord.black_player_id);
-          continue;
-        }
+        continue;
       }
 
-      if (page.length < PAGE_SIZE) break;
+      if (!(await renewRatingProcessingLock(owner))) {
+        throw new Error('rating_processing_lock_lost');
+      }
+
+      try {
+        // Always pass through prepareOperation. It is idempotent for a
+        // current prepared/applying/recovery row, and refreshes any stale
+        // old-generation operation that a rebuild marked as superseded.
+        const operation = await prepareOperation(base44, contestRecord, eligibility, defaults);
+        await applyPreparedOperation(base44, operation, contestRecord, defaults, owner);
+        applied += 1;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'rating_processing_failed';
+        errors.push(`${contestRecord.id}:${message}`.slice(0, 500));
+        // Never leapfrog a failed earlier contest for either participant.
+        // Unrelated player chains may continue safely in the same sweep.
+        blockedPlayers.add(contestRecord.white_player_id);
+        blockedPlayers.add(contestRecord.black_player_id);
+        continue;
+      }
     }
 
     return Response.json({

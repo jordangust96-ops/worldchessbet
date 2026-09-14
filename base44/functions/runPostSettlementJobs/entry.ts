@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { isFreeMatch, assertFreeMatch } from '../../shared/challengePolicy.js';
 
 // Runs post-settlement integrity work outside the player-facing settlement
 // response. Each job is isolated so an unavailable analyzer or a rule-check
@@ -23,6 +24,22 @@ Deno.serve(async (req) => {
     }
     if (match.status !== 'completed' || game.status !== 'completed') {
       return Response.json({ error: 'post_settlement_jobs_require_completed_contest' }, { status: 409 });
+    }
+
+    if (isFreeMatch(match)) {
+      assertFreeMatch(match);
+      if (game.play_mode !== 'free' || match.game_id !== game.id) {
+        return Response.json({ error: 'invalid_free_contest' }, { status: 409 });
+      }
+      // Keep lightweight abuse checks, then request ratings immediately.
+      // Neither job is part of the player's game-completion response.
+      const integrity = await base44.asServiceRole.functions.invoke('runIntegrityCheck', { matchId, gameId })
+        .then(() => 'completed', () => 'failed');
+      const rating = await base44.asServiceRole.functions.invoke('processEligibleRatings', {});
+      return Response.json({ accepted: true, jobs: {
+        integrity, fair_play_analysis: 'skipped_free_game',
+        ratings: rating?.data?.disabled ? 'disabled' : rating?.data?.deferred || rating?.data?.errors?.length ? 'deferred' : 'processed',
+      } });
     }
 
     const results = await Promise.allSettled([

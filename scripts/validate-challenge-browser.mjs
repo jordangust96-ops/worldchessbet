@@ -143,6 +143,8 @@ try{
   });
   await scenario('free-game-results',{who:'p1',free:true,funded:false,status:'completed',path:'/play?match=qa-match'},async page=>{
     await page.getByText('Free game completed. No money was charged or awarded.',{exact:true}).waitFor();checks++;
+    await page.getByText('This game counts toward your rating. No settlement waiting period.',{exact:true}).waitFor();checks++;
+    assert.equal(await page.getByText(/24-hour review/).count(),0);checks++;
     assert.equal(await page.getByText('Winner Award',{exact:true}).count(),0);checks++;
     await page.getByRole('button',{name:'Run It Back',exact:true}).click();
     assert.equal(await page.getByRole('button',{name:'Free play',exact:true}).getAttribute('aria-pressed'),'true');checks++;

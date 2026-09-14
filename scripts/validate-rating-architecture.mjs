@@ -28,7 +28,7 @@ assert.match(policy, /p\.user_id === contestRecord\.winner_id/);
 assert.match(policy, /payout_hold_status !== 'released'/);
 assert.match(policy, /contest_reversed/);
 assert.match(policy, /contest_voided/);
-assert.match(processor, /REPORT_WINDOW_MS/);
+assert.match(processor, /ratingEligibleAt/);
 assert.match(rebuild, /REPORT_WINDOW_MS/);
 assert.doesNotMatch(processor, /24 \* 60 \* 60 \* 1000/);
 assert.doesNotMatch(rebuild, /24 \* 60 \* 60 \* 1000/);

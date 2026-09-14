@@ -97,7 +97,7 @@ export default function SettlementState({ match, game, userId, onReturn }) {
           <p className="text-2xl font-extrabold text-[#C9A84C]">+${(match.wager_amount * 2).toFixed(2)}</p>
         </div>
       )}
-      <p className="text-xs text-white/40">{free ? "This game counts toward your rating after the 24-hour review period, once any open reviews are resolved." : won && !draw ? "Winner awards follow the standard report-window hold before becoming available. A rematch needs a separate available balance." : "Wallet updated"}</p>
+      <p className="text-xs text-white/40">{free ? "This game counts toward your rating. No settlement waiting period." : won && !draw ? "Winner awards follow the standard report-window hold before becoming available. A rematch needs a separate available balance." : "Wallet updated"}</p>
       <div className="space-y-2">
         <Button onClick={() => setRematch(true)} className="w-full h-12 rounded-2xl font-bold gold-gradient text-black">Run It Back</Button>
         <Button

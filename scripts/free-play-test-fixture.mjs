@@ -27,7 +27,7 @@ function matches(row,query) {
 }
 let selectedTimeControl;
 function fixture() {
-  const state={now:Date.parse('2026-09-14T12:00:00Z'),serial:0,db:{},fail:null,location:true,errors:[],lookups:0,creates:[],emails:[],reads:[],noMoney:false,paid:true};
+  const state={now:Date.parse('2026-09-14T12:00:00Z'),serial:0,db:{},fail:null,location:true,errors:[],lookups:0,creates:[],invocations:[],emails:[],reads:[],noMoney:false,paid:true};
   class Clock extends Date { constructor(...args){super(...(args.length?args:[state.now]));} static now(){return state.now;} }
   const table=name=>state.db[name] ||= [];
   const read=name=>{state.reads.push(name);if(state.noMoney && /Wallet|Ledger|Bank|Identity|Socure|Payment|Transfer/.test(name))throw Error('Unexpected free-game financial access: '+name);};
@@ -122,6 +122,7 @@ function fixture() {
   makeSdk=id=>({auth:{me:async()=>clone(table('User').find(u=>u.id===id)||null)},
     asServiceRole:{entities,functions:{invoke:async(name,body)=>makeSdk('p1').functions.invoke(name,body)},integrations:{Core:{SendEmail:async data=>{state.emails.push(clone(data));return {sent:true};}}}},
     functions:{invoke:async(name,payload)=>{
+      state.invocations.push({name,payload:clone(payload)});
       const response=await load(`base44/functions/${name}/entry.ts`).handler(new Request('https://example.invalid',{method:'POST',headers:{'x-test-user':id,'user-agent':'test-browser'},body:JSON.stringify(payload)}));
       const data=await response.json();if(!response.ok)throw Object.assign(Error(data.error),{response:{status:response.status,data}});return {data};
     }},

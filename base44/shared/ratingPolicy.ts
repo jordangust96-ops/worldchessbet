@@ -30,7 +30,7 @@ export function ratingDefaults(config: any) {
 export function ratingEligibleAt(contestRecord: any) {
   const settledAtMs = timestampMs(contestRecord?.settlement_timestamp);
   if (!Number.isFinite(settledAtMs)) return '';
-  return new Date(settledAtMs + REPORT_WINDOW_MS).toISOString();
+  return new Date(settledAtMs + (contestRecord?.play_mode === 'free' ? 0 : REPORT_WINDOW_MS)).toISOString();
 }
 
 export async function evaluateContestRatingEligibility(base44: any, contestRecord: any, config: any) {
@@ -52,12 +52,13 @@ export async function evaluateContestRatingEligibility(base44: any, contestRecor
   if (settledAtMs < historyStartMs) {
     return { eligible: false, permanent: true, reason: 'before_rating_epoch' };
   }
-  if (Date.now() < settledAtMs + REPORT_WINDOW_MS) {
+  const eligibleAt = ratingEligibleAt(contestRecord);
+  if (Date.now() < timestampMs(eligibleAt)) {
     return {
       eligible: false,
       permanent: false,
       reason: 'report_window_open',
-      eligibleAt: new Date(settledAtMs + REPORT_WINDOW_MS).toISOString(),
+      eligibleAt,
     };
   }
 
@@ -134,6 +135,6 @@ export async function evaluateContestRatingEligibility(base44: any, contestRecor
     match,
     game,
     isDraw,
-    eligibleAt: new Date(settledAtMs + REPORT_WINDOW_MS).toISOString(),
+    eligibleAt,
   };
 }
