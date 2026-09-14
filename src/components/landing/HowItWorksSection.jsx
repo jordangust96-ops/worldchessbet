@@ -33,7 +33,7 @@ export default function HowItWorksSection() {
             Skill decides the game. ChessBet protects the contest.
           </h2>
           <p className="mx-auto max-w-2xl text-sm leading-relaxed text-white/55">
-            Real money deserves serious protection. Server-recorded play, integrity screening, and human review are built into every cash-prize match.
+            ChessBet records play on its servers, supports post-game screening when data and services are available, and provides reporting and human review for concerns.
           </p>
         </div>
 
