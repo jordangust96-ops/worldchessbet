@@ -294,6 +294,19 @@ try{
     assert.equal(new URL(page.url()).pathname+new URL(page.url()).search,'/play');checks++;
     assert.equal(await page.evaluate(()=>window.__challengeQA.calls.find(c=>c.body.action==='create').body.publiclyListed),false);checks++;
   });
+  await scenario('pending-hud-fund-wallet',{who:'p1',creatorReady:false,path:'/play'},async page=>{
+    await page.getByRole('heading',{name:'Your next match starts here',exact:true}).waitFor();checks++;
+    assert.equal(await page.getByRole('link',{name:'Review eligibility & enable acceptance',exact:true}).count(),0);checks++;
+    await page.getByText('To play this match, you need $27.00 in available wallet funds, including the service fee. Pending deposits cannot be used yet.',{exact:true}).waitFor();checks++;
+    await page.getByRole('link',{name:'Fund Wallet',exact:true}).click();
+    await page.waitForURL('**/wallet?challenge='+code);checks++;
+    await page.getByRole('heading',{name:'Fund your wallet, keep your options open',exact:true}).waitFor();checks++;
+    assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('chessbet_challenge_context:p1')).inviteCode),code);checks++;
+    await page.getByRole('link',{name:'Return to Challenge',exact:true}).click();
+    await page.waitForURL('**/play?challenge='+code);checks++;
+    await page.getByRole('heading',{name:'Available funds required',exact:true}).waitFor();checks++;
+    assert.equal(await page.evaluate(()=>window.__challengeQA.calls.filter(c=>['accept','authorize'].includes(c.body.action)).length),0);checks++;
+  });
   await scenario('pending-summary-desktop',{who:'p1',publiclyListed:true,path:'/play',width:1280},async page=>{
     await page.getByRole('heading',{name:'Your next match starts here',exact:true}).waitFor();checks++;
     await page.getByRole('button',{name:'Refresh Available Matches',exact:true}).waitFor();checks++;
