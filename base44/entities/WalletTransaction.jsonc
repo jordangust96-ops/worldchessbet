@@ -283,6 +283,53 @@
       "type": "string",
       "format": "date-time",
       "description": "When verified settled principal became usable for paid contests."
+    },
+    "withdrawal_requested_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "withdrawal_process_after": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "withdrawal_estimated_arrival": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "withdrawal_provider_attempt_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "withdrawal_request_email_next_attempt_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "withdrawal_request_email_sent_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "withdrawal_request_status": {
+      "type": "string"
+    },
+    "withdrawal_fee_state": {
+      "type": "string"
+    },
+    "withdrawal_fee_transaction_id": {
+      "type": "string"
+    },
+    "withdrawal_request_email_status": {
+      "type": "string"
+    },
+    "withdrawal_request_email_last_error": {
+      "type": "string"
+    },
+    "withdrawal_request_fee": {
+      "type": "number",
+      "minimum": 0
+    },
+    "withdrawal_request_email_attempts": {
+      "type": "integer",
+      "minimum": 0
     }
   },
   "required": [
