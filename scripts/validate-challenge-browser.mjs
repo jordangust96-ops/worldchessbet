@@ -111,7 +111,8 @@ try{
   await scenario('unfunded-create',{who:'p1',hasChallenge:false,path:'/play'},async page=>{
     await page.getByRole('button',{name:'Create Challenge',exact:true}).click();
     await page.getByRole('button',{name:'Create Challenge Link',exact:true}).click();
-    await page.waitForURL('**/play?challenge='+code);checks++;
+    await page.getByRole('heading',{name:'Your next match starts here',exact:true}).waitFor();
+      assert.equal(new URL(page.url()).pathname+new URL(page.url()).search,'/play');checks++;
     await page.getByRole('button',{name:'Share',exact:true}).waitFor();checks++;
     assert.equal(await page.evaluate(()=>window.__challengeQA.calls.filter(c=>c.body.action==='accept'||c.name.startsWith('submitSeamless')).length),0);checks++;
   });
@@ -147,7 +148,8 @@ try{
       assert.equal(await page.getByRole('radio',{name:label+' '+minutes+' min',exact:true}).isChecked(),true);checks++;
       assert.equal(await page.getByText('The winner award includes both entry amounts; the fee is separate.',{exact:false}).count(),0);checks++;
       await page.getByRole('button',{name:'Create Challenge Link',exact:true}).click();
-      await page.waitForURL('**/play?challenge='+code);
+      await page.getByRole('heading',{name:'Your next match starts here',exact:true}).waitFor();
+      assert.equal(new URL(page.url()).pathname+new URL(page.url()).search,'/play');
       await page.getByText(label+' ('+minutes+'+0) · No increment',{exact:true}).waitFor();checks++;
       assert.equal(await page.evaluate(()=>window.__challengeQA.calls.find(c=>c.body.action==='create').body.timeControl),value);checks++;
     });
@@ -165,15 +167,16 @@ try{
         await form.locator('dl').getByText('$'+(amount+fee).toFixed(2),{exact:true}).waitFor();checks++;
       }
       await form.getByRole('button',{name:'Create Challenge Link',exact:true}).click();
-      await page.waitForURL('**/play?challenge='+code);
+      await page.getByRole('heading',{name:'Your next match starts here',exact:true}).waitFor();
+      assert.equal(new URL(page.url()).pathname+new URL(page.url()).search,'/play');
       assert.equal(await page.evaluate(()=>window.__challengeQA.calls.find(c=>c.body.action==='create').body.entryAmount),2500);checks++;
     });
   }
   await scenario('one-open-challenge',{who:'p1',path:'/play'},async page=>{
     const create=page.getByRole('button',{name:'Create Challenge',exact:true});
-    await page.getByRole('heading',{name:'Your pending challenge',exact:true}).waitFor();
+    await page.getByRole('heading',{name:'Your next match starts here',exact:true}).waitFor();
     assert.equal(await create.count(),0);checks++;
-    await page.getByRole('button',{name:'Find an Opponent',exact:false}).click();
+    assert.equal(await page.getByRole('button',{name:'Find an Opponent',exact:false}).getAttribute('aria-expanded'),'true');checks++;
     assert.equal(await page.getByRole('button',{name:'Create $10 Rapid Challenge',exact:true}).count(),0);checks++;
     await page.getByRole('button',{name:'Cancel',exact:true}).click();
     await create.click();
@@ -204,10 +207,11 @@ try{
   await scenario('create-public-toggle',{who:'p1',hasChallenge:false,path:'/play'},async page=>{
     await page.getByRole('button',{name:'Create Challenge',exact:true}).click();
     const toggle=page.getByRole('switch',{name:'Show in Find an Opponent',exact:true});
-    assert.equal(await toggle.getAttribute('aria-checked'),'false');checks++;
-    await toggle.click();
+    assert.equal(await toggle.getAttribute('aria-checked'),'true');checks++;
     await page.getByRole('button',{name:'Create Challenge Link',exact:true}).click();
-    await page.waitForURL('**/play?challenge='+code);
+    await page.getByRole('heading',{name:'Your next match starts here',exact:true}).waitFor();
+      assert.equal(new URL(page.url()).pathname+new URL(page.url()).search,'/play');
+    await page.getByRole('link',{name:'Challenge details & visibility',exact:true}).click();
     assert.equal(await toggle.getAttribute('aria-checked'),'true');checks++;
     assert.equal(await page.evaluate(()=>window.__challengeQA.calls.find(c=>c.body.action==='create').body.publiclyListed),true);checks++;
     await toggle.click();
@@ -240,8 +244,10 @@ try{
     await scenario('hud-create-manage-'+width,{who:'p1',hasChallenge:false,path:'/play',width},async page=>{
       await page.getByRole('button',{name:'Create Challenge',exact:true}).click();
       await page.getByRole('button',{name:'Create Challenge Link',exact:true}).click();
-      await page.waitForURL('**/play?challenge='+code);checks++;
-      await page.getByRole('heading',{name:'Your challenge is ready'}).waitFor();checks++;
+      await page.getByRole('heading',{name:'Your next match starts here',exact:true}).waitFor();
+      assert.equal(new URL(page.url()).pathname+new URL(page.url()).search,'/play');checks++;
+      assert.equal(await page.getByRole('heading',{name:'Your challenge is ready',exact:true}).count(),0);checks++;
+      await page.getByRole('link',{name:'Challenge details & visibility',exact:true}).click();
       await page.getByText('Host or accept a challenge to begin playing',{exact:true}).waitFor({state:'attached'});checks++;
       assert.equal(await page.getByLabel('Your shareable challenge link').inputValue(),'http://localhost:5173/challenge/'+code);checks++;
       await page.reload({waitUntil:'networkidle'});
@@ -258,24 +264,43 @@ try{
   await scenario('hud-rematch',{who:'p1',funded:true,status:'completed',path:'/play?match=qa-match'},async page=>{
     await page.getByRole('button',{name:'Run It Back',exact:true}).click();
     await page.getByRole('button',{name:'Create Rematch Link',exact:true}).click();
-    await page.waitForURL('**/play?challenge='+code);checks++;
-    await page.getByRole('heading',{name:'Your challenge is ready'}).waitFor();checks++;
+    await page.getByRole('heading',{name:'Your next match starts here',exact:true}).waitFor();
+      assert.equal(new URL(page.url()).pathname+new URL(page.url()).search,'/play');checks++;
+    await page.getByRole('link',{name:'Challenge details & visibility',exact:true}).click();
     await page.getByText('Host or accept a challenge to begin playing',{exact:true}).waitFor({state:'attached'});checks++;
     assert.equal(await page.getByRole('switch',{name:'Show in Find an Opponent',exact:true}).isEnabled(),false);checks++;
     assert.equal(await page.evaluate(()=>window.__challengeQA.calls.find(c=>c.body.action==='create').body.rematchOf),'qa-match');checks++;
   });
   for (const publiclyListed of [false,true]) {
     await scenario('pending-hud-'+publiclyListed,{who:'p1',path:'/play',publiclyListed},async page=>{
-      await page.getByRole('heading',{name:'Your pending challenge',exact:true}).waitFor();checks++;
+      await page.getByRole('heading',{name:'Your next match starts here',exact:true}).waitFor();checks++;
       assert.equal(await page.getByRole('heading',{name:'Challenge Someone',exact:true}).count(),0);checks++;
       assert.equal(await page.getByRole('button',{name:'Create Challenge',exact:true}).count(),0);checks++;
       await page.getByText(publiclyListed?'Public challenge':'Link-only challenge',{exact:true}).waitFor();checks++;
-      await page.getByRole('button',{name:'Find an Opponent',exact:false}).click();
+      assert.equal(await page.getByRole('button',{name:'Find an Opponent',exact:false}).getAttribute('aria-expanded'),'true');checks++;
       await page.getByRole('button',{name:'Refresh Available Matches',exact:true}).waitFor();checks++;
       await page.getByRole('button',{name:'Cancel',exact:true}).click();
       await page.getByRole('button',{name:'Create Challenge',exact:true}).waitFor();checks++;
     });
   }
+  await scenario('create-link-only-opt-out',{who:'p1',hasChallenge:false,path:'/play'},async page=>{
+    await page.getByRole('button',{name:'Create Challenge',exact:true}).click();
+    const toggle=page.getByRole('switch',{name:'Show in Find an Opponent',exact:true});
+    assert.equal(await toggle.getAttribute('aria-checked'),'true');checks++;
+    await toggle.click();
+    await page.getByRole('button',{name:'Create Challenge Link',exact:true}).click();
+    await page.getByRole('heading',{name:'Your next match starts here',exact:true}).waitFor();checks++;
+    await page.getByText('Link-only challenge',{exact:true}).waitFor();checks++;
+    assert.equal(new URL(page.url()).pathname+new URL(page.url()).search,'/play');checks++;
+    assert.equal(await page.evaluate(()=>window.__challengeQA.calls.find(c=>c.body.action==='create').body.publiclyListed),false);checks++;
+  });
+  await scenario('pending-summary-desktop',{who:'p1',publiclyListed:true,path:'/play',width:1280},async page=>{
+    await page.getByRole('heading',{name:'Your next match starts here',exact:true}).waitFor();checks++;
+    await page.getByRole('button',{name:'Refresh Available Matches',exact:true}).waitFor();checks++;
+    await page.getByRole('button',{name:'Share',exact:true}).waitFor();checks++;
+    await page.getByRole('button',{name:'Cancel',exact:true}).waitFor();checks++;
+    assert.equal(await page.getByRole('button',{name:'Find an Opponent',exact:false}).getAttribute('aria-expanded'),'true');checks++;
+  });
 }finally{await browser.close();}
 console.log(JSON.stringify({checks,scenarios,failed:failures,screenshots:'/tmp/chessbet-challenge-screenshots'},null,2));
 process.exitCode=failures.length?1:0;
