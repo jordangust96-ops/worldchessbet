@@ -1,5 +1,5 @@
 import NotifyOnAcceptToggle from '@/components/play/NotifyOnAcceptToggle';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Share2, Swords, Plus, Loader2, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -25,30 +25,69 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
   const [error,setError] = useState('');
   const [busyId,setBusyId] = useState('');
   const [copiedId,setCopiedId] = useState('');
-  const refresh = useCallback(async()=>{
+  // Ignore superseded reads and remember only server-confirmed cancellations.
+  const reads = useRef({ generation:0, retry:null, closed:new Set(), hasSnapshot:false });
+  const [refreshError,setRefreshError] = useState('');
+  const refresh = useCallback(async(attempt=0)=>{
     if(!userId)return;
+    const state=reads.current;
+    const generation=++state.generation;
+    clearTimeout(state.retry);
     try{
       const [data,publicRows]=await Promise.all([
         challengeRequest('list'),
         base44.entities.Match.filter({launch_epoch:2,player1_id:userId,status:'searching',is_private:{$ne:true}},'-created_date',5),
       ]);
-      setChallenges(data.challenges || []);setActivePublic(publicRows[0] || null);setError('');setLoadFailed(false);
-    }catch(err){setLoadFailed(true);setError(challengeErrorMessage(err));}finally{setLoading(false);}
+      if(generation!==state.generation)return;
+      setChallenges((data.challenges || []).filter(card=>!state.closed.has(card.id)));
+      setActivePublic(publicRows.find(row=>!state.closed.has(row.id)) || null);
+      state.hasSnapshot=true;setRefreshError('');setLoadFailed(false);setLoading(false);
+    }catch(err){
+      if(generation!==state.generation)return;
+      const status=err?.response?.status;
+      const transient=!status || status===429 || status>=500;
+      if(transient && attempt<2){
+        state.retry=setTimeout(()=>refresh(attempt+1),500*(attempt+1));
+        return;
+      }
+      // A background read failure must not erase the last confirmed screen.
+      setLoadFailed(!state.hasSnapshot);
+      setRefreshError(transient?'Unable to refresh your challenges. Please try again.':challengeErrorMessage(err));
+      setLoading(false);
+    }
   },[userId]);
   useEffect(()=>{
+    reads.current={generation:reads.current.generation+1,retry:null,closed:new Set(),hasSnapshot:false};
+    setChallenges([]);setActivePublic(null);setLoading(true);setLoadFailed(false);setRefreshError('');
     refresh();
     if(!userId)return;
+    let eventTimer;
     const unsubscribe=base44.entities.Match.subscribe(event=>{
-      if(event.data?.launch_epoch===2 && event.data?.player1_id===userId)refresh();
+      if(event.data?.launch_epoch===2 && event.data?.player1_id===userId){
+        clearTimeout(eventTimer);eventTimer=setTimeout(()=>refresh(),150);
+      }
     });
     const visible=()=>{if(document.visibilityState==='visible')refresh();};
     const timer=setInterval(visible,20000);
     window.addEventListener('focus',visible);
-    return()=>{unsubscribe();clearInterval(timer);window.removeEventListener('focus',visible);};
+    return()=>{
+      reads.current.generation++;clearTimeout(reads.current.retry);clearTimeout(eventTimer);
+      unsubscribe();clearInterval(timer);window.removeEventListener('focus',visible);
+    };
   },[userId,refresh]);
   const cancel=async card=>{
     setBusyId(card.id);setError('');
-    try{await challengeRequest('cancel',{matchId:card.id});await refresh();}catch(err){setError(challengeErrorMessage(err));}finally{setBusyId('');}
+    try{
+      const result=await challengeRequest('cancel',{matchId:card.id});
+      if(result?.match?.status==='cancelled' && !result.processing){
+        reads.current.generation++;
+        reads.current.closed.add(card.id);
+        setChallenges(rows=>rows.filter(row=>row.id!==card.id));
+        setActivePublic(row=>row?.id===card.id?null:row);
+        setRefreshError('');setCreating(false);
+      }
+      await refresh();
+    }catch(err){setError(challengeErrorMessage(err));}finally{setBusyId('');}
   };
   const shareText=card=>card.playMode==='free'
     ? 'Think you can beat me? Join my free ChessBet challenge.'
@@ -117,6 +156,7 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
       </article>)}</div>}
       {activePublic && <ActiveChallengeCard match={activePublic} onCancel={async()=>{await base44.functions.invoke('cancelMatch',{matchId:activePublic.id});await refresh();}}/>}
     </div>}
+    {refreshError && <div role="status" className="text-xs text-white/60">{refreshError} <button type="button" className="ml-2 underline text-[#E5CA7A]" onClick={()=>refresh()}>Retry</button></div>}
     {error && <p role="status" className="text-xs text-[#E5CA7A]">{error}</p>}
     <div className="border-t border-white/10 pt-4">
       <h2 className="font-semibold text-white/80">Find an Opponent</h2><p className="mt-1 text-xs text-white/40">Browse public challenges.</p>
