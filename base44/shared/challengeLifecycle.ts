@@ -204,7 +204,7 @@ export async function setChallengeVisibility(base44: any, user: any, match: any,
 
 export async function authorizeChallenge(req: Request, base44: any, user: any, match: any, body: any) {
   if (match.player1_id !== user.id) fail('forbidden', 'Only the creator can enable acceptance.', 403);
-  if ((!isFreeMatch(match) && body.agree !== true) || Number(body.entryAmount) !== Number(match.wager_amount) || Number(body.serviceFee) !== Number(match.platform_service_fee))
+  if (body.agree !== true || Number(body.entryAmount) !== Number(match.wager_amount) || Number(body.serviceFee) !== Number(match.platform_service_fee))
     fail('consent_required', 'Review and agree to the displayed entry, fee, and Fair Play requirements.', 400);
   return underMatchLock(base44, match.id, async (fresh) => {
     if (fresh.status !== 'searching' || challengeExpired(fresh) || activeOperation(fresh)) fail('unavailable', 'This challenge is no longer open.');
@@ -420,7 +420,7 @@ async function recoverReservation(base44: any, match: any, owner: string) {
 
 export async function acceptChallenge(req: Request, base44: any, user: any, match: any, body: any) {
   if (match.player1_id === user.id) fail('own_challenge', 'You cannot accept your own challenge.', 400);
-  if (body.agree !== true || Number(body.entryAmount) !== Number(match.wager_amount) || Number(body.serviceFee) !== Number(match.platform_service_fee))
+  if ((!isFreeMatch(match) && body.agree !== true) || Number(body.entryAmount) !== Number(match.wager_amount) || Number(body.serviceFee) !== Number(match.platform_service_fee))
     fail('consent_required', 'Review and agree to the displayed entry, fee, and Fair Play requirements.', 400);
   if (match.challenge_target_id && match.challenge_target_id !== user.id)
     fail('different_opponent', 'This rematch invitation is for the previous opponent.', 403);
