@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Share2, Swords, Plus, Loader2 } from 'lucide-react';
+import { Share2, Swords, Plus, Loader2, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 import { challengeRequest, challengeErrorMessage } from '@/lib/challengeApi';
@@ -23,6 +23,7 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
   const [loadFailed,setLoadFailed] = useState(false);
   const [error,setError] = useState('');
   const [busyId,setBusyId] = useState('');
+  const [copiedId,setCopiedId] = useState('');
   const refresh = useCallback(async()=>{
     if(!userId)return;
     try{
@@ -48,11 +49,24 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
     setBusyId(card.id);setError('');
     try{await challengeRequest('cancel',{matchId:card.id});await refresh();}catch(err){setError(challengeErrorMessage(err));}finally{setBusyId('');}
   };
+  const shareText=card=>card.playMode==='free'
+    ? 'Think you can beat me? Join my free ChessBet challenge.'
+    : `Think you can beat me? Join my $${Number(card.entryAmount).toFixed(2)} ChessBet challenge. Entry plus a separate service fee; eligibility and available funds are required.`;
+  const copyUrl=async card=>{
+    const url=`${window.location.origin}${card.path}`;
+    try{
+      await navigator.clipboard.writeText(url);
+      setCopiedId(card.id); setError('');
+      window.setTimeout(()=>setCopiedId(current=>current===card.id?'':current),1800);
+    }catch{
+      setError('Copy was unavailable. Open the challenge to select the URL directly.');
+    }
+  };
   const share=async card=>{
     const url=`${window.location.origin}${card.path}`;
     try{
-      if(navigator.share)await navigator.share({title:'ChessBet Challenge',text:card.playMode==='free'?'Join my free ChessBet challenge.':`A $${card.entryAmount} chess challenge. Entry plus separate service fee; eligibility and available funds required.`,url});
-      else{await navigator.clipboard.writeText(url);setError('Link copied.');}
+      if(navigator.share) await navigator.share({title:'ChessBet Challenge',text:shareText(card),url});
+      else await copyUrl(card);
     }catch(err){if(err?.name!=='AbortError')setError('Open the challenge to copy its link.');}
   };
   const existingChallenge = challenges.find(card => ['open','processing','claimed'].includes(card.status));
