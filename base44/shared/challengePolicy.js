@@ -81,6 +81,7 @@ export function publicChallenge(match, hostName = 'ChessBet player', now = Date.
   return {
     id: match.id,
     creatorName: hostName,
+    playMode: isFreeMatch(match) ? 'free' : 'money',
     entryAmount: Number(match.wager_amount),
     serviceFee: Number(match.platform_service_fee),
     totalRequired: (cents(match.wager_amount) + cents(match.platform_service_fee)) / 100,
@@ -101,6 +102,7 @@ export function publicChallenge(match, hostName = 'ChessBet player', now = Date.
 // Both players' entry AND fee are committed in ONE existing LedgerJournalBatch.
 // Transaction projections are created only after that batch commits.
 export function challengeReservationLegs(match, recipientId) {
+  if (isFreeMatch(match)) throw new Error('free_match_cannot_reserve');
   return [match.player1_id, recipientId].flatMap(userId => [
     { ledgerAccount: 'user_account', userId, debit: Number(match.wager_amount), credit: 0,
       heldDelta: Number(match.wager_amount), totalWageredDelta: Number(match.wager_amount), transactionType: 'match_entry' },
@@ -111,6 +113,7 @@ export function challengeReservationLegs(match, recipientId) {
   ]);
 }
 export function challengeReleaseLegs(match, recipientId) {
+  if (isFreeMatch(match)) throw new Error('free_match_cannot_refund');
   return [match.player1_id, recipientId].flatMap(userId => [
     { ledgerAccount: 'contest_clearing', debit: Number(match.wager_amount), credit: 0, transactionType: 'refund' },
     { ledgerAccount: 'user_account', userId, debit: 0, credit: Number(match.wager_amount),
@@ -119,4 +122,17 @@ export function challengeReleaseLegs(match, recipientId) {
     { ledgerAccount: 'user_account', userId, debit: 0, credit: Number(match.platform_service_fee),
       heldDelta: -Number(match.platform_service_fee), transactionType: 'refund' },
   ]);
+}
+
+// Only a server-created explicit mode can select the free path. Legacy rows
+// remain money matches. Zero entry alone never exempts a money match.
+export const FREE_PLAY_TERMS = 'I agree to the Fair Play requirements. This is a free chess game with no entry charge, service fee, or money award.';
+export const isFreeMatch = match => match?.play_mode === 'free';
+export function assertFreeMatch(match) {
+  if (!isChallenge(match) || !isFreeMatch(match) || match.wager_amount !== 0 ||
+      match.platform_service_fee !== 0 || match.player1_deposited || match.player2_deposited ||
+      match.challenge_reservation_group_id || match.challenge_release_group_id ||
+      ['reserving','releasing','committed','released'].includes(match.challenge_operation_state))
+    throw new Error('invalid_free_match');
+  return true;
 }

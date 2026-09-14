@@ -33,7 +33,8 @@
     "test:launch": "node scripts/validate-launch-boundaries.mjs && node scripts/validate-launch-readiness.mjs",
     "test:site-health": "node scripts/validate-site-health.mjs",
     "test:site-activity": "node scripts/validate-site-activity.mjs",
-    "test:challenges": "node scripts/validate-challenge-lifecycle.mjs"
+    "test:challenges": "node scripts/validate-challenge-lifecycle.mjs",
+    "test:free-play": "node scripts/validate-free-play.mjs"
   },
   "dependencies": {
     "@base44/sdk": "^0.8.48",

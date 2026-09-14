@@ -8,6 +8,7 @@ import { challengeRequest, challengeLocationContext, challengeErrorMessage, hand
 
 export default function ChallengeReadyScreen({ match, userId, opponentId, onCancel, onRefresh }) {
   const navigate = useNavigate();
+  const free=match.play_mode==='free';
   const [name,setName] = useState('Opponent');
   const [busy,setBusy] = useState(false);
   const [error,setError] = useState('');
@@ -70,7 +71,7 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
     if(busy || remaining===0)return;
     setBusy(true);setError('');
     try {
-      const context=await challengeLocationContext();
+      const context=free?{}:await challengeLocationContext();
       if(!present.current || document.visibilityState!=='visible')return;
       await challengeRequest('ready',{matchId:match.id,presenceId:presenceId.current,...context});
       if(!present.current || document.visibilityState!=='visible'){await challengeRequest('unready',{matchId:match.id,presenceId:presenceId.current});return;}
@@ -89,15 +90,15 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
     <div className="flex items-start justify-between gap-3"><div><p className="text-xs uppercase tracking-widest text-[#C9A84C]">Challenge accepted</p><h2 className="mt-1 text-xl font-bold text-white">Ready to play?</h2></div>
       <span className="flex shrink-0 items-center gap-1 rounded-full bg-white/5 px-3 py-2 text-xs text-white/65"><Clock size={13}/>{Math.floor(remaining/60)}:{String(remaining%60).padStart(2,'0')}</span></div>
     <div className="rounded-2xl border border-[#C9A84C]/25 bg-[#C9A84C]/5 p-4">
-      <p className="font-semibold text-white">${Number(match.wager_amount).toFixed(2)} · {match.display_name}</p>
-      <p className="mt-2 text-sm text-white/60">Both entries and both service fees are reserved. Your total reservation is ${total.toFixed(2)}.</p>
-      <p className="mt-2 text-xs leading-relaxed text-white/45">No further deposit or reservation is required. The game starts only when both players confirm and remain present.</p>
+      <p className="font-semibold text-white">{free?'Free play':`$${Number(match.wager_amount).toFixed(2)}`} · {match.display_name}</p>
+      <p className="mt-2 text-sm text-white/60">{free?'No entry charges, service fees, or money awards.':`Both entries and both service fees are reserved. Your total reservation is $${total.toFixed(2)}.`}</p>
+      <p className="mt-2 text-xs leading-relaxed text-white/45">The game starts only when both players confirm and remain present.</p>
     </div>
     {[['You',myReady], [name,otherReady]].map(([label,readyState])=><div key={String(label)} className="flex items-center justify-between rounded-xl bg-white/5 p-3 text-sm"><span className="text-white/75">{label}</span><span className={readyState?'text-[#C9A84C]':'text-white/40'}>{readyState ? <><Check className="mr-1 inline" size={14}/>Ready</> : 'Not ready yet'}</span></div>)}
     {remaining>0 ? <>
       <Button onClick={ready} disabled={busy || (armed && myReady)} className="h-12 w-full rounded-2xl gold-gradient font-bold text-black disabled:opacity-60">{busy && <Loader2 size={16} className="mr-2 animate-spin"/>}{armed && myReady?'Waiting for opponent…':'I’m Ready'}</Button>
       <p className="text-center text-xs text-white/45">Stay on this screen after confirming. Leaving withdraws your readiness; both players must be present to start.</p>
-    </> : <p className="rounded-xl bg-white/5 p-3 text-sm text-white/60">The start window ended. The system is closing this unstarted match and releasing both entries and fees.</p>}
+    </> : <p className="rounded-xl bg-white/5 p-3 text-sm text-white/60">{free?'The start window ended. This unstarted free game is closing.':'The start window ended. The system is closing this unstarted match and releasing both entries and fees.'}</p>}
     {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
     <Button onClick={cancel} disabled={busy} variant="outline" className="h-10 w-full rounded-xl border-white/15 text-white/55">Cancel Before Start</Button>
   </section>;

@@ -5,10 +5,11 @@ const require = createRequire(import.meta.url);
 // Isolated browser QA dependency lives outside the application dependency tree.
 const { chromium } = require('/tmp/chessbet-browser-qa/node_modules/playwright');
 const browser = await chromium.launch({ headless:true, args:['--no-sandbox'] });
+const qaOrigin=process.env.CHALLENGE_QA_ORIGIN || 'http://localhost:5173';
 const code = 'a'.repeat(32);
 let checks=0, scenarios=0;
 const failures=[];
-async function scenario(name,{who=null,funded=false,status='open',hasChallenge=true,creatorReady=true,needsConsent=false,publiclyListed=false,width=390,path=`/challenge/${code}`}={},work){
+async function scenario(name,{who=null,funded=false,free=false,status='open',hasChallenge=true,creatorReady=true,needsConsent=false,publiclyListed=false,width=390,path=`/challenge/${code}`}={},work){
   if(process.env.CHALLENGE_SCENARIO && name!==process.env.CHALLENGE_SCENARIO)return;
   scenarios++;
   const context=await browser.newContext({viewport:{width,height:844}});
@@ -17,10 +18,10 @@ async function scenario(name,{who=null,funded=false,status='open',hasChallenge=t
   page.on('pageerror',error=>errors.push(error.message));
   // All backend calls use an in-browser mock; all outbound requests are
   // blocked. This suite never creates real accounts, contests or payments.
-  await context.addInitScript(({who,funded,status,code,hasChallenge,creatorReady,needsConsent,publiclyListed})=>{
+  await context.addInitScript(({who,funded,free,status,code,hasChallenge,creatorReady,needsConsent,publiclyListed})=>{
     const user=who?{id:who,role:'user',launch_epoch:2,mfa_bypass:true,account_state:'verified',chess_com_username:who,full_name:'Test Player'}:null;
-    const match={challenge_publicly_listed:publiclyListed,id:'qa-match',launch_epoch:2,challenge_version:1,player1_id:'p1',...(['claimed','completed','live','scheduled'].includes(status)?{player2_id:'p2'}:{}),wager_amount:25,platform_service_fee:2,platform_fee_schedule_version:'2026-07-28',time_control:'blitz',display_name:'Blitz (5+0)',clock_initial_ms:300000,status:['live','scheduled'].includes(status)?'in_progress':status==='completed'?'completed':status==='claimed'?'preparing':status==='open'?'searching':'cancelled',is_private:true,invite_code:code,player1_certified:status==='claimed',player2_certified:status==='claimed',player1_deposited:status==='claimed',player2_deposited:status==='claimed',preparation_started_at:new Date().toISOString(),challenge_expires_at:new Date(Date.now()+86400000).toISOString()};
-    const card=()=>({creatorConsentRequired:needsConsent,isRematch:Boolean(match.challenge_rematch_of),publiclyListed:match.challenge_publicly_listed,id:match.id,creatorName:'Jordan',entryAmount:25,serviceFee:2,totalRequired:27,winnerAward:50,displayName:match.display_name,expiresAt:match.challenge_expires_at,status:match.status==='searching'?'open':match.status==='preparing'?'claimed':'cancelled',creatorReady,creatorReadyUntil:new Date(Date.now()+119000).toISOString()});
+    const match={play_mode:free?'free':'money',challenge_publicly_listed:publiclyListed,id:'qa-match',launch_epoch:2,challenge_version:1,player1_id:'p1',...(['claimed','completed','live','scheduled'].includes(status)?{player2_id:'p2'}:{}),wager_amount:free?0:25,platform_service_fee:free?0:2,platform_fee_schedule_version:'2026-07-28',time_control:'blitz',display_name:'Blitz (5+0)',clock_initial_ms:300000,status:['live','scheduled'].includes(status)?'in_progress':status==='completed'?'completed':status==='claimed'?'preparing':status==='open'?'searching':'cancelled',is_private:true,invite_code:code,player1_certified:status==='claimed',player2_certified:status==='claimed',player1_deposited:status==='claimed',player2_deposited:status==='claimed',preparation_started_at:new Date().toISOString(),challenge_expires_at:new Date(Date.now()+86400000).toISOString()};
+    const card=()=>({playMode:match.play_mode,creatorConsentRequired:needsConsent,isRematch:Boolean(match.challenge_rematch_of),publiclyListed:match.challenge_publicly_listed,id:match.id,creatorName:'Jordan',entryAmount:match.wager_amount,serviceFee:match.platform_service_fee,totalRequired:match.wager_amount+match.platform_service_fee,winnerAward:match.wager_amount*2,displayName:match.display_name,expiresAt:match.challenge_expires_at,status:match.status==='searching'?'open':match.status==='preparing'?'claimed':'cancelled',creatorReady,creatorReadyUntil:new Date(Date.now()+119000).toISOString()});
     const finishedGame={id:'qa-finished-game',match_id:'qa-match',launch_epoch:2,status:['live','scheduled'].includes(status)?'active':'completed',turn_started_at:new Date(Date.now()+(status==='scheduled'?4000:-30000)).toISOString(),player1_id:'p1',player2_id:'p2',pgn:'',move_log:[],fen:'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',end_reason:'resignation',white_time_ms:300000,black_time_ms:300000};
     const wallet={id:'qa-wallet',user_id:who,balance:funded?100:0,available_balance:funded?100:0,held_balance:status==='claimed'?27:0,total_balance:funded?100:0};
     const calls=[];
@@ -44,13 +45,14 @@ async function scenario(name,{who=null,funded=false,status='open',hasChallenge=t
         if(name==='manageChallenge'){
           if(body.action==='view')return {data:{challenge:card(),role:who==='p1'?'player1':who==='p2'&&match.player2_id?'player2':'',participant:who==='p1'||(who==='p2'&&!!match.player2_id)}};
           if(body.action==='list')return {data:{challenges:hasChallenge&&who==='p1'&&match.status==='searching'?[{...card(),inviteCode:code,path:'/challenge/'+code}]:[]}};
-          if(body.action==='create'){hasChallenge=true;creatorReady=false;needsConsent=body.agree!==true;const tc={blitz:['Blitz (3+0)',180000],rapid:['Rapid (10+0)',600000],classical:['Classical (15+0)',900000]}[body.timeControl];update({status:'searching',challenge_rematch_of:body.rematchOf || '',challenge_publicly_listed:body.publiclyListed,time_control:body.timeControl,display_name:tc[0],clock_initial_ms:tc[1]});return {data:{match:{...match},inviteCode:code,path:'/challenge/'+code}};}
+          if(body.action==='money_location')return {data:{approved:false,status:'blocked',message:'Money play isn’t available in your current location. You can still play for free.'}};
+          if(body.action==='create'){if(body.playMode!=='free'&&!funded)throw Object.assign(Error('Available funds required'),{response:{data:{action:'funds_required',error:'Your wallet needs enough available funds for the entry and fee. Pending funds do not count.'}}});hasChallenge=true;creatorReady=false;needsConsent=body.agree!==true;const tc={blitz:['Blitz (3+0)',180000],rapid:['Rapid (10+0)',600000],classical:['Classical (15+0)',900000]}[body.timeControl];update({play_mode:body.playMode,wager_amount:body.entryAmount,platform_service_fee:body.serviceFee,status:'searching',challenge_rematch_of:body.rematchOf || '',challenge_publicly_listed:body.publiclyListed,time_control:body.timeControl,display_name:tc[0],clock_initial_ms:tc[1]});return {data:{match:{...match},inviteCode:code,path:'/challenge/'+code}};}
           if(body.action==='visibility'){update({challenge_publicly_listed:body.publiclyListed});return {data:{challenge:card()}};}
-          if(body.action==='readiness')return {data:funded?{ready:true,availableBalance:100,totalRequired:27}:{ready:false,code:'funds_required',reason:'Your wallet needs enough available funds. Pending funds do not count.',availableBalance:0,totalRequired:27}};
+          if(body.action==='readiness')return {data:free||funded?{ready:true,availableBalance:100,totalRequired:free?0:27}:{ready:false,code:'funds_required',reason:'Your wallet needs enough available funds. Pending funds do not count.',availableBalance:0,totalRequired:27}};
           if(body.action==='remember')return {data:{remembered:true,reserved:false}};
           if(body.action==='intent')return {data:{intent:null}};
           if(body.action==='consent'){needsConsent=false;return {data:{challenge:card()}};}
-          if(body.action==='presence'){creatorReady=body.visible===true && funded && !needsConsent;return {data:{available:creatorReady}};}
+          if(body.action==='presence'){creatorReady=body.visible===true && (match.play_mode==='free'||funded) && !needsConsent;return {data:{available:creatorReady}};}
           if(body.action==='unready'){update({[who==='p1'?'challenge_player1_ready_at':'challenge_player2_ready_at']:''});return {data:{needsReady:true}};}
           if(body.action==='authorize'){creatorReady=true;return {data:{challenge:card(),authorizedUntil:new Date(Date.now()+120000).toISOString()}};}
           if(body.action==='accept'){if(!creatorReady)throw Object.assign(Error('Creator is not ready'),{response:{data:{code:'creator_not_ready',error:'Creator is not ready'}}});update({status:'preparing',player2_id:'p2',player1_deposited:true,player2_deposited:true,player1_certified:true,player2_certified:true});return {data:{match:{...match},accepted:true}};}
@@ -76,7 +78,7 @@ async function scenario(name,{who=null,funded=false,status='open',hasChallenge=t
     window.__challengeQA={user,match,wallet,calls,sdk};
     if(who)localStorage.setItem('base44_access_token','isolated-browser-fixture-not-a-real-token');
     Object.defineProperty(navigator,'geolocation',{configurable:true,value:{getCurrentPosition:(_ok,fail)=>fail({code:1})}});
-  },{who,funded,status,code,hasChallenge,creatorReady,needsConsent,publiclyListed});
+  },{who,funded,free,status,code,hasChallenge,creatorReady,needsConsent,publiclyListed});
   await page.route('**/*',async route=>{
     const url=new URL(route.request().url());
     if(!['localhost','127.0.0.1'].includes(url.hostname))return route.abort();
@@ -85,9 +87,9 @@ async function scenario(name,{who=null,funded=false,status='open',hasChallenge=t
     if(url.pathname==='/src/lib/AuthContext.jsx')return route.fulfill({contentType:'text/javascript',body:`export const AuthProvider=({children})=>children; export const useAuth=()=>({user:window.__challengeQA.user,isAuthenticated:!!window.__challengeQA.user,isLoadingAuth:false,isLoadingPublicSettings:false,authChecked:true,authError:null,checkUserAuth:()=>{},navigateToLogin:()=>{},logout:()=>{}});`});
     return route.continue();
   });
-  await page.routeWebSocket('**/*',ws=>{if(!ws.url().includes('localhost:5173'))ws.close();else ws.connectToServer();});
+  await page.routeWebSocket('**/*',ws=>{if(!ws.url().includes(new URL(qaOrigin).host))ws.close();else ws.connectToServer();});
   try{
-    await page.goto('http://localhost:5173'+path,{waitUntil:'networkidle',timeout:30000});
+    await page.goto(qaOrigin+path,{waitUntil:'networkidle',timeout:30000});
     await work(page);
     const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1);
     assert.equal(overflow,false,`${name}: horizontal overflow`);checks++;
@@ -99,6 +101,54 @@ async function scenario(name,{who=null,funded=false,status='open',hasChallenge=t
   finally{await context.close();}
 }
 try{
+  for(const width of [390,1280])for(const publiclyListed of [false,true]) {
+    await scenario('free-create-'+width+'-'+publiclyListed,{who:'p1',funded:false,hasChallenge:false,path:'/play',width},async page=>{
+      await page.getByRole('button',{name:'Create Challenge',exact:true}).click();
+      assert.equal(await page.getByRole('button',{name:'Free play',exact:true}).getAttribute('aria-pressed'),'true');checks++;
+      assert.equal(await page.getByRole('button',{name:'$25',exact:true}).count(),0);checks++;
+      assert.equal(await page.getByRole('spinbutton').count(),0);checks++;
+      const toggle=page.getByRole('switch',{name:'Show in Find an Opponent',exact:true});
+      assert.equal(await toggle.getAttribute('aria-checked'),'true');checks++;
+      if(!publiclyListed)await toggle.click();
+      await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Create Challenge Link',exact:true}).click();
+      await page.getByRole('heading',{name:'Your next match starts here',exact:true}).waitFor();
+      assert.equal(new URL(page.url()).pathname+new URL(page.url()).search,'/play');checks++;
+      await page.getByText('Free play',{exact:true}).waitFor();checks++;
+      assert.equal(await page.getByRole('link',{name:'Fund Wallet',exact:true}).count(),0);checks++;
+      const body=await page.evaluate(()=>window.__challengeQA.calls.find(c=>c.body.action==='create').body);
+      assert.equal(body.playMode,'free');assert.equal(body.entryAmount,0);assert.equal(body.serviceFee,0);assert.equal(body.publiclyListed,publiclyListed);checks+=4;
+      await page.getByRole('button',{name:'Cancel',exact:true}).click();
+      await page.getByRole('button',{name:'Create Challenge',exact:true}).waitFor();checks++;
+    });
+  }
+  for(const marketplace of [false,true])await scenario('free-accept-'+marketplace,{who:'p2',free:true,funded:false,publiclyListed:true,path:marketplace?'/play?mode=public':'/challenge/'+code},async page=>{
+    await page.getByRole('button',{name:'Accept Challenge',exact:true}).click();
+    await page.getByRole('checkbox').check();
+    await page.getByRole('button',{name:'Accept Free Challenge',exact:true}).click();
+    await page.waitForURL('**/play?match=qa-match');checks++;
+    await page.getByRole('button',{name:'I’m Ready',exact:true}).click();
+    await page.getByText('Waiting for opponent…',{exact:true}).waitFor();checks++;
+    assert.equal(await page.getByText('Both entries and both service fees are reserved.',{exact:false}).count(),0);checks++;
+    assert.equal(await page.evaluate(()=>window.__challengeQA.calls.filter(c=>c.name==='lockWager').length),0);checks++;
+  });
+  await scenario('money-location-recheck',{who:'p1',funded:false,hasChallenge:false,path:'/play'},async page=>{
+    await page.getByRole('button',{name:'Create Challenge',exact:true}).click();
+    await page.getByRole('button',{name:'Money play',exact:true}).click();
+    await page.getByRole('button',{name:'Recheck Location',exact:true}).first().click();
+    await page.getByText('Money play isn’t available in your current location. You can still play for free.',{exact:true}).waitFor();checks++;
+    await page.evaluate(()=>{const invoke=window.__challengeQA.sdk.functions.invoke;window.__challengeQA.sdk.functions.invoke=async(name,body)=>body?.action==='money_location'?{data:{approved:true,message:'Your location is approved for money play. Continue wallet setup.'}}:invoke(name,body);});
+    await page.getByRole('button',{name:'Recheck Location',exact:true}).first().click();
+    await page.getByRole('link',{name:'Continue Wallet Setup',exact:true}).waitFor();checks++;
+    assert.equal(await page.evaluate(()=>window.__challengeQA.calls.filter(c=>c.body.action==='create').length),0);checks++;
+  });
+  await scenario('free-game-results',{who:'p1',free:true,funded:false,status:'completed',path:'/play?match=qa-match'},async page=>{
+    await page.getByText('Free game completed. No money was charged or awarded.',{exact:true}).waitFor();checks++;
+    assert.equal(await page.getByText('Winner Award',{exact:true}).count(),0);checks++;
+    await page.getByRole('button',{name:'Run It Back',exact:true}).click();
+    assert.equal(await page.getByRole('button',{name:'Free play',exact:true}).getAttribute('aria-pressed'),'true');checks++;
+    await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Create Rematch Link',exact:true}).click();
+    await page.getByRole('heading',{name:'Your next match starts here',exact:true}).waitFor();checks++;
+  });
   await scenario('anonymous-preview',{},async page=>{
     await page.getByRole('heading',{name:'Jordan’s challenge'}).waitFor();checks++;
     assert.equal(new URL(page.url()).pathname,'/challenge/'+code);checks++;
@@ -112,14 +162,24 @@ try{
     assert.equal(await page.evaluate(()=>window.__challengeQA.calls.filter(c=>c.body.action==='accept').length),0);checks++;
     await page.getByText('another eligible player may accept first.',{exact:false}).waitFor();checks++;
   });
-  await scenario('unfunded-create',{who:'p1',hasChallenge:false,path:'/play'},async page=>{
+  await scenario('unfunded-create',{who:'p1',funded:false,hasChallenge:false,path:'/play'},async page=>{
     await page.getByRole('button',{name:'Create Challenge',exact:true}).click();
+    await page.getByRole('button',{name:'Money play',exact:true}).click();
     await page.getByRole('checkbox').check();
     await page.getByRole('button',{name:'Create Challenge Link',exact:true}).click();
-    await page.getByRole('heading',{name:'Your next match starts here',exact:true}).waitFor();
-      assert.equal(new URL(page.url()).pathname+new URL(page.url()).search,'/play');checks++;
-    await page.getByRole('button',{name:'Share',exact:true}).waitFor();checks++;
-    assert.equal(await page.evaluate(()=>window.__challengeQA.calls.filter(c=>c.body.action==='accept'||c.name.startsWith('submitSeamless')).length),0);checks++;
+    await page.getByRole('alert').filter({hasText:'Pending funds do not count'}).waitFor();checks++;
+    await page.getByRole('button',{name:'Fund Wallet',exact:true}).waitFor();checks++;
+    assert.equal(await page.getByRole('button',{name:'Share',exact:true}).count(),0);checks++;
+  });
+  await scenario('blocked-location-create',{who:'p1',funded:true,hasChallenge:false,path:'/play'},async page=>{
+    await page.getByRole('button',{name:'Create Challenge',exact:true}).click();
+    await page.getByRole('button',{name:'Money play',exact:true}).click();
+    await page.evaluate(()=>{const invoke=window.__challengeQA.sdk.functions.invoke;window.__challengeQA.sdk.functions.invoke=async(name,body)=>{if(body?.action==='create')throw Object.assign(Error('Blocked'),{response:{data:{action:'location_required',error:'Your current location is not approved for paid contests.'}}});return invoke(name,body);};});
+    await page.getByRole('checkbox').check();
+    await page.getByRole('button',{name:'Create Challenge Link',exact:true}).click();
+    await page.getByRole('alert').filter({hasText:'location is not approved'}).waitFor();checks++;
+    assert.equal(await page.getByRole('button',{name:'Share',exact:true}).count(),0);checks++;
+    await page.getByRole('button',{name:'Create Challenge Link',exact:true}).waitFor();checks++;
   });
   await scenario('funded-recipient-accept',{who:'p2',funded:true},async page=>{
     await page.getByRole('button',{name:'Accept Challenge',exact:true}).click();
@@ -147,8 +207,9 @@ try{
     assert.equal(await page.evaluate(()=>window.__challengeQA.calls.filter(c=>c.body.action==='accept'||c.name==='lockWager').length),0);checks++;
   });
   for (const [value,label,minutes] of [['blitz','Blitz',3],['rapid','Rapid',10],['classical','Classical',15]]) {
-    await scenario('create-'+value,{who:'p1',hasChallenge:false,path:'/play',width:value==='rapid'?1280:390},async page=>{
+    await scenario('create-'+value,{who:'p1',funded:true,hasChallenge:false,path:'/play',width:value==='rapid'?1280:390},async page=>{
       await page.getByRole('button',{name:'Create Challenge',exact:true}).click();
+    await page.getByRole('button',{name:'Money play',exact:true}).click();
       await page.getByText(label,{exact:true}).click();
       assert.equal(await page.getByRole('radio',{name:label+' '+minutes+' min',exact:true}).isChecked(),true);checks++;
       assert.equal(await page.getByText('The winner award includes both entry amounts; the fee is separate.',{exact:false}).count(),0);checks++;
@@ -161,8 +222,9 @@ try{
     });
   }
   for (const width of [390,1280]) {
-    await scenario('entry-presets-'+width,{who:'p1',hasChallenge:false,path:'/play',width},async page=>{
+    await scenario('entry-presets-'+width,{who:'p1',funded:true,hasChallenge:false,path:'/play',width},async page=>{
       await page.getByRole('button',{name:'Create Challenge',exact:true}).click();
+    await page.getByRole('button',{name:'Money play',exact:true}).click();
       const form=page.getByRole('form',{name:'Create shared challenge'});
       assert.equal(await form.getByRole('spinbutton').count(),0);checks++;
       assert.equal(await form.getByText('Custom entry amount').count(),0);checks++;
@@ -201,8 +263,9 @@ try{
       assert.equal(await page.evaluate(()=>window.__challengeQA.calls.filter(c=>['authorize','accept'].includes(c.body.action)).length),0);checks++;
     });
   }
-  await scenario('create-public-toggle',{who:'p1',hasChallenge:false,path:'/play'},async page=>{
+  await scenario('create-public-toggle',{who:'p1',funded:true,hasChallenge:false,path:'/play'},async page=>{
     await page.getByRole('button',{name:'Create Challenge',exact:true}).click();
+    await page.getByRole('button',{name:'Money play',exact:true}).click();
     const toggle=page.getByRole('switch',{name:'Show in Find an Opponent',exact:true});
     assert.equal(await toggle.getAttribute('aria-checked'),'true');checks++;
     await page.getByRole('checkbox').check();
@@ -241,8 +304,9 @@ try{
     assert.equal(await page.evaluate(()=>window.__challengeQA.calls.filter(c=>c.body.action==='accept').length),0);checks++;
   });
   for (const width of [390,1280]) {
-    await scenario('hud-create-manage-'+width,{who:'p1',hasChallenge:false,path:'/play',width},async page=>{
+    await scenario('hud-create-manage-'+width,{who:'p1',funded:true,hasChallenge:false,path:'/play',width},async page=>{
       await page.getByRole('button',{name:'Create Challenge',exact:true}).click();
+    await page.getByRole('button',{name:'Money play',exact:true}).click();
       await page.getByRole('checkbox').check();
     await page.getByRole('button',{name:'Create Challenge Link',exact:true}).click();
       await page.getByRole('heading',{name:'Your next match starts here',exact:true}).waitFor();
@@ -252,7 +316,7 @@ try{
     await page.getByRole('link',{name:'Fund Wallet',exact:true}).click();
     await page.getByRole('link',{name:'Return to Challenge',exact:true}).click();
       await page.getByText('Host or accept a challenge to begin playing',{exact:true}).waitFor({state:'attached'});checks++;
-      assert.equal(await page.getByLabel('Your shareable challenge link').inputValue(),'http://localhost:5173/challenge/'+code);checks++;
+      assert.equal(await page.getByLabel('Your shareable challenge link').inputValue(),qaOrigin+'/challenge/'+code);checks++;
       await page.reload({waitUntil:'networkidle'});
       await page.getByRole('heading',{name:'Your challenge is ready'}).waitFor();checks++;
       assert.equal(new URL(page.url()).pathname,'/play');checks++;
@@ -261,6 +325,7 @@ try{
       assert.equal(new URL(page.url()).pathname,'/play');checks++;
       await page.getByRole('link',{name:'Create a Challenge →',exact:true}).click();
       await page.getByRole('button',{name:'Create Challenge',exact:true}).click();
+    await page.getByRole('button',{name:'Money play',exact:true}).click();
       await page.getByRole('button',{name:'Create Challenge Link',exact:true}).waitFor();checks++;
     });
   }
@@ -289,8 +354,9 @@ try{
       await page.getByRole('button',{name:'Create Challenge',exact:true}).waitFor();checks++;
     });
   }
-  await scenario('create-link-only-opt-out',{who:'p1',hasChallenge:false,path:'/play'},async page=>{
+  await scenario('create-link-only-opt-out',{who:'p1',funded:true,hasChallenge:false,path:'/play'},async page=>{
     await page.getByRole('button',{name:'Create Challenge',exact:true}).click();
+    await page.getByRole('button',{name:'Money play',exact:true}).click();
     const toggle=page.getByRole('switch',{name:'Show in Find an Opponent',exact:true});
     assert.equal(await toggle.getAttribute('aria-checked'),'true');checks++;
     await toggle.click();
@@ -331,6 +397,7 @@ try{
   });
   await scenario('new-create-consent-and-presence',{who:'p1',funded:true,hasChallenge:false,creatorReady:false,path:'/play'},async page=>{
     await page.getByRole('button',{name:'Create Challenge',exact:true}).click();
+    await page.getByRole('button',{name:'Money play',exact:true}).click();
     const create=page.getByRole('button',{name:'Create Challenge Link',exact:true});
     assert.equal(await create.isEnabled(),false);checks++;
     await page.getByRole('checkbox').check();await create.click();

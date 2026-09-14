@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import React, { useRef, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
@@ -16,7 +17,7 @@ export default function DepositLocationStep({ decision, onDecision }) {
   const hasResult = !!decision && decision.status !== "not_started" && !checking;
   const blocked = decision?.status === "blocked";
   const failed = hasResult && !approved;
-  const resultTitle = blocked ? "Location not supported" : "Location verification failed";
+  const resultTitle = blocked ? "Money play unavailable here" : "Location verification failed";
   const checkLocation = async () => {
     if (approved || inProgress.current || !user?.id) return;
     inProgress.current = true;
@@ -40,7 +41,7 @@ export default function DepositLocationStep({ decision, onDecision }) {
         <div role="status" aria-live="polite" aria-atomic="true"
           className="mt-3 rounded-xl border border-amber-400/50 bg-amber-400/10 p-4 sm:p-5">
           <p className="text-lg font-bold leading-6 text-amber-200">{resultTitle}</p>
-          <p className="mt-2 text-base font-medium leading-6 text-white">Wallet setup cannot continue until your location is approved.</p>
+          <p className="mt-2 text-base font-medium leading-6 text-white">Money play requires an approved location. You can still create and play free challenges.</p>
           <p className="mt-2 text-base leading-6 text-white/90">{decision.reason || "The location check did not complete. Please try again."}</p>
         </div>
       )}
@@ -52,6 +53,7 @@ export default function DepositLocationStep({ decision, onDecision }) {
       )}
       {decision && decision.status !== "not_started" && !approved && (
         <div className="mt-4 space-y-3 text-sm leading-6 text-white/70">
+          <Link to="/play" className="inline-block font-semibold text-[#E5CA7A]">Play for Free</Link>
           <p>Approved U.S. jurisdictions: {APPROVED_STATES.map(s => getRegionName(s) || s).join(", ")}.</p>
           {blocked && !checking && decision.promptEligible && <JurisdictionWaitlistOptIn key={`${decision.country}:${decision.state}`} userEmail={user?.email} initialCountry={decision.country} initialRegion={decision.state} />}
         </div>

@@ -268,8 +268,8 @@ export default function GameHUD({
             already visible beside the player names above the fold. */}
         <div className="hidden lg:grid grid-cols-2 gap-2.5">
           <div className="rounded-2xl bg-[#C9A84C]/5 border border-[#C9A84C]/20 p-3">
-            <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]/60 mb-0.5">Entry Amount</p>
-            <p className="text-base font-bold text-[#C9A84C]">${match.wager_amount.toFixed(2)}</p>
+            <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]/60 mb-0.5">{match.play_mode==='free'?'Play mode':'Entry Amount'}</p>
+            <p className="text-base font-bold text-[#C9A84C]">{match.play_mode==='free'?'Free play':`$${match.wager_amount.toFixed(2)}`}</p>
           </div>
           <div className="rounded-2xl bg-white/[0.03] p-3">
             <p className="text-[10px] uppercase tracking-widest text-white/30 mb-0.5">Time Control</p>

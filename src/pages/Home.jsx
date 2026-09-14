@@ -320,7 +320,7 @@ export default function Home() {
   // completed. Refresh as soon as that terminal status arrives so the result
   // screen and marketplace share the newly settled balance.
   useEffect(() => {
-    if (!activeMatch?.id || activeMatch.status !== "completed" || !user?.id) return;
+    if (!activeMatch?.id || activeMatch.play_mode === "free" || activeMatch.status !== "completed" || !user?.id) return;
     if (settledWalletRefreshRef.current === activeMatch.id) return;
     settledWalletRefreshRef.current = activeMatch.id;
     refreshWallet().catch(() => {
@@ -348,7 +348,7 @@ export default function Home() {
       storeSoundPreference(soundsOn);
       // Provision a single zero-balance wallet through the service-role backend.
       // This never creates promotional funds or posts ledger entries.
-      const { data } = await base44.functions.invoke("ensureWallet", {});
+      const { data } = await base44.functions.invoke("ensureWallet", {}).catch(() => ({ data: { wallet: null } }));
       setWallet(data.wallet);
     };
     load();
@@ -437,7 +437,7 @@ export default function Home() {
                 try {
                   // Re-read before leaving the result/cancellation state so
                   // the marketplace never opens with a pre-settlement balance.
-                  await refreshWallet();
+                  if (activeMatch?.play_mode !== "free") await refreshWallet();
                 } catch {
                   // Navigation must remain available during a transient read failure.
                 } finally {

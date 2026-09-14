@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
 
     const enriched = available.map((match, index) => ({
       // Explicit public projection: never expose hidden lease, device or funding fields.
-      ...Object.fromEntries(['id','player1_id','wager_amount','platform_service_fee','platform_fee_schedule_version',
+      ...Object.fromEntries(['id','play_mode','player1_id','wager_amount','platform_service_fee','platform_fee_schedule_version',
         'time_control','display_name','status','challenge_version'].filter(key => match[key] !== undefined).map(key => [key,match[key]])),
       ...(isChallenge(match) ? { challengePath:challengePath(match.invite_code) } : {}),
       opponentName: opponentDetails[index].name,

@@ -12,6 +12,7 @@ const code = ts.transpileModule(source, { compilerOptions: {
 function mount(invoke, decision = null, user = { id: "test-user", email: "test@example.invalid" }) {
   const delivered = [];
   const dependencies = {
+    "react-router-dom": { Link: "a" },
     react: { ...React, useState: () => [false, () => {}], useRef: value => ({ current: value }) },
     "@/lib/AuthContext": { useAuth: () => ({ user }) },
     "@/api/base44Client": { base44: { functions: { invoke } } },
@@ -63,3 +64,7 @@ assert.equal(anonymous.button.props.disabled, true);
 await anonymous.button.props.onClick();
 assert.equal(anonymous.delivered.length, 0);
 console.log("Deposit intent passed: no render lookup; explicit start; pending-click deduplication; approval; failure; uncertainty; retry; anonymous refusal.");
+
+const denied = mount(() => { throw Error("must not run during render"); }, {allowed:false,status:"blocked"});
+const descendants=node=>[node,...React.Children.toArray(node?.props?.children).flatMap(descendants)];
+assert.ok(descendants(denied.tree).some(node=>node.type==="a" && node.props.to==="/play" && node.props.children==="Play for Free"));

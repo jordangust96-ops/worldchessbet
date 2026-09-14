@@ -5,6 +5,7 @@ import { resolveChallenge, viewChallenge, createChallenge, listMyChallenges, aut
   pingChallengeCreator, challengeEvent, setChallengeVisibility, consentToHudChallenge, maintainCreatorPresence } from '../../shared/challengeLifecycle.ts';
 import { CHALLENGE_VERSION, isChallenge, publicChallenge, challengePath } from '../../shared/challengePolicy.js';
 import { takeChallengeRateLimit } from '../../shared/seamlessAtomicStore.ts';
+import { getRequestJurisdiction } from '../../shared/requestJurisdiction.ts';
 import { getOriginalClientIp } from '../../shared/jurisdictionGates.js';
 import { sha256Hex } from '../../shared/mfaCore.js';
 import { requireAdminMfa } from '../../shared/mfa.ts';
@@ -13,7 +14,7 @@ import { requireAdminMfa } from '../../shared/mfa.ts';
 // are bypassed in backend functions, including private operation/lease data.
 export function safeChallengeMatch(match: any) {
   if (!match) return match;
-  const fields = ['id','launch_epoch','player1_id','player2_id','wager_amount','platform_service_fee',
+  const fields = ['id','play_mode','launch_epoch','player1_id','player2_id','wager_amount','platform_service_fee',
     'platform_fee_schedule_version','time_control','display_name','status','game_id','is_private',
     'player1_certified','player2_certified','player1_deposited','player2_deposited','preparation_started_at',
     'challenge_version','clock_initial_ms','challenge_expires_at','challenge_close_reason',
@@ -61,7 +62,15 @@ Deno.serve(async (req) => {
       return response(data);
     }
     await requireChallengeSession(req, base44, user, body.sessionToken);
-    if (action === 'create') return response(await createChallenge(base44, user, body));
+    if (action === 'create') return response(await createChallenge(base44, user, body, req));
+    if (action === 'money_location') {
+      if (!await takeChallengeRateLimit('money-location:'+user.id,10,60)) fail('rate_limited','Please wait before rechecking your location.',429);
+      const result = await (await getRequestJurisdiction(req,{triggerEvent:'wallet_onboarding'},{fresh:true,requireLocation:true})).json();
+      return response({approved:result.status==='approved',status:result.status || 'verification_failed',
+        message:result.status==='approved'?'Your location is approved for money play. Continue wallet setup to verify your identity and fund your wallet.':
+          result.status==='blocked'?'Money play isn’t available in your current location. You can still play for free.':
+          'We could not verify your location for money play. You can still play for free or check again.'});
+    }
     if (action === 'list') return response(await listMyChallenges(base44, user));
     if (action === 'intent') {
       const rows = await base44.asServiceRole.entities.IntegrationEvent.filter({

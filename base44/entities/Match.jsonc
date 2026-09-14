@@ -15,7 +15,7 @@
     },
     "clock_initial_ms": {
       "type": "integer",
-      "description": "New invitation games use 300000 ms per player; legacy time controls are unchanged."
+      "description": "Server snapshot of the selected time control in milliseconds; preserves historical match clocks."
     },
     "challenge_creation_key": {
       "type": "string",
@@ -375,6 +375,18 @@
       "rls": {
         "write": false,
         "read": false
+      }
+    },
+    "play_mode": {
+      "type": "string",
+      "enum": [
+        "money",
+        "free"
+      ],
+      "default": "money",
+      "description": "Server-set immutable contest mode. Free games have no financial activity; absent legacy mode means money.",
+      "rls": {
+        "write": false
       }
     }
   },

@@ -125,6 +125,12 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'This case is already resolved/closed' }, { status: 400 });
     }
 
+    if (disputeCase.match_id && (['place_pre_settlement_hold','place_post_settlement_hold','place_account_hold','release_hold'].includes(action) ||
+        (action==='resolve_case' && ['contest_reversed','contest_voided','funds_forfeited'].includes(payload.resolutionType)))) {
+      const linkedMatch=await base44.asServiceRole.entities.Match.get(disputeCase.match_id);
+      if (linkedMatch?.play_mode==='free') return Response.json({error:'Free games have no financial settlement or funds to hold, refund, or reverse. Use a nonfinancial fair-play resolution.'},{status:409});
+    }
+
     const caseUpdates = {};
     let actionType = 'note_added';
     let noteContent = payload.content || payload.notes || '';

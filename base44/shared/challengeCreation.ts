@@ -32,3 +32,11 @@ export async function requireNoExistingChallenge(base44: any, userId: string) {
     if (rows.length < 100) break;
   }
 }
+
+export async function withChallengePlayersLock(userIds: string[], work: (checkLeases: () => Promise<void>) => Promise<any>) {
+  const checks: Array<() => Promise<void>>=[];
+  const checkLeases=async()=>{for(const check of checks)await check();};
+  const ids=[...new Set(userIds)].sort();
+  const next=(i: number): Promise<any> => i===ids.length ? work(checkLeases) : withChallengeCreationLock(ids[i],check=>{checks.push(check);return next(i+1);});
+  return next(0);
+}

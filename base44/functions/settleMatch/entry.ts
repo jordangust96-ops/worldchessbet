@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { postLedgerLegs } from '../../shared/ledger.ts';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
+import { isFreeMatch, assertFreeMatch } from '../../shared/challengePolicy.js';
 import { REPORT_WINDOW_MS } from '../../shared/reportWindow.ts';
 
 const SETTLEMENT_ELECTION_DELAY_MS = 250;
@@ -185,6 +186,22 @@ Deno.serve(async (req) => {
     if (!match) return Response.json({ error: 'Match not found' }, { status: 404 });
     if (caller.role !== 'admin' && ![match.player1_id, match.player2_id].includes(caller.id)) {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    if (isFreeMatch(match)) {
+      assertFreeMatch(match);
+      if (game.play_mode !== 'free' || match.game_id !== game.id ||
+          game.player1_id !== match.player1_id || game.player2_id !== match.player2_id ||
+          !['in_progress','completed'].includes(match.status) ||
+          !['white_win','black_win','draw'].includes(game.result))
+        return Response.json({error:'invalid_free_game_result'},{status:409});
+      const winner=game.result==='white_win'?match.player1_id:game.result==='black_win'?match.player2_id:'';
+      if ((game.winner_id || '') !== winner) return Response.json({error:'invalid_free_game_winner'},{status:409});
+      if (match.status==='completed') return Response.json({alreadySettled:true,match});
+      const updated=await base44.asServiceRole.entities.Match.update(match.id,{
+        status:'completed',winner_id:winner,result:game.result,completed_at:game.completed_at || new Date().toISOString(),
+      });
+      return Response.json({match:updated,freePlay:true});
     }
 
     // Administrative pre-settlement hold — set only via a Dispute Case

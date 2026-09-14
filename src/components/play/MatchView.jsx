@@ -45,7 +45,7 @@ export default function MatchView({
       if (!selfCancelledRef.current) {
         toast({
           title: "Match Cancelled",
-          description: "This match was cancelled. Any reserved funds have been returned to your wallet.",
+          description: match.play_mode==='free' ? "This free game was cancelled." : "This match was cancelled. Any reserved funds have been returned to your wallet.",
         });
       }
       onExit();
@@ -85,7 +85,7 @@ export default function MatchView({
       content = <SettlementState match={match} game={game} userId={userId} onReturn={onExit} />;
     } else if (game?.status === "completed") {
       stateKey = "finalizing";
-      content = <FinalizingMatch />;
+      content = <FinalizingMatch free={match.play_mode==='free'} />;
     } else if (match.status === "in_progress") {
       if (!countdownDone) {
         stateKey = "countdown";

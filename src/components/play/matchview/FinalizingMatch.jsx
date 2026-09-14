@@ -6,7 +6,7 @@ import { Loader2 } from "lucide-react";
 // (match.status === "completed") — never a second victory/defeat screen,
 // just a lightweight "please wait" so only one post-match result card
 // (SettlementState) is ever shown to the user.
-export default function FinalizingMatch() {
+export default function FinalizingMatch({free=false}) {
   const [takingLonger, setTakingLonger] = useState(false);
 
   useEffect(() => {
@@ -18,9 +18,9 @@ export default function FinalizingMatch() {
     <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
       <Loader2 className="animate-spin text-[#C9A84C]" size={24} />
       <p className="text-xs text-white/50">
-        {takingLonger ? "Settlement is continuing securely..." : "Finalizing match result..."}
+        {takingLonger ? (free?"Saving game result...":"Settlement is continuing securely...") : "Finalizing match result..."}
       </p>
-      {takingLonger && (
+      {takingLonger && !free && (
         <p className="max-w-xs text-[11px] leading-relaxed text-white/30">
           Automatic recovery is active. The result and reserved funds are processed on ChessBet&apos;s servers, so you
           may refresh, close this page, or return later without affecting settlement.

@@ -244,8 +244,8 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
 
           <div className="grid grid-cols-2 gap-3 lg:gap-2">
             <div className="rounded-2xl bg-[#C9A84C]/5 border border-[#C9A84C]/20 p-4 lg:p-2">
-              <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]/60 mb-1">Entry Amount</p>
-              <p className="text-xl lg:text-base font-bold text-[#C9A84C]">${current.wager_amount.toFixed(2)}</p>
+              <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]/60 mb-1">{current.play_mode==='free'?'Play mode':'Entry Amount'}</p>
+              <p className="text-xl lg:text-base font-bold text-[#C9A84C]">{current.play_mode==='free'?'Free play':`$${current.wager_amount.toFixed(2)}`}</p>
             </div>
             <div className="rounded-2xl bg-white/[0.03] p-4 lg:p-2">
               <p className="text-[10px] uppercase tracking-widest text-white/30 mb-1">Time Control</p>

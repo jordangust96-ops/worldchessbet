@@ -94,6 +94,7 @@ function fixture() {
       if(resolved.endsWith('/seamlessFundingConfig.ts'))return {paidContestsEnabled:()=>true};
       if(resolved.endsWith('/identityEligibility.js'))return {hasVerifiedIdentity:async(sdk,user)=>!!user && (await sdk.asServiceRole.entities.User.get(user.id)).verified===true};
       if(resolved.endsWith('/matchLocation.ts'))return {
+        verifyChallengeCreationLocation:async(r,key)=>{check(r instanceof Request,'Creation receives original request');state.creationLookups=(state.creationLookups||0)+1;if(state.afterCreationLocation)state.afterCreationLocation();return {status:state.location?'approved':'blocked',reason:'location denied'};},
         verifyMatchLocation:async(r,m)=>{state.lookups++;return {status:state.location?'approved':'blocked',reason:'location denied'};},
         getMatchLocationReadiness:async()=>({ready:state.location,requiredUserIds:state.location?[]:['p2']}),
         matchLocationRequiredResponse:r=>Response.json({action:'match_location_required',requiredUserIds:r.requiredUserIds},{status:403}),
@@ -128,6 +129,8 @@ function fixture() {
   const user=id=>clone(table('User').find(u=>u.id===id));
   const sdk=makeSdk('p1');
   const request=new Request('https://example.invalid',{method:'POST',headers:{'user-agent':'test-browser'},body:'{}'});
+  const originalCreate=api.createChallenge;
+  api.createChallenge=(sdk,u,body,req=request)=>originalCreate(sdk,u,body,req);
   const consent={agree:true,entryAmount:25,serviceFee:2};
   const get=id=>clone(table('Match').find(m=>m.id===id));
   const balance=(id,amount)=>{
@@ -142,9 +145,9 @@ function fixture() {
 }
 async function rejected(work,code){let failure;try{await work();}catch(error){failure=error;}check(failure,`Expected rejection ${code}`);if(code)equal(failure.code,code);}
 
-// Every published preset is creatable without funding; arbitrary amounts write nothing.
+// Every published preset is creatable with cleared funding; arbitrary amounts write nothing.
 for (const entryAmount of [5,10,25,50,100,250,500,1000,2500]) {
-  const f=fixture();f.balance('p1',0);
+  const f=fixture();f.balance('p1',3000);
   const result=await f.api.createChallenge(f.sdk,f.user('p1'),{entryAmount,requestKey:'preset_creation_12345'});
   equal(result.match.wager_amount,entryAmount);
   equal(f.table('LedgerJournalBatch').length,0);equal(f.table('WalletTransaction').length,0);
@@ -253,9 +256,9 @@ for (const publiclyListed of [true,false]) {
 }
 for (selectedTimeControl of [undefined, 'blitz', 'rapid', 'classical']) {
 const expectedClock = {blitz:180000,rapid:600000,classical:900000}[selectedTimeControl] || 300000;
-// Nonfinancial invitation creation works without a funded or verified wallet.
+// Eligible funded creation is nonfinancial and idempotent.
 {
-  const f=fixture();f.balance('p1',0);f.table('User')[0].verified=false;
+  const f=fixture();
   const m=await f.create();equal(m.status,'searching');equal(m.player2_id,undefined);equal(f.table('WalletTransaction').length,0);equal(f.table('LedgerJournalBatch').length,0);
   const replay=await f.create();equal(replay.id,m.id);equal(f.table('Match').length,1);
   await rejected(()=>f.api.createChallenge(f.sdk,f.user('p1'),{entryAmount:50,requestKey:'creation_key_123456'}),'request_conflict');
@@ -438,11 +441,11 @@ console.log(`Challenge lifecycle: ${assertions} assertions passed. Actual lifecy
 
 // Visible-HUD consent -> acceptance, no timer button or second reservation.
 for(const funded of [false,true]){
- const f=fixture();f.balance('p1',funded?100:0);
+ const f=fixture();
  const result=await f.api.createChallenge(f.sdk,f.user('p1'),{...f.consent,consentVersion:f.policy.CHALLENGE_HUD_CONSENT_VERSION,requestKey:'hud_consent_creation_1234',timeControl:'blitz'});
  const id=result.match.id;equal(f.policy.creatorAuthorized(f.get(id)),false);
  const body={presenceId:'hud_presence_session_1234',visible:true};
- if(!funded){await rejected(()=>f.api.maintainCreatorPresence(f.request,f.sdk,f.user('p1'),f.get(id),body),'funds_required');f.balance('p1',100);}
+ if(!funded){f.balance('p1',0);await rejected(()=>f.api.maintainCreatorPresence(f.request,f.sdk,f.user('p1'),f.get(id),body),'funds_required');f.balance('p1',100);}
  await f.api.maintainCreatorPresence(f.request,f.sdk,f.user('p1'),f.get(id),body);
  equal(f.policy.creatorAuthorized(f.get(id)),true);equal(f.table('LedgerJournalBatch').length,0);
  f.state.now+=6000;await f.api.maintainCreatorPresence(f.request,f.sdk,f.user('p1'),f.get(id),body);equal(f.state.lookups,1,'Presence does not repeat paid location lookups every heartbeat');
@@ -469,3 +472,21 @@ for(const funded of [false,true]){
  equal(f.table('LedgerJournalBatch').length,0);
 }
 console.log('Including new HUD and presence regressions: '+assertions+' assertions passed');
+
+for(const publiclyListed of [false,true])for(const issue of ['unfunded','pending','fee_short','identity','bank','restricted','location','lost_funds']){
+ const f=fixture();
+ const expected={unfunded:'funds_required',pending:'funds_required',fee_short:'funds_required',identity:'identity_required',bank:'bank_required',restricted:'account_restricted',location:'location_required',lost_funds:'funds_required'}[issue];
+ if(['unfunded','pending'].includes(issue))f.balance('p1',0);
+ if(issue==='pending')Object.assign(f.table('Wallet')[0],{pending_balance:1000,held_balance:1000,balance:1000,total_balance:1000});
+ if(issue==='fee_short')f.balance('p1',25);
+ if(issue==='identity')f.table('User')[0].verified=false;
+ if(issue==='bank')f.table('SeamlessBankAccount').length=0;
+ if(issue==='restricted')f.table('User')[0].account_state='suspended';
+ if(issue==='location')f.state.location=false;
+ if(issue==='lost_funds')f.state.afterCreationLocation=()=>f.balance('p1',0);
+ const response=await f.load('base44/functions/manageChallenge/entry.ts').handler(new Request('https://example.invalid',{method:'POST',headers:{'x-test-user':'p1','user-agent':'test-browser'},body:JSON.stringify({action:'create',entryAmount:25,timeControl:'blitz',publiclyListed,requestKey:'gated_creation_123456'})}));
+ equal((await response.json()).code,expected,issue);
+ equal(f.table('Match').length,0,issue+' writes no challenge');
+ equal(f.table('LedgerJournalBatch').length,0);equal(f.table('WalletTransaction').length,0);
+}
+console.log('Including creation eligibility regressions: '+assertions+' assertions passed');

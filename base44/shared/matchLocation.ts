@@ -13,6 +13,15 @@ export async function verifyMatchLocation(req, match, context = {}) {
   }, { fresh: true, requireLocation: true })).json();
 }
 
+// Creation has no Match yet. Keep its evidence separate from match-start evidence.
+export async function verifyChallengeCreationLocation(req, requestKey) {
+  return await (await getRequestJurisdiction(req, {
+    triggerEvent: 'challenge_creation',
+    relatedEntityType: 'challenge_creation',
+    relatedEntityId: requestKey,
+  }, { fresh: true, requireLocation: true })).json();
+}
+
 // Read-only start gate. Never tries to locate the opponent using the caller's
 // IP, and never performs paid lookups from an automatic retry or sweep.
 export async function getMatchLocationReadiness(base44, match) {

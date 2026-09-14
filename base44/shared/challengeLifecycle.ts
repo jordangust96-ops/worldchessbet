@@ -1,8 +1,8 @@
-import { withChallengeCreationLock, requireNoExistingChallenge } from './challengeCreation.ts';
+import { withChallengeCreationLock, requireNoExistingChallenge, withChallengePlayersLock } from './challengeCreation.ts';
 import { postLedgerLegs } from './ledger.ts';
 import { sha256Hex } from './mfaCore.js';
 import { recordIntegrationEvent } from './integrationEvents.ts';
-import { verifyMatchLocation, getMatchLocationReadiness } from './matchLocation.ts';
+import { verifyMatchLocation, getMatchLocationReadiness, verifyChallengeCreationLocation } from './matchLocation.ts';
 import { hasVerifiedIdentity } from './identityEligibility.js';
 import { getPlatformServiceFee, PLATFORM_FEE_SCHEDULE_VERSION } from './platformFee.ts';
 import { paidContestsEnabled } from './seamlessFundingConfig.ts';
@@ -10,7 +10,7 @@ import { acquireMatchLock, releaseMatchLock, acquireUserWalletLock, releaseUserW
   setChallengeWalletBarriers, clearChallengeWalletBarriers, takeChallengeRateLimit, refreshContestLocks } from './seamlessAtomicStore.ts';
 import { CHALLENGE_VERSION, CHALLENGE_TTL_MS, CHALLENGE_AUTHORIZATION_MS, challengeTimeControl,
   CHALLENGE_CONSENT_VERSION, CHALLENGE_HUD_CONSENT_VERSION, CHALLENGE_READY_MS, VALID_INVITE, VALID_REQUEST_KEY,
-  validNewEntry, isChallenge, challengeExpired, creatorAuthorized, challengeStartExpired,
+  validNewEntry, isChallenge, isFreeMatch, assertFreeMatch, challengeExpired, creatorAuthorized, challengeStartExpired,
   bothChallengePlayersReady, publicChallenge, reservationGroup, refundGroup,
   challengeReservationLegs, challengeReleaseLegs, challengePath } from './challengePolicy.js';
 import { fail, requireChallengePlayer, requireChallengePolicies, inspectChallengePlayer } from './challengeAccess.ts';
@@ -83,16 +83,20 @@ export async function viewChallenge(base44: any, match: any, user: any) {
     ownOperation: Boolean(user && match.challenge_claimant_id === user.id && activeOperation(match)) };
 }
 
-export async function createChallenge(base44: any, user: any, body: any) {
-  if (!paidContestsEnabled()) fail('paid_contests_disabled', 'Money challenges are temporarily unavailable.');
-  if (!validNewEntry(body.entryAmount)) fail('invalid_entry', 'Choose one of the available Entry Amounts.', 400);
+export async function createChallenge(base44: any, user: any, body: any, req: Request) {
+  if (body.playMode !== undefined && !['free','money'].includes(body.playMode)) fail('invalid_mode','Choose Free play or Money play.',400);
+  const free = body.playMode === 'free';
+  if (!free && !paidContestsEnabled()) fail('paid_contests_disabled', 'Money challenges are temporarily unavailable.');
+  if (free && (body.entryAmount !== 0 || body.serviceFee !== 0 || body.agree !== true || body.consentVersion !== CHALLENGE_HUD_CONSENT_VERSION))
+    fail('invalid_free_terms','Review the free-play terms. Free games cannot have an entry charge or fee.',400);
+  if (!free && !validNewEntry(body.entryAmount)) fail('invalid_entry', 'Choose one of the available Entry Amounts.', 400);
   if (!VALID_REQUEST_KEY.test(String(body.requestKey || ''))) fail('invalid_request', 'Please refresh and try again.', 400);
   const timeControl = challengeTimeControl(body.timeControl);
   if (!timeControl) fail('invalid_time_control', 'Choose Blitz, Rapid, or Classical.', 400);
   if (body.publiclyListed !== undefined && typeof body.publiclyListed !== 'boolean') fail('invalid_visibility', 'Choose whether to show the challenge in Find an Opponent.', 400);
   if (body.publiclyListed === true && body.rematchOf) fail('private_rematch', 'A rematch for a specific opponent must remain link-only.', 400);
   const hudConsent = body.agree === true && body.consentVersion === CHALLENGE_HUD_CONSENT_VERSION;
-  if (body.consentVersion && (!hudConsent || Number(body.serviceFee) !== getPlatformServiceFee(Number(body.entryAmount))))
+  if (body.consentVersion && (!hudConsent || Number(body.serviceFee) !== (free ? 0 : getPlatformServiceFee(Number(body.entryAmount)))))
     fail('consent_required', 'Review the displayed entry and fee before creating the challenge.', 400);
   await requireChallengePolicies(base44, user.id);
   return withChallengeCreationLock(user.id, async checkLease => {
@@ -100,7 +104,7 @@ export async function createChallenge(base44: any, user: any, body: any) {
       launch_epoch: 2, player1_id: user.id, challenge_creation_key: body.requestKey,
     }, '-created_date', 2);
     if (existing.length) {
-      if (existing[0].time_control !== timeControl.value || existing[0].clock_initial_ms !== timeControl.clockMs || Number(existing[0].wager_amount) !== Number(body.entryAmount) || (existing[0].challenge_rematch_of || '') !== (body.rematchOf || ''))
+      if (isFreeMatch(existing[0]) !== free || existing[0].time_control !== timeControl.value || existing[0].clock_initial_ms !== timeControl.clockMs || Number(existing[0].wager_amount) !== Number(body.entryAmount) || (existing[0].challenge_rematch_of || '') !== (body.rematchOf || ''))
         fail('request_conflict', 'This request already created a challenge with different terms. Start a new request.');
       return { match: existing[0], inviteCode: existing[0].invite_code, path: challengePath(existing[0].invite_code) };
     }
@@ -115,12 +119,28 @@ export async function createChallenge(base44: any, user: any, body: any) {
       rematchOf = previous.id;
       targetId = previous.player1_id === user.id ? previous.player2_id : previous.player1_id;
     }
+    const terms = { play_mode:free?'free':'money', challenge_version:CHALLENGE_VERSION, is_private:true, wager_amount:Number(body.entryAmount), platform_service_fee:free?0:getPlatformServiceFee(Number(body.entryAmount)) };
+    await requireChallengePlayer(base44, user.id, terms);
+    if (!free) {
+      if (!req) fail('location_required', 'Verify your current location before creating a money challenge.', 403);
+      const location = await verifyChallengeCreationLocation(req, body.requestKey);
+      if (location.status !== 'approved')
+        fail('location_required', 'Money play is not available from your current location. You can still play for free, or recheck your location.', 403);
+    }
+    // Re-read eligibility and cleared funds after the provider call. Keep wallet
+    // withdrawals/other commitments from racing this final check and creation.
+    const walletOwner = crypto.randomUUID();
+    if (!free && !await acquireUserWalletLock(user.id, walletOwner))
+      fail('wallet_busy', 'Your wallet is updating. Please try again.', 409);
+    try {
+    await requireChallengePlayer(base44, user.id, terms);
     await checkLease();
     const code = crypto.randomUUID().replaceAll('-', '');
     const createdAt = nowIso();
     const match = await base44.asServiceRole.entities.Match.create({
       launch_epoch: 2, player1_id: user.id, wager_amount: Number(body.entryAmount),
-      platform_service_fee: getPlatformServiceFee(Number(body.entryAmount)), platform_fee_schedule_version: PLATFORM_FEE_SCHEDULE_VERSION,
+      play_mode: free ? 'free' : 'money',
+      platform_service_fee: free ? 0 : getPlatformServiceFee(Number(body.entryAmount)), platform_fee_schedule_version: PLATFORM_FEE_SCHEDULE_VERSION,
       time_control: timeControl.value, display_name: timeControl.displayName, clock_initial_ms: timeControl.clockMs,
       status: 'searching', is_private: true, challenge_publicly_listed: body.publiclyListed === true, invite_code: code, challenge_version: CHALLENGE_VERSION,
       challenge_creation_key: body.requestKey, challenge_location_started_at: createdAt,
@@ -139,6 +159,7 @@ export async function createChallenge(base44: any, user: any, body: any) {
         platform_service_fee:match.platform_service_fee, publicly_listed:match.challenge_publicly_listed } });
 
     return { match, inviteCode: code, path: challengePath(code) };
+    } finally { if (!free) await releaseUserWalletLock(user.id, walletOwner).catch(() => {}); }
   });
 }
 
@@ -174,8 +195,10 @@ export async function authorizeChallenge(req: Request, base44: any, user: any, m
     if (Number(body.entryAmount) !== Number(fresh.wager_amount) || Number(body.serviceFee) !== Number(fresh.platform_service_fee))
       fail('terms_changed', 'The challenge terms changed. Review them again before authorizing.', 409);
     await requireChallengePlayer(base44, user.id, fresh);
-    const location = await verifyMatchLocation(req, fresh, body);
-    if (location.status !== 'approved') fail('location_required', location.reason || 'Verify your location before playing.', 403);
+    if (!isFreeMatch(fresh)) {
+      const location = await verifyMatchLocation(req, fresh, body);
+      if (location.status !== 'approved') fail('location_required', location.reason || 'Verify your location before playing.', 403);
+    }
     const updated = await base44.asServiceRole.entities.Match.update(fresh.id, {
       challenge_authorized_at: nowIso(), challenge_authorized_until: new Date(Date.now() + CHALLENGE_AUTHORIZATION_MS).toISOString(),
       challenge_consent_version: CHALLENGE_CONSENT_VERSION, player1_certified: true, player1_certified_at: nowIso(),
@@ -219,8 +242,10 @@ export async function maintainCreatorPresence(req: Request, base44: any, user: a
     const checked=Date.parse(fresh.challenge_authorized_at || '');
     if(fresh.challenge_creator_presence_id!==hash || !Number.isFinite(checked) || Date.now()-checked>=90000){
       await requireChallengePlayer(base44,user.id,fresh);
-      const location=await verifyMatchLocation(req,fresh,body);
-      if(location.status!=='approved')fail('location_required',location.reason || 'Verify your location before playing.',403);
+      if (!isFreeMatch(fresh)) {
+        const location=await verifyMatchLocation(req,fresh,body);
+        if(location.status!=='approved')fail('location_required','Money play is unavailable from this location. You can still play for free.',403);
+      }
     }
     const updated=await base44.asServiceRole.entities.Match.update(fresh.id,{
       challenge_creator_presence_id:hash,
@@ -310,7 +335,8 @@ export async function acceptChallenge(req: Request, base44: any, user: any, matc
     fail('consent_required', 'Review and agree to the displayed entry, fee, and Fair Play requirements.', 400);
   if (match.challenge_target_id && match.challenge_target_id !== user.id)
     fail('different_opponent', 'This rematch invitation is for the previous opponent.', 403);
-  return underMatchLock(base44, match.id, async (fresh, owner) => {
+  return withChallengePlayersLock([match.player1_id,user.id], checkPlayerLeases => underMatchLock(base44, match.id, async (fresh, owner) => {
+    if (isFreeMatch(fresh)) assertFreeMatch(fresh);
     if (activeOperation(fresh)) {
       if (fresh.challenge_claimant_id !== user.id) fail('busy', 'Another eligible player is completing acceptance.');
       return underWalletLocks([fresh.player1_id, user.id], owner, fresh.id, async () =>
@@ -326,6 +352,18 @@ export async function acceptChallenge(req: Request, base44: any, user: any, matc
     await requireChallengePlayer(base44, user.id, fresh);
     await requireChallengePlayer(base44, fresh.player1_id, fresh, true);
     if (!creatorAuthorized(fresh)) fail('creator_not_ready', 'The creator needs to return to the Play screen. This link remains open; neither wallet is reserved.');
+    if (isFreeMatch(fresh)) {
+      assertFreeMatch(fresh);
+      await checkPlayerLeases();
+      if (!await refreshContestLocks(fresh.id, [], owner)) fail('busy','Challenge ownership changed.');
+      if (!creatorAuthorized(fresh) || challengeExpired(fresh)) fail('creator_not_ready','The creator needs to return to the Play screen.');
+      const updated = await base44.asServiceRole.entities.Match.update(fresh.id, {
+        player2_id:user.id, player2_certified:true, player2_certified_at:nowIso(),
+        status:'preparing', preparation_started_at:nowIso(), challenge_claimed_at:nowIso(),
+        challenge_recipient_consent_at:nowIso(), challenge_operation_state:'idle',
+      });
+      return {match:updated,accepted:true};
+    }
     const location = await verifyMatchLocation(req, fresh, body);
     if (location.status !== 'approved') fail('location_required', location.reason || 'Verify your location to accept.', 403);
     const candidate = { ...fresh, player2_id: user.id };
@@ -353,6 +391,7 @@ export async function acceptChallenge(req: Request, base44: any, user: any, matc
           await requireChallengePlayer(base44, latest.player1_id, latest, true);
           if (!(await getMatchLocationReadiness(base44, { ...latest, player2_id: user.id })).ready)
             fail('location_required', 'Readiness expired. Recheck location before accepting.', 403);
+          await checkPlayerLeases();
           commitAuthorized = true;
           return true;
         });
@@ -371,7 +410,7 @@ export async function acceptChallenge(req: Request, base44: any, user: any, matc
         return { processing: true, message: 'Confirming the reservation result. Your challenge will resume automatically.' };
       }
     });
-  });
+  }));
 }
 
 async function releaseChallengeLocked(base44: any, match: any, owner: string, reason: string) {
@@ -420,12 +459,25 @@ async function releaseChallengeLocked(base44: any, match: any, owner: string, re
   return { match: updated };
 }
 
+
+async function closeFreeChallenge(base44: any, match: any, reason: string) {
+  assertFreeMatch(match);
+  const games=await base44.asServiceRole.entities.Game.filter({match_id:match.id},'created_date',1);
+  if (games[0]) fail('already_started','This game has already started.');
+  const updated=await base44.asServiceRole.entities.Match.update(match.id,{
+    status:'cancelled',result:'cancelled',challenge_close_reason:reason,challenge_authorized_until:nowIso(),
+  });
+  return {match:updated};
+}
+
 export async function cancelChallenge(base44: any, user: any, matchId: string) {
   return underMatchLock(base44, matchId, async (match, owner) => {
     if (!roleFor(match, user.id)) fail('forbidden', 'Only a participant can cancel this challenge.', 403);
     if (match.status === 'cancelled' && !activeOperation(match)) return { match, replay: true };
     if (match.start_operation_id || ['in_progress', 'settling', 'completed', 'disputed'].includes(match.status))
       fail('already_started', 'This match has entered its start transition and can no longer be cancelled manually.');
+
+    if (isFreeMatch(match)) return closeFreeChallenge(base44,match,'cancelled');
 
     // An unclaimed OPEN invitation is explicitly nonfinancial. Cancelling it
     // must not depend on the creator's wallet mutex — a concurrent deposit,
@@ -458,12 +510,13 @@ export async function readyChallenge(req: Request, base44: any, user: any, match
     if (match.status === 'in_progress') return { match };
     if (activeOperation(match)) fail('recovery_pending', 'Confirming the reservation result. Please retry readiness shortly.');
     if (!['preparing', 'both_ready'].includes(match.status) || challengeStartExpired(match))
-      fail('ready_expired', 'The start window has ended. Reserved entry amounts and fees will be released.');
+      fail('ready_expired', isFreeMatch(match) ? 'The start window has ended. This free game will close.' : 'The start window has ended. Reserved entry amounts and fees will be released.');
     // Available Balance was already reserved; only nonfinancial eligibility is
     // checked here. Never attempt a second debit or require a second deposit.
     const current = await base44.asServiceRole.entities.User.get(user.id);
-    if (!paidContestsEnabled() || !await hasVerifiedIdentity(base44, current) || current.withdrawal_hold)
+    if (['suspended','closed'].includes(current.account_state) || (!isFreeMatch(match) && (!paidContestsEnabled() || !await hasVerifiedIdentity(base44, current) || current.withdrawal_hold)))
       fail('account_restricted', 'Your account is not currently eligible to start this match.', 403);
+    if (isFreeMatch(match)) assertFreeMatch(match);
     const deviceHash = await presenceHash(req, body);
     if (body.action === 'unready' || (body.action === 'heartbeat' && body.visible !== true)) {
       if (match[`challenge_${role}_device_hash`] !== deviceHash) return {match, needsReady:true};
@@ -478,7 +531,7 @@ export async function readyChallenge(req: Request, base44: any, user: any, match
       const old = Date.parse(match[`challenge_${role}_ready_at`] || '');
       if (body.visible !== true || match[`challenge_${role}_device_hash`] !== deviceHash ||
           !Number.isFinite(old) || old > Date.now() || Date.now() - old >= CHALLENGE_READY_MS) return { match, needsReady: true };
-    } else {
+    } else if (!isFreeMatch(match)) {
       const location = await verifyMatchLocation(req, match, body);
       if (location.status !== 'approved') fail('location_required', location.reason || 'Recheck your location before play.', 403);
     }
@@ -505,19 +558,22 @@ export async function finalizeChallengeStart(base44: any, user: any, matchId: st
         return { match: updated, recovered: true };
       }
     }
-    if (challengeStartExpired(match)) fail('ready_expired', 'The start window expired. This match will close and release both reservations.');
+    if (challengeStartExpired(match)) fail('ready_expired', isFreeMatch(match) ? 'The start window expired. This free game will close.' : 'The start window expired. This match will close and release both reservations.');
     if (!bothChallengePlayersReady(match)) return { match, waitingForReady: true };
-    if (!match.player1_certified || !match.player2_certified || !match.player1_deposited || !match.player2_deposited)
+    if (!match.player1_certified || !match.player2_certified || (!isFreeMatch(match) && (!match.player1_deposited || !match.player2_deposited)))
       fail('reservation_incomplete', 'Both reservations must be complete before play.');
     for (const id of [match.player1_id, match.player2_id]) {
       const current = await base44.asServiceRole.entities.User.get(id);
-      if (!paidContestsEnabled() || !await hasVerifiedIdentity(base44, current) || current.withdrawal_hold)
+      if (['suspended','closed'].includes(current.account_state) || (!isFreeMatch(match) && (!paidContestsEnabled() || !await hasVerifiedIdentity(base44, current) || current.withdrawal_hold)))
         fail('account_restricted', 'A participant is not currently eligible to start.', 403);
     }
-    const locationReadiness = await getMatchLocationReadiness(base44, match);
-    if (!locationReadiness.ready)
-      fail('location_required', 'Both players need current location checks before play.', 403, { requiredUserIds: locationReadiness.requiredUserIds });
-    if (!await batchFor(base44, reservationGroup(match))) throw new Error('missing_challenge_reservation');
+    if (isFreeMatch(match)) assertFreeMatch(match);
+    else {
+      const locationReadiness = await getMatchLocationReadiness(base44, match);
+      if (!locationReadiness.ready)
+        fail('location_required', 'Both players need current location checks before play.', 403, { requiredUserIds: locationReadiness.requiredUserIds });
+      if (!await batchFor(base44, reservationGroup(match))) throw new Error('missing_challenge_reservation');
+    }
     const starting = await base44.asServiceRole.entities.Match.update(match.id, {
       status: 'both_ready', start_operation_id: match.start_operation_id || crypto.randomUUID(),
     });
@@ -539,6 +595,20 @@ export async function finalizeChallengeStart(base44: any, user: any, matchId: st
 export async function recoverChallenge(base44: any, matchId: string) {
   return underMatchLock(base44, matchId, async (match, owner) => {
     if (['in_progress', 'settling', 'completed', 'disputed'].includes(match.status)) return { skipped: true };
+    if (isFreeMatch(match)) {
+      assertFreeMatch(match);
+      if (match.status==='cancelled') return {skipped:true};
+      if ((match.status==='searching' && challengeExpired(match)) ||
+          (['preparing','both_ready'].includes(match.status) && challengeStartExpired(match))) {
+        const games=await base44.asServiceRole.entities.Game.filter({match_id:match.id},'created_date',1);
+        if(games[0] && match.start_operation_id) {
+          const updated=await base44.asServiceRole.entities.Match.update(match.id,{status:'in_progress',game_id:games[0].id});
+          return {match:updated,recovered:true};
+        }
+        return closeFreeChallenge(base44,match,'timeout');
+      }
+      return {skipped:true};
+    }
     if (match.status === 'cancelled' && match.challenge_operation_state === 'released') {
       await clearChallengeWalletBarriers([match.player1_id, match.player2_id].filter(Boolean), match.id);
       return { skipped: true };

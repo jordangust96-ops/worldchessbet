@@ -9,6 +9,7 @@ import ChallengePanel from '@/components/play/ChallengePanel';
 import CreateChallengeForm from '@/components/play/CreateChallengeForm';
 import AvailableMatchSection from '@/components/play/AvailableMatchSection';
 import ActiveChallengeCard from '@/components/play/ActiveChallengeCard';
+import MoneyPlayLocation from '@/components/play/MoneyPlayLocation';
 import LiveStatsBar from '@/components/play/LiveStatsBar';
 
 export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
@@ -52,7 +53,7 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
   const share=async card=>{
     const url=`${window.location.origin}${card.path}`;
     try{
-      if(navigator.share)await navigator.share({title:'ChessBet Challenge',text:`A $${card.entryAmount} chess challenge. Entry plus separate service fee; eligibility and available funds required.`,url});
+      if(navigator.share)await navigator.share({title:'ChessBet Challenge',text:card.playMode==='free'?'Join my free ChessBet challenge. No charges or money awards.':`A $${card.entryAmount} chess challenge. Entry plus separate service fee; eligibility and available funds required.`,url});
       else{await navigator.clipboard.writeText(url);setError('Link copied.');}
     }catch(err){if(err?.name!=='AbortError')setError('Open the challenge to copy its link.');}
   };
@@ -67,9 +68,9 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
     {userId && <LiveStatsBar />}
     {selectedCode ? <ChallengePanel key={selectedCode} inviteCode={selectedCode} embedded onClose={()=>navigate("/play")} onChanged={refresh}/> : loading ? <Loader2 aria-label="Loading your challenge" size={20} className="animate-spin text-white/40"/> : creating && !creationBlocked ? <CreateChallengeForm onCreated={async()=>{ await refresh(); setCreating(false); navigate('/play', { replace:true }); }} onCancel={()=>setCreating(false)}/> : !creationBlocked ? <div className="space-y-3">
       <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#C9A84C]/10 text-[#C9A84C]"><Swords size={21}/></div>
-      <div><h1 className="text-2xl font-extrabold text-white">Challenge Someone</h1><p className="mt-2 text-sm leading-relaxed text-white/55">Your friend. Your rival. Your next opponent. Create a link and play chess for money.</p></div>
+      <div><h1 className="text-2xl font-extrabold text-white">Challenge Someone</h1><p className="mt-2 text-sm leading-relaxed text-white/55">Your friend. Your rival. Your next opponent. Create a link and play chess for free or for money.</p></div>
       <Button disabled={creationBlocked} onClick={()=>setCreating(true)} className="h-12 w-full rounded-2xl gold-gradient font-bold text-black"><Plus size={18} className="mr-2"/>Create Challenge</Button>
-      <p className="text-xs leading-relaxed text-white/40">Links reserve no money or opponent. Both players need available funds when the challenge is accepted.</p>
+      <p className="text-xs leading-relaxed text-white/40">Free play is open worldwide. Money play requires verified eligibility, approved location, and cleared funds.</p>
     </div> : null}
     {!selectedCode && !loading && (challenges.length > 0 || activePublic) && <div className="border-t border-white/10 pt-4">
       <div className="mb-4 flex items-center gap-3">
@@ -82,20 +83,20 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
           <span className="rounded-full border border-[#C9A84C]/20 bg-[#C9A84C]/10 px-2.5 py-1 text-xs font-semibold text-[#E5CA7A]">{card.status==='open'?(card.publiclyListed?'Public challenge':'Link-only challenge'):card.status==='processing'?'Confirming…':'Accepted'}</span>
           <span className="text-xs text-white/55">{card.displayName} · No increment</span>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        {card.playMode==='free' ? <p className="text-xl font-bold text-[#E5CA7A]">Free play</p> : <><div className="grid grid-cols-2 gap-3">
           <div><p className="text-xs text-white/50">Entry Amount</p><p className="mt-1 text-2xl font-bold text-white">${Number(card.entryAmount).toFixed(2)}</p></div>
           <div><p className="text-xs text-white/50">Winner award</p><p className="mt-1 text-2xl font-bold text-[#E5CA7A]">${Number(card.winnerAward).toFixed(2)}</p></div>
         </div>
-        <p className="text-xs text-white/55">${Number(card.serviceFee).toFixed(2)} service fee · ${Number(card.totalRequired).toFixed(2)} required per player</p>
+        <p className="text-xs text-white/55">${Number(card.serviceFee).toFixed(2)} service fee · ${Number(card.totalRequired).toFixed(2)} required per player</p></>}
         <p className="text-sm leading-relaxed text-white/65">{card.publiclyListed ? 'Your challenge is listed in Find an Opponent. Share the link with a friend, or meet someone new.' : 'Your challenge is link-only. Share it with the person you want to play.'}</p>
         {card.status==='open' && <>
           <div className="grid grid-cols-2 gap-2">
             <Button onClick={()=>share(card)} className="h-11 rounded-xl gold-gradient font-bold text-black"><Share2 size={15} className="mr-2"/>Share</Button>
             <Button variant="outline" onClick={()=>cancel(card)} disabled={Boolean(busyId)} className="h-11 rounded-xl border-white/15 text-white/65">{busyId===card.id?'Cancelling…':'Cancel'}</Button>
           </div>
-          <p className="text-xs text-white/45">No funds reserved. Both players must qualify before acceptance.</p>
+          <p className="text-xs text-white/45">{card.playMode==='free'?'No charges, fees, or money awards.':'No funds reserved. Both players must qualify before acceptance.'}</p>
         </>}
-        {card.status==='open' && <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
+        {card.status==='open' && card.playMode!=='free' && <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
           <p className="text-sm leading-relaxed text-white/65">To play this match, you need ${Number(card.totalRequired).toFixed(2)} in available wallet funds, including the service fee. Pending deposits cannot be used yet.</p>
           <Button asChild variant="outline" className="h-11 w-full rounded-xl border-[#C9A84C]/30 font-semibold text-[#E5CA7A]"><Link to={`/wallet?challenge=${card.inviteCode}`}>Fund Wallet</Link></Button>
         </div>}
@@ -111,5 +112,6 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
         <AvailableMatchSection userId={userId} balance={balance} activeMatch={activePublic} onChallengeCancelled={()=>setActivePublic(null)} onAccepted={onMatchAccepted} onReview={code=>navigate(`/play?challenge=${code}&accept=1`)}/>
       </div>}
     </div>
+    <details className="border-t border-white/10 pt-3"><summary className="cursor-pointer text-xs text-white/50">Money play eligibility</summary><div className="mt-3"><MoneyPlayLocation/></div></details>
   </section>;
 }

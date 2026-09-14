@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Plus, Loader2, CheckCircle2, Clock, AlertTriangle,
@@ -273,6 +274,7 @@ export default function SeamlessFundingPanel({
     <div role="alert" className="rounded-3xl border border-amber-500/20 bg-white/[0.03] p-5 space-y-3">
       <h4 className="font-semibold text-white">Unable to refresh your wallet</h4>
       <p className="text-sm text-white/60">We could not confirm your latest bank and identity status. Transfers are paused on this screen until we reconnect. If you just submitted a transfer, check Transaction History once we reconnect before trying again.</p>
+      <Link to="/play" className="block font-semibold text-[#E5CA7A]">Play for Free</Link>
       <Button onClick={() => { setLoading(true); load(); }} className="gold-gradient text-black">Retry wallet connection</Button>
       {error && <p className="text-sm text-red-400">{error}</p>}
     </div>
@@ -286,10 +288,11 @@ export default function SeamlessFundingPanel({
           <span className="text-xs text-white/60">{[locationApproved, !!state?.identity?.verified, depositSourceReady].filter(Boolean).length} of 3 complete</span>
         </div>
         <div className="divide-y divide-white/10">
+          <p className="mb-3 text-sm text-white/60">You can play free chess while your wallet is being set up or funds are clearing. <Link to="/play" className="font-semibold text-[#E5CA7A]">Play for Free</Link></p>
           <DepositLocationStep decision={location} onDecision={setLocationOverride} />
           <SocureIdentityStep identity={{...state?.identity,can_start:state?.identity?.can_start && locationApproved}} locationApproved={locationApproved} onRefresh={load} />
           <WalletSetupStep number={3} label="Bank connection" title={depositSourceReady ? "Bank Connected" : bankPending ? "Bank verification pending" : bankReady ? "Choose your deposit bank" : bankNeedsAttention ? "Bank connection needs attention" : "Connect your bank"} complete={depositSourceReady} pending={!depositSourceReady && bankPending} attention={bankNeedsAttention && !bankPending}
-            description={depositSourceReady ? providerPrimaryBank?.account_name || "Your deposit bank is connected." : bankPending ? "Awaiting bank confirmation. This page updates automatically." : bankReady ? "Select a verified bank in the funding section below." : bankNeedsAttention ? "Review the bank details below and reconnect your account." : !locationApproved || !accountVerified ? "Next, after location and identity verification." : !hostedPlaidEnabled ? "Bank connection is temporarily unavailable." : "Use the secure bank connection form below."} />
+            description={depositSourceReady ? providerPrimaryBank?.account_name || "Your deposit bank is connected." : bankPending ? "Awaiting bank confirmation. You can play free chess while you wait." : bankReady ? "Select a verified bank in the funding section below." : bankNeedsAttention ? "Review the bank details below and reconnect your account." : !locationApproved || !accountVerified ? "Next, after location and identity verification." : !hostedPlaidEnabled ? "Bank connection is temporarily unavailable." : "Use the secure bank connection form below."} />
         </div>
         {locationApproved && !!state?.identity?.verified && depositSourceReady && <p className="border-t border-white/10 px-4 py-3 text-xs text-white/60 sm:px-5">{!ineligible && depositsEnabled ? "Setup complete. Add money below whenever you’re ready." : "Setup complete. See your account or transfer status below."}</p>}
       </section>

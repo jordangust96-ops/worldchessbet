@@ -1,7 +1,7 @@
 import { getMatchLocationReadiness, matchLocationRequiredResponse } from '../../shared/matchLocation.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 
-import { challengeClockMs } from '../../shared/challengePolicy.js';
+import { challengeClockMs, isFreeMatch, assertFreeMatch } from '../../shared/challengePolicy.js';
 
 const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 const CLOCK_START_DELAY_MS = 4000;
@@ -64,12 +64,15 @@ Deno.serve(async (req) => {
 
     // Direct calls cannot bypass the same pre-start checks as the finalizer.
     // Already-started games remain resumable without resetting their clocks.
+    if (isFreeMatch(match)) assertFreeMatch(match);
     if (match.status === 'both_ready') {
       if (!match.player1_certified || !match.player2_certified ||
-          !match.player1_deposited || !match.player2_deposited)
+          (!isFreeMatch(match) && (!match.player1_deposited || !match.player2_deposited)))
         return Response.json({ error: 'Both players must be ready before play.' }, { status: 403 });
-      const locationReadiness = await getMatchLocationReadiness(base44, match);
-      if (!locationReadiness.ready) return matchLocationRequiredResponse(locationReadiness);
+      if (!isFreeMatch(match)) {
+        const locationReadiness = await getMatchLocationReadiness(base44, match);
+        if (!locationReadiness.ready) return matchLocationRequiredResponse(locationReadiness);
+      }
     }
 
     // Already attached — just return it.
@@ -96,6 +99,7 @@ Deno.serve(async (req) => {
         : TIME_CONTROLS[match.time_control] || TIME_CONTROLS.rapid;
       await base44.asServiceRole.entities.Game.create({
         launch_epoch: 2,
+        play_mode: isFreeMatch(match) ? 'free' : 'money',
         match_id: matchId,
         player1_id: match.player1_id,
         player2_id: match.player2_id,

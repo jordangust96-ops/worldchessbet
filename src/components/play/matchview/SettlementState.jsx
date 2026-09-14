@@ -13,6 +13,7 @@ import { trackPixelEvent } from "@/lib/metaPixel";
 
 export default function SettlementState({ match, game, userId, onReturn }) {
   const navigate = useNavigate();
+  const free=match.play_mode==='free';
   const [opponentName, setOpponentName] = useState("Opponent");
   const [winnerName, setWinnerName] = useState("You");
   const [returning, setReturning] = useState(false);
@@ -60,7 +61,7 @@ export default function SettlementState({ match, game, userId, onReturn }) {
     }
   };
 
-  if (rematch) return <div className="py-3"><CreateChallengeForm initialAmount={match.wager_amount} initialTimeControl={match.time_control} rematchOf={match.id} onCreated={async()=>{ await handleReturn(); navigate('/play'); }} onCancel={() => setRematch(false)} /></div>;
+  if (rematch) return <div className="py-3"><CreateChallengeForm initialMode={free?'free':'money'} initialAmount={match.wager_amount} initialTimeControl={match.time_control} rematchOf={match.id} onCreated={async()=>{ await handleReturn(); navigate('/play'); }} onCancel={() => setRematch(false)} /></div>;
 
   return (
     <div className="space-y-5 lg:space-y-3 text-center py-4">
@@ -83,20 +84,20 @@ export default function SettlementState({ match, game, userId, onReturn }) {
         </p>
         <p className="text-white/50 text-xs font-semibold uppercase tracking-widest mt-1">{endReason}</p>
         <p className="text-white/40 text-sm mt-1">
-          {draw
+          {free ? 'Free game completed. No money was charged or awarded.' : draw
             ? "Entry amounts and service fees have been refunded"
             : won
             ? `You won $${(match.wager_amount * 2).toFixed(2)}`
             : `You lost $${match.wager_amount.toFixed(2)}`}
         </p>
       </div>
-      {!draw && won && (
+      {!free && !draw && won && (
         <div className="rounded-2xl bg-[#C9A84C]/5 border border-[#C9A84C]/20 p-4">
           <p className="text-[10px] text-[#C9A84C]/60 uppercase tracking-widest mb-1">Winner Award — Full Contest Entry Amounts</p>
           <p className="text-2xl font-extrabold text-[#C9A84C]">+${(match.wager_amount * 2).toFixed(2)}</p>
         </div>
       )}
-      <p className="text-xs text-white/40">{won && !draw ? "Winner awards follow the standard report-window hold before becoming available. A rematch needs a separate available balance." : "Wallet updated"}</p>
+      <p className="text-xs text-white/40">{free ? "Play again or challenge someone new." : won && !draw ? "Winner awards follow the standard report-window hold before becoming available. A rematch needs a separate available balance." : "Wallet updated"}</p>
       <div className="space-y-2">
         <Button onClick={() => setRematch(true)} className="w-full h-12 rounded-2xl font-bold gold-gradient text-black">Run It Back</Button>
         <Button
@@ -105,9 +106,9 @@ export default function SettlementState({ match, game, userId, onReturn }) {
           className="w-full h-12 rounded-2xl font-bold gold-gradient text-black hover:opacity-90 disabled:opacity-60"
         >
           {returning ? <Loader2 size={16} className="animate-spin mr-2" /> : null}
-          {returning ? "Updating Balance..." : "Challenge Someone Else"}
+          {returning ? "Returning..." : "Challenge Someone Else"}
         </Button>
-        {won && (
+        {won && !free && (
           <>
             <ShareOnXButton match={match} game={game} winnerName={winnerName} opponentName={opponentName} endReason={endReason} />
             <ShareOnFacebookButton match={match} game={game} winnerName={winnerName} opponentName={opponentName} endReason={endReason} />

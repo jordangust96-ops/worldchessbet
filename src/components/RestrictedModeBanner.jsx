@@ -1,4 +1,5 @@
 import React from "react";
+import MoneyPlayLocation from "@/components/play/MoneyPlayLocation";
 import { AlertTriangle } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { getJurisdictionMessage } from "@/lib/jurisdictionConfig";
@@ -16,7 +17,7 @@ export default function RestrictedModeBanner() {
   return (
     <div className="rounded-2xl bg-red-500/5 border border-red-500/20 p-4 flex gap-3 items-start">
       <AlertTriangle size={16} className="text-red-400 shrink-0 mt-0.5" />
-      <p className="text-xs text-red-400/80 leading-relaxed whitespace-pre-line">{message}</p>
+      <div className="space-y-2"><p className="text-xs text-red-400/80 leading-relaxed whitespace-pre-line">Money play: {message}</p><MoneyPlayLocation /></div>
     </div>
   );
 }

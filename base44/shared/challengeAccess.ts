@@ -1,7 +1,7 @@
 import { processValidateSession } from './mfaVerify.js';
 import { hasVerifiedIdentity } from './identityEligibility.js';
 import { paidContestsEnabled } from './seamlessFundingConfig.ts';
-import { cents, validEntry } from './challengePolicy.js';
+import { cents, validEntry, isFreeMatch, assertFreeMatch } from './challengePolicy.js';
 
 export class ChallengeError extends Error {
   code: string; status: number; details: any;
@@ -23,7 +23,7 @@ export async function requireChallengeSession(req: Request, base44: any, user: a
   };
   const result = await processValidateSession({ user, sessionToken, store, userAgent: req.headers.get('user-agent') || '' });
   if (!result.valid) fail('mfa_required', 'Complete sign-in verification to continue.', 401);
-  if (['suspended', 'closed'].includes(user.account_state) || user.withdrawal_hold) {
+  if (['suspended', 'closed'].includes(user.account_state)) {
     fail('account_restricted', 'Resolve your account restrictions before creating or accepting a challenge.', 403);
   }
 }
@@ -62,6 +62,15 @@ export async function findConflictingMatch(base44: any, userId: string, exceptId
 // Read-only, cost-aware gates. Available Balance only; neither pending deposits
 // nor Held Balance (including pending winnings) can qualify a player.
 export async function inspectChallengePlayer(base44: any, userId: string, match: any) {
+  if (isFreeMatch(match)) {
+    assertFreeMatch(match);
+    const current = await base44.asServiceRole.entities.User.get(userId);
+    if (!current || ['suspended','closed'].includes(current.account_state))
+      return {ready:false,code:'account_restricted',reason:'Your account is not currently available for play.'};
+    if (await findConflictingMatch(base44,userId,match.id))
+      return {ready:false,code:'active_match',reason:'Finish your current match before playing another.'};
+    return {ready:true,totalRequired:0};
+  }
   if (!validEntry(match.wager_amount) || typeof match.platform_service_fee !== 'number' ||
       !Number.isFinite(match.platform_service_fee) || match.platform_service_fee < 0 ||
       Math.abs(match.platform_service_fee * 100 - Math.round(match.platform_service_fee * 100)) > 0.000001)

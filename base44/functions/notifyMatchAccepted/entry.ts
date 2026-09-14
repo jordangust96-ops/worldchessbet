@@ -27,7 +27,7 @@ function escapeHtml(value) {
     .replaceAll("'", '&#39;');
 }
 
-function buildEmailBody({ opponentName, wagerAmount, timeControlLabel, appUrl }) {
+function buildEmailBody({ opponentName, wagerAmount, timeControlLabel, appUrl, free = false }) {
   const safeOpponentName = escapeHtml(opponentName);
   const safeTimeControlLabel = escapeHtml(timeControlLabel);
   const safeAppUrl = escapeHtml(appUrl);
@@ -41,8 +41,8 @@ function buildEmailBody({ opponentName, wagerAmount, timeControlLabel, appUrl })
           <td style="padding: 8px 0; text-align:right; font-weight:bold;">${safeOpponentName}</td>
         </tr>
         <tr>
-          <td style="padding: 8px 0; color:#555;">Entry Amount</td>
-          <td style="padding: 8px 0; text-align:right; font-weight:bold;">$${wagerAmount.toFixed(2)}</td>
+          <td style="padding: 8px 0; color:#555;">${free ? 'Play mode' : 'Entry Amount'}</td>
+          <td style="padding: 8px 0; text-align:right; font-weight:bold;">${free ? 'Free play' : '$'+wagerAmount.toFixed(2)}</td>
         </tr>
         <tr>
           <td style="padding: 8px 0; color:#555;">Time Control</td>
@@ -109,6 +109,7 @@ Deno.serve(async (req) => {
         subject: 'Your ChessBet match has been accepted!',
         body: buildEmailBody({
           opponentName,
+          free: match.play_mode === 'free',
           wagerAmount: match.wager_amount,
           timeControlLabel: match.display_name || match.time_control,
           appUrl,

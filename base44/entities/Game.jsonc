@@ -235,6 +235,18 @@
     "winner_id": {
       "description": "User ID of the winner, null for draws or unfinished games",
       "type": "string"
+    },
+    "play_mode": {
+      "type": "string",
+      "enum": [
+        "money",
+        "free"
+      ],
+      "default": "money",
+      "description": "Server-set immutable contest mode. Free games have no financial activity; absent legacy mode means money.",
+      "rls": {
+        "write": false
+      }
     }
   },
   "required": [
