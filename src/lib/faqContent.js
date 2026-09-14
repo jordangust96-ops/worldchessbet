@@ -13,7 +13,7 @@ export const FAQ_SECTIONS = [
       {
         question: "Is ChessBet legal?",
         paragraphs: [
-          "ChessBet is designed as a skill-based competition platform rather than a game of chance. Availability depends on applicable laws and user eligibility.",
+          "ChessBet offers head-to-head chess contests between the players themselves. A skill-based format does not establish legal availability everywhere. Paid features require verified age 21+, identity and location eligibility, and applicable account checks. See the current Official Rules for supported states and restrictions.",
         ],
       },
       {
@@ -23,7 +23,7 @@ export const FAQ_SECTIONS = [
           "Connect an eligible bank account and fund your wallet.",
           "Host a challenge or accept one from another player.",
           "Complete the match.",
-          "After a decisive result, winnings remain pending during the standard 24-hour reporting window. If no report is filed, they become available automatically.",
+          "After a decisive settlement, winnings remain pending for the standard 24-hour reporting window. Automatic release follows when the deadline has passed and no open dispute or blocking integrity or settlement-reconciliation flag remains.",
         ],
       },
     ],
@@ -34,13 +34,13 @@ export const FAQ_SECTIONS = [
       {
         question: "How are players verified?",
         paragraphs: [
-          "ChessBet verifies player identity and eligibility before allowing participation in real-money contests.",
+          "Socure verifies player identity and age 21+ before paid activity. Connecting a bank through Seamless and Plaid is a separate bank-verification step. Location and account checks also apply.",
         ],
       },
       {
         question: "Why is identity verification required?",
         paragraphs: [
-          "Identity verification helps prevent fraud, protects players, and supports compliance with financial and gaming regulations.",
+          "Identity verification helps assess age and identity eligibility and reduce fraud. A successful identity check does not by itself authorize funding, contest entry, or withdrawal.",
         ],
       },
       {
@@ -56,14 +56,14 @@ export const FAQ_SECTIONS = [
         question: "What payment methods are accepted?",
         paragraphs: [
           "ChessBet supports ACH bank transfers through a connected bank account for eligible, verified users.",
-          "Additional payment methods may be introduced over time.",
+          "Deposits have a $10 wallet-credit minimum and a $1,100 total bank-debit maximum including the separate deposit fee. The Wallet shows wallet credit, deposit fee, and total debit before submission. Funds become available only after clearing and a final provider-status check.",
         ],
       },
       {
         question: "Can I withdraw anytime?",
         paragraphs: [
-          "You may request a withdrawal of available funds at any time.",
-          "Pending deposits, ACH funds that are still clearing, reserved contest funds, and winnings in the 24-hour reporting window are not yet available to withdraw. Withdrawals also remain subject to identity verification, fraud-prevention review, and confirmed payment-provider status.",
+          "When withdrawals are enabled and your account is eligible, you may request available funds through your verified bank. Requests are limited to $1,100 each and shared platform capacity of $1,100 per rolling 24 hours and $22,000 per rolling 31 days across all users.",
+          "Pending deposits, Clearing funds, reserved contest funds, pending winnings, and existing withdrawal reservations are unavailable to withdraw. Requests below $10 have a separate $2.50 fee, waived for a withdrawal of your entire Available Balance. Confirmed failed or reversed withdrawals return any associated charged withdrawal fee. Provider processing and reviews can delay arrival.",
         ],
       },
       {
@@ -71,8 +71,8 @@ export const FAQ_SECTIONS = [
         question: "How do payouts work?",
         paragraphs: [
           "After a decisive result is confirmed, the winner receives 100% of both players' combined Contest Entry Amounts. The fixed Platform Service Fee is disclosed and reserved separately, so it is not deducted from the winner's prize.",
-          "Winnings remain pending during the standard 24-hour reporting window. If no report is filed, they become available automatically. If a report triggers an integrity review, the affected funds remain held until a person reviews the available evidence and resolves the contest.",
-          "For a draw, cancellation, or platform void, each player's Contest Entry Amount and Platform Service Fee are returned. Available funds may be withdrawn through the supported bank-transfer method, subject to identity verification, fraud-prevention review, active-contest holds, and confirmed provider status.",
+          "The prize includes the winner's own Entry Amount, so it is not net profit. Winnings remain pending during the standard 24-hour window from recorded settlement. Automatic release occurs after the deadline when no open dispute or blocking integrity or reconciliation flag remains. Review can delay release even without a player report.",
+          "A draw, accepted cancellation, or platform void returns each player's reserved Entry Amount and Platform Service Fee to the wallet ledger. This does not refund separate deposit fees or automatically send money to a bank. A reversed decisive contest has different entry and fee treatment, as explained in the Official Rules.",
         ],
       },
     ],
@@ -100,8 +100,8 @@ export const FAQ_SECTIONS = [
       {
         question: "Can I cancel a match?",
         paragraphs: [
-          "Hosted challenges may be cancelled before another player accepts.",
-          "Once both players commit to the contest, it cannot be cancelled except as provided in the Official Rules.",
+          "Participants may cancel a challenge during matching or preparation before its start transition begins. Any actually reserved Entry Amount and Platform Service Fee are returned.",
+          "Ordinary cancellation is unavailable once the match starts its transition to live play. Stale preparation can be cancelled by the timeout process after the two-minute window. A technical complaint does not automatically cancel a live contest.",
         ],
       },
     ],
@@ -119,8 +119,8 @@ export const FAQ_SECTIONS = [
       {
         question: "What if I think someone cheated?",
         paragraphs: [
-          "Players may report suspicious activity after a contest.",
-          "Reports are reviewed according to ChessBet's integrity procedures.",
+          "Players can submit a contest report during the standard 24-hour window shown in transaction history. Contact Support for concerns outside that window.",
+          "A participant in a resolved case with an adverse determination can submit one in-app appeal per case. The current flow does not impose a seven-day cutoff.",
         ],
       },
     ],
@@ -131,14 +131,14 @@ export const FAQ_SECTIONS = [
       {
         question: "How are wallet funds handled?",
         paragraphs: [
-          "ChessBet uses Seamless for bank authorization and payment processing while ChessBet maintains the application ledger. Funding and withdrawals remain subject to provider status, identity verification, and fraud-prevention review.",
+          "Seamless handles bank transfers while ChessBet maintains the internal wallet ledger. Wallet balances are not personal bank accounts or a promise of independent escrow or FDIC insurance. Funding and withdrawals depend on verified identity, account status, provider confirmation, and applicable holds.",
         ],
       },
       {
         question: "Is my personal information secure?",
         paragraphs: [
-          "Sensitive information is handled through trusted third-party providers using industry-standard security practices.",
-          "ChessBet minimizes the amount of personal information it stores directly.",
+          "ChessBet and its providers process account, identity, bank-verification, transaction, game, and review data. Retained Socure provider reports are encrypted before storage, and sensitive records have access controls.",
+          "ChessBet retains verification evidence and operational records; it does not simply pass all personal information through without storing it. See the Privacy Policy for providers, retention, and cookie choices.",
         ],
       },
     ],
