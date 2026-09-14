@@ -27,7 +27,8 @@ export const PATH_SET_PRIMARY_FUNDING_SOURCE = '/funding-source/set/primary';
 export function buildCheckLookupPath(checkId) {
   const id = String(checkId || '').trim();
   if (!id) throw new Error('Seamless check_id required');
-  return `${PATH_CHECK}/${encodeURIComponent(id)}`;
+  // Seamless requires the literal colon, as in its documented /check/:{check_id} route.
+  return `${PATH_CHECK}/:${encodeURIComponent(id)}`;
 }
 
 export function buildMerchantBalanceLookupPath(userId) {

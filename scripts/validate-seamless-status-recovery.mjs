@@ -9,8 +9,8 @@ const {
 } = await import('../base44/shared/seamlessAchPure.js');
 
 assert.equal(PATH_CHECK, '/check');
-assert.equal(buildCheckLookupPath('abc-123'), '/check/abc-123');
-assert.equal(buildCheckLookupPath('id/with/slash'), '/check/id%2Fwith%2Fslash');
+assert.equal(buildCheckLookupPath('abc-123'), '/check/:abc-123');
+assert.equal(buildCheckLookupPath('id/with/slash'), '/check/:id%2Fwith%2Fslash');
 assert.throws(() => buildCheckLookupPath(''), /check_id/);
 
 for (const status of ['Cancelled', 'Voided', 'Failed', 'Declined', 'Unpaid']) {
