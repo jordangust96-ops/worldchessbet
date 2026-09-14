@@ -11,6 +11,7 @@ const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
 try {
 for(const width of [390,1280])for(const free of [true,false]) {
  const f=fixture();f.state.now=Date.now();
+ if(!free)f.balance('p1',25);
  f.table('Match').push({id:'finished',launch_epoch:2,status:'completed',player1_id:'p1',player2_id:'p2',play_mode:free?'free':'money',wager_amount:free?0:25,platform_service_fee:free?0:2,time_control:'blitz'});
  const control=f.load('base44/shared/rematchControl.ts').exports.rematchControl;
  const context=await browser.newContext({viewport:{width,height:900}}),pages=[],errors=[];
@@ -21,6 +22,7 @@ for(const width of [390,1280])for(const free of [true,false]) {
    if(u.origin!==origin)return route.abort();
    if(u.pathname==='/__rematch-api') {
     const body=route.request().postDataJSON();f.state.now=Date.now();
+    if(body.action==='wallet_summary')return route.fulfill({json:{data:{available_to_play:f.table('Wallet').find(w=>w.user_id===id).available_balance}}});
     try {const data=await control(f.request,f.sdk,f.user(id),body);return route.fulfill({json:{data}});}
     catch(e){return route.fulfill({status:e.status||503,json:{error:e.message,code:e.code}});}
    }
@@ -42,6 +44,11 @@ for(const width of [390,1280])for(const free of [true,false]) {
  }
  const [a,b]=pages;
  await a.getByRole('button',{name:'Request Rematch',exact:true}).waitFor();
+ if(!free){
+  await a.getByText('You need $27.00 in playable funds to rematch.',{exact:true}).waitFor();
+  assert.equal(await a.getByRole('button',{name:'Request Rematch',exact:true}).isEnabled(),false);
+  assert.equal(f.table('Match').length,1);f.balance('p1',100);
+ }
  // The first result screen learns that the second player arrived on its next poll.
  await a.getByRole('button',{name:'Request Rematch',exact:true}).click({timeout:20000});
  await b.getByRole('button',{name:'Accept Rematch',exact:true}).waitFor({timeout:20000});
