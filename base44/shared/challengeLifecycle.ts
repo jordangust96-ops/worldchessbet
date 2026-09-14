@@ -5,7 +5,7 @@ import { hasVerifiedIdentity } from './identityEligibility.js';
 import { getPlatformServiceFee, PLATFORM_FEE_SCHEDULE_VERSION } from './platformFee.ts';
 import { paidContestsEnabled } from './seamlessFundingConfig.ts';
 import { acquireMatchLock, releaseMatchLock, acquireUserWalletLock, releaseUserWalletLock,
-  setChallengeWalletBarriers, clearChallengeWalletBarriers, takeChallengeRateLimit } from './seamlessAtomicStore.ts';
+  setChallengeWalletBarriers, clearChallengeWalletBarriers, takeChallengeRateLimit, refreshContestLocks } from './seamlessAtomicStore.ts';
 import { CHALLENGE_VERSION, CHALLENGE_TTL_MS, CHALLENGE_AUTHORIZATION_MS, CHALLENGE_CLOCK_MS,
   CHALLENGE_OPEN_LIMIT, CHALLENGE_CONSENT_VERSION, VALID_INVITE, VALID_REQUEST_KEY,
   validEntry, isChallenge, challengeExpired, creatorAuthorized, challengeStartExpired,
@@ -32,11 +32,19 @@ export async function challengeEvent(base44: any, match: any, event: string, use
 async function underMatchLock(base44: any, id: string, fn: (m: any, owner: string) => Promise<any>) {
   const owner = crypto.randomUUID();
   if (!await acquireMatchLock(id, owner)) fail('busy', 'This challenge is updating. Please try again.', 409);
+  let leaseLost = false;
+  const keepLease = async () => {
+    if (leaseLost || !await refreshContestLocks(id, [], owner)) {
+      leaseLost = true; throw new Error('challenge_lease_lost');
+    }
+  };
+  const timer = setInterval(() => { keepLease().catch(() => { leaseLost = true; }); }, 20000);
   try {
     const match = await base44.asServiceRole.entities.Match.get(id);
     if (!isChallenge(match) || Number(match.launch_epoch) !== 2) fail('unavailable', 'This challenge is not available.', 404);
+    await keepLease();
     return await fn(match, owner);
-  } finally { await releaseMatchLock(id, owner).catch(() => {}); }
+  } finally { clearInterval(timer); await releaseMatchLock(id, owner).catch(() => {}); }
 }
 async function underWalletLocks(userIds: string[], owner: string, matchId: string, fn: () => Promise<any>) {
   const locked: string[] = [];
@@ -45,7 +53,10 @@ async function underWalletLocks(userIds: string[], owner: string, matchId: strin
       if (!await acquireUserWalletLock(id, owner, matchId)) fail('wallet_busy', 'A wallet is updating. Please try again.', 409);
       locked.push(id);
     }
-    return await fn();
+    const timer = setInterval(() => {
+      refreshContestLocks(matchId, locked, owner).catch(() => false);
+    }, 20000);
+    try { return await fn(); } finally { clearInterval(timer); }
   } finally { for (const id of locked.reverse()) await releaseUserWalletLock(id, owner).catch(() => {}); }
 }
 async function batchFor(base44: any, groupId: string) {
@@ -164,7 +175,10 @@ async function finishReservation(base44: any, match: any, owner: string, beforeC
     groupId: reservationGroup(match), matchId: match.id, actor: 'user', actorId: recipientId,
     triggerEvent: 'challenge_reservation', externalRefType: 'match', externalRefId: match.id,
     legs: challengeReservationLegs(match, recipientId), updateTransactions: false,
-    beforePost: beforeCommit,
+    beforePost: async () => {
+      if (!await refreshContestLocks(match.id, ids, owner)) throw new Error('challenge_lease_lost');
+      return beforeCommit ? await beforeCommit() : true;
+    },
     afterPost: async () => {
       await materializeChallengeTransactions(base44, match, recipientId);
       await base44.asServiceRole.entities.Match.update(match.id, {
@@ -174,6 +188,7 @@ async function finishReservation(base44: any, match: any, owner: string, beforeC
         acceptance_operation_id: reservationGroup(match), challenge_reservation_group_id: reservationGroup(match),
         challenge_operation_state: 'committed', status: 'preparing',
         preparation_started_at: match.challenge_operation_started_at,
+        challenge_claimed_at: match.challenge_operation_started_at,
       });
     },
   });
@@ -230,7 +245,7 @@ export async function acceptChallenge(req: Request, base44: any, user: any, matc
       try {
         return await finishReservation(base44, operating, owner, async () => {
           // Recheck inside the existing GLOBAL financial lease: UI checks are not authorization.
-          if (!await acquireMatchLock(fresh.id, owner)) fail('busy', 'Challenge ownership changed.');
+          if (!await refreshContestLocks(fresh.id, [fresh.player1_id, user.id], owner)) fail('busy', 'Challenge ownership changed.');
           const latest = await base44.asServiceRole.entities.Match.get(fresh.id);
           if (latest.status !== 'searching' || latest.challenge_claimant_id !== user.id ||
               latest.challenge_operation_state !== 'reserving' || challengeExpired(latest) || !creatorAuthorized(latest))
@@ -340,7 +355,7 @@ export async function readyChallenge(req: Request, base44: any, user: any, match
 // Reuse getOrCreateGame and the existing Game/settlement implementation. This
 // is only the new invitation's start gate; it is not a second chess engine.
 export async function finalizeChallengeStart(base44: any, user: any, matchId: string) {
-  return underMatchLock(base44, matchId, async (match) => {
+  return underMatchLock(base44, matchId, async (match, owner) => {
     if (!roleFor(match, user.id)) fail('forbidden', 'You are not a player in this match.', 403);
     if (['in_progress', 'completed', 'cancelled', 'settling'].includes(match.status)) return { match };
     if (activeOperation(match) || !['preparing', 'both_ready'].includes(match.status)) return { match };
@@ -359,7 +374,8 @@ export async function finalizeChallengeStart(base44: any, user: any, matchId: st
     const starting = await base44.asServiceRole.entities.Match.update(match.id, {
       status: 'both_ready', start_operation_id: match.start_operation_id || crypto.randomUUID(),
     });
-    const response = await base44.functions.invoke('getOrCreateGame', { matchId });
+    if (!await refreshContestLocks(match.id, [], owner)) throw new Error('challenge_lease_lost');
+    const response = await base44.functions.invoke('getOrCreateGame', { matchId, challengeStartOwner: owner });
     const game = response.data?.game;
     if (!game?.id) fail('start_retry', 'The match is starting. Please try again.');
     const updated = await base44.asServiceRole.entities.Match.update(match.id, { status: 'in_progress', game_id: game.id });
@@ -408,7 +424,7 @@ export async function pingChallengeCreator(base44: any, user: any, match: any) {
   if (!await takeChallengeRateLimit(`ping:${match.player1_id}`, 1, 300) ||
       !await takeChallengeRateLimit(`ping-sender:${user.id}`, 10, 86400)) fail('rate_limited', 'The creator was recently notified. Please give them time to respond.', 429);
   const creator = await base44.asServiceRole.entities.User.get(match.player1_id);
-  if (!creator?.email || creator.notify_on_accept === false) return { notified: false };
+  if (!creator?.email || match.notify_on_accept === false) return { notified: false };
   const url = `https://worldchessbet.com${challengePath(match.invite_code)}`;
   await base44.asServiceRole.integrations.Core.SendEmail({
     to: creator.email, from_name: 'ChessBet', subject: 'Someone is ready for your ChessBet challenge',
