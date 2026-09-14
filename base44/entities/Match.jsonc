@@ -1,6 +1,108 @@
 {
   "name": "Match",
   "properties": {
+    "challenge_version": {
+      "type": "integer",
+      "description": "2 identifies challenge-first invitation records. Unset on legacy/public matches."
+    },
+    "clock_initial_ms": {
+      "type": "integer",
+      "minimum": 60000,
+      "maximum": 3600000,
+      "description": "Server-snapshotted clock per player. New challenge links use five minutes; existing time controls stay unchanged."
+    },
+    "challenge_creation_key": {
+      "type": "string",
+      "rls": {
+        "read": false,
+        "write": false
+      },
+      "description": "Creator-scoped invitation creation idempotency key."
+    },
+    "challenge_location_started_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Earliest match-specific location evidence for this invitation; two-minute freshness still applies."
+    },
+    "challenge_expires_at": {
+      "type": "string",
+      "description": "Open invitation expires without reserving funds.",
+      "format": "date-time"
+    },
+    "challenge_authorized_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Creator explicitly agreed to the displayed entry and fee for first eligible acceptance."
+    },
+    "challenge_authorized_until": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Short-lived acceptance authorization. No money is reserved by this alone."
+    },
+    "challenge_consent_version": {
+      "type": "string"
+    },
+    "challenge_claimant_id": {
+      "type": "string",
+      "rls": {
+        "read": false,
+        "write": false
+      },
+      "description": "Backend recovery identity for an in-flight dual reservation; never a funding wait queue."
+    },
+    "challenge_operation_state": {
+      "type": "string",
+      "enum": [
+        "idle",
+        "reserving",
+        "committed",
+        "releasing",
+        "released"
+      ],
+      "description": "Financial recovery marker. The complete immutable journal decides whether both reservations committed."
+    },
+    "challenge_operation_started_at": {
+      "type": "string",
+      "rls": {
+        "read": false,
+        "write": false
+      },
+      "description": "ISO operation time, or empty when no operation is pending."
+    },
+    "challenge_recipient_consent_at": {
+      "type": "string",
+      "format": "date-time",
+      "rls": {
+        "read": false,
+        "write": false
+      }
+    },
+    "challenge_reservation_group_id": {
+      "type": "string",
+      "description": "One balanced journal batch containing both entries and both fees."
+    },
+    "challenge_release_group_id": {
+      "type": "string",
+      "description": "Idempotent pre-game dual-release journal batch.",
+      "rls": {
+        "read": false,
+        "write": false
+      }
+    },
+    "challenge_close_reason": {
+      "type": "string",
+      "description": "Safe reason an invitation expired, was cancelled or voided."
+    },
+    "challenge_player1_ready_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Explicit readiness renewed only by an active session; expires in 30 seconds."
+    },
+    "challenge_player2_ready_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Explicit readiness renewed only by an active session; expires in 30 seconds."
+    },
     "accept_notification_sent": {
       "default": false,
       "description": "Set once the match-accepted notification has been sent, to guarantee it is only ever sent once per match. Written only by the notifyMatchAccepted backend function (service role) \u2014 never by any client.",
@@ -211,22 +313,9 @@
       "description": "User ID of the winner",
       "type": "string"
     },
-    "challenge_version": {
-      "type": "integer",
-      "description": "2 identifies challenge-first invitation records. Unset on legacy/public matches."
-    },
     "challenge_initial_time_ms": {
       "type": "integer",
       "description": "New invitation games use 300000 ms per player; legacy time controls are unchanged."
-    },
-    "challenge_expires_at": {
-      "type": "string",
-      "description": "Open invitation expires without reserving funds.",
-      "format": "date-time"
-    },
-    "challenge_close_reason": {
-      "type": "string",
-      "description": "Safe reason an invitation expired, was cancelled or voided."
     },
     "challenge_creator_consent_at": {
       "type": "string",
@@ -302,14 +391,6 @@
     "challenge_financial_group_id": {
       "type": "string",
       "description": "Deterministic reference to one balanced dual-reservation journal batch.",
-      "rls": {
-        "read": false,
-        "write": false
-      }
-    },
-    "challenge_release_group_id": {
-      "type": "string",
-      "description": "Idempotent pre-game dual-release journal batch.",
       "rls": {
         "read": false,
         "write": false
