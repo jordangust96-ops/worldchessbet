@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { User, Loader2, SearchX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import FoundingPlayerBadge from "@/components/profile/FoundingPlayerBadge";
@@ -13,6 +13,7 @@ import { trackPixelEvent } from "@/lib/metaPixel";
 const AUTO_REFRESH_INTERVAL_MS = 7000;
 
 export default function AvailableMatchSection({ userId, balance, activeMatch, onChallengeCancelled, onAccepted }) {
+  const navigate = useNavigate();
   const [opponents, setOpponents] = useState([]);
   const [declinedIds, setDeclinedIds] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -99,6 +100,10 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
 
   const handleAccept = async () => {
     if (!current) return;
+    if (current.challengePath) {
+      navigate(current.challengePath + '?accept=1');
+      return;
+    }
     setAccepting(true);
     setAcceptError("");
     try {
@@ -143,7 +148,7 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
         <div className="text-center py-6 lg:py-3 px-2 space-y-2 lg:space-y-1">
           <p className="text-white font-bold text-base lg:text-sm">No Matches Available</p>
           <p className="text-white/40 text-sm lg:text-xs leading-relaxed max-w-xs mx-auto">
-            No public challenges are available. Create one below or refresh.
+            No public challenges are available. Use Create Challenge and turn on Show in Find an Opponent, or refresh.
           </p>
           <Button
             onClick={handleFindMatch}
@@ -249,13 +254,13 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
           <div className="space-y-2.5 lg:space-y-1.5">
             <Button
               onClick={handleAccept}
-              disabled={accepting || insufficientFunds}
+              disabled={accepting || (!current.challengePath && insufficientFunds)}
               className="w-full h-14 lg:h-10 rounded-2xl text-base lg:text-sm font-bold gold-gradient text-black hover:opacity-90 transition-opacity disabled:opacity-30"
             >
               {accepting ? <Loader2 className="animate-spin mr-2" size={18} /> : null}
               Accept Challenge
             </Button>
-            {insufficientFunds && (
+            {insufficientFunds && !current.challengePath && (
               <p className="text-[11px] text-center text-[#C9A84C]/70">
                 {(balance || 0) <= 0 ? "Fund your wallet to join challenges." : "Insufficient balance for this entry amount."}{" "}
                 <Link to="/wallet" className="underline font-semibold hover:text-[#C9A84C]">

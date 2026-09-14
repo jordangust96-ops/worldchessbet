@@ -6,7 +6,6 @@ import { base44 } from '@/api/base44Client';
 import { challengeRequest, challengeErrorMessage } from '@/lib/challengeApi';
 import CreateChallengeForm from '@/components/play/CreateChallengeForm';
 import AvailableMatchSection from '@/components/play/AvailableMatchSection';
-import HostMatchSection from '@/components/play/HostMatchSection';
 import ActiveChallengeCard from '@/components/play/ActiveChallengeCard';
 
 export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
@@ -72,11 +71,11 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
     </div>
     {error && <p role="status" className="text-xs text-[#E5CA7A]">{error}</p>}
     <div className="border-t border-white/10 pt-4">
-      <button onClick={()=>setShowPublic(value=>!value)} aria-expanded={showPublic} className="flex w-full items-center justify-between gap-3 text-left"><div><h2 className="font-semibold text-white/80">Find an Opponent</h2><p className="mt-1 text-xs text-white/40">Browse or post a public match.</p></div><ChevronDown className={`text-white/40 transition-transform ${showPublic?'rotate-180':''}`} size={18}/></button>
+      <button onClick={()=>setShowPublic(value=>!value)} aria-expanded={showPublic} className="flex w-full items-center justify-between gap-3 text-left"><div><h2 className="font-semibold text-white/80">Find an Opponent</h2><p className="mt-1 text-xs text-white/40">Browse public challenges.</p></div><ChevronDown className={`text-white/40 transition-transform ${showPublic?'rotate-180':''}`} size={18}/></button>
       {showPublic && <div className="mt-4 space-y-4">
         <AvailableMatchSection userId={userId} balance={balance} activeMatch={activePublic} onChallengeCancelled={()=>setActivePublic(null)} onAccepted={onMatchAccepted}/>
         <div className="h-px bg-white/10"/>
-        {activePublic ? <ActiveChallengeCard match={activePublic} onCancel={async()=>{await base44.functions.invoke('cancelMatch',{matchId:activePublic.id});await refresh();}}/> : <HostMatchSection userId={userId} balance={balance} disabled={creationBlocked} onHosted={()=>refresh()}/>}
+        {activePublic ? <ActiveChallengeCard match={activePublic} onCancel={async()=>{await base44.functions.invoke('cancelMatch',{matchId:activePublic.id});await refresh();}}/> : null}
       </div>}
     </div>
   </section>;

@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { Copy, Share2, Loader2, ArrowLeft, Clock, Check } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
+import ChallengeVisibilityToggle from '@/components/play/ChallengeVisibilityToggle';
 import Logo from '@/components/Logo';
 import SEO from '@/components/seo/SEO';
 import { Button } from '@/components/ui/button';
@@ -15,6 +16,8 @@ const walletCodes = ['identity_required','bank_required','funds_required'];
 
 export default function ChallengePage() {
   const { inviteCode } = useParams();
+  const location = useLocation();
+  const marketplaceReview = new URLSearchParams(location.search).get("accept") === "1";
   const { user } = useAuth();
   const navigate = useNavigate();
   const path = `/challenge/${inviteCode}`;
@@ -72,7 +75,7 @@ export default function ChallengePage() {
   // Show the creator's setup or explicit authorization directly; checking
   // eligibility here neither requests location nor authorizes any funds.
   useEffect(() => {
-    if (!creator || !open || creatorReady) return;
+    if (!open || !user || (creator ? creatorReady : !marketplaceReview)) return;
     let cancelled = false;
     setCreatorChecking(true); setError('');
     challengeRequest('readiness', { inviteCode }).then(state => {
@@ -87,7 +90,7 @@ export default function ChallengePage() {
       }
     }).finally(() => { if (!cancelled) setCreatorChecking(false); });
     return () => { cancelled = true; setCreatorChecking(false); };
-  }, [creator,open,creatorReady,inviteCode]);
+  }, [creator,open,creatorReady,inviteCode,marketplaceReview,user?.id]);
 
   const signedIn = () => {
     if (user) return true;
@@ -170,12 +173,14 @@ export default function ChallengePage() {
               <Button onClick={copy} variant="outline" className="h-11 rounded-xl border-white/15 text-white"><Copy size={16} className="mr-2" />Copy Link</Button></div>
             <input aria-label="Your shareable challenge link" value={shareUrl} readOnly onFocus={e=>e.target.select()} className="h-10 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-xs text-white/55" />
             <p className="text-sm leading-relaxed text-white/55">No funds are reserved yet. Share the link, keep playing elsewhere, or cancel it. An unfunded recipient cannot claim it.</p>
+            <ChallengeVisibilityToggle checked={Boolean(card.publiclyListed)} disabled={Boolean(busy)} rematch={Boolean(card.isRematch)}
+              onChange={publiclyListed=>withAction('visibility',async()=>{ await challengeRequest('visibility',{inviteCode,publiclyListed}); await refresh(); })} />
             {creatorReady && <div className="rounded-xl border border-[#C9A84C]/20 bg-[#C9A84C]/10 p-3 text-sm text-[#E5CA7A]">Acceptance enabled for {seconds} seconds. You are not locked into an opponent.</div>}
           </div>}
-          {open && !creator && stage === 'preview' && <Button disabled={Boolean(busy)} onClick={begin} className="h-12 w-full rounded-2xl gold-gradient font-bold text-black">
+          {open && !creator && !marketplaceReview && stage === 'preview' && <Button disabled={Boolean(busy)} onClick={begin} className="h-12 w-full rounded-2xl gold-gradient font-bold text-black">
             {busy === 'check' && <Loader2 size={16} className="mr-2 animate-spin" />}Accept Challenge
           </Button>}
-          {open && creator && (creatorChecking || busy === 'check') && <p role="status" className="flex items-center gap-2 text-sm text-white/55"><Loader2 size={16} className="animate-spin" />Checking your eligibility…</p>}
+          {open && (creatorChecking || busy === 'check') && <p role="status" className="flex items-center gap-2 text-sm text-white/55"><Loader2 size={16} className="animate-spin" />Checking your eligibility…</p>}
           {open && stage === 'setup' && <div className="space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4">
             <h2 className="font-bold">{readiness?.code === 'funds_required' ? 'Available funds required' : 'Complete your setup'}</h2>
             <p className="text-sm text-white/60">{readiness?.reason}</p>
