@@ -1,3 +1,4 @@
+import { isFreeMatch, assertFreeMatch } from './challengePolicy.js';
 import { REPORT_WINDOW_MS } from './reportWindow.ts';
 
 export const RATING_TIME_CONTROLS = ['blitz', 'rapid', 'classical'] as const;
@@ -60,12 +61,11 @@ export async function evaluateContestRatingEligibility(base44: any, contestRecor
     };
   }
 
-  const [match, game, cases, flags, payouts] = await Promise.all([
+  const [match, game, cases, flags] = await Promise.all([
     base44.asServiceRole.entities.Match.get(contestRecord.match_id).catch(() => null),
     base44.asServiceRole.entities.Game.get(contestRecord.game_id).catch(() => null),
     base44.asServiceRole.entities.DisputeCase.filter({ match_id: contestRecord.match_id }),
     base44.asServiceRole.entities.IntegrityFlag.filter({ match_id: contestRecord.match_id }),
-    base44.asServiceRole.entities.WalletTransaction.filter({ match_id: contestRecord.match_id, type: 'payout' }),
   ]);
 
   if (!match || !game || game.match_id !== match.id) {
@@ -76,6 +76,19 @@ export async function evaluateContestRatingEligibility(base44: any, contestRecor
   }
   if (match.player1_id !== contestRecord.white_player_id || match.player2_id !== contestRecord.black_player_id) {
     return { eligible: false, permanent: true, reason: 'participant_snapshot_mismatch' };
+  }
+
+  const free=isFreeMatch(match);
+  if (free || contestRecord.play_mode==='free' || game.play_mode==='free') {
+    try { assertFreeMatch(match); } catch { return {eligible:false,permanent:true,reason:'invalid_free_contest'}; }
+    if (!free || contestRecord.play_mode!=='free' || game.play_mode!=='free' || match.game_id!==game.id ||
+        game.player1_id!==match.player1_id || game.player2_id!==match.player2_id ||
+        !['white_win','black_win','draw'].includes(game.result) ||
+        (contestRecord.winner_id || '')!==(game.winner_id || '') ||
+        (game.winner_id || '')!==(game.result==='white_win'?match.player1_id:game.result==='black_win'?match.player2_id:'') ||
+        ['entry_amount','contest_pool','platform_fee','platform_fee_per_player','winner_payout'].some(key=>contestRecord[key]!==0) ||
+        contestRecord.wallet_transaction_ids?.length || contestRecord.ledger_entry_ids?.length)
+      return {eligible:false,permanent:true,reason:'invalid_free_contest'};
   }
 
   const invalidatingCase = cases.find((c: any) =>
@@ -101,6 +114,8 @@ export async function evaluateContestRatingEligibility(base44: any, contestRecor
     if (![contestRecord.white_player_id, contestRecord.black_player_id].includes(contestRecord.winner_id)) {
       return { eligible: false, permanent: true, reason: 'invalid_winner' };
     }
+    const payouts=free?[]:await base44.asServiceRole.entities.WalletTransaction.filter({ match_id: contestRecord.match_id, type: 'payout' });
+    if (!free) {
     const payout = payouts.find((p: any) => p.status === 'completed' && p.user_id === contestRecord.winner_id);
     if (!payout) return { eligible: false, permanent: false, reason: 'payout_not_confirmed' };
     if (payout.payout_hold_status === 'consumed' || payout.payout_hold_status === 'void') {
@@ -108,6 +123,7 @@ export async function evaluateContestRatingEligibility(base44: any, contestRecor
     }
     if (payout.payout_hold_status !== 'released') {
       return { eligible: false, permanent: false, reason: 'payout_not_final' };
+    }
     }
   }
 

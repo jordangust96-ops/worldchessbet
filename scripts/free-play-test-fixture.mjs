@@ -31,7 +31,7 @@ function fixture() {
   class Clock extends Date { constructor(...args){super(...(args.length?args:[state.now]));} static now(){return state.now;} }
   const table=name=>state.db[name] ||= [];
   const read=name=>{state.reads.push(name);if(state.noMoney && /Wallet|Ledger|Bank|Identity|Socure|Payment|Transfer/.test(name))throw Error('Unexpected free-game financial access: '+name);};
-  const validate=(name,patch)=>{if(!['Match','Game'].includes(name))return;const schema=JSON.parse(fs.readFileSync(path.join(root,'base44/entities/'+name+'.jsonc'),'utf8'));for(const [key,value] of Object.entries(patch)){const rule=schema.properties[key];if(rule?.enum && !rule.enum.includes(value))throw Error('Schema enum violation: '+name+'.'+key+'='+value);}};
+  const validate=(name,patch)=>{if(!['Match','Game','ContestRecord'].includes(name))return;const schema=JSON.parse(fs.readFileSync(path.join(root,'base44/entities/'+name+'.jsonc'),'utf8'));for(const [key,value] of Object.entries(patch)){const rule=schema.properties[key];if(rule?.enum && !rule.enum.includes(value))throw Error('Schema enum violation: '+name+'.'+key+'='+value);}};
   const entities=new Proxy({}, {get:(_,name)=>({
     filter:async(query={},sort='',limit=500,skip=0,fields)=>{
       read(name);let rows=table(name).filter(row=>matches(row,query));
@@ -39,6 +39,7 @@ function fixture() {
       rows=rows.slice(skip,skip+limit);
       return clone(rows.map(row=>fields?Object.fromEntries(['id',...fields].filter(k=>row[k]!==undefined).map(k=>[k,row[k]])):row));
     },
+    list:async(sort='',limit=500,skip=0)=>entities[name].filter({},sort,limit,skip),
     get:async id=>{read(name);const row=table(name).find(x=>x.id===id);if(!row)throw Error(`not_found:${name}:${id}`);return clone(row);},
     create:async data=>{
       validate(name,data);
@@ -97,6 +98,7 @@ function fixture() {
       if(specifier.startsWith('npm:chess.js'))return {Chess};
       if(specifier.startsWith('npm:@base44/sdk'))return {createClientFromRequest:r=>makeSdk(r.headers.get('x-test-user')||'p1')};
       const resolved=path.resolve(path.dirname(file),specifier);
+      if(resolved.endsWith('/ratingAtomicStore.ts'))return {acquireRatingProcessingLock:async owner=>acquire('rating',owner),renewRatingProcessingLock:async owner=>mutex.get('rating')===owner,releaseRatingProcessingLock:async owner=>release('rating',owner)};
       if(resolved.endsWith('/seamlessAtomicStore.ts'))return atomic;
       if(resolved.endsWith('/seamlessFundingConfig.ts'))return {paidContestsEnabled:()=>state.paid};
       if(resolved.endsWith('/identityEligibility.js'))return {hasVerifiedIdentity:async(sdk,user)=>!!user && (await sdk.asServiceRole.entities.User.get(user.id)).verified===true};
@@ -118,7 +120,7 @@ function fixture() {
     result.exports=module.exports;return result;
   }
   makeSdk=id=>({auth:{me:async()=>clone(table('User').find(u=>u.id===id)||null)},
-    asServiceRole:{entities,integrations:{Core:{SendEmail:async data=>{state.emails.push(clone(data));return {sent:true};}}}},
+    asServiceRole:{entities,functions:{invoke:async(name,body)=>makeSdk('p1').functions.invoke(name,body)},integrations:{Core:{SendEmail:async data=>{state.emails.push(clone(data));return {sent:true};}}}},
     functions:{invoke:async(name,payload)=>{
       const response=await load(`base44/functions/${name}/entry.ts`).handler(new Request('https://example.invalid',{method:'POST',headers:{'x-test-user':id,'user-agent':'test-browser'},body:JSON.stringify(payload)}));
       const data=await response.json();if(!response.ok)throw Object.assign(Error(data.error),{response:{status:response.status,data}});return {data};

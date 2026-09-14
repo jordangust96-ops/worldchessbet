@@ -92,7 +92,7 @@ export default function MyRatingSection({ onSummaryChange }) {
         <h2 id="my-rating-title" className="text-base font-bold text-white">My Rating</h2>
       </div>
       <p className="text-sm text-white/60">
-        Your skill rating in Blitz, Rapid, and Classical — tracked separately for each.
+        Free and money games count toward your skill rating in Blitz, Rapid, and Classical — tracked separately for each.
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         {POOLS.map((timeControl) => {

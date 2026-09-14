@@ -19,7 +19,7 @@ for(const publiclyListed of [false,true])for(const timeControl of ['blitz','rapi
  if(end==='checkmate'){for(const [who,from,to] of [['p1','f2','f3'],['p2','e7','e5'],['p1','g2','g4'],['p2','d8','h4']]){f.state.now+=1000;await f.makeSdk(who).functions.invoke('submitMove',{gameId:game.id,from,to});}}
  if(end==='timeout'){f.state.now+=game.white_time_ms+5000;await f.makeSdk('p2').functions.invoke('checkTimeout',{gameId:game.id});}
  equal(f.table('Game')[0].status,'completed');equal(f.table('Game')[0].end_reason,end==='draw'?'draw_agreement':end);
- await Promise.all(['p1','p2','p1'].map(who=>f.makeSdk(who).functions.invoke('settleMatch',{gameId:game.id})));equal(f.get(m.id).status,'completed');equal(f.get(m.id).result,end==='draw'?'draw':'player2_win');
+ await Promise.allSettled(['p1','p2','p1'].map(who=>f.makeSdk(who).functions.invoke('settleMatch',{gameId:game.id})));await f.makeSdk('p1').functions.invoke('settleMatch',{gameId:game.id});equal(f.table('ContestRecord').length,1);equal(f.get(m.id).status,'completed');equal(f.get(m.id).result,end==='draw'?'draw':'player2_win');
  noMoney(f);
 }
 for(const phase of ['open','accepted','expired','no_show']){
@@ -95,7 +95,7 @@ for(const who of ['missing','mfa-needed']){
  const f=freeFixture();if(who==='mfa-needed')f.table('User').push({id:who,account_state:'unverified'});
  await assert.rejects(()=>call(f,who,'create',bodyFor(f)));equal(f.table('Match').length,0);noMoney(f);
 }
-for(const [action,resolutionType] of [['place_pre_settlement_hold'],['place_post_settlement_hold'],['place_account_hold'],['release_hold'],['resolve_case','funds_forfeited'],['resolve_case','contest_reversed'],['resolve_case','contest_voided']]){
+for(const [action,resolutionType] of [['place_pre_settlement_hold'],['place_post_settlement_hold'],['place_account_hold'],['release_hold'],['resolve_case','funds_forfeited']]){
  const f=freeFixture(),m=await made(f);f.table('User')[0].role='admin';f.table('DisputeCase').push({id:'case',match_id:m.id,status:'open'});
  const res=await f.load('base44/functions/manageDisputeCase/entry.ts').handler(new Request('https://example.invalid',{method:'POST',body:JSON.stringify({caseId:'case',action,payload:{resolutionType,amount:100}})}));
  equal(res.status,409);check((await res.json()).error.includes('Free games'));noMoney(f);
@@ -109,3 +109,56 @@ console.log(`Including free-game tampering, pending funds, lease loss, session r
  equal(f.state.emails.length,1);check(f.state.emails[0].body.includes('Free play'));check(!f.state.emails[0].body.includes('Entry Amount'));noMoney(f);
 }
 console.log('Including captured notification copy (no external email): '+assertionCount()+' assertions passed.');
+function ratingsOn(f){f.table('User')[0].role='admin';f.table('RatingSystemConfig').push({id:'rating-config',config_key:'primary',processing_enabled:true,public_enabled:true,history_start_at:'2026-09-01T00:00:00Z',current_generation:0,initial_rating:1500,initial_rating_deviation:350,initial_volatility:0.06,tau:0.5,provisional_games:10});}
+for(const timeControl of ['blitz','rapid','classical'])for(const result of ['win','draw']){
+ const f=freeFixture(),m=await made(f,{timeControl});await available(f,m);await accepted(f,m);const game=await started(f,m);
+ if(result==='win')await f.makeSdk('p1').functions.invoke('resignGame',{gameId:game.id});
+ else {await f.makeSdk('p1').functions.invoke('respondDraw',{gameId:game.id,action:'offer'});await f.makeSdk('p2').functions.invoke('respondDraw',{gameId:game.id,action:'accept'});}
+ await f.makeSdk('p1').functions.invoke('settleMatch',{gameId:game.id});ratingsOn(f);
+ let res=await f.makeSdk('p1').functions.invoke('processEligibleRatings',{});equal(res.data.applied,0);equal(f.table('PlayerRating').length,0,'Review window preserved');
+ f.state.now+=86400001;
+ res=await f.makeSdk('p1').functions.invoke('processEligibleRatings',{});equal(res.data.errors.length,0);equal(res.data.applied,1);equal(f.table('PlayerRating').length,2);equal(f.table('RatingEvent').length,2);
+ for(const row of f.table('PlayerRating')){equal(row.time_control,timeControl);equal(row.games_rated,1);if(result==='draw')equal(row.rating,1500);else check(row.user_id==='p1'?row.rating<1500:row.rating>1500);}
+ await f.makeSdk('p1').functions.invoke('processEligibleRatings',{});equal(f.table('RatingOperation').length,1);equal(f.table('RatingEvent').length,2);noMoney(f);
+}
+for(const blocker of ['dispute','integrity','voided']){
+ const f=freeFixture(),m=await made(f);await available(f,m);await accepted(f,m);const game=await started(f,m);await f.makeSdk('p1').functions.invoke('resignGame',{gameId:game.id});await f.makeSdk('p1').functions.invoke('settleMatch',{gameId:game.id});ratingsOn(f);f.state.now+=86400001;
+ if(blocker==='integrity')f.table('IntegrityFlag').push({id:'flag',match_id:m.id,status:'open'});
+ else f.table('DisputeCase').push({id:'case',match_id:m.id,status:blocker==='voided'?'resolved':'open',resolution_type:blocker==='voided'?'contest_voided':''});
+ let res=await f.makeSdk('p1').functions.invoke('processEligibleRatings',{});equal(res.data.applied,0);equal(f.table('PlayerRating').length,0);
+ if(blocker!=='voided'){if(blocker==='integrity')f.table('IntegrityFlag')[0].status='resolved';else f.table('DisputeCase')[0].status='closed';res=await f.makeSdk('p1').functions.invoke('processEligibleRatings',{});equal(res.data.applied,1);}
+ noMoney(f);
+}
+for(const interruption of ['ContestRecord.create.after','Match.update','PlayerRating.create.after']){
+ const f=freeFixture(),m=await made(f);await available(f,m);await accepted(f,m);const game=await started(f,m);await f.makeSdk('p1').functions.invoke('resignGame',{gameId:game.id});
+ if(interruption!=='PlayerRating.create.after')f.state.fail={where:interruption,test:(_id,patch)=>patch.status==='completed'};
+ await f.makeSdk('p1').functions.invoke('settleMatch',{gameId:game.id}).catch(()=>{});await f.makeSdk('p1').functions.invoke('settleMatch',{gameId:game.id});equal(f.table('ContestRecord').length,1);equal(f.get(m.id).status,'completed');
+ ratingsOn(f);f.state.now+=86400001;if(interruption==='PlayerRating.create.after')f.state.fail={where:interruption};
+ await f.makeSdk('p1').functions.invoke('processEligibleRatings',{});await f.makeSdk('p1').functions.invoke('processEligibleRatings',{});equal(f.table('PlayerRating').length,2);equal(f.table('RatingEvent').length,2);check(f.table('PlayerRating').every(x=>x.games_rated===1));noMoney(f);
+}
+// Administrators can invalidate a free result for ratings through the normal case workflow, without a financial remedy.
+for(const resolutionType of ['contest_voided','contest_reversed']){
+ const f=freeFixture(),m=await made(f);await available(f,m);await accepted(f,m);const game=await started(f,m);await f.makeSdk('p1').functions.invoke('resignGame',{gameId:game.id});await f.makeSdk('p1').functions.invoke('settleMatch',{gameId:game.id});ratingsOn(f);f.state.now+=86400001;
+ f.table('DisputeCase').push({id:'case',case_number:1,match_id:m.id,game_id:game.id,status:'open'});
+ const result=await f.makeSdk('p1').functions.invoke('manageDisputeCase',{caseId:'case',action:'resolve_case',payload:{resolutionType,internalRationale:'Isolated fixture review'}});
+ equal(f.table('DisputeCase')[0].resolution_type,resolutionType);equal(f.table('DisputeCase')[0].status,'resolved');
+ const rated=await f.makeSdk('p1').functions.invoke('processEligibleRatings',{});equal(rated.data.applied,0);equal(f.table('RatingEvent').length,0);noMoney(f);
+}
+console.log('Including actual Glicko-2 processing, review gates and idempotent completion/rating recovery: '+assertionCount()+' assertions passed.');
+{
+ const f=freeFixture(),m=await made(f);await available(f,m);await accepted(f,m);const game=await started(f,m);await f.makeSdk('p1').functions.invoke('resignGame',{gameId:game.id});await f.makeSdk('p1').functions.invoke('settleMatch',{gameId:game.id});ratingsOn(f);f.state.now+=86400001;
+ await f.makeSdk('p1').functions.invoke('processEligibleRatings',{});equal(f.table('RatingOperation')[0].status,'completed');
+ f.table('DisputeCase').push({id:'case',match_id:m.id,status:'resolved',resolution_type:'contest_voided'});
+ const rebuilt=await f.makeSdk('p1').functions.invoke('rebuildAllRatings',{matchId:m.id});
+ check(f.table('PlayerRating').every(row=>row.games_rated===0 && row.rating===1500));equal(f.table('RatingOperation')[0].status,'invalidated');noMoney(f);
+}
+for(const hold of ['missing','held','released']){
+ const f=fixture(),m=await f.create();Object.assign(f.table('Match')[0],{status:'completed',game_id:'game',player2_id:'p2',winner_id:'p1'});
+ f.table('Game').push({id:'game',match_id:m.id,status:'completed',play_mode:'money',result:'white_win',winner_id:'p1'});
+ const record={id:'record',match_id:m.id,game_id:'game',play_mode:'money',time_control:'blitz',white_player_id:'p1',black_player_id:'p2',winner_id:'p1',settlement_timestamp:'2026-09-12T00:00:00Z'};
+ if(hold!=='missing')f.table('WalletTransaction').push({id:'payout',match_id:m.id,type:'payout',status:'completed',user_id:'p1',payout_hold_status:hold});
+ const policy=f.load('base44/shared/ratingPolicy.ts').exports;
+ const result=await policy.evaluateContestRatingEligibility(f.sdk,record,{history_start_at:'2026-09-01T00:00:00Z'});equal(result.eligible,hold==='released');
+ const forged=await policy.evaluateContestRatingEligibility(f.sdk,{...record,play_mode:'free'},{history_start_at:'2026-09-01T00:00:00Z'});equal(forged.eligible,false);equal(forged.reason,'invalid_free_contest');
+}
+console.log('Including rating rebuild and preserved money-payout gates: '+assertionCount()+' assertions passed.');

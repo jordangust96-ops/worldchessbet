@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
     }
 
     if (disputeCase.match_id && (['place_pre_settlement_hold','place_post_settlement_hold','place_account_hold','release_hold'].includes(action) ||
-        (action==='resolve_case' && ['contest_reversed','contest_voided','funds_forfeited'].includes(payload.resolutionType)))) {
+        (action==='resolve_case' && ['funds_forfeited'].includes(payload.resolutionType)))) {
       const linkedMatch=await base44.asServiceRole.entities.Match.get(disputeCase.match_id);
       if (linkedMatch?.play_mode==='free') return Response.json({error:'Free games have no financial settlement or funds to hold, refund, or reverse. Use a nonfinancial fair-play resolution.'},{status:409});
     }
@@ -357,7 +357,7 @@ Deno.serve(async (req) => {
         // consume it directly from Held Balance below; every other
         // resolution type leaves it for the scheduled sweep after the case
         // concludes and the mandatory 24-hour deadline has passed.
-        const payoutTransactions = disputeCase.match_id
+        const payoutTransactions = disputeCase.match_id && match?.play_mode!=='free'
           ? await base44.asServiceRole.entities.WalletTransaction.filter({ match_id: disputeCase.match_id, type: 'payout' })
           : [];
         // status:'completed' guards against the same duplicate-election hazard
@@ -382,7 +382,10 @@ Deno.serve(async (req) => {
 
         let effectsSummary = '';
 
-        if (resolutionType === 'no_violation') {
+        if (match?.play_mode==='free' && ['no_violation','contest_reversed','contest_voided'].includes(resolutionType)) {
+          if(match.status!=='completed' || !contestRecord) return Response.json({error:'Complete the free game before resolving its result.'},{status:409});
+          effectsSummary=resolutionType==='no_violation'?'No violation was found and the free game result stands.':'The free game result has been invalidated and will be excluded from ratings. No money was charged, refunded, or awarded.';
+        } else if (resolutionType === 'no_violation') {
           if (disputeCase.hold_status && !['none', 'released'].includes(disputeCase.hold_status)) {
             if (disputeCase.hold_status === 'pre_settlement_hold') {
               if (match) await base44.asServiceRole.entities.Match.update(match.id, { settlement_hold: false });
