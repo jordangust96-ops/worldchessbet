@@ -37,6 +37,7 @@ Deno.serve(async (req) => {
   let analysisId = '';
   try {
     const base44 = createClientFromRequest(req);
+    // Expired or missing sessions are authentication failures, not server errors.
     const user = await base44.auth.me().catch(() => null);
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
