@@ -92,7 +92,11 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
           </div>
           <p className="text-xs text-white/45">No funds reserved. Both players must qualify before acceptance.</p>
         </>}
-        <Link to={`/play?challenge=${card.inviteCode}`} className="block text-xs font-semibold text-[#C9A84C]">{card.status==='open' ? (card.creatorReady ? 'Challenge details & visibility' : 'Review eligibility & enable acceptance') : 'Open Match'}</Link>
+        {card.status==='open' && <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
+          <p className="text-sm leading-relaxed text-white/65">To play this match, you need ${Number(card.totalRequired).toFixed(2)} in available wallet funds, including the service fee. Pending deposits cannot be used yet.</p>
+          <Button asChild variant="outline" className="h-11 w-full rounded-xl border-[#C9A84C]/30 font-semibold text-[#E5CA7A]"><Link to={`/wallet?challenge=${card.inviteCode}`}>Fund Wallet</Link></Button>
+        </div>}
+        <Link to={`/play?challenge=${card.inviteCode}`} className="block text-xs font-semibold text-[#C9A84C]">{card.status==='open' ? 'Challenge details & visibility' : 'Open Match'}</Link>
       </article>)}</div>}
       {activePublic && <ActiveChallengeCard match={activePublic} onCancel={async()=>{await base44.functions.invoke('cancelMatch',{matchId:activePublic.id});await refresh();}}/>}
     </div>}
