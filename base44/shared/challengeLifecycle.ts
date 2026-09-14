@@ -1,3 +1,4 @@
+import { getOrCreateMatchGame } from './getOrCreateMatchGame.ts';
 import { requireRematchPresence } from './rematchPresence.ts';
 import { withChallengeCreationLock, requireNoExistingChallenge, withChallengePlayersLock } from './challengeCreation.ts';
 import { postLedgerLegs } from './ledger.ts';
@@ -707,8 +708,14 @@ export async function finalizeChallengeStart(base44: any, user: any, matchId: st
       status: 'both_ready', start_operation_id: match.start_operation_id || crypto.randomUUID(),
     });
     if (!await refreshContestLocks(match.id, [], owner)) throw new Error('challenge_lease_lost');
-    const response = await base44.functions.invoke('getOrCreateGame', { matchId, challengeStartOwner: owner });
-    const game = response.data?.game;
+    // Run the same guarded game creator under this live lease. A second HTTP
+    // function hop can cold-start after the ten-second ready window expires.
+    const response = await getOrCreateMatchGame(base44,user,{matchId,challengeStartOwner:owner});
+    const payload = await response.json();
+    if(!response.ok) fail(payload.action || 'start_retry',response.status>=500
+      ? 'The connection was interrupted while starting. Please retry readiness.'
+      : payload.error || 'Both players must confirm readiness again.',response.status);
+    const game = payload.game;
     if (!game?.id) fail('start_retry', 'The match is starting. Please try again.');
     const updated = await base44.asServiceRole.entities.Match.update(match.id, { status: 'in_progress', game_id: game.id });
     await recordIntegrationEvent(base44, { eventType: 'contest.started', aggregateType: 'match', aggregateId: match.id,
