@@ -564,7 +564,7 @@ async function closeFreeChallenge(base44: any, match: any, reason: string) {
 }
 
 export async function cancelChallenge(base44: any, user: any, matchId: string) {
-  return underMatchLock(base44, matchId, async (match, owner) => {
+  const attempt = () => underMatchLock(base44, matchId, async (match, owner) => {
     if (!roleFor(match, user.id)) fail('forbidden', 'Only a participant can cancel this challenge.', 403);
     if (match.status === 'cancelled' && !activeOperation(match)) return { match, replay: true };
     if (match.start_operation_id || ['in_progress', 'settling', 'completed', 'disputed'].includes(match.status))
@@ -594,6 +594,24 @@ export async function cancelChallenge(base44: any, user: any, matchId: string) {
     const ids = [match.player1_id, match.player2_id || match.challenge_claimant_id].filter(Boolean);
     return underWalletLocks(ids, owner, match.id, () => releaseChallengeLocked(base44, match, owner, 'cancelled'));
   });
+
+  try {
+    return await attempt();
+  } catch (error) {
+    // A cancellation can commit its immutable release journal and then lose a
+    // lease/coordination response before the caller receives success. Never
+    // make the player infer that state from a generic payment error: first
+    // reconcile the durable Match projection, then retry one known-transient
+    // coordination failure. Ledger group ids make this retry idempotent.
+    const current = await base44.asServiceRole.entities.Match.get(matchId).catch(() => null);
+    if (current && current.status === 'cancelled' && !activeOperation(current))
+      return { match: current, replay: true, recovered: true };
+
+    const message = String(error?.message || '');
+    if (!['challenge_lease_lost', 'Seamless atomic store unavailable'].includes(message)) throw error;
+    await new Promise(resolve => setTimeout(resolve, 100));
+    return attempt();
+  }
 }
 
 export async function readyChallenge(req: Request, base44: any, user: any, matchId: string, body: any) {
