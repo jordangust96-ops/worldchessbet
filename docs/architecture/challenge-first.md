@@ -74,12 +74,33 @@ unfunded and held-only wallets, identity/bank/hold/location rejection, crash
 boundaries, partial barrier cleanup, no-show refunds, explicit readiness,
 direct-start refusal, single-game clocks, rematch scope and endpoint redaction.
 
-The pre-change repository was also tested separately from commit
-fa2a72b2373d06222f8b1c323bb853aa77c2489e. Its launch-readiness suite already
-rejected the deployed Socure identity architecture and its site-activity suite
-already failed on an obsolete raw-ESM test harness. Those two pre-existing
-failures are not treated as passing or as proof of production readiness.
-No real deposits, withdrawals, funded contests or payout changes are executed
+Final regression run: 24 of 24 npm test suites passed. The challenge suite
+includes 200 assertions against actual lifecycle/journal modules and isolated
+adapters. Seven isolated browser scenarios passed 37 checks, including mobile
+overflow, anonymous preview, unfunded creation, pending-funds refusal, single
+acceptance, no second reservation, and closed-link recovery.
+
+Two obsolete test assumptions were repaired, without weakening production
+controls: the launch test now requires authoritative Socure identity evidence
+separate from Plaid bank authorization; the site-activity harness executes the
+actual privacy bootstrap and ESM modules and verifies consent, private-page
+suppression, challenge-token exclusion, and duplicate-view prevention.
+
+An actual anonymous endpoint smoke check identified INCR as unauthorized by
+the existing Redis command policy. The rate limiter now uses atomic EVAL with
+GET/SET, preserving its fixed-window limit without changing credentials or
+relaxing permissions. The deployed endpoint now returns 404 for missing or
+malformed invitations and 401 for unauthenticated protected operations.
+Only sanitized dependency categories are returned; no raw provider errors,
+credentials, participant details, or internal financial payloads are exposed.
+
+No real deposits, withdrawals, funded contests or payout changes were executed
 as part of these tests. A live two-player money-match smoke test remains a
-separate verification step. Source/preview changes are not evidence of a
-successful publication to the custom domain.
+separate verification step after both participants have available funds.
+
+Publication remains a distinct step. The custom domain was verified serving
+an older frontend bundle without /challenge/:inviteCode. An explicit CLI site
+publish attempt required a fresh device login and could not complete through
+the available authenticated connector session. Publish ChessBet from the
+Base44 Builder to release the new interface. Backend source edits and local
+build success are not represented as proof of custom-domain publication.
