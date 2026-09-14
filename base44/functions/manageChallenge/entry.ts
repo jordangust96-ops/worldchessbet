@@ -43,6 +43,7 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me().catch(() => null);
     const action = String(body.action || 'view');
+    requestStage = ['ready','heartbeat','unready','finalize','list'].includes(action) ? action : 'challenge_action';
     if (action === 'view') {
       // Reject malformed capability links before any Redis or entity access.
       if (typeof body.inviteCode !== 'string' || !/^[a-f0-9]{32}$/.test(body.inviteCode))
@@ -151,7 +152,10 @@ Deno.serve(async (req) => {
     // credentials, account records, provider payloads, or raw exceptions.
     const coordinationStatus = error?.message === 'Seamless atomic store is not configured' ? 'not_configured'
       : error?.message === 'Seamless atomic store unavailable' ? 'unavailable' : 'unexpected_failure';
-    return response({ error:'This challenge could not be updated. Please retry; do not start another payment.', action:'retry', component:requestStage, diagnostic:coordinationStatus,
+    return response({ error:['ready','heartbeat','unready','finalize'].includes(requestStage)
+      ? 'Connection interrupted while confirming the match. Please retry readiness.'
+      : requestStage==='list' ? 'Unable to refresh your challenges. Please try again.'
+      : 'This challenge could not be updated. Please retry; do not start another payment.', action:'retry', component:requestStage, diagnostic:coordinationStatus,
       ...(error?.coordinationReason ? { dependencyStatus:error.coordinationHttpStatus, dependencyReason:error.coordinationReason,
         dependencyCommands:error.coordinationCommands, dependencyReadOnly:error.coordinationReadOnly } : {}),
     },503);
