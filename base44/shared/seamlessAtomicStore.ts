@@ -198,6 +198,24 @@ export async function releaseUserWalletLock(userId: string, owner: string) {
   await evalAtomic(RELEASE_LOCK, [key('wallet-lock', userId)], [owner]);
 }
 
+// Match and player locks share the atomic store, not an entity read/sleep/write.
+export async function acquireMatchLock(matchId: string, owner: string) {
+  return Number(await evalAtomic(ACQUIRE_LOCK, [key('match-lock', matchId)], [owner, String(LOCK_TTL_MS)])) === 1;
+}
+export async function releaseMatchLock(matchId: string, owner: string) {
+  await evalAtomic(RELEASE_LOCK, [key('match-lock', matchId)], [owner]);
+}
+export async function refreshContestLocks(matchId: string, userIds: string[], owner: string) {
+  const keys = [key('match-lock', matchId), ...userIds.map(id => key('wallet-lock', id))];
+  // Only extend existing ownership. An expired lease can never be reacquired
+  // by an old worker and mistaken for uninterrupted financial authorization.
+  const script = `
+for i,k in ipairs(KEYS) do if redis.call('GET',k) ~= ARGV[1] then return 0 end end
+for i,k in ipairs(KEYS) do redis.call('PEXPIRE',k,ARGV[2]) end
+return 1`;
+  return Number(await evalAtomic(script, keys, [owner, String(LOCK_TTL_MS)])) === 1;
+}
+
 // One global ledger lease serializes journal creation and balance
 // materialization across every wallet and protected system account. Financial
 // volume is intentionally modest and correctness is more important than
