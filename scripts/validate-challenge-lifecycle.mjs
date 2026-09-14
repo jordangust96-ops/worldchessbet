@@ -68,7 +68,12 @@ function fixture() {
       if(!ids.every(u=>mutex.get('u:'+u)===owner && (!barriers.has(u)||barriers.get(u)===id)))return false;
       for(const u of ids)barriers.set(u,id);return true;
     },
-    clearChallengeWalletBarriers:async(ids,id)=>{for(const u of ids)if(barriers.get(u)===id)barriers.delete(u);},
+    clearChallengeWalletBarriers:async(ids,id)=>{
+      for(const u of ids) {
+        if(barriers.get(u)===id)barriers.delete(u);
+        if(state.fail?.where==='barrier.clear.partial') {state.fail=null;throw Error('injected_partial_barrier_clear');}
+      }
+    },
     getUserWalletBarrier:async id=>barriers.get(id)||'',takeChallengeRateLimit:async()=>true,
   };
   const cache=new Map();
@@ -235,5 +240,48 @@ for(const where of ['LedgerJournalBatch.create.before','LedgerJournalBatch.creat
   const serializer=f.load('base44/functions/manageChallenge/entry.ts').exports.safeChallengeMatch;
   const safe=serializer({...m,start_operation_id:'SECRET',challenge_claimant_id:'PRIVATE',challenge_target_id:'PRIVATE'});
   check(!('start_operation_id'in safe));check(!('challenge_claimant_id'in safe));check(!('challenge_target_id'in safe));
+}
+// A partial barrier clear remains visibly recoverable, including when the
+// financial projection and participant assignment already succeeded.
+for(const phase of ['reservation','release']) {
+  const f=fixture();const m=await f.authorize(await f.create());
+  if(phase==='release')await f.api.acceptChallenge(f.request,f.sdk,f.user('p2'),m,f.consent);
+  f.state.fail={where:'barrier.clear.partial'};
+  if(phase==='reservation') {
+    const result=await f.api.acceptChallenge(f.request,f.sdk,f.user('p2'),m,f.consent);check(result.processing);
+    equal(f.get(m.id).challenge_operation_state,'reserving');
+  } else {
+    await assert.rejects(()=>f.api.cancelChallenge(f.sdk,f.user('p1'),m.id));assertions++;
+    equal(f.get(m.id).challenge_operation_state,'releasing');
+  }
+  equal(f.barriers.size,1);
+  await f.api.recoverChallenge(f.sdk,m.id);equal(f.barriers.size,0);
+  equal(f.get(m.id).challenge_operation_state,phase==='reservation'?'committed':'released');
+  equal(f.table('LedgerJournalBatch').length,phase==='reservation'?1:2);
+  equal(f.table('WalletTransaction').length,phase==='reservation'?4:8);
+}
+// A lost final match write resumes the already-created five-minute game.
+{
+  const f=fixture();const m=await f.authorize(await f.create());await f.api.acceptChallenge(f.request,f.sdk,f.user('p2'),m,f.consent);
+  await f.api.readyChallenge(f.request,f.sdk,f.user('p1'),m.id,{action:'ready'});
+  await f.api.readyChallenge(f.request,f.sdk,f.user('p2'),m.id,{action:'ready'});
+  f.state.fail={where:'Match.update',test:(_id,patch)=>patch.status==='in_progress'};
+  await assert.rejects(()=>f.api.finalizeChallengeStart(f.sdk,f.user('p1'),m.id));assertions++;
+  equal(f.table('Game').length,1);const anchor=f.table('Game')[0].turn_started_at;
+  f.state.now+=35000;
+  const recovered=await f.api.finalizeChallengeStart(f.sdk,f.user('p2'),m.id);
+  equal(recovered.match.status,'in_progress');equal(f.table('Game').length,1);equal(f.table('Game')[0].turn_started_at,anchor);
+}
+// A restricted rematch is not claimable by an unrelated funded link holder.
+{
+  const f=fixture();f.table('Match').push({id:'prior',launch_epoch:2,status:'completed',player1_id:'p1',player2_id:'p2'});
+  const made=await f.api.createChallenge(f.sdk,f.user('p1'),{entryAmount:25,requestKey:'rematch_request_12345',rematchOf:'prior'});
+  const m=await f.authorize(f.get(made.match.id));equal(m.challenge_target_id,'p2');
+  await rejected(()=>f.api.acceptChallenge(f.request,f.sdk,f.user('p3'),m,f.consent),'different_opponent');
+  equal(f.table('LedgerJournalBatch').length,0);equal(f.get(m.id).player2_id,undefined);
+}
+for(const fee of [null,undefined,'2',NaN,-1,2.001]) {
+  const f=fixture();const m=await f.create();const state=await f.access.inspectChallengePlayer(f.sdk,'p2',{...m,platform_service_fee:fee});
+  equal(state.ready,false);equal(state.code,'invalid_terms');
 }
 console.log(`Challenge lifecycle: ${assertions} assertions passed. Actual lifecycle/journal code; isolated providers, storage and locks; no live money movement.`);
