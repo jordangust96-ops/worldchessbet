@@ -76,7 +76,7 @@ function isSuppressedDuplicate(tx) {
 }
 
 function getTransactionExplanation(tx, match) {
-  const amount = `${formatMoney(tx.amount)}`;
+  const amount = `$${formatMoney(tx.amount)}`;
   if(tx.type==='admin_reversal'&&tx.source_event==='legacy_deposit_fee_adjustment')return {heading:'Deposit fee',text:`Deposit fee: ${amount}.`};
   if(tx.type==='withdrawal'&&tx.withdrawal_requested_at&&!['failed','reversed','completed'].includes(tx.status)){
     const date=tx.withdrawal_estimated_arrival?new Date(tx.withdrawal_estimated_arrival).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric',timeZone:'America/New_York'}):null;

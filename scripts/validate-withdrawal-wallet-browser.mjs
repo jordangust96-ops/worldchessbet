@@ -11,9 +11,9 @@ try{
  await page.addInitScript(()=>{
  const wallet={id:'w',user_id:'qa',available_balance:9.25,held_balance:0,total_balance:9.25};
  const user={id:'qa',role:'user',launch_epoch:2,account_state:'verified',full_name:'Test Player'};
- const transactions=[{id:'fee',type:'admin_reversal',source_event:'legacy_deposit_fee_adjustment',amount:.75,status:'completed',created_date:'2026-09-14T12:00:00Z',description:'Internal processor and cushion detail must not appear'}];
+ const transactions=[{id:'fee',user_id:'qa',launch_epoch:2,type:'admin_reversal',source_event:'legacy_deposit_fee_adjustment',amount:.75,status:'completed',created_date:'2026-09-14T12:00:00Z',description:'Internal processor and cushion detail must not appear'}];
  const calls=[];
- const entities=new Proxy({},{get:(_,name)=>({filter:async()=>name==='Wallet'?[wallet]:name==='WalletTransaction'?transactions:[],list:async()=>[],get:async()=>null,subscribe:()=>()=>{}})});
+ const entities=new Proxy({},{get:(_,name)=>({filter:async(q={})=>name==='Wallet'?[wallet]:name==='WalletTransaction'?transactions.filter(row=>Object.entries(q).every(([k,v])=>row[k]===v)):[],list:async()=>[],get:async()=>null,subscribe:()=>()=>{}})});
  window.qa={user,calls,sdk:{auth:{me:async()=>user},entities,functions:{invoke:async(name,body)=>{
  calls.push({name,body});
  if(name==='getSeamlessWalletState')return {data:{enabled:true,withdrawals_enabled:true,deposits_enabled:true,hosted_plaid_enabled:true,account_verified:true,account_state:'verified',identity:{verified:true,status:'verified'},onboarding_location:{allowed:true,status:'approved'},funding:{available_to_play:9.25,available_to_withdraw:0,withdrawal_restricted_balance:9.25,next_withdrawal_review_at:'2026-09-16T22:59:21Z'},banks:[{id:'bank',source_id:'source',is_primary:true,status:'verified',account_name:'Test Bank'}],recent:[]}};
