@@ -177,7 +177,7 @@ export default function ChallengePage() {
               onChange={publiclyListed=>withAction('visibility',async()=>{ await challengeRequest('visibility',{inviteCode,publiclyListed}); await refresh(); })} />
             {creatorReady && <div className="rounded-xl border border-[#C9A84C]/20 bg-[#C9A84C]/10 p-3 text-sm text-[#E5CA7A]">Acceptance enabled for {seconds} seconds. You are not locked into an opponent.</div>}
           </div>}
-          {open && !creator && !marketplaceReview && stage === 'preview' && <Button disabled={Boolean(busy)} onClick={begin} className="h-12 w-full rounded-2xl gold-gradient font-bold text-black">
+          {open && !creator && (!marketplaceReview || !user) && stage === 'preview' && <Button disabled={Boolean(busy)} onClick={begin} className="h-12 w-full rounded-2xl gold-gradient font-bold text-black">
             {busy === 'check' && <Loader2 size={16} className="mr-2 animate-spin" />}Accept Challenge
           </Button>}
           {open && (creatorChecking || busy === 'check') && <p role="status" className="flex items-center gap-2 text-sm text-white/55"><Loader2 size={16} className="animate-spin" />Checking your eligibility…</p>}

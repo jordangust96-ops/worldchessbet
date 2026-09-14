@@ -226,6 +226,11 @@ try{
       assert.equal(await page.evaluate(()=>window.__challengeQA.calls.filter(c=>['acceptMatch','createMatch','cancelMatch'].includes(c.name)).length),0);checks++;
     });
   }
+  await scenario('anonymous-marketplace-link',{path:'/challenge/'+code+'?accept=1'},async page=>{
+    await page.getByRole('button',{name:'Accept Challenge',exact:true}).click();
+    await page.waitForURL('**/register?**');checks++;
+    assert.equal(await page.evaluate(()=>window.__challengeQA.calls.filter(c=>c.body.action==='accept').length),0);checks++;
+  });
 }finally{await browser.close();}
-console.log(JSON.stringify({checks,scenarios:18,failed:failures,screenshots:'/tmp/chessbet-challenge-screenshots'},null,2));
+console.log(JSON.stringify({checks,scenarios:19,failed:failures,screenshots:'/tmp/chessbet-challenge-screenshots'},null,2));
 process.exitCode=failures.length?1:0;
