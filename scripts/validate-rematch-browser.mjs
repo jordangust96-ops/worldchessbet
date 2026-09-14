@@ -3,6 +3,10 @@ import assert from 'node:assert/strict';
 import {fixture} from './free-play-test-fixture.mjs';
 const {chromium}=createRequire(import.meta.url)('/tmp/chessbet-browser-qa/node_modules/playwright');
 const origin=process.env.REMATCH_QA_ORIGIN || 'http://localhost:5174';
+const transformed=await(await fetch(origin+'/src/components/play/matchview/RematchControls.jsx')).text();
+const reactUrl=transformed.match(/from "([^"]+react\.js\?v=[^"]+)"/)?.[1] || transformed.match(/import[^"\n]*"([^"]+react\.js\?v=[^"]+)"/)?.[1];
+assert.ok(reactUrl,'Transformed React dependency found');
+const reactDomUrl=reactUrl.replace('react.js','react-dom_client.js');
 const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
 try {
 for(const width of [390,1280])for(const free of [true,false]) {
@@ -23,8 +27,8 @@ for(const width of [390,1280])for(const free of [true,false]) {
    if(u.pathname==='/__rematch')return route.fulfill({contentType:'text/html',body:'<html><body style="background:#101218"><div id="root"></div><script type="module" src="/__rematch.js"></script></body></html>'});
    if(u.pathname==='/__rematch.js')return route.fulfill({contentType:'text/javascript',body:`
     import RefreshRuntime from '/@react-refresh';RefreshRuntime.injectIntoGlobalHook(window);window.$RefreshReg$=()=>{};window.$RefreshSig$=()=>type=>type;window.__vite_plugin_react_preamble_installed__=true;
-    const React=(await import('/node_modules/.vite/deps/react.js')).default;
-    const {createRoot}=(await import('/node_modules/.vite/deps/react-dom_client.js')).default;
+    const React=(await import('${reactUrl}')).default;
+    const {createRoot}=(await import('${reactDomUrl}')).default;
     const Controls=(await import('/src/components/play/matchview/RematchControls.jsx')).default;
     import '/src/index.css';
     function App(){const [next,setNext]=React.useState('');const ref=React.useRef();return next?React.createElement('h1',null,next==='left'?'Left results':'Match ready'):React.createElement('main',{style:{maxWidth:500,margin:'auto'}},React.createElement(Controls,{ref,match:{id:'finished'},opponentName:'Opponent',onAccepted:()=>setNext('next')}),React.createElement('button',{onClick:async()=>{await ref.current.leave();setNext('left');}},'Leave results'));}
