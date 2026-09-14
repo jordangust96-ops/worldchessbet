@@ -145,6 +145,8 @@ export async function authorizeChallenge(req: Request, base44: any, user: any, m
     fail('consent_required', 'Review and agree to the displayed entry, fee, and Fair Play requirements.', 400);
   return underMatchLock(base44, match.id, async (fresh) => {
     if (fresh.status !== 'searching' || challengeExpired(fresh) || activeOperation(fresh)) fail('unavailable', 'This challenge is no longer open.');
+    if (Number(body.entryAmount) !== Number(fresh.wager_amount) || Number(body.serviceFee) !== Number(fresh.platform_service_fee))
+      fail('terms_changed', 'The challenge terms changed. Review them again before authorizing.', 409);
     await requireChallengePlayer(base44, user.id, fresh);
     const location = await verifyMatchLocation(req, fresh, body);
     if (location.status !== 'approved') fail('location_required', location.reason || 'Verify your location before playing.', 403);
@@ -245,6 +247,10 @@ export async function acceptChallenge(req: Request, base44: any, user: any, matc
     if (fresh.player2_id === user.id && ['preparing', 'both_ready', 'in_progress', 'completed'].includes(fresh.status))
       return { match: fresh, accepted: true, replay: true };
     if (fresh.status !== 'searching' || challengeExpired(fresh)) fail('unavailable', 'This challenge has already been claimed, cancelled, or expired.');
+    if (Number(body.entryAmount) !== Number(fresh.wager_amount) || Number(body.serviceFee) !== Number(fresh.platform_service_fee))
+      fail('terms_changed', 'The challenge terms changed. Review them again before accepting.', 409);
+    if (fresh.challenge_target_id && fresh.challenge_target_id !== user.id)
+      fail('different_opponent', 'This rematch is for the previous opponent.', 403);
     await requireChallengePlayer(base44, user.id, fresh);
     await requireChallengePlayer(base44, fresh.player1_id, fresh, true);
     if (!creatorAuthorized(fresh)) fail('creator_not_ready', 'The creator needs to confirm they are ready. This link remains open; neither wallet is reserved.');
@@ -346,7 +352,8 @@ export async function cancelChallenge(base44: any, user: any, matchId: string) {
   return underMatchLock(base44, matchId, async (match, owner) => {
     if (!roleFor(match, user.id)) fail('forbidden', 'Only a participant can cancel this challenge.', 403);
     if (match.status === 'cancelled' && !activeOperation(match)) return { match, replay: true };
-    if (['in_progress', 'settling', 'completed', 'disputed'].includes(match.status)) fail('already_started', 'This match can no longer be cancelled.');
+    if (match.start_operation_id || ['in_progress', 'settling', 'completed', 'disputed'].includes(match.status))
+      fail('already_started', 'This match has entered its start transition and can no longer be cancelled manually.');
     const ids = [match.player1_id, match.player2_id || match.challenge_claimant_id].filter(Boolean);
     return underWalletLocks(ids, owner, match.id, () => releaseChallengeLocked(base44, match, owner, 'cancelled'));
   });
