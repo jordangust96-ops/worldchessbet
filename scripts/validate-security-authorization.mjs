@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { webcrypto } from 'node:crypto';
+import { isFreeMatch } from '../base44/shared/challengePolicy.js';
 
 let assertions = 0;
 function check(actual, expected, label) {
@@ -49,6 +50,7 @@ async function exercise(name, caller, body = {}, overrides = {}) {
   check(errors.length, 0, name + ': source parses');
   const sandbox = {
     createClientFromRequest: () => client,
+    isFreeMatch,
     Deno: { serve: fn => { handler = fn; }, env: { get: () => 'https://example.invalid' } },
     console: { log() {}, error() {}, warn() {} },
     Response, Request, TextEncoder, URL, Intl, Date, crypto: webcrypto,
