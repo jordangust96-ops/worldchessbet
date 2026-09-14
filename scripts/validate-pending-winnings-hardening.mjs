@@ -11,6 +11,8 @@ const ledger = (await loadBackend('base44/shared/ledger.ts', {
   './seamlessAtomicStore.ts': {
     acquireLedgerLock: async () => { if (locked) return false; locked = true; if (onLock) { const f=onLock; onLock=null; f(); } return true; },
     releaseLedgerLock: async () => { locked = false; },
+    refreshLedgerLock: async () => locked,
+    getUserWalletBarrier: async () => '',
   },
 })).exports;
 
