@@ -23,6 +23,27 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
 
+    // Reuse this existing sweep for expired invitations, short no-show
+    // windows, and interrupted dual-sided journal operations. Oldest due
+    // records first; newly created OPEN links never consume an active slot.
+    const { recoverChallenge } = await import('../../shared/challengeLifecycle.ts');
+    const challengeDue = await base44.asServiceRole.entities.Match.filter({
+      launch_epoch: 2, challenge_version: 1,
+      $or: [
+        { challenge_operation_state: { $in: ['reserving', 'releasing'] } },
+        { status: 'searching', challenge_expires_at: { $lte: new Date().toISOString() } },
+        { status: { $in: ['preparing', 'both_ready'] }, preparation_started_at: { $lte: new Date(Date.now()-PREPARATION_TIMEOUT_MS).toISOString() } },
+      ],
+    }, 'created_date', 40);
+    const challengeRecovery = { checked: challengeDue.length, recovered: 0, failed: 0 };
+    for (const candidate of challengeDue) {
+      try { await recoverChallenge(base44, candidate.id); challengeRecovery.recovered++; }
+      catch (error) {
+        challengeRecovery.failed++;
+        console.error(JSON.stringify({ event: 'challenge_sweep_recovery_failed', match_id: candidate.id, error: String(error?.message || 'unknown').slice(0,150) }));
+      }
+    }
+
     const [preparing, bothReady] = await Promise.all([
       base44.asServiceRole.entities.Match.filter({ launch_epoch: 2, status: 'preparing' }, '-created_date', 200),
       base44.asServiceRole.entities.Match.filter({ launch_epoch: 2, status: 'both_ready' }, '-created_date', 200),
@@ -39,6 +60,9 @@ Deno.serve(async (req) => {
       // query snapshot taken above.
       let match = await base44.asServiceRole.entities.Match.get(candidate.id);
       if (!match) continue;
+      // Challenge-first funds are released in a single balanced batch above,
+      // never by the legacy one-player-at-a-time refund path below.
+      if (Number(match.challenge_version) === 1) continue;
       if (match.status !== 'preparing' && match.status !== 'both_ready') continue;
       if (
         !match.preparation_started_at ||
@@ -160,7 +184,7 @@ Deno.serve(async (req) => {
       cancelledIds.push(match.id);
     }
 
-    return Response.json({ cancelledCount: cancelledIds.length, cancelledIds });
+    return Response.json({ cancelledCount: cancelledIds.length, cancelledIds, challengeRecovery });
   } catch (error) {
     console.error(JSON.stringify({ event: 'backend_function_failed', error: error?.message || 'unknown_error' }));
     return Response.json({ error: 'internal_error' }, { status: 500 });
