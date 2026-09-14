@@ -5,7 +5,7 @@ const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
 try{
  for(const width of [390,1280]){
  const context=await browser.newContext({viewport:{width,height:900}}),page=await context.newPage();
- const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ const errors=[];page.on('pageerror',e=>{errors.push(e.message);console.log('PAGE ERROR',e.message);});
  await page.addInitScript(()=>{
  const wallet={id:'w',user_id:'qa',available_balance:9.25,held_balance:0,total_balance:9.25};
  const user={id:'qa',role:'user',launch_epoch:2,account_state:'verified',full_name:'Test Player'};
@@ -21,8 +21,8 @@ try{
  });
  await page.route('**/*',route=>{
  const u=new URL(route.request().url());if(!['localhost','127.0.0.1'].includes(u.hostname))return route.abort();
- if(u.pathname==='/__wallet-qa')return route.fulfill({contentType:'text/html',body:'<html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="background:#111"><div id="root"></div><script type="module" src="/__wallet-qa.js"></script></body></html>'});
- if(u.pathname==='/__wallet-qa.js')return route.fulfill({contentType:'text/javascript',body:'import React from "/node_modules/.vite/deps/react.js";import {createRoot} from "/node_modules/.vite/deps/react-dom_client.js";import {MemoryRouter} from "/node_modules/.vite/deps/react-router-dom.js";import WalletPage from "/src/pages/WalletPage.jsx";import "/src/index.css";createRoot(document.getElementById("root")).render(React.createElement(MemoryRouter,null,React.createElement(WalletPage)));'});
+ if(u.pathname==='/__wallet-qa')return route.fulfill({contentType:'text/html',body:'<html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="background:#111"><div id="root"></div><script type="module" src="/@vite/client"></script><script type="module" src="/__wallet-qa.js"></script></body></html>'});
+ if(u.pathname==='/__wallet-qa.js')return route.fulfill({contentType:'text/javascript',body:'import RefreshRuntime from "/@react-refresh";RefreshRuntime.injectIntoGlobalHook(window);window.$RefreshReg$=()=>{};window.$RefreshSig$=()=>type=>type;window.__vite_plugin_react_preamble_installed__=true;const React=(await import("/node_modules/.vite/deps/react.js")).default;import {createRoot} from "/node_modules/.vite/deps/react-dom_client.js";import {MemoryRouter} from "/node_modules/.vite/deps/react-router-dom.js";const WalletPage=(await import("/src/pages/WalletPage.jsx")).default;import "/src/index.css";createRoot(document.getElementById("root")).render(React.createElement(MemoryRouter,null,React.createElement(WalletPage)));'});
  if(u.pathname==='/src/api/base44Client.js')return route.fulfill({contentType:'text/javascript',body:'export const base44=window.qa.sdk;'});
  if(u.pathname==='/src/lib/AuthContext.jsx')return route.fulfill({contentType:'text/javascript',body:'export const useAuth=()=>({user:window.qa.user,isAuthenticated:true});'});
  if(u.pathname.startsWith('/api/'))return route.abort();
