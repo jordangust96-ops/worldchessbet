@@ -5,6 +5,7 @@ import { User, Loader2, SearchX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import FoundingPlayerBadge from "@/components/profile/FoundingPlayerBadge";
 import { base44 } from "@/api/base44Client";
+import { challengeRequest, challengeErrorMessage, handleChallengeGate } from "@/lib/challengeApi";
 import { trackPixelEvent } from "@/lib/metaPixel";
 
 // How often the marketplace silently checks for newly available public
@@ -21,14 +22,15 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
   const [accepting, setAccepting] = useState(false);
   const [acceptError, setAcceptError] = useState("");
   const refreshInFlightRef = useRef(false);
+  const acceptingRef = useRef(false);
 
   const fetchMatches = useCallback(async ({ allowHidden = false } = {}) => {
-    if (!userId || refreshInFlightRef.current) return;
+    if (!userId || acceptingRef.current || refreshInFlightRef.current) return;
     if (!allowHidden && document.visibilityState !== "visible") return;
     refreshInFlightRef.current = true;
     try {
       const res = await base44.functions.invoke("getAvailableMatches", {});
-      setOpponents(res.data.matches || []);
+      if (!acceptingRef.current) setOpponents(res.data.matches || []);
     } catch {
       // Preserve the last known list during a temporary marketplace refresh failure.
     } finally {
@@ -71,7 +73,7 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
 
   const visibleOpponents = opponents.filter((o) => !declinedIds.includes(o.id));
   const current = visibleOpponents[0];
-  const insufficientFunds = current ? (balance || 0) < Number(current.wager_amount) + Number(current.platform_service_fee || 0) : false;
+  const insufficientFunds = current && current.play_mode !== 'free' ? (balance || 0) < Number(current.wager_amount) + Number(current.platform_service_fee || 0) : false;
 
   const handleFindMatch = async () => {
     setSearching(true);
@@ -99,7 +101,19 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
   };
 
   const handleAccept = async () => {
-    if (!current) return;
+    if (!current || acceptingRef.current) return;
+    if (current.challengePath && current.play_mode === 'free') {
+      acceptingRef.current = true; setAccepting(true); setAcceptError('');
+      try {
+        const data = await challengeRequest('accept', {inviteCode:current.challengePath.split('/').pop(),entryAmount:0,serviceFee:0});
+        if (!data.accepted) throw new Error('Unable to join this challenge. Please try again.');
+        onAccepted?.(data.match.id);
+        navigate(`/play?match=${data.match.id}`);
+      } catch (error) {
+        if (!handleChallengeGate(error,navigate,'/play')) setAcceptError(challengeErrorMessage(error));
+      } finally { acceptingRef.current = false; setAccepting(false); }
+      return;
+    }
     if (current.challengePath) {
       const code = current.challengePath.split('/').pop();
       if (onReview) onReview(code);
