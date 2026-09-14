@@ -198,13 +198,6 @@ export async function releaseUserWalletLock(userId: string, owner: string) {
   await evalAtomic(RELEASE_LOCK, [key('wallet-lock', userId)], [owner]);
 }
 
-// Match and player locks share the atomic store, not an entity read/sleep/write.
-export async function acquireMatchLock(matchId: string, owner: string) {
-  return Number(await evalAtomic(ACQUIRE_LOCK, [key('match-lock', matchId)], [owner, String(LOCK_TTL_MS)])) === 1;
-}
-export async function releaseMatchLock(matchId: string, owner: string) {
-  await evalAtomic(RELEASE_LOCK, [key('match-lock', matchId)], [owner]);
-}
 export async function refreshContestLocks(matchId: string, userIds: string[], owner: string) {
   const keys = [key('match-lock', matchId), ...userIds.map(id => key('wallet-lock', id))];
   // Only extend existing ownership. An expired lease can never be reacquired
