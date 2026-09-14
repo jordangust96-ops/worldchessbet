@@ -4,6 +4,7 @@ export const CHALLENGE_TTL_MS = 24 * 60 * 60 * 1000;
 export const CHALLENGE_AUTHORIZATION_MS = 2 * 60 * 1000;
 export const CHALLENGE_START_WINDOW_MS = 2 * 60 * 1000;
 export const CHALLENGE_READY_MS = 30 * 1000;
+export const CHALLENGE_NOT_RESERVED = 'This link remains open. Wallet setup and pending deposits do not reserve an opponent. Only available funds count; another eligible player may accept first.';
 export const CHALLENGE_CLOCK_MS = 5 * 60 * 1000;
 export const CHALLENGE_OPEN_LIMIT = 5;
 export const CHALLENGE_CONSENT_VERSION = 'challenge-dual-reservation-v1';
@@ -27,7 +28,7 @@ export function creatorAuthorized(match, now = Date.now()) {
   const at = Date.parse(match?.challenge_authorized_at || '');
   const until = Date.parse(match?.challenge_authorized_until || '');
   return Boolean(match?.player1_certified && match?.challenge_consent_version === CHALLENGE_CONSENT_VERSION &&
-    Number.isFinite(at) && at <= now && now < until && until - at <= CHALLENGE_AUTHORIZATION_MS);
+    Number.isFinite(at) && Number.isFinite(until) && at <= now && now < until && until > at && until - at <= CHALLENGE_AUTHORIZATION_MS);
 }
 export function challengeStartExpired(match, now = Date.now()) {
   const at = Date.parse(match?.preparation_started_at || '');
@@ -55,6 +56,8 @@ export function publicChallenge(match, hostName = 'ChessBet player', now = Date.
       (match.status === 'searching' && challengeExpired(match, now)) ? 'expired' :
       match.status === 'cancelled' ? 'cancelled' : match.status === 'completed' ? 'completed' : 'claimed',
     creatorReady: open && !processing && creatorAuthorized(match, now),
+    creatorReadyUntil: open && !processing ? match.challenge_authorized_until || null : null,
+    isRematch: Boolean(match.challenge_rematch_of),
     // Never expose another player's balance, email, identity result, raw user ID, or location.
   };
 }
