@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { isMatchLocationEvidence, MATCH_LOCATION_MAX_AGE_MS } from '../base44/shared/matchLocationPolicy.js';
+import * as challengePolicy from '../base44/shared/challengePolicy.js';
 import * as gates from '../base44/shared/jurisdictionGates.js';
 import * as regions from '../base44/shared/jurisdictionRegions.js';
 
@@ -143,7 +144,8 @@ for(const name of ['finalizeMatchStart','getOrCreateGame']) {
   const loaded=load('base44/functions/'+name+'/entry.ts',{
     'npm:@base44/sdk@0.8.38':{createClientFromRequest:()=>sdk},
     '../../shared/matchLocation.ts':{getMatchLocationReadiness:async()=>({ready:false,requiredUserIds:['p2']}),matchLocationRequiredResponse:helpers.matchLocationRequiredResponse},
-    '../../shared/integrationEvents.ts':{recordIntegrationEvent:async()=>{}}
+    '../../shared/integrationEvents.ts':{recordIntegrationEvent:async()=>{}},
+    '../../shared/challengePolicy.js':challengePolicy
   });
   const response=await loaded.handler(new Request('https://example.invalid',{method:'POST',body:JSON.stringify({matchId:'m'})}));
   assert.equal(response.status,403,name);
