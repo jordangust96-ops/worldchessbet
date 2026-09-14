@@ -128,10 +128,10 @@ export default function LegalDocumentPage({ policyType }) {
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#C9A84C]">Quick answer</p>
             <h2 id="eligibility-title" className="mt-2 text-base font-bold text-white">Where can I play?</h2>
             <p className="mt-2 text-sm leading-relaxed text-white/65">
-              Cash-prize play is available only to eligible players in supported U.S. locations.
+              Cash-prize play requires verified age 21+ and eligibility in supported U.S. states.
             </p>
             <p className="mt-2 text-sm leading-relaxed text-white/65">
-              Access requires age, identity, and physical-location eligibility and remains unavailable
+              Current supported states are Arkansas, Colorado, Georgia, Iowa, Kansas, North Dakota, Texas, Virginia, Wisconsin, and Wyoming. This is a platform access policy, not government approval. Access requires identity and physical-location eligibility and remains unavailable
               anywhere applicable law or ChessBet rules do not permit it. A home address alone does not
               establish eligibility; a player must be physically located in a supported location when
               entering and playing.
