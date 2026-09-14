@@ -1,4 +1,5 @@
 import { postLedgerLegs } from './ledger.ts';
+import { sha256Hex } from './mfaCore.js';
 import { recordIntegrationEvent } from './integrationEvents.ts';
 import { verifyMatchLocation, getMatchLocationReadiness } from './matchLocation.ts';
 import { hasVerifiedIdentity } from './identityEligibility.js';
@@ -323,6 +324,10 @@ async function releaseChallengeLocked(base44: any, match: any, owner: string, re
     groupId: refundGroup(match), matchId: match.id, actor: 'system', actorId: '',
     triggerEvent: 'challenge_release', externalRefType: 'match', externalRefId: match.id,
     legs: challengeReleaseLegs(match, recipientId), updateTransactions: false,
+    beforePost: async () => {
+      if (!await refreshContestLocks(match.id, [match.player1_id, recipientId], owner)) throw new Error('challenge_lease_lost');
+      return true;
+    },
     afterPost: async () => {
       await materializeChallengeTransactions(base44, match, recipientId, true);
       await base44.asServiceRole.entities.Match.update(match.id, { status: 'cancelled', result: 'cancelled',
@@ -357,15 +362,20 @@ export async function readyChallenge(req: Request, base44: any, user: any, match
     const current = await base44.asServiceRole.entities.User.get(user.id);
     if (!paidContestsEnabled() || !await hasVerifiedIdentity(base44, current) || current.withdrawal_hold)
       fail('account_restricted', 'Your account is not currently eligible to start this match.', 403);
+    const deviceHash = await sha256Hex(req.headers.get('user-agent') || '');
     if (body.action === 'heartbeat') {
-      // Heartbeats can renew existing explicit readiness, never create it.
+      // Renew only a visible, already-readied device. A background tab or
+      // unrelated session cannot create or inherit start readiness.
       const old = Date.parse(match[`challenge_${role}_ready_at`] || '');
-      if (!Number.isFinite(old) || Date.now() - old >= 30000) return { match, needsReady: true };
+      if (body.visible !== true || match[`challenge_${role}_device_hash`] !== deviceHash ||
+          !Number.isFinite(old) || old > Date.now() || Date.now() - old >= 30000) return { match, needsReady: true };
     } else {
       const location = await verifyMatchLocation(req, match, body);
       if (location.status !== 'approved') fail('location_required', location.reason || 'Recheck your location before play.', 403);
     }
-    const updated = await base44.asServiceRole.entities.Match.update(match.id, { [`challenge_${role}_ready_at`]: nowIso() });
+    const updated = await base44.asServiceRole.entities.Match.update(match.id, {
+      [`challenge_${role}_ready_at`]: nowIso(), [`challenge_${role}_device_hash`]: deviceHash,
+    });
     return { match: updated, ready: true };
   });
 }
@@ -386,8 +396,9 @@ export async function finalizeChallengeStart(base44: any, user: any, matchId: st
       if (!paidContestsEnabled() || !await hasVerifiedIdentity(base44, current) || current.withdrawal_hold)
         fail('account_restricted', 'A participant is not currently eligible to start.', 403);
     }
-    if (!(await getMatchLocationReadiness(base44, match)).ready)
-      fail('location_required', 'Both players need current location checks before play.', 403);
+    const locationReadiness = await getMatchLocationReadiness(base44, match);
+    if (!locationReadiness.ready)
+      fail('location_required', 'Both players need current location checks before play.', 403, { requiredUserIds: locationReadiness.requiredUserIds });
     if (!await batchFor(base44, reservationGroup(match))) throw new Error('missing_challenge_reservation');
     const starting = await base44.asServiceRole.entities.Match.update(match.id, {
       status: 'both_ready', start_operation_id: match.start_operation_id || crypto.randomUUID(),
