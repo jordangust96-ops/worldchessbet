@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { useNavigate } from "react-router-dom";
 import { Trophy, Minus, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
@@ -8,16 +7,15 @@ import ShareOnXButton from "./ShareOnXButton";
 import ShareOnFacebookButton from "./ShareOnFacebookButton";
 import DownloadVictoryCardButton from "./DownloadVictoryCardButton";
 import ReportContestButton from "@/components/disputes/ReportContestButton";
-import CreateChallengeForm from "@/components/play/CreateChallengeForm";
+import RematchControls from "./RematchControls";
 import { trackPixelEvent } from "@/lib/metaPixel";
 
-export default function SettlementState({ match, game, userId, onReturn }) {
-  const navigate = useNavigate();
+export default function SettlementState({ match, game, userId, onReturn, onRematchAccepted }) {
   const free=match.play_mode==='free';
   const [opponentName, setOpponentName] = useState("Opponent");
   const [winnerName, setWinnerName] = useState("You");
   const [returning, setReturning] = useState(false);
-  const [rematch, setRematch] = useState(false);
+  const rematchRef = useRef(null);
   // Guards against firing "Match Completed" more than once for the same
   // match if this component re-renders/remounts while still showing it.
   const trackedMatchIdRef = useRef(null);
@@ -55,13 +53,13 @@ export default function SettlementState({ match, game, userId, onReturn }) {
     if (returning) return;
     setReturning(true);
     try {
+      await rematchRef.current?.leave();
       await onReturn?.();
     } finally {
       setReturning(false);
     }
   };
 
-  if (rematch) return <div className="py-3"><CreateChallengeForm initialMode={free?'free':'money'} initialAmount={match.wager_amount} initialTimeControl={match.time_control} rematchOf={match.id} onCreated={async()=>{ await handleReturn(); navigate('/play'); }} onCancel={() => setRematch(false)} /></div>;
 
   return (
     <div className="space-y-5 lg:space-y-3 text-center py-4">
@@ -99,7 +97,7 @@ export default function SettlementState({ match, game, userId, onReturn }) {
       )}
       <p className="text-xs text-white/40">{free ? "This game counts toward your rating." : won && !draw ? "Winner awards follow the standard report-window hold before becoming available. A rematch needs a separate available balance." : "Wallet updated"}</p>
       <div className="space-y-2">
-        <Button onClick={() => setRematch(true)} className="w-full h-12 rounded-2xl font-bold gold-gradient text-black">Run It Back</Button>
+        <RematchControls ref={rematchRef} match={match} opponentName={opponentName} onAccepted={onRematchAccepted} />
         <Button
           onClick={handleReturn}
           disabled={returning}

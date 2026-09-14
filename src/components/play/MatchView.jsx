@@ -18,6 +18,7 @@ export default function MatchView({
   matchId,
   userId,
   onExit,
+  onRematchAccepted,
   onStateChange,
   game,
   match,
@@ -82,7 +83,7 @@ export default function MatchView({
     // the match permanently instead of just briefly.
     if (match.status === "completed") {
       stateKey = "settlement";
-      content = <SettlementState match={match} game={game} userId={userId} onReturn={onExit} />;
+      content = <SettlementState match={match} game={game} userId={userId} onReturn={onExit} onRematchAccepted={onRematchAccepted} />;
     } else if (game?.status === "completed") {
       stateKey = "finalizing";
       content = <FinalizingMatch free={match.play_mode==='free'} />;

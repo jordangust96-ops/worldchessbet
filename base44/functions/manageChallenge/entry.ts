@@ -1,3 +1,4 @@
+import { rematchControl } from '../../shared/rematchControl.ts';
 import { challengeWalletSummary } from '../../shared/challengeWalletSummary.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 import { ChallengeError, fail, requireChallengeSession, inspectChallengePlayer } from '../../shared/challengeAccess.ts';
@@ -63,6 +64,7 @@ Deno.serve(async (req) => {
       return response(data);
     }
     await requireChallengeSession(req, base44, user, body.sessionToken);
+    if (action.startsWith('rematch_')) return response(await rematchControl(req,base44,user,body));
     if (action === 'wallet_summary') return response(await challengeWalletSummary(base44,user.id));
     if (action === 'create') return response(await createChallenge(base44, user, body, req));
     if (action === 'money_location') {

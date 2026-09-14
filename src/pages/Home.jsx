@@ -436,6 +436,12 @@ export default function Home() {
                   setBoardState("marketplace");
                 }
               }}
+              onRematchAccepted={(nextMatchId) => {
+                dismissedMatchIdRef.current = myMatchId;
+                sessionStorage.setItem("chessbet_dismissed_match_id", myMatchId);
+                setActiveMatch(null);
+                handleMatchAccepted(nextMatchId);
+              }}
               onStateChange={setBoardState}
               game={game}
               match={activeMatch}

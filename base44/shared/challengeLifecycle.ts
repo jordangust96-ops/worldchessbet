@@ -1,3 +1,4 @@
+import { requireRematchPresence } from './rematchPresence.ts';
 import { withChallengeCreationLock, requireNoExistingChallenge, withChallengePlayersLock } from './challengeCreation.ts';
 import { postLedgerLegs } from './ledger.ts';
 import { sha256Hex } from './mfaCore.js';
@@ -12,7 +13,7 @@ import { CHALLENGE_CREATION_VERSION, FAIR_PLAY_ATTESTATION_VERSION, reservesOnCr
   CHALLENGE_RETURN_WINDOW_MS,
   CHALLENGE_VERSION, CHALLENGE_TTL_MS, CHALLENGE_AUTHORIZATION_MS, challengeTimeControl,
   CHALLENGE_CONSENT_VERSION, CHALLENGE_HUD_CONSENT_VERSION, CHALLENGE_READY_MS, VALID_INVITE, VALID_REQUEST_KEY,
-  validNewEntry, isChallenge, isFreeMatch, assertFreeMatch, challengeExpired, creatorAuthorized, challengeStartExpired,
+  validEntry, validNewEntry, isChallenge, isFreeMatch, assertFreeMatch, challengeExpired, creatorAuthorized, challengeStartExpired,
   bothChallengePlayersReady, publicChallenge, reservationGroup, refundGroup,
   challengeReservationLegs, challengeReleaseLegs, challengePath } from './challengePolicy.js';
 import { fail, requireChallengePlayer, requireChallengePolicies, inspectChallengePlayer } from './challengeAccess.ts';
@@ -85,20 +86,22 @@ export async function viewChallenge(base44: any, match: any, user: any) {
     ownOperation: Boolean(user && match.challenge_claimant_id === user.id && activeOperation(match)) };
 }
 
-export async function createChallenge(base44: any, user: any, body: any, req: Request) {
+export async function createChallenge(base44: any, user: any, body: any, req: Request, rematchContext: any = null) {
+  if (body.rematchOf && !rematchContext) fail('result_screen_required','Request a rematch from the result screen.',409);
   if (body.playMode !== undefined && !['free','money'].includes(body.playMode)) fail('invalid_mode','Choose Free play or Money play.',400);
   const free = body.playMode === 'free';
   if (!free && !paidContestsEnabled()) fail('paid_contests_disabled', 'Money challenges are temporarily unavailable.');
   if (body.creationVersion !== CHALLENGE_CREATION_VERSION) fail('refresh_required','Refresh the page to create a challenge.',409);
   if (free && (body.entryAmount !== 0 || body.serviceFee !== 0))
     fail('invalid_free_terms','Review the free-play terms. Free games cannot have an entry charge or fee.',400);
-  if (!free && !validNewEntry(body.entryAmount)) fail('invalid_entry', 'Choose one of the available Entry Amounts.', 400);
+  if (!free && !(rematchContext ? validEntry(body.entryAmount) : validNewEntry(body.entryAmount))) fail('invalid_entry', 'Choose one of the available Entry Amounts.', 400);
   if (!VALID_REQUEST_KEY.test(String(body.requestKey || ''))) fail('invalid_request', 'Please refresh and try again.', 400);
   const timeControl = challengeTimeControl(body.timeControl);
   if (!timeControl) fail('invalid_time_control', 'Choose Blitz, Rapid, or Classical.', 400);
   if (body.publiclyListed !== undefined && typeof body.publiclyListed !== 'boolean') fail('invalid_visibility', 'Choose whether to show the challenge in Find an Opponent.', 400);
   if (body.publiclyListed === true && body.rematchOf) fail('private_rematch', 'A rematch for a specific opponent must remain link-only.', 400);
-  if (Number(body.serviceFee) !== (free ? 0 : getPlatformServiceFee(Number(body.entryAmount))))
+  const serviceFee=rematchContext ? rematchContext.serviceFee : (free ? 0 : getPlatformServiceFee(Number(body.entryAmount)));
+  if (!Number.isFinite(serviceFee) || serviceFee<0 || Math.abs(serviceFee*100-Math.round(serviceFee*100))>0.000001 || Number(body.serviceFee) !== serviceFee)
     fail('terms_changed', 'Review the displayed entry and fee before creating the challenge.', 400);
   await requireChallengePolicies(base44, user.id);
   return withChallengeCreationLock(user.id, async checkLease => {
@@ -130,7 +133,7 @@ export async function createChallenge(base44: any, user: any, body: any, req: Re
       rematchOf = previous.id;
       targetId = previous.player1_id === user.id ? previous.player2_id : previous.player1_id;
     }
-    const terms = { play_mode:free?'free':'money', challenge_version:CHALLENGE_VERSION, is_private:true, wager_amount:Number(body.entryAmount), platform_service_fee:free?0:getPlatformServiceFee(Number(body.entryAmount)) };
+    const terms = { play_mode:free?'free':'money', challenge_version:CHALLENGE_VERSION, is_private:true, wager_amount:Number(body.entryAmount), platform_service_fee:serviceFee };
     await requireChallengePlayer(base44, user.id, terms);
     if (!free) {
       if (!req) fail('location_required', 'Verify your current location before creating a money challenge.', 403);
@@ -140,20 +143,25 @@ export async function createChallenge(base44: any, user: any, body: any, req: Re
     }
     await requireChallengePlayer(base44, user.id, terms);
     await checkLease();
+    if(rematchContext) {
+      await rematchContext.check();
+      await requireRematchPresence(base44,{challenge_in_screen_rematch:true,challenge_rematch_of:rematchOf,player1_id:user.id,challenge_target_id:targetId,challenge_rematch_presence:rematchContext.presence});
+    }
     const code = crypto.randomUUID().replaceAll('-', '');
     const createdAt = nowIso();
     let match = await base44.asServiceRole.entities.Match.create({
       launch_epoch: 2, player1_id: user.id, wager_amount: Number(body.entryAmount),
       play_mode: free ? 'free' : 'money',
-      platform_service_fee: free ? 0 : getPlatformServiceFee(Number(body.entryAmount)), platform_fee_schedule_version: PLATFORM_FEE_SCHEDULE_VERSION,
-      time_control: timeControl.value, display_name: timeControl.displayName, clock_initial_ms: timeControl.clockMs,
+      platform_service_fee: serviceFee, platform_fee_schedule_version: rematchContext?.feeScheduleVersion || PLATFORM_FEE_SCHEDULE_VERSION,
+      time_control: timeControl.value, display_name: rematchContext?.displayName || timeControl.displayName, clock_initial_ms: Number(rematchContext?.clockMs)>0 ? Number(rematchContext.clockMs) : timeControl.clockMs,
       status: 'searching', is_private: true, challenge_publicly_listed: body.publiclyListed === true, invite_code: code, challenge_version: CHALLENGE_VERSION,
       challenge_creation_key: body.requestKey, challenge_location_started_at: createdAt,
       challenge_rematch_of: rematchOf, challenge_target_id: targetId,
-      challenge_expires_at: new Date(Date.now() + CHALLENGE_TTL_MS).toISOString(),
+      ...(rematchContext ? {challenge_in_screen_rematch:true,challenge_rematch_presence:rematchContext.presence} : {}),
+      challenge_expires_at: rematchContext?.expiresAt || new Date(Date.now() + CHALLENGE_TTL_MS).toISOString(),
       challenge_operation_state: free ? 'idle' : 'reserving', challenge_operation_started_at:free?'':createdAt,
       player1_deposited:false, player2_deposited:false,
-      player1_certified:false, player2_certified:false, notify_on_accept:true,
+      player1_certified:false, player2_certified:false, notify_on_accept:!rematchContext,
       challenge_consent_version:CHALLENGE_CREATION_VERSION, challenge_hud_consent_at:createdAt,
     });
     if (!free) {
@@ -164,6 +172,7 @@ export async function createChallenge(base44: any, user: any, body: any, req: Re
           if (latest.status!=='searching' || challengeExpired(latest) || latest.challenge_operation_state!=='reserving' || latest.challenge_claimant_id)
             fail('unavailable','This challenge can no longer be created.');
           await requireChallengePlayer(base44,user.id,latest);
+          if(rematchContext) {await rematchContext.check();await requireRematchPresence(base44,latest);}
           return true;
         });
       }));
@@ -420,7 +429,8 @@ async function recoverReservation(base44: any, match: any, owner: string) {
   return { recovered: true, accepted: false, challenge: publicChallenge(updated) };
 }
 
-export async function acceptChallenge(req: Request, base44: any, user: any, match: any, body: any) {
+export async function acceptChallenge(req: Request, base44: any, user: any, match: any, body: any, rematchContext: any = null) {
+  if(match.challenge_in_screen_rematch && !rematchContext) fail('result_screen_required','Accept this rematch on the result screen.',409);
   if (match.player1_id === user.id) fail('own_challenge', 'You cannot accept your own challenge.', 400);
   if ((!isFreeMatch(match) && body.agree !== true) || Number(body.entryAmount) !== Number(match.wager_amount) || Number(body.serviceFee) !== Number(match.platform_service_fee))
     fail('consent_required', 'Review and agree to the displayed entry, fee, and Fair Play requirements.', 400);
@@ -442,12 +452,14 @@ export async function acceptChallenge(req: Request, base44: any, user: any, matc
       fail('different_opponent', 'This rematch is for the previous opponent.', 403);
     await requireChallengePlayer(base44, user.id, fresh);
     await requireChallengePlayer(base44, fresh.player1_id, fresh, true);
+    if(rematchContext) {await rematchContext.check();await requireRematchPresence(base44,fresh);}
     if (!isFreeMatch(fresh) && !creatorAuthorized(fresh)) fail('creator_not_ready', 'The creator needs to return to the Play screen. This link remains open.');
     if (isFreeMatch(fresh)) {
       assertFreeMatch(fresh);
       await checkPlayerLeases();
       if (!await refreshContestLocks(fresh.id, [], owner)) fail('busy','Challenge ownership changed.');
       if (challengeExpired(fresh)) fail('unavailable','This challenge expired.');
+      if(rematchContext) {await rematchContext.check();await requireRematchPresence(base44,fresh);}
       const updated = await base44.asServiceRole.entities.Match.update(fresh.id, {
         player2_id:user.id, player2_certified:false, player2_certified_at:'',
         status:'preparing', preparation_started_at:nowIso(), challenge_claimed_at:nowIso(),
@@ -484,6 +496,7 @@ export async function acceptChallenge(req: Request, base44: any, user: any, matc
           if (!(await getMatchLocationReadiness(base44, { ...latest, player2_id: user.id }, reservesOnCreation(latest) ? [user.id] : undefined)).ready)
             fail('location_required', 'Readiness expired. Recheck location before accepting.', 403);
           await checkPlayerLeases();
+          if(rematchContext) {await rematchContext.check();await requireRematchPresence(base44,latest);}
           commitAuthorized = true;
           return true;
         });

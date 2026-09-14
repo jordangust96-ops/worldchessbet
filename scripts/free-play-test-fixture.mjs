@@ -141,7 +141,7 @@ function fixture() {
   const sdk=makeSdk('p1');
   const request=new Request('https://example.invalid',{method:'POST',headers:{'user-agent':'test-browser'},body:'{}'});
   const originalCreate=api.createChallenge;
-  api.createChallenge=(sdk,u,body,req=request)=>originalCreate(sdk,u,body,req);
+  api.createChallenge=(sdk,u,body,req=request,...rest)=>originalCreate(sdk,u,body,req,...rest);
   const consent={agree:true,entryAmount:25,serviceFee:2};
   const get=id=>clone(table('Match').find(m=>m.id===id));
   const balance=(id,amount)=>{
