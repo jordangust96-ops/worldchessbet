@@ -6,9 +6,11 @@ const require = createRequire(import.meta.url);
 const { chromium } = require('/tmp/chessbet-browser-qa/node_modules/playwright');
 const browser = await chromium.launch({ headless:true, args:['--no-sandbox'] });
 const code = 'a'.repeat(32);
-let checks=0;
+let checks=0, scenarios=0;
 const failures=[];
 async function scenario(name,{who=null,funded=false,status='open',hasChallenge=true,creatorReady=true,publiclyListed=false,width=390,path=`/challenge/${code}`}={},work){
+  if(process.env.CHALLENGE_SCENARIO && name!==process.env.CHALLENGE_SCENARIO)return;
+  scenarios++;
   const context=await browser.newContext({viewport:{width,height:844}});
   const page=await context.newPage();
   const errors=[];
@@ -19,11 +21,13 @@ async function scenario(name,{who=null,funded=false,status='open',hasChallenge=t
     const user=who?{id:who,role:'user',launch_epoch:2,mfa_bypass:true,account_state:'verified',chess_com_username:who,full_name:'Test Player'}:null;
     const match={challenge_publicly_listed:publiclyListed,id:'qa-match',launch_epoch:2,challenge_version:1,player1_id:'p1',...(['claimed','completed'].includes(status)?{player2_id:'p2'}:{}),wager_amount:25,platform_service_fee:2,platform_fee_schedule_version:'2026-07-28',time_control:'blitz',display_name:'Blitz (5+0)',clock_initial_ms:300000,status:status==='completed'?'completed':status==='claimed'?'preparing':status==='open'?'searching':'cancelled',is_private:true,invite_code:code,player1_certified:status==='claimed',player2_certified:status==='claimed',player1_deposited:status==='claimed',player2_deposited:status==='claimed',preparation_started_at:new Date().toISOString(),challenge_expires_at:new Date(Date.now()+86400000).toISOString()};
     const card=()=>({isRematch:Boolean(match.challenge_rematch_of),publiclyListed:match.challenge_publicly_listed,id:match.id,creatorName:'Jordan',entryAmount:25,serviceFee:2,totalRequired:27,winnerAward:50,displayName:match.display_name,expiresAt:match.challenge_expires_at,status:match.status==='searching'?'open':match.status==='preparing'?'claimed':'cancelled',creatorReady,creatorReadyUntil:new Date(Date.now()+119000).toISOString()});
+    const finishedGame={id:'qa-finished-game',match_id:'qa-match',launch_epoch:2,status:'completed',fen:'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',end_reason:'resignation',white_time_ms:300000,black_time_ms:300000};
     const wallet={id:'qa-wallet',user_id:who,balance:funded?100:0,available_balance:funded?100:0,held_balance:status==='claimed'?27:0,total_balance:funded?100:0};
     const calls=[];
     const listeners=[];
-    const update=patch=>{Object.assign(match,patch);listeners.forEach(fn=>fn({type:'update',data:{...match}}));};
+    const update=patch=>{Object.assign(match,patch);listeners.filter(listener=>listener.name==='Match').forEach(({fn})=>fn({type:'update',data:{...match}}));};
     const rows=(entity,query={})=>{
+      if(entity==='Game')return status==='completed'?[{...finishedGame}]:[];
       if(entity==='Wallet')return [{...wallet}];
       if(entity==='Match')return hasChallenge && Object.entries(query).every(([key,value])=>{
         if(value && typeof value==='object'){if('$in'in value)return value.$in.includes(match[key]);if('$ne'in value)return match[key]!==value.$ne;return true;}
@@ -31,7 +35,7 @@ async function scenario(name,{who=null,funded=false,status='open',hasChallenge=t
       })?[{...match}]:[];
       return [];
     };
-    const entity=new Proxy({}, {get:(_,name)=>({filter:async q=>rows(name,q),get:async id=>name==='Match'?{...match}:name==='Wallet'?{...wallet}:{id},list:async()=>rows(name),subscribe:fn=>{listeners.push(fn);return()=>{};},update:async()=>{throw Error('Unexpected client entity write during QA');},create:async()=>{throw Error('Unexpected client entity creation during QA');}})});
+    const entity=new Proxy({}, {get:(_,name)=>({filter:async q=>rows(name,q),get:async id=>name==='Game'?{...finishedGame}:name==='Match'?{...match}:name==='Wallet'?{...wallet}:{id},list:async()=>rows(name),subscribe:fn=>{const listener={name,fn};listeners.push(listener);return()=>{const index=listeners.indexOf(listener);if(index>=0)listeners.splice(index,1);};},update:async()=>{throw Error('Unexpected client entity write during QA');},create:async()=>{throw Error('Unexpected client entity creation during QA');}})});
     const sdk={auth:{me:async()=>{if(!user)throw Object.assign(Error('unauthorized'),{status:401});return user;},isAuthenticated:async()=>!!user,updateMe:async patch=>({...user,...patch})},entities:entity,
       analytics:{track:()=>{}},appLogs:{logUserInApp:async()=>{}},
       functions:{invoke:async(name,body={})=>{
@@ -53,7 +57,7 @@ async function scenario(name,{who=null,funded=false,status='open',hasChallenge=t
           if(body.action==='ping')return {data:{notified:true}};
           if(body.action==='recover')return {data:{match:{...match}}};
         }
-        if(name==='getOrCreateGame' && status==='completed')return {data:{game:{id:'qa-finished-game',match_id:'qa-match',launch_epoch:2,status:'completed',fen:'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',end_reason:'resignation',white_time_ms:300000,black_time_ms:300000}}};
+        if(name==='getOrCreateGame' && status==='completed')return {data:{game:{...finishedGame}}};
         if(name==='ensureWallet')return {data:{wallet:{...wallet}}};
         if(name==='getUserDisplayNames')return {data:{names:{p1:'Jordan',p2:'Opponent'}}};
         if(name==='getLaunchAvailability')return {data:{paid_contests_enabled:true,deposits_enabled:true}};
@@ -261,5 +265,5 @@ try{
     assert.equal(await page.evaluate(()=>window.__challengeQA.calls.find(c=>c.body.action==='create').body.rematchOf),'qa-match');checks++;
   });
 }finally{await browser.close();}
-console.log(JSON.stringify({checks,scenarios:22,failed:failures,screenshots:'/tmp/chessbet-challenge-screenshots'},null,2));
+console.log(JSON.stringify({checks,scenarios,failed:failures,screenshots:'/tmp/chessbet-challenge-screenshots'},null,2));
 process.exitCode=failures.length?1:0;
