@@ -76,7 +76,12 @@ function isSuppressedDuplicate(tx) {
 }
 
 function getTransactionExplanation(tx, match) {
-  const amount = `$${formatMoney(tx.amount)}`;
+  const amount = `${formatMoney(tx.amount)}`;
+  if(tx.type==='admin_reversal'&&tx.source_event==='legacy_deposit_fee_adjustment')return {heading:'Deposit fee',text:`Deposit fee: ${amount}.`};
+  if(tx.type==='withdrawal'&&tx.withdrawal_requested_at&&!['failed','reversed','completed'].includes(tx.status)){
+    const date=tx.withdrawal_estimated_arrival?new Date(tx.withdrawal_estimated_arrival).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric',timeZone:'America/New_York'}):null;
+    return {heading:'Withdrawal requested',text:`Your ${amount} withdrawal request is being processed.${date?' Estimated arrival: '+date+'.':''} Bank processing or additional verification may change the date.`};
+  }
   const entry = match?.wager_amount != null ? `$${formatMoney(match.wager_amount)}` : null;
 
   if (tx.type === "deposit" && tx.status === "reversed") {
@@ -87,11 +92,10 @@ function getTransactionExplanation(tx, match) {
     return { heading: "Verifying deposit", text: "We are checking the bank charge, processor fee, and amount received with Seamless. This deposit is unavailable until verification and clearing are complete." };
   }
   if (tx.type === "deposit" && tx.deposit_hold_status === "held") {
-    return { heading: "Clearing", text: `${amount} is awaiting the final provider and settlement checks before it becomes available to play. A separate withdrawal hold applies.` };
+    return { heading: "Clearing", text: `${amount} is awaiting the final provider and settlement checks before it becomes available to play. ` };
   }
   if (tx.type === "deposit" && tx.deposit_hold_status === "released" && tx.deposit_withdrawal_status === "held") {
-    const review = tx.deposit_release_at ? moment(tx.deposit_release_at).format("MMM D, YYYY [at] h:mm A") : "the displayed withdrawal review date";
-    return { heading: "Available to play", text: `${amount} was made available for contest play. Withdrawal review is on or after ${review}, five business days from submission, and requires a successful final bank check. Prizes and refunds funded by this deposit inherit the remaining withdrawal hold. Later bank returns remain possible.` };
+    return {heading:"Deposit completed",text:`${amount} was deposited. Your current balance is shown above.`};
   }
   if (tx.type === "payout" && tx.payout_hold_status === "held") {
     const releaseText = tx.payout_release_at
@@ -146,7 +150,7 @@ function getTransactionExplanation(tx, match) {
       : `You won this contest and ${amount} was added to your available balance. Platform service fees are separate from the prize.`,
     service_fee_charge: `The separate ${amount} platform service fee was reserved when the contest began. It is not deducted from the winner’s prize.`,
     service_fee_refund: `The ${amount} platform service fee was returned to your available balance.`,
-    withdrawal_fee: `A ${amount} fee applies to withdrawals under $${SMALL_WITHDRAWAL_THRESHOLD} to help cover bank transfer costs. Withdrawing your entire Available to Withdraw balance at once waives this fee.`,
+    withdrawal_fee: `A ${amount} fee applies to withdrawals under $${SMALL_WITHDRAWAL_THRESHOLD} to help cover bank transfer costs. Withdrawing your entire available balance at once waives this fee.`,
     withdrawal_fee_refund: `${amount} was returned to your available balance because the related bank withdrawal did not complete.`,
   };
 
@@ -215,7 +219,7 @@ export default function TransactionHistory({
       </p>
       <div className="space-y-2">
         {transactions.map((tx) => {
-          const config = typeConfig[tx.type] || typeConfig.deposit;
+          const config = tx.type === 'admin_reversal' && tx.source_event === 'legacy_deposit_fee_adjustment' ? {...typeConfig.admin_reversal,label:'Deposit Fee'} : typeConfig[tx.type] || typeConfig.deposit;
           const Icon = config.icon;
           const isIncoming = incomingTypes.includes(tx.type);
           const isExpanded = expandedId === tx.id;

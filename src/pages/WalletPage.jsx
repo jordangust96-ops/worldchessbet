@@ -247,16 +247,16 @@ export default function WalletPage() {
               <p className="mt-0.5 text-[10px] text-white/25">Ready for contest entries</p>
             </div>
             <div>
-              <p className="text-[10px] uppercase text-white/30">Available to Withdraw</p>
-              <p className="text-sm font-bold text-emerald-400">{funding ? '$' + Number(funding.available_to_withdraw).toFixed(2) : 'Checking…'}</p>
-              <p className="mt-0.5 text-[10px] text-white/25">Subject to account and bank checks</p>
+              <p className="text-[10px] uppercase text-white/30">Available to Request</p>
+              <p className="text-sm font-bold text-emerald-400">{funding ? '$' + Number(funding.available_to_play).toFixed(2) : 'Checking…'}</p>
+              <p className="mt-0.5 text-[10px] text-white/25">Request a bank withdrawal</p>
             </div>
             <div className="border-x border-white/10 px-2 sm:px-8">
-              <p className="text-[10px] uppercase text-white/30">Reserved / Held</p>
+              <p className="text-[10px] uppercase text-white/30">Reserved</p>
               <p className="text-sm font-bold text-[#C9A84C]">
                 ${Number(wallet?.held_balance ?? 0).toFixed(2)}
               </p>
-              <p className="mt-0.5 text-[10px] text-white/25">Contests, winnings review, or deposit checks</p>
+              <p className="mt-0.5 text-[10px] text-white/25">Contests, withdrawals, or pending funds</p>
             </div>
             <div>
               <p className="text-[10px] uppercase text-white/30">Pending</p>
