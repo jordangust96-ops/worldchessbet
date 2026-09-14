@@ -80,6 +80,23 @@
     "description": {
       "type": "string",
       "maxLength": 1000
+    },
+    "funding_user_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Users whose funding provenance snapshot commits with this journal batch."
+    },
+    "funding_sequence": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic funding snapshot sequence allocated under the global ledger lease."
+    },
+    "funding_provenance_json": {
+      "type": "string",
+      "maxLength": 200000,
+      "description": "Versioned available and held funding lots committed atomically with monetary legs."
     }
   },
   "required": [
