@@ -3,7 +3,7 @@ import { Switch } from "@/components/ui/switch";
 import { base44 } from "@/api/base44Client";
 
 // Shared "Notify me when this match is accepted" control — used identically
-// by both the public (ActiveChallengeCard) and private (PrivateWaitingCard)
+// by the public marketplace waiting card (ActiveChallengeCard); shared links
 // waiting states, so the preference behaves the same regardless of match type.
 export default function NotifyOnAcceptToggle({ match }) {
   const [notifyOnAccept, setNotifyOnAccept] = useState(match?.notify_on_accept ?? true);
