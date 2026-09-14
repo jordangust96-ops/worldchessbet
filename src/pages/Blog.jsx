@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import { ChevronLeft } from "lucide-react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import Logo from "@/components/Logo";
 import SEO from "@/components/seo/SEO";
 import { SITE_URL } from "@/lib/seoConfig";
@@ -13,9 +13,22 @@ const SORO_EMBED_URL = "https://app.trysoro.com/api/embed/1ff2aa86-7de2-4a37-b94
 
 export default function Blog() {
   const navigate = useNavigate();
+  const { articleSlug: routeArticleSlug } = useParams();
   const [searchParams] = useSearchParams();
-  const articleSlug = searchParams.get("post")?.trim();
+  const queryArticleSlug = searchParams.get("post")?.trim();
+  const articleSlug = routeArticleSlug?.trim() || queryArticleSlug;
   const isSoroArticle = Boolean(articleSlug);
+
+  // Clean /blog/:slug URLs are emitted for crawlers and external links. Soro's
+  // widget currently expects ?post=slug, so normalize only in the browser
+  // before its script loads. The canonical URL remains the clean path form.
+  useEffect(() => {
+    if (!routeArticleSlug) return;
+    const url = new URL(window.location.href);
+    url.pathname = "/blog";
+    url.searchParams.set("post", routeArticleSlug);
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+  }, [routeArticleSlug]);
   // Soro navigates with pushState outside React Router. Keep one canonical
   // owner for both article/list views and strip tracking parameters.
   useEffect(() => {
@@ -30,7 +43,7 @@ export default function Blog() {
       if (window.location.pathname.replace(/\/$/, "").toLowerCase() !== "/blog") return;
       const slug = new URLSearchParams(window.location.search).get("post")?.trim();
       const url = slug
-        ? `${SITE_URL}/blog?post=${encodeURIComponent(slug)}`
+        ? `${SITE_URL}/blog/${encodeURIComponent(slug)}`
         : `${SITE_URL}/blog`;
       if (canonical.getAttribute("href") !== url) canonical.setAttribute("href", url);
       if (ogUrl.getAttribute("content") !== url) ogUrl.setAttribute("content", url);
