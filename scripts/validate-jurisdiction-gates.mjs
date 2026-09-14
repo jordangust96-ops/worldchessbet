@@ -215,7 +215,7 @@ ok(/!eligibilityRes\.data\?\.eligible/.test(createSrc), 'createMatch fails close
 const acceptSrc = await read('base44/functions/acceptMatch/entry.ts');
 ok(acceptSrc.includes('runContestEligibility'), 'acceptMatch invokes runContestEligibility (jurisdiction gate)');
 ok(/triggerEvent:\s*['"]accept_match['"]/.test(acceptSrc), 'acceptMatch passes triggerEvent accept_match');
-ok(/!eligibilityRes\.data\?\.eligible/.test(acceptSrc), 'acceptMatch fails closed when not eligible');
+ok(/eligibility\.error\s*\|\|\s*eligibility\.eligible\s*!==\s*true/.test(acceptSrc), 'acceptMatch fails closed unless the shared pipeline explicitly approves eligibility');
 
 const lockSrc = await read('base44/shared/lockWager.ts');
 ok(lockSrc.includes('verifyMatchLocation(req, match'), 'lockWager verifies original-request location before funds');
