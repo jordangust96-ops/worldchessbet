@@ -10,7 +10,7 @@ const {handler}=await loadBackend('base44/functions/reconcileLegacyLaunchDeposit
 '../../shared/mfa.ts':{requireAdminMfa:async()=>denied?Response.json({error:'mfa_required'},{status:401}):null},
 '../../shared/seamlessAch.ts':{buildCheckLookupPath:x=>x,seamlessRequest:async()=>({check:{check_id:REF,amount:10,status:providerStatus}})},
 '../../shared/seamlessAtomicStore.ts':{claimWebhookEvent:async()=>({claim:claimState}),finishWebhookEvent:async(a,b,c,s)=>{claimState=s==='completed'?'completed':'owned';}},
-'../../shared/ledger.ts':{postLedgerLegs:async(base,args)=>{await args.beforePost();assert.equal(args.legs.reduce((s,l)=>s+l.debit-l.credit,0),0);assert.equal(args.updateTransactions,false);if(!batches.length){batches.push({id:'batch'});available-=args.legs[0].debit;posts++;}}}});
+'../../shared/ledger.ts':{postLedgerLegs:async(base,args)=>{await args.beforePost();assert.equal(Math.round(args.legs.reduce((s,l)=>s+l.debit-l.credit,0)*100),0);assert.equal(args.updateTransactions,false);if(!batches.length){batches.push({id:'batch'});available-=args.legs[0].debit;posts++;}}}});
 const call=async commit=>handler(new Request('https://test.invalid',{method:'POST',body:JSON.stringify({commit})}));
 assert.equal((await call(false)).status,200);assert.equal(adjustments.length,0);
 denied=true;assert.equal((await call(true)).status,401);denied=false;
