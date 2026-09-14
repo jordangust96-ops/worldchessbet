@@ -45,11 +45,11 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
 
   const refresh = useCallback(async () => {
     if (!VALID_INVITE.test(inviteCode || '')) { setError('This challenge link is not valid.'); setLoading(false); return; }
-    if (refreshingRef.current || actionRef.current) return;
+    if (refreshingRef.current || actionRef.current === 'accept') return;
     refreshingRef.current = true;
     try {
       const data = await challengeRequest('view', { inviteCode });
-      if (!actionRef.current) setView(data);
+      if (actionRef.current !== 'accept') setView(data);
     } catch (err) { setError(challengeErrorMessage(err)); }
     finally { refreshingRef.current = false; setLoading(false); }
   }, [inviteCode]);
@@ -111,7 +111,7 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
   };
   const withAction = async (name, callback) => {
     if (actionRef.current) return;
-    actionRef.current = true;
+    actionRef.current = name;
     setBusy(name); setError(''); setMessage('');
     try { await callback(); }
     catch (err) {
