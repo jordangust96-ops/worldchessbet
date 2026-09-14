@@ -149,8 +149,8 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
     else { setStage('preview'); setAgree(false); await refresh(); }
   });
   const copy = async () => {
-    try { await navigator.clipboard.writeText(shareUrl); setMessage('Challenge link copied.'); }
-    catch { setMessage('Select the link below and copy it.'); }
+    try { await navigator.clipboard.writeText(shareUrl); setMessage('Challenge URL copied.'); }
+    catch { setMessage('Select the URL below and copy it.'); }
   };
   const share = async () => {
     if (!navigator.share) { await copy(); return; }
@@ -183,9 +183,12 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
           <p className="text-xs leading-relaxed text-white/45">The winner award includes both players’ entry amounts. The fee is separate and returned if there is no decisive result. Standard settlement and winnings-release rules apply.</p></>}
 
           {open && creator && <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-2"><Button onClick={share} className="h-11 rounded-xl gold-gradient font-bold text-black"><Share2 size={16} className="mr-2" />Share</Button>
-              <Button onClick={copy} variant="outline" className="h-11 rounded-xl border-white/15 text-white"><Copy size={16} className="mr-2" />Copy Link</Button></div>
-            <input aria-label="Your shareable challenge link" value={shareUrl} readOnly onFocus={e=>e.target.select()} className="h-10 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-xs text-white/55" />
+            <Button onClick={share} className="h-11 w-full rounded-xl gold-gradient font-bold text-black"><Share2 size={16} className="mr-2" />Share</Button>
+            <button onClick={copy} className="flex w-full items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/25 px-3 py-2.5 text-left transition hover:border-[#C9A84C]/30" aria-label="Copy challenge URL only">
+              <span className="min-w-0 truncate text-xs text-white/55">{shareUrl}</span>
+              <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-[#E5CA7A]"><Copy size={14}/>Copy URL</span>
+            </button>
+            <input aria-label="Your shareable challenge link" value={shareUrl} readOnly onFocus={e=>e.target.select()} className="sr-only" />
             <p className="text-sm leading-relaxed text-white/55">{free?'Share the link. Both players confirm readiness before play.':card.creatorFundsReserved ? `${usd(card.totalRequired)} is reserved for this challenge. Cancel before the match starts to return it to your playable balance.` : 'Share the link and stay on the Play screen. An unfunded recipient cannot claim it.'}</p>
             <ChallengeVisibilityToggle checked={Boolean(card.publiclyListed)} disabled={Boolean(busy)} rematch={Boolean(card.isRematch)}
               onChange={publiclyListed=>withAction('visibility',async()=>{ await challengeRequest('visibility',{inviteCode,publiclyListed}); await refresh(); })} />
