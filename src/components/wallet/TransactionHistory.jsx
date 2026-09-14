@@ -96,8 +96,8 @@ function getTransactionExplanation(tx, match) {
   }
   if (tx.type === "payout" && tx.payout_hold_status === "held") {
     const releaseText = tx.payout_release_at
-      ? `available ${moment(tx.payout_release_at).format("MMM D [at] h:mm A")} if no report is filed`
-      : "available once the 24-hour contest reporting window has passed with no report filed";
+      ? `eligible for release on or after ${moment(tx.payout_release_at).format("MMM D [at] h:mm A")} when no open dispute or blocking integrity or reconciliation flag remains`
+      : "eligible for release after the 24-hour reporting window when no open dispute or blocking integrity or reconciliation flag remains";
     return {
       heading: "Pending release",
       text: `You won this contest and ${amount} has been credited, but held pending the standard 24-hour contest reporting window — ${releaseText}. It does not count toward your available balance yet.`,
