@@ -237,13 +237,13 @@ export async function acceptChallenge(req: Request, base44: any, user: any, matc
   if (match.challenge_target_id && match.challenge_target_id !== user.id)
     fail('different_opponent', 'This rematch invitation is for the previous opponent.', 403);
   return underMatchLock(base44, match.id, async (fresh, owner) => {
-    if (fresh.player2_id === user.id && ['preparing', 'both_ready', 'in_progress', 'completed'].includes(fresh.status))
-      return { match: fresh, accepted: true, replay: true };
     if (activeOperation(fresh)) {
       if (fresh.challenge_claimant_id !== user.id) fail('busy', 'Another eligible player is completing acceptance.');
       return underWalletLocks([fresh.player1_id, user.id], owner, fresh.id, async () =>
         fresh.challenge_operation_state === 'reserving' ? recoverReservation(base44, fresh, owner) : { processing: true });
     }
+    if (fresh.player2_id === user.id && ['preparing', 'both_ready', 'in_progress', 'completed'].includes(fresh.status))
+      return { match: fresh, accepted: true, replay: true };
     if (fresh.status !== 'searching' || challengeExpired(fresh)) fail('unavailable', 'This challenge has already been claimed, cancelled, or expired.');
     await requireChallengePlayer(base44, user.id, fresh);
     await requireChallengePlayer(base44, fresh.player1_id, fresh, true);
@@ -357,7 +357,8 @@ export async function readyChallenge(req: Request, base44: any, user: any, match
     const role = roleFor(match, user.id);
     if (!role) fail('forbidden', 'You are not a player in this match.', 403);
     if (match.status === 'in_progress') return { match };
-    if (!['preparing', 'both_ready'].includes(match.status) || activeOperation(match) || challengeStartExpired(match))
+    if (activeOperation(match)) fail('recovery_pending', 'Confirming the reservation result. Please retry readiness shortly.');
+    if (!['preparing', 'both_ready'].includes(match.status) || challengeStartExpired(match))
       fail('ready_expired', 'The start window has ended. Reserved entry amounts and fees will be released.');
     // Available Balance was already reserved; only nonfinancial eligibility is
     // checked here. Never attempt a second debit or require a second deposit.
