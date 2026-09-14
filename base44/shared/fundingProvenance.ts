@@ -55,12 +55,19 @@ export async function prepareFundingCommit(base44, legs, context) {
       if (fundingSummary(states[userId], sources).available_to_withdraw + 0.001 < amount + Number(context.withdrawalFee || 0)) throw new Error('ach_withdrawal_hold');
     }
   }
-  const users = transitionFunding(states, legs, context, sources);
+  let matchSources = [];
+  if (context.matchId) {
+    const history = await allLedgerRows(base44.asServiceRole.entities.LedgerJournalBatch, { launch_epoch: 2, match_id: context.matchId });
+    matchSources = [...new Set(history.flatMap(batch => batch.funding_provenance_json ? (JSON.parse(batch.funding_provenance_json).match_sources || []) : []))];
+    for (const id of matchSources) if (!sources[id]) sources[id] = await base44.asServiceRole.entities.WalletTransaction.get(id);
+  }
+  let capturedSources = [];
+  const users = transitionFunding(states, legs, { ...context, matchSources, captureSources: ids => { capturedSources = ids; } }, sources);
   const latest = (await base44.asServiceRole.entities.LedgerJournalBatch.filter(
     { launch_epoch: 2, funding_sequence: { $gt: 0 } }, '-funding_sequence', 1))[0];
   return {
     funding_user_ids: userIds,
     funding_sequence: Number(latest?.funding_sequence || 0) + 1,
-    funding_provenance_json: JSON.stringify({ version: 1, users }),
+    funding_provenance_json: JSON.stringify({ version: 1, users, match_sources: capturedSources }),
   };
 }

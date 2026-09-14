@@ -98,11 +98,13 @@ export function transitionFunding(states, legs, context, sources, now = Date.now
     if (creditHeld > 0) outputs.push({ userId: leg.userId, target: state.held[bucket], amount: creditHeld });
   }
   const allSources = [...new Set(Object.values(inputs).flat().flatMap(lot => lot.sources))];
+  const matchSources = (context.matchSources || []).filter(id => sourceState(sources[id], now) !== 'clear');
+  if (context.captureSources) context.captureSources([...new Set([...matchSources, ...allSources])]);
   const crossUser = outputs.some(output => output.amount > (inputs[output.userId] || []).reduce((sum, lot) => sum + lot.cents, 0));
   const spending = ['challenge_reservation', 'match_entry', 'wager_lock', 'service_fee_charge', 'withdrawal_reservation', 'withdrawal_fee'].includes(context.triggerEvent);
   if (spending && allSources.some(id => sourceState(sources[id], now) === 'blocked')) throw new Error('ach_return_review_required');
   for (const output of outputs) {
-    const inherited = crossUser ? allSources : [...new Set((inputs[output.userId] || []).flatMap(lot => lot.sources))];
+    const inherited = crossUser ? [...new Set([...allSources, ...matchSources])] : [...new Set((inputs[output.userId] || []).flatMap(lot => lot.sources))];
     const origin = context.triggerEvent === 'deposit_availability_release' ? [context.walletTransactionId] : [];
     output.target.push({ cents: output.amount, sources: [...new Set([...inherited, ...origin])] });
   }

@@ -51,4 +51,7 @@ eq(fundingSummary(refundStates.b,sources,now).available_to_withdraw,11);
 fails(()=>transitionFunding(refundStates,[leg('a',{heldDelta:-10})],{triggerEvent:'refund',walletTransactionId:'d'},sources,now),/funding_provenance_insufficient/);
 eq(sourceState(null,now),'blocked');
 eq(sourceState({...source,deposit_release_at:'invalid',deposit_withdrawal_status:'released'},after),'held');
+const feeRefund=transitionFunding({a:empty()},[leg('a',{credit:1})],{triggerEvent:'service_fee_refund',matchId:'m',matchSources:['d']},sources,now);
+eq(fundingSummary(feeRefund.a,sources,now).available_to_withdraw,0);
+eq(fundingSummary(feeRefund.a,sources,now).available_to_play,1);
 console.log('Funding provenance: '+assertions+' assertions passed.');
