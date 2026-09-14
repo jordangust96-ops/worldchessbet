@@ -125,7 +125,7 @@ export async function createChallenge(base44: any, user: any, body: any, req: Re
       if (!req) fail('location_required', 'Verify your current location before creating a money challenge.', 403);
       const location = await verifyChallengeCreationLocation(req, body.requestKey);
       if (location.status !== 'approved')
-        fail('location_required', 'Money play is not available from your current location. You can still play for free, or recheck your location.', 403);
+        fail('location_required', 'Money play is not available from your current location. We will check your location again automatically when you retry.', 403);
     }
     // Re-read eligibility and cleared funds after the provider call. Keep wallet
     // withdrawals/other commitments from racing this final check and creation.
@@ -244,7 +244,7 @@ export async function maintainCreatorPresence(req: Request, base44: any, user: a
       await requireChallengePlayer(base44,user.id,fresh);
       if (!isFreeMatch(fresh)) {
         const location=await verifyMatchLocation(req,fresh,body);
-        if(location.status!=='approved')fail('location_required','Money play is unavailable from this location. You can still play for free.',403);
+        if(location.status!=='approved')fail('location_required','Money play is unavailable from this location.',403);
       }
     }
     const updated=await base44.asServiceRole.entities.Match.update(fresh.id,{
