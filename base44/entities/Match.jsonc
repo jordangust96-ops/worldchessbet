@@ -384,7 +384,7 @@
         "free"
       ],
       "default": "money",
-      "description": "Server-set immutable contest mode. Free games have no financial activity; absent legacy mode means money.",
+      "description": "Server-owned play mode. Free games have zero entry, service fee, and money award. Legacy records are money play.",
       "rls": {
         "write": false
       }
