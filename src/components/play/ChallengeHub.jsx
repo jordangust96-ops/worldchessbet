@@ -16,6 +16,7 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
   const [challenges,setChallenges] = useState([]);
   const [activePublic,setActivePublic] = useState(null);
   const [loading,setLoading] = useState(true);
+  const [loadFailed,setLoadFailed] = useState(false);
   const [error,setError] = useState('');
   const [busyId,setBusyId] = useState('');
   const refresh = useCallback(async()=>{
@@ -25,8 +26,8 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
         challengeRequest('list'),
         base44.entities.Match.filter({launch_epoch:2,player1_id:userId,status:'searching',is_private:{$ne:true}},'-created_date',5),
       ]);
-      setChallenges(data.challenges || []);setActivePublic(publicRows[0] || null);setError('');
-    }catch(err){setError(challengeErrorMessage(err));}finally{setLoading(false);}
+      setChallenges(data.challenges || []);setActivePublic(publicRows[0] || null);setError('');setLoadFailed(false);
+    }catch(err){setLoadFailed(true);setError(challengeErrorMessage(err));}finally{setLoading(false);}
   },[userId]);
   useEffect(()=>{
     refresh();
@@ -51,7 +52,7 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
     }catch(err){if(err?.name!=='AbortError')setError('Open the challenge to copy its link.');}
   };
   const existingChallenge = challenges.find(card => ['open','processing','claimed'].includes(card.status));
-  const creationBlocked = loading || Boolean(error) || Boolean(activePublic) || Boolean(existingChallenge);
+  const creationBlocked = loading || loadFailed || Boolean(activePublic) || Boolean(existingChallenge);
   return <section className="space-y-5 rounded-3xl border border-white/5 bg-gradient-to-br from-[#1A1A1A] to-[#111] p-5 lg:h-full lg:overflow-y-auto lg:p-5">
     {creating && !creationBlocked ? <CreateChallengeForm onCreated={()=>refresh()} onCancel={()=>setCreating(false)}/> : <div className="space-y-3">
       <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#C9A84C]/10 text-[#C9A84C]"><Swords size={21}/></div>

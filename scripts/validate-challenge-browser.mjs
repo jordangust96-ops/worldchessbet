@@ -8,14 +8,14 @@ const browser = await chromium.launch({ headless:true, args:['--no-sandbox'] });
 const code = 'a'.repeat(32);
 let checks=0;
 const failures=[];
-async function scenario(name,{who=null,funded=false,status='open',width=390,path=`/challenge/${code}`}={},work){
+async function scenario(name,{who=null,funded=false,status='open',hasChallenge=true,width=390,path=`/challenge/${code}`}={},work){
   const context=await browser.newContext({viewport:{width,height:844}});
   const page=await context.newPage();
   const errors=[];
   page.on('pageerror',error=>errors.push(error.message));
   // All backend calls use an in-browser mock; all outbound requests are
   // blocked. This suite never creates real accounts, contests or payments.
-  await context.addInitScript(({who,funded,status,code})=>{
+  await context.addInitScript(({who,funded,status,code,hasChallenge})=>{
     const user=who?{id:who,role:'user',launch_epoch:2,mfa_bypass:true,account_state:'verified',chess_com_username:who,full_name:'Test Player'}:null;
     const match={id:'qa-match',launch_epoch:2,challenge_version:1,player1_id:'p1',...(status==='claimed'?{player2_id:'p2'}:{}),wager_amount:25,platform_service_fee:2,platform_fee_schedule_version:'2026-07-28',time_control:'blitz',display_name:'Blitz (5+0)',clock_initial_ms:300000,status:status==='claimed'?'preparing':status==='open'?'searching':'cancelled',is_private:true,invite_code:code,player1_certified:status==='claimed',player2_certified:status==='claimed',player1_deposited:status==='claimed',player2_deposited:status==='claimed',preparation_started_at:new Date().toISOString(),challenge_expires_at:new Date(Date.now()+86400000).toISOString()};
     const card=()=>({id:match.id,creatorName:'Jordan',entryAmount:25,serviceFee:2,totalRequired:27,winnerAward:50,displayName:match.display_name,expiresAt:match.challenge_expires_at,status:match.status==='searching'?'open':match.status==='preparing'?'claimed':'cancelled',creatorReady:true,creatorReadyUntil:new Date(Date.now()+119000).toISOString()});
@@ -25,7 +25,7 @@ async function scenario(name,{who=null,funded=false,status='open',width=390,path
     const update=patch=>{Object.assign(match,patch);listeners.forEach(fn=>fn({type:'update',data:{...match}}));};
     const rows=(entity,query={})=>{
       if(entity==='Wallet')return [{...wallet}];
-      if(entity==='Match')return Object.entries(query).every(([key,value])=>{
+      if(entity==='Match')return hasChallenge && Object.entries(query).every(([key,value])=>{
         if(value && typeof value==='object'){if('$in'in value)return value.$in.includes(match[key]);if('$ne'in value)return match[key]!==value.$ne;return true;}
         return match[key]===value;
       })?[{...match}]:[];
@@ -38,8 +38,8 @@ async function scenario(name,{who=null,funded=false,status='open',width=390,path
         calls.push({name,body});
         if(name==='manageChallenge'){
           if(body.action==='view')return {data:{challenge:card(),role:who==='p1'?'player1':who==='p2'&&match.player2_id?'player2':'',participant:who==='p1'||(who==='p2'&&!!match.player2_id)}};
-          if(body.action==='list')return {data:{challenges:who==='p1'&&match.status==='searching'?[{...card(),inviteCode:code,path:'/challenge/'+code}]:[]}};
-          if(body.action==='create'){const tc={blitz:['Blitz (3+0)',180000],rapid:['Rapid (10+0)',600000],classical:['Classical (15+0)',900000]}[body.timeControl];update({time_control:body.timeControl,display_name:tc[0],clock_initial_ms:tc[1]});return {data:{match:{...match},inviteCode:code,path:'/challenge/'+code}};}
+          if(body.action==='list')return {data:{challenges:hasChallenge&&who==='p1'&&match.status==='searching'?[{...card(),inviteCode:code,path:'/challenge/'+code}]:[]}};
+          if(body.action==='create'){hasChallenge=true;const tc={blitz:['Blitz (3+0)',180000],rapid:['Rapid (10+0)',600000],classical:['Classical (15+0)',900000]}[body.timeControl];update({time_control:body.timeControl,display_name:tc[0],clock_initial_ms:tc[1]});return {data:{match:{...match},inviteCode:code,path:'/challenge/'+code}};}
           if(body.action==='readiness')return {data:funded?{ready:true,availableBalance:100,totalRequired:27}:{ready:false,code:'funds_required',reason:'Your wallet needs enough available funds. Pending funds do not count.',availableBalance:0,totalRequired:27}};
           if(body.action==='remember')return {data:{remembered:true,reserved:false}};
           if(body.action==='intent')return {data:{intent:null}};
@@ -66,7 +66,7 @@ async function scenario(name,{who=null,funded=false,status='open',width=390,path
     window.__challengeQA={user,match,wallet,calls,sdk};
     if(who)localStorage.setItem('base44_access_token','isolated-browser-fixture-not-a-real-token');
     Object.defineProperty(navigator,'geolocation',{configurable:true,value:{getCurrentPosition:(_ok,fail)=>fail({code:1})}});
-  },{who,funded,status,code});
+  },{who,funded,status,code,hasChallenge});
   await page.route('**/*',async route=>{
     const url=new URL(route.request().url());
     if(!['localhost','127.0.0.1'].includes(url.hostname))return route.abort();
@@ -102,7 +102,7 @@ try{
     assert.equal(await page.evaluate(()=>window.__challengeQA.calls.filter(c=>c.body.action==='accept').length),0);checks++;
     await page.getByText('another eligible player may accept first.',{exact:false}).waitFor();checks++;
   });
-  await scenario('unfunded-create',{who:'p1',path:'/play'},async page=>{
+  await scenario('unfunded-create',{who:'p1',hasChallenge:false,path:'/play'},async page=>{
     await page.getByRole('button',{name:'Create Challenge',exact:true}).click();
     await page.getByRole('button',{name:'Create Challenge Link',exact:true}).click();
     await page.waitForURL('**/challenge/'+code);checks++;
@@ -135,7 +135,7 @@ try{
     assert.equal(await page.evaluate(()=>window.__challengeQA.calls.filter(c=>c.body.action==='accept'||c.name==='lockWager').length),0);checks++;
   });
   for (const [value,label,minutes] of [['blitz','Blitz',3],['rapid','Rapid',10],['classical','Classical',15]]) {
-    await scenario('create-'+value,{who:'p1',path:'/play',width:value==='rapid'?1280:390},async page=>{
+    await scenario('create-'+value,{who:'p1',hasChallenge:false,path:'/play',width:value==='rapid'?1280:390},async page=>{
       await page.getByRole('button',{name:'Create Challenge',exact:true}).click();
       await page.getByText(label,{exact:true}).click();
       assert.equal(await page.getByRole('radio',{name:label+' '+minutes+' min',exact:true}).isChecked(),true);checks++;
@@ -147,7 +147,7 @@ try{
     });
   }
   for (const width of [390,1280]) {
-    await scenario('entry-presets-'+width,{who:'p1',path:'/play',width},async page=>{
+    await scenario('entry-presets-'+width,{who:'p1',hasChallenge:false,path:'/play',width},async page=>{
       await page.getByRole('button',{name:'Create Challenge',exact:true}).click();
       const form=page.getByRole('form',{name:'Create shared challenge'});
       assert.equal(await form.getByRole('spinbutton').count(),0);checks++;
@@ -163,6 +163,17 @@ try{
       assert.equal(await page.evaluate(()=>window.__challengeQA.calls.find(c=>c.body.action==='create').body.entryAmount),2500);checks++;
     });
   }
+  await scenario('one-open-challenge',{who:'p1',path:'/play'},async page=>{
+    const create=page.getByRole('button',{name:'Create Challenge',exact:true});
+    await page.getByText('You already have a challenge.',{exact:false}).waitFor();
+    assert.equal(await create.isEnabled(),false);checks++;
+    await page.getByRole('button',{name:'Find an Opponent',exact:false}).click();
+    assert.equal(await page.getByRole('button',{name:'Create $10 Rapid Challenge',exact:true}).isEnabled(),false);checks++;
+    await page.getByRole('button',{name:'Cancel',exact:true}).click();
+    await create.click();
+    await page.getByRole('button',{name:'Create Challenge Link',exact:true}).waitFor();checks++;
+    assert.equal(await page.evaluate(()=>window.__challengeQA.calls.filter(c=>c.body.action==='create').length),0);checks++;
+  });
 }finally{await browser.close();}
-console.log(JSON.stringify({checks,scenarios:12,failed:failures,screenshots:'/tmp/chessbet-challenge-screenshots'},null,2));
+console.log(JSON.stringify({checks,scenarios:13,failed:failures,screenshots:'/tmp/chessbet-challenge-screenshots'},null,2));
 process.exitCode=failures.length?1:0;

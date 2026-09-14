@@ -158,6 +158,48 @@ for (const entryAmount of [0,4,6,10.01,26,499,2501,5000,NaN,Infinity,null,true,[
   equal(response.status,400);equal(f.table('Match').length,0);
 }
 { const f=fixture();check(f.policy.validEntry(26),'Historical terms still recognized');check(!f.policy.validNewEntry(26),'New custom entries prohibited'); }
+async function publicCreate(f) {
+  return f.load('base44/functions/createMatch/entry.ts').handler(new Request('https://example.invalid',{
+    method:'POST',body:JSON.stringify({wagerAmount:25,timeControl:'blitz'})}));
+}
+for (const first of ['private','public']) {
+  const f=fixture();
+  if(first==='private')await f.create();else equal((await publicCreate(f)).status,200);
+  await rejected(()=>f.create('second_creation_12345'),'open_limit');
+  const response=await publicCreate(f);equal(response.status,409);equal((await response.json()).code,'open_limit');
+  equal(f.table('Match').length,1);equal(f.table('WalletTransaction').length,0);
+}
+for (const kind of ['private','public','mixed']) {
+  const f=fixture();
+  await Promise.allSettled(Array.from({length:12},(_,i)=>kind==='public'||(kind==='mixed'&&i%2)
+    ? publicCreate(f) : f.create('parallel_creation_'+i)));
+  equal(f.table('Match').length,1,'Concurrent '+kind+' creation has one winner');
+  equal(f.table('LedgerJournalBatch').length,0);
+}
+for (const status of ['preparing','both_ready','in_progress','settling','cancelling','disputed']) {
+  for (const field of ['player1_id','player2_id','challenge_claimant_id']) {
+    const f=fixture();f.table('Match').push({id:'active',launch_epoch:2,status,[field]:'p1'});
+    await rejected(()=>f.create(),'active_match');
+    equal((await publicCreate(f)).status,409);equal(f.table('Match').length,1);
+  }
+}
+for (const closed of ['cancelled','expired','completed']) {
+  const f=fixture();const m=await f.create();
+  if(closed==='expired')f.state.now+=86400001;
+  else await f.sdk.asServiceRole.entities.Match.update(m.id,{status:closed});
+  const next=await f.create('replacement_key_12345');check(next.id!==m.id);
+}
+{
+  const f=fixture();const m=await f.create();
+  const replay=await f.create();equal(replay.id,m.id);
+  f.table('Match').push({id:'previous-game',launch_epoch:2,status:'completed',player1_id:'p1',player2_id:'p2'});
+  await rejected(()=>f.api.createChallenge(f.sdk,f.user('p1'),{entryAmount:25,requestKey:'rematch_request_12345',rematchOf:'previous-game'}),'open_limit');
+}
+{
+  const f=fixture();f.atomic.refreshContestLocks=async()=>false;
+  await rejected(()=>f.create(),'busy');equal(f.table('Match').length,0);
+  equal((await publicCreate(f)).status,409);equal(f.table('Match').length,0);
+}
 for (selectedTimeControl of [undefined, 'blitz', 'rapid', 'classical']) {
 const expectedClock = {blitz:180000,rapid:600000,classical:900000}[selectedTimeControl] || 300000;
 // Nonfinancial invitation creation works without a funded or verified wallet.
@@ -250,9 +292,12 @@ for(const where of ['LedgerJournalBatch.create.before','LedgerJournalBatch.creat
   equal(f.table('LedgerJournalBatch').length,0);equal(f.table('WalletTransaction').length,0);
   f.atomic.releaseUserWalletLock('p1','unrelated-financial-operation');
 }
-// Another OPEN link is not a conflict; one creator still cannot enter two games.
+// Legacy multiple-open records still cannot commit the creator to two games.
 {
-  const f=fixture();const a=await f.authorize(await f.create('creation_key_first111'));const b=await f.authorize(await f.create('creation_key_second22'));
+  const f=fixture();const a=await f.authorize(await f.create('creation_key_first111'));
+  // Simulate two invitations persisted before the single-open policy.
+  const legacy=await f.sdk.asServiceRole.entities.Match.create({...a,id:'legacy-second',invite_code:'b'.repeat(32),challenge_creation_key:'legacy_second_12345'});
+  const b=await f.authorize(legacy);
   const results=await Promise.allSettled([f.api.acceptChallenge(f.request,f.sdk,f.user('p2'),a,f.consent),f.api.acceptChallenge(f.request,f.sdk,f.user('p3'),b,f.consent)]);
   equal(results.filter(r=>r.status==='fulfilled'&&r.value.accepted).length,1);equal(f.table('LedgerJournalBatch').length,1);
   equal(f.table('Match').filter(m=>m.status==='searching').length,1);
