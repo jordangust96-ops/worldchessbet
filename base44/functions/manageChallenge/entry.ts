@@ -29,6 +29,7 @@ function response(value: any, status = 200) {
 // Enabled only after the source, schema and adversarial checks are complete.
 const IMPLEMENTATION_ENABLED = true;
 Deno.serve(async (req) => {
+  let requestStage = 'initialization';
   try {
     if (!IMPLEMENTATION_ENABLED) return response({ error:'Challenge invitations are being updated.', action:'temporarily_unavailable' },503);
     if (req.method !== 'POST') return response({ error:'Method not allowed' }, 405);
@@ -40,12 +41,18 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me().catch(() => null);
     const action = String(body.action || 'view');
     if (action === 'view') {
+      // Reject malformed capability links before any Redis or entity access.
+      if (typeof body.inviteCode !== 'string' || !/^[a-f0-9]{32}$/.test(body.inviteCode))
+        return response({ error:'This challenge is not available.', action:'unavailable' },404);
+      requestStage = 'preview_rate_limit';
       // A preview is public and read-only. No location/identity check, account,
       // funding, slot assignment or contest journal is created here.
       const ip = getOriginalClientIp(req) || 'unknown-edge';
       const bucket = await sha256Hex(`${ip}:${req.headers.get('user-agent') || ''}`);
       if (!await takeChallengeRateLimit(`view:${bucket}`, 180, 60)) return response({ error:'Please try again shortly.' }, 429);
+      requestStage = 'preview_lookup';
       const match = await resolveChallenge(base44, body.inviteCode);
+      requestStage = 'preview_details';
       const data = await viewChallenge(base44, match, user);
       if (await takeChallengeRateLimit(`view-event:${match.id}:${bucket}`, 1, 3600)) {
         await challengeEvent(base44, match, 'viewed', user?.id || '', 'invitation_view', `${bucket.slice(0,16)}:${Math.floor(Date.now()/3600000)}`);
@@ -122,7 +129,9 @@ Deno.serve(async (req) => {
     return response({ error:'Unknown challenge action' },400);
   } catch (error) {
     if (error instanceof ChallengeError) return response({ error:error.message, code:error.code, action:error.code, ...error.details },error.status);
-    console.error(JSON.stringify({ event:'challenge_request_failed', error:String(error?.message || 'unknown').slice(0,160) }));
-    return response({ error:'This challenge could not be updated. Please retry; do not start another payment.', action:'retry' },503);
+    console.error(JSON.stringify({ event:'challenge_request_failed', stage:requestStage, error:String(error?.message || 'unknown').slice(0,160) }));
+    // A stable component label aids operational diagnosis without exposing
+    // credentials, account records, provider payloads, or raw exceptions.
+    return response({ error:'This challenge could not be updated. Please retry; do not start another payment.', action:'retry', component:requestStage },503);
   }
 });
