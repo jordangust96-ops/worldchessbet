@@ -5,7 +5,10 @@ import { isLocationApproved } from './jurisdictionRegions.js';
 // cannot substitute for a location check made for this match's readiness.
 export const MATCH_LOCATION_MAX_AGE_MS = 2 * 60 * 1000;
 export function isMatchLocationEvidence(log, match, userId, now = Date.now()) {
-  const preparedAt = Date.parse(match?.preparation_started_at);
+  // Invitations verify each player's own location before slot assignment.
+  // This does not reuse a deposit check or the other participant's IP.
+  const preparedAt = Date.parse(Number(match?.challenge_version) === 1
+    ? match.challenge_location_started_at : match?.preparation_started_at);
   return Boolean(
     match?.id && [match.player1_id, match.player2_id].includes(userId) &&
     Number.isFinite(preparedAt) && preparedAt <= now &&
