@@ -28,6 +28,8 @@ Deno.serve(async (req) => {
     }
 
     const { wagerAmount, timeControl, isPrivate } = await req.json();
+    // Shareable invitations must use the dual-funded challenge lifecycle.
+    if (isPrivate) return Response.json({ error: 'Use Challenge Someone to create a shareable invitation.', action: 'challenge_link_required' }, { status: 409 });
     const wager = Number(wagerAmount);
     if (!Number.isFinite(wager) || wager < 5) {
       return Response.json({ error: 'The minimum Contest Entry Amount is $5.00.' }, { status: 400 });
@@ -64,10 +66,10 @@ Deno.serve(async (req) => {
       time_control: timeControl,
       display_name: TIME_CONTROL_LABELS[timeControl],
       status: 'searching',
-      is_private: !!isPrivate,
+      is_private: false,
       player1_deposited: false,
       player1_certified: false,
-      ...(isPrivate ? { invite_code: crypto.randomUUID() } : {}),
+      // Public marketplace only. Invitation tokens belong to challengeActions.
     });
 
     await recordIntegrationEvent(base44, {
