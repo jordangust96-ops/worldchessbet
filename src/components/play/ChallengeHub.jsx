@@ -65,7 +65,7 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
       <h2 className="mb-3 text-sm font-semibold text-white/75">Your Challenges</h2>
       {loading ? <Loader2 size={18} className="animate-spin text-white/40"/> : challenges.length ? <div className="space-y-2">{challenges.map(card=><article key={card.id} className="rounded-2xl border border-white/10 bg-white/[0.025] p-3">
         <div className="flex items-center justify-between gap-3"><Link to={card.path} className="font-semibold text-white">${Number(card.entryAmount).toFixed(2)} · {card.displayName}</Link><span className="text-xs text-[#C9A84C]">{card.status==='open'?'Open invitation':card.status==='processing'?'Confirming…':'Accepted'}</span></div>
-        <div className="mt-3 flex flex-wrap items-center gap-4 text-xs"><Link to={card.path} className="font-semibold text-[#C9A84C]">{card.status==='open'?'Open / Ready Up':'Open Match'}</Link>
+        <div className="mt-3 flex flex-wrap items-center gap-4 text-xs"><Link to={card.path} className="font-semibold text-[#C9A84C]">{card.status==='open'?'Open Challenge':'Open Match'}</Link>
           {card.status==='open' && <><button onClick={()=>share(card)} className="inline-flex items-center gap-1 text-white/55"><Share2 size={13}/>Share</button><button onClick={()=>cancel(card)} disabled={Boolean(busyId)} className="text-white/40">{busyId===card.id?'Cancelling…':'Cancel'}</button></>}
         </div>
       </article>)}</div> : <p className="text-sm text-white/35">Your challenge will appear here. You can have one open challenge at a time.</p>}

@@ -25,6 +25,7 @@ export default function ChallengePage() {
   const [busy, setBusy] = useState('');
   const [stage, setStage] = useState('preview');
   const [readiness, setReadiness] = useState(null);
+  const [creatorChecking, setCreatorChecking] = useState(false);
   const [agree, setAgree] = useState(false);
   const [now, setNow] = useState(Date.now());
   const card = view?.challenge;
@@ -67,6 +68,26 @@ export default function ChallengePage() {
     recover(); const timer = setInterval(recover,5000);
     return () => clearInterval(timer);
   }, [card?.status,view?.participant,view?.ownOperation,inviteCode,refresh]);
+
+  // Show the creator's setup or explicit authorization directly; checking
+  // eligibility here neither requests location nor authorizes any funds.
+  useEffect(() => {
+    if (!creator || !open || creatorReady) return;
+    let cancelled = false;
+    setCreatorChecking(true); setError('');
+    challengeRequest('readiness', { inviteCode }).then(state => {
+      if (cancelled) return;
+      setReadiness(state);
+      setStage(state.ready ? 'confirm' : 'setup');
+    }).catch(err => {
+      if (!cancelled) {
+        setReadiness({ ready:false, reason:challengeErrorMessage(err) });
+        setStage('setup');
+        setError(challengeErrorMessage(err));
+      }
+    }).finally(() => { if (!cancelled) setCreatorChecking(false); });
+    return () => { cancelled = true; setCreatorChecking(false); };
+  }, [creator,open,creatorReady,inviteCode]);
 
   const signedIn = () => {
     if (user) return true;
@@ -151,9 +172,10 @@ export default function ChallengePage() {
             <p className="text-sm leading-relaxed text-white/55">No funds are reserved yet. Share the link, keep playing elsewhere, or cancel it. An unfunded recipient cannot claim it.</p>
             {creatorReady && <div className="rounded-xl border border-[#C9A84C]/20 bg-[#C9A84C]/10 p-3 text-sm text-[#E5CA7A]">Acceptance enabled for {seconds} seconds. You are not locked into an opponent.</div>}
           </div>}
-          {open && stage === 'preview' && (!creator || !creatorReady) && <Button disabled={Boolean(busy)} onClick={begin} className="h-12 w-full rounded-2xl gold-gradient font-bold text-black">
-            {busy === 'check' && <Loader2 size={16} className="mr-2 animate-spin" />}{creator ? 'I’m Ready for an Opponent' : 'Accept Challenge'}
+          {open && !creator && stage === 'preview' && <Button disabled={Boolean(busy)} onClick={begin} className="h-12 w-full rounded-2xl gold-gradient font-bold text-black">
+            {busy === 'check' && <Loader2 size={16} className="mr-2 animate-spin" />}Accept Challenge
           </Button>}
+          {open && creator && (creatorChecking || busy === 'check') && <p role="status" className="flex items-center gap-2 text-sm text-white/55"><Loader2 size={16} className="animate-spin" />Checking your eligibility…</p>}
           {open && stage === 'setup' && <div className="space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4">
             <h2 className="font-bold">{readiness?.code === 'funds_required' ? 'Available funds required' : 'Complete your setup'}</h2>
             <p className="text-sm text-white/60">{readiness?.reason}</p>
