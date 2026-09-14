@@ -638,9 +638,14 @@ export async function readyChallenge(req: Request, base44: any, user: any, match
       fail('ready_expired', isFreeMatch(match) ? 'The start window has ended. This free game will close.' : 'The start window has ended. Reserved entry amounts and fees will be released.');
     // Available Balance was already reserved; only nonfinancial eligibility is
     // checked here. Never attempt a second debit or require a second deposit.
-    const current = await base44.asServiceRole.entities.User.get(user.id);
-    if (['suspended','closed'].includes(current.account_state) || (!isFreeMatch(match) && (!paidContestsEnabled() || !await hasVerifiedIdentity(base44, current) || current.withdrawal_hold)))
-      fail('account_restricted', 'Your account is not currently eligible to start this match.', 403);
+    // Heartbeats only renew an already-certified device; they never authorize
+    // a start. Keep expensive eligibility reads on Ready and on the final
+    // two-player start gate, instead of repeating them every three seconds.
+    if (!['heartbeat','unready'].includes(body.action)) {
+      const current = await base44.asServiceRole.entities.User.get(user.id);
+      if (['suspended','closed'].includes(current.account_state) || (!isFreeMatch(match) && (!paidContestsEnabled() || !await hasVerifiedIdentity(base44, current) || current.withdrawal_hold)))
+        fail('account_restricted', 'Your account is not currently eligible to start this match.', 403);
+    }
     if (isFreeMatch(match)) assertFreeMatch(match);
     if (!['heartbeat','unready'].includes(body.action) && (body.agree!==true || body.attestationVersion!==FAIR_PLAY_ATTESTATION_VERSION))
       fail('fair_play_required','Confirm that you will play fairly before starting.',400);
