@@ -1,22 +1,5 @@
 {
   "properties": {
-    "challenge_context_code": {
-      "type": "string",
-      "rls": {
-        "read": false,
-        "write": false
-      },
-      "description": "Most recent invitation explicitly saved during wallet setup. Nonexclusive context only; never reserves funds or a match."
-    },
-    "challenge_context_saved_at": {
-      "type": "string",
-      "format": "date-time",
-      "rls": {
-        "read": false,
-        "write": false
-      },
-      "description": "When nonexclusive invitation context was saved."
-    },
     "role": {
       "type": "string",
       "description": "The role of the user in the app",
@@ -179,7 +162,7 @@
     "games_played": {
       "type": "number",
       "default": 0,
-      "description": "Total completed matches (wins + losses + draws). Updated only by settleMatch \u2014 never computed at read time.",
+      "description": "Total completed matches (wins + losses + draws). Updated only by settleMatch — never computed at read time.",
       "rls": {
         "write": false
       }
@@ -242,7 +225,7 @@
     "welcome_email_sent": {
       "type": "boolean",
       "default": false,
-      "description": "Set once the automated Welcome Email has been successfully sent to this user, to guarantee it is only ever sent once per account. Written only by the sendWelcomeEmail backend function \u2014 never by any client.",
+      "description": "Set once the automated Welcome Email has been successfully sent to this user, to guarantee it is only ever sent once per account. Written only by the sendWelcomeEmail backend function — never by any client.",
       "rls": {
         "write": false
       }
@@ -250,7 +233,7 @@
     "founding_player": {
       "type": "boolean",
       "default": false,
-      "description": "Set when this user is one of ChessBet's first 250 platform users. Awarded automatically \u2014 backfilled for existing users and then granted to new signups until the 250-user cap is reached. Displayed as a subtle, hover-revealed badge on the user's profile. Written only by backend functions, never by any client.",
+      "description": "Set when this user is one of ChessBet's first 250 platform users. Awarded automatically — backfilled for existing users and then granted to new signups until the 250-user cap is reached. Displayed as a subtle, hover-revealed badge on the user's profile. Written only by backend functions, never by any client.",
       "rls": {
         "write": false
       }
