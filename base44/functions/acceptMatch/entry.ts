@@ -2,110 +2,77 @@ import { runContestEligibility } from '../../shared/runContestEligibility.ts';
 import { paidContestsEnabled } from '../../shared/seamlessFundingConfig.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
+import { acquireMatchLock, releaseMatchLock, acquireUserWalletLock, releaseUserWalletLock,
+  refreshContestLocks } from '../../shared/seamlessAtomicStore.ts';
+import { findConflictingMatch } from '../../shared/challengeAccess.ts';
+import { hasVerifiedIdentity } from '../../shared/identityEligibility.js';
 
-// Joining a match (public or private) only reserves the opponent slot and
-// starts the shared Preparing Match phase — it never moves any funds and
-// never initializes gameplay. The match immediately becomes unavailable to
-// everyone else. Both players must then independently certify Fair Play and
-// reserve their Entry Amount (certifyFairPlay / lockWager) before the match
-// can ever go live — identical actions for host and joiner alike.
-
+// Public marketplace only. Its existing explicit per-player preparation and
+// funding screens remain unchanged. Shared wallet/match leases prevent a
+// public acceptance racing either participant into a challenge-link game.
 Deno.serve(async (req) => {
+  const owner = crypto.randomUUID();
+  let matchLockId = '';
+  const walletLocks: string[] = [];
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me().catch(() => null);
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    if (!paidContestsEnabled()) {
-      return Response.json({ eligible: false, error: 'Paid contests are temporarily unavailable.', reason: 'Paid contests are temporarily unavailable.', action: 'paid_contests_disabled' }, { status: 409 });
-    }
-
-    const { matchId, inviteCode } = await req.json();
-    if (!matchId) return Response.json({ error: 'matchId is required' }, { status: 400 });
-
+    if (!paidContestsEnabled()) return Response.json({ error: 'Paid contests are temporarily unavailable.', action: 'paid_contests_disabled' }, { status: 409 });
+    const { matchId } = await req.json();
+    if (typeof matchId !== 'string' || !matchId || matchId.length > 128) return Response.json({ error: 'matchId is required' }, { status: 400 });
     let match = await base44.asServiceRole.entities.Match.get(matchId);
-    if (!match) return Response.json({ error: 'Match not found' }, { status: 404 });
-    if (Number(match.launch_epoch) !== 2) return Response.json({ error: 'Match not available' }, { status: 410 });
+    if (!match || Number(match.launch_epoch) !== 2) return Response.json({ error: 'Match not available' }, { status: 404 });
+    // Knowing a private Match ID or an old invitation token never bypasses
+    // the new dual-reservation consent/readiness/financial action.
+    if (match.is_private || Number(match.challenge_version) === 1)
+      return Response.json({ error: 'Open the shared challenge link to continue.', action: 'challenge_link_required' }, { status: 409 });
+    if (match.player1_id === user.id) return Response.json({ error: 'You cannot accept your own match' }, { status: 400 });
+    if (match.status !== 'searching') return Response.json({ error: 'This match is no longer available' }, { status: 409 });
 
-    if (match.status !== 'searching') {
-      return Response.json({ error: 'This match is no longer available' }, { status: 400 });
-    }
-    if (match.acceptance_operation_id) {
-      return Response.json({ error: 'acceptance_in_progress' }, { status: 409 });
-    }
-    if (match.player1_id === user.id) {
-      return Response.json({ error: 'You cannot accept your own match' }, { status: 400 });
-    }
-    if (match.is_private && (typeof inviteCode !== 'string' || inviteCode !== match.invite_code)) {
-      return Response.json({ error: 'A valid private invitation is required' }, { status: 403 });
-    }
+    const eligibility = await (await runContestEligibility(req, {
+      entryAmount: Number(match.wager_amount) + Number(match.platform_service_fee || 0),
+      triggerEvent: 'accept_match', relatedEntityType: 'match', relatedEntityId: match.id,
+    })).json();
+    if (eligibility.error || !eligibility.eligible)
+      return Response.json({ error: eligibility.reason || eligibility.error || 'Complete wallet setup before joining.' }, { status: 403 });
 
-    // Eligibility — the single shared pipeline (identity, jurisdiction,
-    // participation restrictions, available balance) also used by Host
-    // Match. No funds are held here.
-    const eligibilityRes = { data: await (await runContestEligibility(req, {
-      entryAmount: match.wager_amount,
-      triggerEvent: 'accept_match',
-      relatedEntityType: 'match',
-      relatedEntityId: match.id,
-    })).json() };
-    if (eligibilityRes.data?.error || !eligibilityRes.data?.eligible) {
-      return Response.json({ error: eligibilityRes.data?.reason || eligibilityRes.data?.error || 'You are not eligible to join this contest' }, { status: 403 });
+    if (!await acquireMatchLock(match.id, owner)) return Response.json({ error: 'This match is being updated. Please try again.' }, { status: 409 });
+    matchLockId = match.id;
+    for (const id of [match.player1_id, user.id].sort()) {
+      if (!await acquireUserWalletLock(id, owner)) return Response.json({ error: 'A wallet is updating. Please try again.' }, { status: 409 });
+      walletLocks.push(id);
     }
-
-    const acceptanceOperationId = crypto.randomUUID();
-    await base44.asServiceRole.entities.Match.update(match.id, {
-      acceptance_operation_id: acceptanceOperationId,
+    match = await base44.asServiceRole.entities.Match.get(matchId);
+    if (match.status !== 'searching' || match.player2_id || match.is_private)
+      return Response.json({ error: 'Another player already accepted this match.' }, { status: 409 });
+    const total = Math.round((Number(match.wager_amount) + Number(match.platform_service_fee)) * 100);
+    if (!Number.isFinite(total) || total <= 0) return Response.json({ error: 'This match is missing valid financial terms.' }, { status: 409 });
+    for (const id of [match.player1_id, user.id]) {
+      if (await findConflictingMatch(base44, id, match.id))
+        return Response.json({ error: id === user.id ? 'Finish your current match before accepting another.' : 'This opponent is currently in another match.' }, { status: 409 });
+      const current = await base44.asServiceRole.entities.User.get(id);
+      const wallets = await base44.asServiceRole.entities.Wallet.filter({ user_id: id });
+      if (!await hasVerifiedIdentity(base44, current) || current.withdrawal_hold ||
+          !Number.isFinite(Number(wallets[0]?.available_balance)) || Math.round(Number(wallets[0]?.available_balance || 0) * 100) < total)
+        return Response.json({ error: id === user.id ? 'Available funds must cover the entry amount and service fee.' : 'This opponent is not currently ready to play.' }, { status: 403 });
+    }
+    if (!await refreshContestLocks(match.id, walletLocks, owner)) return Response.json({ error: 'Acceptance timed out. Please try again.' }, { status: 409 });
+    const updated = await base44.asServiceRole.entities.Match.update(match.id, {
+      player2_id: user.id, acceptance_operation_id: owner,
+      status: 'preparing', preparation_started_at: new Date().toISOString(),
     });
-    await new Promise((resolve) => setTimeout(resolve, 150));
-    match = await base44.asServiceRole.entities.Match.get(match.id);
-    if (match.acceptance_operation_id !== acceptanceOperationId || match.status !== 'searching') {
-      return Response.json({ error: 'match_acceptance_claim_lost' }, { status: 409 });
-    }
-
-    // The host's own jurisdiction is never trusted from a cached field here —
-    // that previously relied on host.jurisdiction_status, which could go
-    // stale (e.g. it would keep rejecting a Michigan host who was verified
-    // before Michigan was added to the approved list, even though they are
-    // actually approved under the current rules). Jurisdiction is instead
-    // authoritatively re-verified fresh for the host at the moment they
-    // reserve their entry amount in lockWager, so no funds ever move for an
-    // unapproved host — this join step itself moves no money.
-
-    // Reserve the opponent slot atomically — only succeeds while the match is
-    // still 'searching', so two simultaneous joiners can never both win the
-    // slot. Moves both players into the shared Preparing Match phase.
-    const updatedMatch = await base44.asServiceRole.entities.Match.update(match.id, {
-      player2_id: user.id,
-      acceptance_operation_id: acceptanceOperationId,
-      status: 'preparing',
-      preparation_started_at: new Date().toISOString(),
-    });
-
-    await recordIntegrationEvent(base44, {
-      eventType: 'contest.accepted',
-      aggregateType: 'match',
-      aggregateId: match.id,
-      correlationId: match.id,
-      idempotencyKey: `contest.accepted:${match.id}`,
-      actorType: 'user',
-      actorId: user.id,
-      userId: user.id,
-      counterpartyUserId: match.player1_id,
-      matchId: match.id,
-      status: updatedMatch.status,
-      amount: match.wager_amount,
-      result: 'opponent_reserved',
-      eventData: {
-        player1_id: match.player1_id,
-        player2_id: user.id,
-        preparation_started_at: updatedMatch.preparation_started_at,
-        is_private: !!match.is_private,
-      },
-    });
-
-    return Response.json({ match: updatedMatch });
+    await recordIntegrationEvent(base44, { eventType: 'contest.accepted', aggregateType: 'match', aggregateId: match.id,
+      correlationId: match.id, idempotencyKey: `contest.accepted:${match.id}`, actorType: 'user', actorId: user.id,
+      userId: user.id, counterpartyUserId: match.player1_id, matchId: match.id, status: updated.status,
+      amount: match.wager_amount, result: 'opponent_reserved',
+      eventData: { player1_id: match.player1_id, player2_id: user.id, preparation_started_at: updated.preparation_started_at, is_private: false } });
+    return Response.json({ match: updated });
   } catch (error) {
-    console.error(JSON.stringify({ event: 'backend_function_failed', error: error?.message || 'unknown_error' }));
-    return Response.json({ error: 'internal_error' }, { status: 500 });
+    console.error(JSON.stringify({ event: 'public_accept_failed', error: String(error?.message || 'unknown').slice(0, 160) }));
+    return Response.json({ error: 'Unable to accept this match. Please try again.' }, { status: 503 });
+  } finally {
+    for (const id of walletLocks.reverse()) await releaseUserWalletLock(id, owner).catch(() => {});
+    if (matchLockId) await releaseMatchLock(matchLockId, owner).catch(() => {});
   }
 });
