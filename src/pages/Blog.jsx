@@ -92,11 +92,29 @@ export default function Blog() {
     // Soro caches each embed URL for up to an hour. Rotate the query key every
     // five minutes so a recently published article is picked up promptly.
     const embedCacheWindow = Math.floor(Date.now() / (5 * 60 * 1000));
+    // The widget fetches article bodies separately; refresh those with the same
+    // window so corrected eligibility/legal copy cannot lag behind the list.
+    // Compose with the existing fetch (including privacy controls), and leave
+    // all requests outside this public article endpoint untouched.
+    const previousFetch = window.fetch;
+    const articlePrefix = `${SORO_EMBED_URL}/article/`;
+    const articleFetch = (input, init) => {
+      if (typeof input === "string" && input.startsWith(articlePrefix)) {
+        const url = new URL(input);
+        url.searchParams.set("v", String(embedCacheWindow));
+        return previousFetch.call(window, url.href, init);
+      }
+      return previousFetch.call(window, input, init);
+    };
+    window.fetch = articleFetch;
     script.src = `${SORO_EMBED_URL}?v=${embedCacheWindow}`;
     script.defer = true;
     document.body.appendChild(script);
 
-    return () => script.remove();
+    return () => {
+      script.remove();
+      if (window.fetch === articleFetch) window.fetch = previousFetch;
+    };
   }, []);
 
   return (
