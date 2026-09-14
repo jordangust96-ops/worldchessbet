@@ -138,9 +138,60 @@ export async function checkAtomicStoreHealth() {
   return true;
 }
 
-export async function acquireUserWalletLock(userId: string, owner: string) {
-  const acquired = await evalAtomic(ACQUIRE_LOCK, [key('wallet-lock', userId)], [owner, String(LOCK_TTL_MS)]);
+// Durable financial barriers outlive a worker's lease. Only recovery of the
+// same challenge may bypass its barrier; deposits/withdrawals/other matches
+// must not spend an incompletely materialized journal balance.
+const ACQUIRE_WALLET_LOCK = `
+local barrier = redis.call('GET', KEYS[2])
+if barrier and barrier ~= ARGV[3] then return 0 end
+local current = redis.call('GET', KEYS[1])
+if current and current ~= ARGV[1] then return 0 end
+redis.call('SET', KEYS[1], ARGV[1], 'PX', ARGV[2])
+return 1
+`;
+export async function acquireUserWalletLock(userId: string, owner: string, recoveryMatchId = '') {
+  const acquired = await evalAtomic(ACQUIRE_WALLET_LOCK,
+    [key('wallet-lock', userId), key('wallet-barrier', userId)],
+    [owner, String(LOCK_TTL_MS), recoveryMatchId]);
   return Number(acquired) === 1;
+}
+
+export async function getUserWalletBarrier(userId: string) {
+  return String(await command(['GET', key('wallet-barrier', userId)]) || '');
+}
+
+export async function acquireMatchLock(matchId: string, owner: string) {
+  return Number(await evalAtomic(ACQUIRE_LOCK, [key('match-lock', matchId)], [owner, String(LOCK_TTL_MS)])) === 1;
+}
+export async function releaseMatchLock(matchId: string, owner: string) {
+  await evalAtomic(RELEASE_LOCK, [key('match-lock', matchId)], [owner]);
+}
+
+const SET_WALLET_BARRIERS = `
+for i=1,#KEYS,2 do
+  if redis.call('GET', KEYS[i]) ~= ARGV[1] then return 0 end
+  local barrier = redis.call('GET', KEYS[i+1])
+  if barrier and barrier ~= ARGV[2] then return 0 end
+end
+for i=1,#KEYS,2 do redis.call('SET', KEYS[i+1], ARGV[2]) end
+return 1
+`;
+export async function setChallengeWalletBarriers(userIds: string[], owner: string, matchId: string) {
+  const keys = userIds.flatMap(id => [key('wallet-lock', id), key('wallet-barrier', id)]);
+  return Number(await evalAtomic(SET_WALLET_BARRIERS, keys, [owner, matchId])) === 1;
+}
+export async function clearChallengeWalletBarriers(userIds: string[], matchId: string) {
+  for (const id of userIds) await evalAtomic(RELEASE_LOCK, [key('wallet-barrier', id)], [matchId]);
+}
+
+// Shared Redis, not a new queue or notification service.
+export async function takeChallengeRateLimit(scope: string, limit: number, seconds: number) {
+  const result = await evalAtomic(`
+local n = redis.call('INCR', KEYS[1])
+if n == 1 then redis.call('EXPIRE', KEYS[1], ARGV[2]) end
+return n <= tonumber(ARGV[1]) and 1 or 0
+`, [key('challenge-rate', scope)], [String(limit), String(seconds)]);
+  return Number(result) === 1;
 }
 
 export async function releaseUserWalletLock(userId: string, owner: string) {
