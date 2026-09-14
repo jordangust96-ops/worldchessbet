@@ -221,6 +221,16 @@ for(const where of ['LedgerJournalBatch.create.before','LedgerJournalBatch.creat
   await f.api.finalizeChallengeStart(f.sdk,f.user('p1'),m.id);equal(f.table('Game').length,1);
   await rejected(()=>f.api.cancelChallenge(f.sdk,f.user('p1'),m.id),'already_started');equal(f.table('LedgerJournalBatch').length,1);
 }
+// Cancelling a nonfinancial OPEN link must never depend on the creator wallet
+// lock. A concurrent deposit/withdrawal/reconciliation cannot trap the link.
+{
+  const f=fixture();const m=await f.create();
+  check(await f.atomic.acquireUserWalletLock('p1','unrelated-financial-operation'));
+  const cancelled=await f.api.cancelChallenge(f.sdk,f.user('p1'),m.id);
+  equal(cancelled.match.status,'cancelled');equal(cancelled.match.challenge_close_reason,'cancelled');
+  equal(f.table('LedgerJournalBatch').length,0);equal(f.table('WalletTransaction').length,0);
+  f.atomic.releaseUserWalletLock('p1','unrelated-financial-operation');
+}
 // Another OPEN link is not a conflict; one creator still cannot enter two games.
 {
   const f=fixture();const a=await f.authorize(await f.create('creation_key_first111'));const b=await f.authorize(await f.create('creation_key_second22'));
