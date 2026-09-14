@@ -93,12 +93,25 @@ export async function createChallenge(base44: any, user: any, body: any) {
     const existing = await base44.asServiceRole.entities.Match.filter({
       launch_epoch: 2, player1_id: user.id, challenge_creation_key: body.requestKey,
     }, '-created_date', 2);
-    if (existing.length) return { match: existing[0], inviteCode: existing[0].invite_code, path: challengePath(existing[0].invite_code) };
+    if (existing.length) {
+      if (Number(existing[0].wager_amount) !== Number(body.entryAmount) || (existing[0].challenge_rematch_of || '') !== (body.rematchOf || ''))
+        fail('request_conflict', 'This request already created a challenge with different terms. Start a new request.');
+      return { match: existing[0], inviteCode: existing[0].invite_code, path: challengePath(existing[0].invite_code) };
+    }
     const open = await base44.asServiceRole.entities.Match.filter({ launch_epoch: 2, player1_id: user.id,
       challenge_version: CHALLENGE_VERSION, status: 'searching' }, '-created_date', 100);
     if (open.filter((m: any) => !challengeExpired(m) || activeOperation(m)).length >= CHALLENGE_OPEN_LIMIT)
       fail('open_limit', `You can have up to ${CHALLENGE_OPEN_LIMIT} open challenge links. Cancel an old link first.`);
     if (!await takeChallengeRateLimit(`create:${user.id}`, 20, 3600)) fail('rate_limited', 'Please wait before creating more challenges.', 429);
+    let rematchOf = '';
+    let targetId = '';
+    if (body.rematchOf) {
+      const previous = await base44.asServiceRole.entities.Match.get(String(body.rematchOf));
+      if (!previous || Number(previous.launch_epoch) !== 2 || previous.status !== 'completed' || !roleFor(previous, user.id))
+        fail('invalid_rematch', 'Choose a completed match from your own history.', 403);
+      rematchOf = previous.id;
+      targetId = previous.player1_id === user.id ? previous.player2_id : previous.player1_id;
+    }
     const code = crypto.randomUUID().replaceAll('-', '');
     const createdAt = nowIso();
     const match = await base44.asServiceRole.entities.Match.create({
@@ -107,6 +120,7 @@ export async function createChallenge(base44: any, user: any, body: any) {
       time_control: 'blitz', display_name: 'Blitz (5+0)', clock_initial_ms: CHALLENGE_CLOCK_MS,
       status: 'searching', is_private: true, invite_code: code, challenge_version: CHALLENGE_VERSION,
       challenge_creation_key: body.requestKey, challenge_location_started_at: createdAt,
+      challenge_rematch_of: rematchOf, challenge_target_id: targetId,
       challenge_expires_at: new Date(Date.now() + CHALLENGE_TTL_MS).toISOString(),
       challenge_operation_state: 'idle', player1_deposited: false, player2_deposited: false,
       player1_certified: false, player2_certified: false,
@@ -126,7 +140,8 @@ export async function listMyChallenges(base44: any, user: any) {
 
 export async function authorizeChallenge(req: Request, base44: any, user: any, match: any, body: any) {
   if (match.player1_id !== user.id) fail('forbidden', 'Only the creator can enable acceptance.', 403);
-  if (body.agree !== true) fail('consent_required', 'Agree to the displayed entry, fee, and Fair Play requirements.', 400);
+  if (body.agree !== true || Number(body.entryAmount) !== Number(match.wager_amount) || Number(body.serviceFee) !== Number(match.platform_service_fee))
+    fail('consent_required', 'Review and agree to the displayed entry, fee, and Fair Play requirements.', 400);
   return underMatchLock(base44, match.id, async (fresh) => {
     if (fresh.status !== 'searching' || challengeExpired(fresh) || activeOperation(fresh)) fail('unavailable', 'This challenge is no longer open.');
     await requireChallengePlayer(base44, user.id, fresh);
@@ -214,7 +229,10 @@ async function recoverReservation(base44: any, match: any, owner: string) {
 
 export async function acceptChallenge(req: Request, base44: any, user: any, match: any, body: any) {
   if (match.player1_id === user.id) fail('own_challenge', 'You cannot accept your own challenge.', 400);
-  if (body.agree !== true) fail('consent_required', 'Review and agree to the entry, fee, and Fair Play requirements.', 400);
+  if (body.agree !== true || Number(body.entryAmount) !== Number(match.wager_amount) || Number(body.serviceFee) !== Number(match.platform_service_fee))
+    fail('consent_required', 'Review and agree to the displayed entry, fee, and Fair Play requirements.', 400);
+  if (match.challenge_target_id && match.challenge_target_id !== user.id)
+    fail('different_opponent', 'This rematch invitation is for the previous opponent.', 403);
   return underMatchLock(base44, match.id, async (fresh, owner) => {
     if (fresh.player2_id === user.id && ['preparing', 'both_ready', 'in_progress', 'completed'].includes(fresh.status))
       return { match: fresh, accepted: true, replay: true };
