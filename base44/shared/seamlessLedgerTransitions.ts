@@ -1,3 +1,4 @@
+import { settleQueuedWithdrawalFee } from './queuedWithdrawalFee.ts';
 import { buildCheckLookupPath, seamlessRequest } from './seamlessAch.ts';
 import { bankWithdrawalAt } from './depositTiming.js';
 import { postLedgerLegs, applyBalanceHold } from './ledger.ts';
@@ -36,6 +37,7 @@ async function verifyProcessedDeposit(base44, transaction) {
 }
 
 export async function refundWithdrawalFee(base44, withdrawal, providerRef, reason = 'withdrawal_failed') {
+  if(withdrawal.withdrawal_requested_at)await settleQueuedWithdrawalFee(base44,withdrawal,true);
   const feeKey = withdrawal.idempotency_key ? `${withdrawal.idempotency_key}:fee` : '';
   if (!feeKey) return null;
   const fee = (await base44.asServiceRole.entities.WalletTransaction.filter(

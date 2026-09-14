@@ -61,6 +61,7 @@ Deno.serve(async (req) => {
         console.error(JSON.stringify({event:'deposit_clearance_check_failed',wallet_transaction_id:tx.id,error:String(error?.message||'unknown').slice(0,128)}));
       }
     }
-    return Response.json(summary);
+    const queue=await base44.functions.invoke('processQueuedWithdrawals',{});
+    return Response.json({...summary,withdrawal_queue:queue.data});
   }catch(error){return Response.json({error:'deposit_clearance_sweep_failed'},{status:500});}
 });

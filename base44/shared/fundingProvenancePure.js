@@ -101,7 +101,7 @@ export function transitionFunding(states, legs, context, sources, now = Date.now
   const matchSources = (context.matchSources || []).filter(id => sourceState(sources[id], now) !== 'clear');
   if (context.captureSources) context.captureSources([...new Set([...matchSources, ...allSources])]);
   const crossUser = outputs.some(output => output.amount > (inputs[output.userId] || []).reduce((sum, lot) => sum + lot.cents, 0));
-  const spending = ['challenge_reservation', 'match_entry', 'wager_lock', 'service_fee_charge', 'withdrawal_reservation', 'withdrawal_fee'].includes(context.triggerEvent);
+  const spending = ['challenge_reservation', 'match_entry', 'wager_lock', 'service_fee_charge', 'withdrawal_reservation', 'withdrawal_request_reservation', 'withdrawal_fee'].includes(context.triggerEvent);
   if (spending && allSources.some(id => sourceState(sources[id], now) === 'blocked')) throw new Error('ach_return_review_required');
   for (const output of outputs) {
     const inherited = crossUser ? [...new Set([...allSources, ...matchSources])] : [...new Set((inputs[output.userId] || []).flatMap(lot => lot.sources))];

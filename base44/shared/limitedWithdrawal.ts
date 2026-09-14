@@ -13,13 +13,13 @@ export async function sendLimitedWithdrawal(base44, transactionId, body) {
   for (let offset = 0; ; offset += 500) {
     if (offset >= 10000) throw new Error('Payout history requires reconciliation');
     const rows = await base44.asServiceRole.entities.WalletTransaction.filter(
-      { type: 'withdrawal', created_date: { $gte: since } }, 'created_date', 500, offset);
+      { type: 'withdrawal' }, 'created_date', 500, offset);
     for (const row of rows) {
       if (row.id === transactionId) continue;
       if (['submitted', 'settled', 'uncertain', 'reversed'].includes(row.integration_status) ||
-          (row.integration_status === 'submitting' && Date.parse(row.created_date) < Date.now() - 180000)) {
+          (row.integration_status === 'submitting' && Date.parse(row.withdrawal_provider_attempt_at || row.created_date) < Date.now() - 180000)) {
         const amount = Math.round(Number(row.amount) * 100);
-        const at = Date.parse(row.created_date);
+        const at = Date.parse(row.withdrawal_provider_attempt_at || row.created_date);
         if (!Number.isSafeInteger(amount) || amount <= 0 || !Number.isFinite(at)) {
           throw new Error('Payout history requires reconciliation');
         }

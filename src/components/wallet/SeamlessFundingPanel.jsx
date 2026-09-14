@@ -170,7 +170,7 @@ export default function SeamlessFundingPanel({
       // asks the server for the same logical transfer, never a second ACH request.
       if (data?.status !== "uncertain") requestKey.current = "";
       if (data?.status !== "uncertain") setAmount("");
-      setNotice(data?.status === "uncertain" ? "Your bank has not confirmed this request yet. Do not submit another transfer; check Transaction History for updates." : direction === "deposit" ? "Deposit requested. Funds become available to play after Processed and the final checks. A separate withdrawal hold applies. Follow its progress in Transaction History." : "Withdrawal requested. Follow its progress in Transaction History.");
+      setNotice(data?.status === "uncertain" ? "Your bank has not confirmed this request yet. Do not submit another transfer; check Transaction History for updates." : direction === "deposit" ? "Deposit requested. Funds become available to play after Processed and the final checks. Follow its progress in Transaction History." : "Withdrawal requested. We’ll email your confirmation and estimated arrival date. Follow its progress in Transaction History.");
       await load();
       if (onRefresh) onRefresh();
     } catch (e) {
@@ -225,7 +225,7 @@ export default function SeamlessFundingPanel({
   // withdrawing the entire available balance skips the small-withdrawal fee,
   // so a balance under $10 (or even under the fee itself) is never stranded.
   const isFullBalanceWithdrawal =
-    !!wallet && parsedAmount > 0 && parsedAmount >= (state?.funding?.available_to_withdraw || 0) - 0.005;
+    !!wallet && parsedAmount > 0 && parsedAmount >= (state?.funding?.available_to_play || 0) - 0.005;
 
   const journey = walletJourneyCopy({wallet: wallet || {}, funding: state || {}, pendingDeposits});
   const location = state?.onboarding_location?.allowed ? state.onboarding_location : locationOverride || state?.onboarding_location;
@@ -300,13 +300,6 @@ export default function SeamlessFundingPanel({
       </section>
 
       {/* Provider webhooks are authoritative for account and bank status. */}
-      {Number(state?.funding?.withdrawal_restricted_balance) > 0 && (
-        <div className="rounded-xl border border-[#C9A84C]/20 bg-[#C9A84C]/5 p-3 text-xs text-white/70">
-          ${Number(state.funding.withdrawal_restricted_balance).toFixed(2)} is under a bank withdrawal hold.
-          {state.funding.next_withdrawal_review_at && <> Next review: {new Date(state.funding.next_withdrawal_review_at).toLocaleString()}.</>}
-          {" "}Deposits can be played after bank confirmation. Withdrawals require five business days from submission and a final bank check. Prizes and refunds may inherit the remaining hold.
-        </div>
-      )}
       {effectiveWithdrawalHold && (
         <p className="text-xs text-red-400/80 text-center">
           Withdrawals are temporarily on hold while we complete a routine account review.
@@ -384,7 +377,7 @@ export default function SeamlessFundingPanel({
                 </h4>
                 <p className="mt-1 text-xs leading-relaxed text-white/45">
                   {direction === "deposit"
-                    ? journey.anotherDeposit ? "Use available funds to create or accept match challenges. Bank withdrawals are limited to your Available to Withdraw balance." : "Choose an amount and add it securely from your connected bank."
+                    ? journey.anotherDeposit ? "Use your available funds to play or request a withdrawal." : "Choose an amount and add it securely from your connected bank."
                     : "Send available wallet funds back to your connected bank."}
                 </p>
               </div>
@@ -590,7 +583,7 @@ export default function SeamlessFundingPanel({
 
               {direction === "withdrawal" && (
                 <p role="note" className="text-center text-xs leading-relaxed text-white/60">
-                  Up to $1,100 per request. Bank transfers share a platform allowance of $1,100 over 24 hours and $22,000 over 31 days. If capacity is full, your funds stay in your wallet so you can try again later. Requests are not queued automatically. Bank processing time is additional.
+                  Request up to $1,100. We’ll email a confirmation with your estimated arrival date. Requested funds are reserved while your withdrawal is processed.
                 </p>
               )}
 
@@ -598,7 +591,7 @@ export default function SeamlessFundingPanel({
 
               {exceedsAvailableBalance && (
                 <p className="text-center text-xs text-red-400">
-                  Enter an amount no greater than your ${availableBalance.toFixed(2)} available-to-withdraw balance.
+                  Enter an amount no greater than your ${availableBalance.toFixed(2)} available balance.
                 </p>
               )}
 
@@ -624,7 +617,7 @@ export default function SeamlessFundingPanel({
                   <div className="flex justify-between gap-3 text-white/75"><span>Added to your wallet</span><span>${quote.walletAmount.toFixed(2)}</span></div>
                   <div className="flex justify-between gap-3 text-white/60"><span>Deposit fee</span><span>${quote.fee.toFixed(2)}</span></div>
                   <div className="flex justify-between gap-3 border-t border-white/10 pt-3 font-semibold text-white"><span>Total bank charge</span><span>${quote.bankDebit.toFixed(2)}</span></div>
-                  <p className="pt-1 text-[11px] leading-relaxed text-white/45">The deposit fee helps ChessBet cover payment processing and verification expenses. Your wallet receives the full ${quote.walletAmount.toFixed(2)} for play after Seamless reports Processed and the final checks pass. A separate withdrawal hold applies.</p>
+                  <p className="pt-1 text-[11px] leading-relaxed text-white/45">The deposit fee helps ChessBet cover payment processing and verification expenses. Your wallet receives the full ${quote.walletAmount.toFixed(2)} for play after Seamless reports Processed and the final checks pass.</p>
                   <p className="text-[11px] leading-relaxed text-white/60">By clicking Deposit, you authorize a one-time debit of ${quote.bankDebit.toFixed(2)} from the connected bank shown above, including the ${quote.fee.toFixed(2)} deposit fee.</p>
                 </div>
               )}
@@ -632,7 +625,7 @@ export default function SeamlessFundingPanel({
               {direction === "deposit" && (
                 <p className="text-center text-xs leading-relaxed text-white/50">
                   Deposits become available to play after the bank reports Processed and the final checks pass.
-                  We’ll notify you when they are ready to play. A separate five-business-day withdrawal hold applies.
+                  We’ll notify you when they are ready to play.
                 </p>
               )}
 
@@ -666,7 +659,7 @@ export default function SeamlessFundingPanel({
                         ? "Maximum withdrawal is $1,100.00"
                       : exceedsAvailableBalance
                         ? "Amount exceeds available balance"
-                        : "Withdraw $" + formattedAmount + " to bank"
+                        : "Request $" + formattedAmount + " withdrawal"
                 )}
               </Button>
 
