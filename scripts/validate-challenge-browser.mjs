@@ -137,7 +137,8 @@ try{
   for (const [value,label,minutes] of [['blitz','Blitz',3],['rapid','Rapid',10],['classical','Classical',15]]) {
     await scenario('create-'+value,{who:'p1',path:'/play',width:value==='rapid'?1280:390},async page=>{
       await page.getByRole('button',{name:'Create Challenge',exact:true}).click();
-      await page.getByRole('radio',{name:label+' '+minutes+' min',exact:true}).check();
+      await page.getByText(label,{exact:true}).click();
+      assert.equal(await page.getByRole('radio',{name:label+' '+minutes+' min',exact:true}).isChecked(),true);checks++;
       assert.equal(await page.getByText('The winner award includes both entry amounts; the fee is separate.',{exact:false}).count(),0);checks++;
       await page.getByRole('button',{name:'Create Challenge Link',exact:true}).click();
       await page.waitForURL('**/challenge/'+code);
