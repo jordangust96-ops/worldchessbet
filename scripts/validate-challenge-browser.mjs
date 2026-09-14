@@ -171,8 +171,8 @@ try{
   }
   await scenario('one-open-challenge',{who:'p1',path:'/play'},async page=>{
     const create=page.getByRole('button',{name:'Create Challenge',exact:true});
-    await page.getByText('You already have a challenge.',{exact:false}).waitFor();
-    assert.equal(await create.isEnabled(),false);checks++;
+    await page.getByRole('heading',{name:'Your pending challenge',exact:true}).waitFor();
+    assert.equal(await create.count(),0);checks++;
     await page.getByRole('button',{name:'Find an Opponent',exact:false}).click();
     assert.equal(await page.getByRole('button',{name:'Create $10 Rapid Challenge',exact:true}).count(),0);checks++;
     await page.getByRole('button',{name:'Cancel',exact:true}).click();
@@ -264,6 +264,18 @@ try{
     assert.equal(await page.getByRole('switch',{name:'Show in Find an Opponent',exact:true}).isEnabled(),false);checks++;
     assert.equal(await page.evaluate(()=>window.__challengeQA.calls.find(c=>c.body.action==='create').body.rematchOf),'qa-match');checks++;
   });
+  for (const publiclyListed of [false,true]) {
+    await scenario('pending-hud-'+publiclyListed,{who:'p1',path:'/play',publiclyListed},async page=>{
+      await page.getByRole('heading',{name:'Your pending challenge',exact:true}).waitFor();checks++;
+      assert.equal(await page.getByRole('heading',{name:'Challenge Someone',exact:true}).count(),0);checks++;
+      assert.equal(await page.getByRole('button',{name:'Create Challenge',exact:true}).count(),0);checks++;
+      await page.getByText(publiclyListed?'Public challenge':'Link-only challenge',{exact:true}).waitFor();checks++;
+      await page.getByRole('button',{name:'Find an Opponent',exact:false}).click();
+      await page.getByRole('button',{name:'Refresh Available Matches',exact:true}).waitFor();checks++;
+      await page.getByRole('button',{name:'Cancel',exact:true}).click();
+      await page.getByRole('button',{name:'Create Challenge',exact:true}).waitFor();checks++;
+    });
+  }
 }finally{await browser.close();}
 console.log(JSON.stringify({checks,scenarios,failed:failures,screenshots:'/tmp/chessbet-challenge-screenshots'},null,2));
 process.exitCode=failures.length?1:0;
