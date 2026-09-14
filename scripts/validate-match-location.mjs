@@ -177,8 +177,10 @@ assert.ok(confirm.includes('alreadyReserved && match.status'));
 assert.ok(confirm.includes('await verifyMatchLocation(req, match, {'));
 const lock=fs.readFileSync('base44/shared/lockWager.ts','utf8');
 assert.ok(lock.indexOf('await verifyMatchLocation(req, match')<lock.indexOf('await postLedgerLegs('));
-for(const name of ['createMatch','acceptMatch'])
+for(const name of ['acceptMatch'])
   assert.ok(fs.readFileSync('base44/functions/'+name+'/entry.ts','utf8').includes('await runContestEligibility(req, {'));
+assert.ok(fs.readFileSync('base44/functions/createMatch/entry.ts','utf8').includes('unified_challenge_required'));
+assert.ok(fs.readFileSync('base44/shared/challengeLifecycle.ts','utf8').includes('await verifyMatchLocation(req, fresh, body)'));
 assert.ok(fs.readFileSync('base44/shared/runContestEligibility.ts','utf8').includes('getRequestJurisdiction(req, {'));
 console.log('Match location passed: match/user binding, two-player freshness, failure/expiry refusal, original edge IP, fresh provider checks for every role, and no game creation on invalid evidence.');
 
