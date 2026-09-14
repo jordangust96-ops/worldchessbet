@@ -66,12 +66,12 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
     </div> : null}
     {!selectedCode && !loading && (challenges.length > 0 || activePublic) && <div className="border-t border-white/10 pt-4">
       <h2 className="mb-3 text-sm font-semibold text-white/75">Your pending challenge</h2>
-      {loading ? <Loader2 size={18} className="animate-spin text-white/40"/> : challenges.length ? <div className="space-y-2">{challenges.map(card=><article key={card.id} className="rounded-2xl border border-white/10 bg-white/[0.025] p-3">
+      {challenges.length > 0 && <div className="space-y-2">{challenges.map(card=><article key={card.id} className="rounded-2xl border border-white/10 bg-white/[0.025] p-3">
         <div className="flex items-center justify-between gap-3"><Link to={`/play?challenge=${card.inviteCode}`} className="font-semibold text-white">${Number(card.entryAmount).toFixed(2)} · {card.displayName}</Link><span className="text-xs text-[#C9A84C]">{card.status==='open'?(card.publiclyListed?'Public challenge':'Link-only challenge'):card.status==='processing'?'Confirming…':'Accepted'}</span></div>
         <div className="mt-3 flex flex-wrap items-center gap-4 text-xs"><Link to={`/play?challenge=${card.inviteCode}`} className="font-semibold text-[#C9A84C]">{card.status==='open'?'Open Challenge':'Open Match'}</Link>
           {card.status==='open' && <><button onClick={()=>share(card)} className="inline-flex items-center gap-1 text-white/55"><Share2 size={13}/>Share</button><button onClick={()=>cancel(card)} disabled={Boolean(busyId)} className="text-white/40">{busyId===card.id?'Cancelling…':'Cancel'}</button></>}
         </div>
-      </article>)}</div> : <p className="text-sm text-white/35">Your challenge will appear here. You can have one open challenge at a time.</p>}
+      </article>)}</div>}
       {activePublic && <ActiveChallengeCard match={activePublic} onCancel={async()=>{await base44.functions.invoke('cancelMatch',{matchId:activePublic.id});await refresh();}}/>}
     </div>}
     {error && <p role="status" className="text-xs text-[#E5CA7A]">{error}</p>}
@@ -79,8 +79,6 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
       <button onClick={()=>setShowPublic(value=>!value)} aria-expanded={showPublic} className="flex w-full items-center justify-between gap-3 text-left"><div><h2 className="font-semibold text-white/80">Find an Opponent</h2><p className="mt-1 text-xs text-white/40">Browse public challenges.</p></div><ChevronDown className={`text-white/40 transition-transform ${showPublic?'rotate-180':''}`} size={18}/></button>
       {showPublic && <div className="mt-4 space-y-4">
         <AvailableMatchSection userId={userId} balance={balance} activeMatch={activePublic} onChallengeCancelled={()=>setActivePublic(null)} onAccepted={onMatchAccepted} onReview={code=>navigate(`/play?challenge=${code}&accept=1`)}/>
-        <div className="h-px bg-white/10"/>
-
       </div>}
     </div>
   </section>;
