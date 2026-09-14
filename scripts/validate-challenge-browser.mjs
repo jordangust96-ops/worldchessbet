@@ -8,17 +8,17 @@ const browser = await chromium.launch({ headless:true, args:['--no-sandbox'] });
 const code = 'a'.repeat(32);
 let checks=0;
 const failures=[];
-async function scenario(name,{who=null,funded=false,status='open',hasChallenge=true,creatorReady=true,width=390,path=`/challenge/${code}`}={},work){
+async function scenario(name,{who=null,funded=false,status='open',hasChallenge=true,creatorReady=true,publiclyListed=false,width=390,path=`/challenge/${code}`}={},work){
   const context=await browser.newContext({viewport:{width,height:844}});
   const page=await context.newPage();
   const errors=[];
   page.on('pageerror',error=>errors.push(error.message));
   // All backend calls use an in-browser mock; all outbound requests are
   // blocked. This suite never creates real accounts, contests or payments.
-  await context.addInitScript(({who,funded,status,code,hasChallenge,creatorReady})=>{
+  await context.addInitScript(({who,funded,status,code,hasChallenge,creatorReady,publiclyListed})=>{
     const user=who?{id:who,role:'user',launch_epoch:2,mfa_bypass:true,account_state:'verified',chess_com_username:who,full_name:'Test Player'}:null;
-    const match={id:'qa-match',launch_epoch:2,challenge_version:1,player1_id:'p1',...(status==='claimed'?{player2_id:'p2'}:{}),wager_amount:25,platform_service_fee:2,platform_fee_schedule_version:'2026-07-28',time_control:'blitz',display_name:'Blitz (5+0)',clock_initial_ms:300000,status:status==='claimed'?'preparing':status==='open'?'searching':'cancelled',is_private:true,invite_code:code,player1_certified:status==='claimed',player2_certified:status==='claimed',player1_deposited:status==='claimed',player2_deposited:status==='claimed',preparation_started_at:new Date().toISOString(),challenge_expires_at:new Date(Date.now()+86400000).toISOString()};
-    const card=()=>({id:match.id,creatorName:'Jordan',entryAmount:25,serviceFee:2,totalRequired:27,winnerAward:50,displayName:match.display_name,expiresAt:match.challenge_expires_at,status:match.status==='searching'?'open':match.status==='preparing'?'claimed':'cancelled',creatorReady,creatorReadyUntil:new Date(Date.now()+119000).toISOString()});
+    const match={challenge_publicly_listed:publiclyListed,id:'qa-match',launch_epoch:2,challenge_version:1,player1_id:'p1',...(status==='claimed'?{player2_id:'p2'}:{}),wager_amount:25,platform_service_fee:2,platform_fee_schedule_version:'2026-07-28',time_control:'blitz',display_name:'Blitz (5+0)',clock_initial_ms:300000,status:status==='claimed'?'preparing':status==='open'?'searching':'cancelled',is_private:true,invite_code:code,player1_certified:status==='claimed',player2_certified:status==='claimed',player1_deposited:status==='claimed',player2_deposited:status==='claimed',preparation_started_at:new Date().toISOString(),challenge_expires_at:new Date(Date.now()+86400000).toISOString()};
+    const card=()=>({publiclyListed:match.challenge_publicly_listed,id:match.id,creatorName:'Jordan',entryAmount:25,serviceFee:2,totalRequired:27,winnerAward:50,displayName:match.display_name,expiresAt:match.challenge_expires_at,status:match.status==='searching'?'open':match.status==='preparing'?'claimed':'cancelled',creatorReady,creatorReadyUntil:new Date(Date.now()+119000).toISOString()});
     const wallet={id:'qa-wallet',user_id:who,balance:funded?100:0,available_balance:funded?100:0,held_balance:status==='claimed'?27:0,total_balance:funded?100:0};
     const calls=[];
     const listeners=[];
@@ -39,7 +39,8 @@ async function scenario(name,{who=null,funded=false,status='open',hasChallenge=t
         if(name==='manageChallenge'){
           if(body.action==='view')return {data:{challenge:card(),role:who==='p1'?'player1':who==='p2'&&match.player2_id?'player2':'',participant:who==='p1'||(who==='p2'&&!!match.player2_id)}};
           if(body.action==='list')return {data:{challenges:hasChallenge&&who==='p1'&&match.status==='searching'?[{...card(),inviteCode:code,path:'/challenge/'+code}]:[]}};
-          if(body.action==='create'){hasChallenge=true;const tc={blitz:['Blitz (3+0)',180000],rapid:['Rapid (10+0)',600000],classical:['Classical (15+0)',900000]}[body.timeControl];update({time_control:body.timeControl,display_name:tc[0],clock_initial_ms:tc[1]});return {data:{match:{...match},inviteCode:code,path:'/challenge/'+code}};}
+          if(body.action==='create'){hasChallenge=true;const tc={blitz:['Blitz (3+0)',180000],rapid:['Rapid (10+0)',600000],classical:['Classical (15+0)',900000]}[body.timeControl];update({challenge_publicly_listed:body.publiclyListed,time_control:body.timeControl,display_name:tc[0],clock_initial_ms:tc[1]});return {data:{match:{...match},inviteCode:code,path:'/challenge/'+code}};}
+          if(body.action==='visibility'){update({challenge_publicly_listed:body.publiclyListed});return {data:{challenge:card()}};}
           if(body.action==='readiness')return {data:funded?{ready:true,availableBalance:100,totalRequired:27}:{ready:false,code:'funds_required',reason:'Your wallet needs enough available funds. Pending funds do not count.',availableBalance:0,totalRequired:27}};
           if(body.action==='remember')return {data:{remembered:true,reserved:false}};
           if(body.action==='intent')return {data:{intent:null}};
@@ -55,7 +56,7 @@ async function scenario(name,{who=null,funded=false,status='open',hasChallenge=t
         if(name==='ensureWallet')return {data:{wallet:{...wallet}}};
         if(name==='getUserDisplayNames')return {data:{names:{p1:'Jordan',p2:'Opponent'}}};
         if(name==='getLaunchAvailability')return {data:{paid_contests_enabled:true,deposits_enabled:true}};
-        if(name==='getAvailableMatches')return {data:{matches:[]}};
+        if(name==='getAvailableMatches')return {data:{matches:hasChallenge && match.challenge_publicly_listed && who!=='p1' && match.status==='searching' ? [{...match,opponentName:'Jordan',challengePath:'/challenge/'+code,ratingStatus:'unavailable'}] : []}};
         if(name==='validateMfaSession')return {data:{valid:true}};
         if(name==='getSeamlessWalletState')return {data:{enabled:true,deposits_enabled:true,withdrawals_enabled:true,identity:{status:'verified'},bank_accounts:[]}};
         if(name==='getMyRating')return {data:{rating:null}};
@@ -66,7 +67,7 @@ async function scenario(name,{who=null,funded=false,status='open',hasChallenge=t
     window.__challengeQA={user,match,wallet,calls,sdk};
     if(who)localStorage.setItem('base44_access_token','isolated-browser-fixture-not-a-real-token');
     Object.defineProperty(navigator,'geolocation',{configurable:true,value:{getCurrentPosition:(_ok,fail)=>fail({code:1})}});
-  },{who,funded,status,code,hasChallenge,creatorReady});
+  },{who,funded,status,code,hasChallenge,creatorReady,publiclyListed});
   await page.route('**/*',async route=>{
     const url=new URL(route.request().url());
     if(!['localhost','127.0.0.1'].includes(url.hostname))return route.abort();
@@ -168,7 +169,7 @@ try{
     await page.getByText('You already have a challenge.',{exact:false}).waitFor();
     assert.equal(await create.isEnabled(),false);checks++;
     await page.getByRole('button',{name:'Find an Opponent',exact:false}).click();
-    assert.equal(await page.getByRole('button',{name:'Create $10 Rapid Challenge',exact:true}).isEnabled(),false);checks++;
+    assert.equal(await page.getByRole('button',{name:'Create $10 Rapid Challenge',exact:true}).count(),0);checks++;
     await page.getByRole('button',{name:'Cancel',exact:true}).click();
     await create.click();
     await page.getByRole('button',{name:'Create Challenge Link',exact:true}).waitFor();checks++;
@@ -195,6 +196,36 @@ try{
       }
     });
   }
+  await scenario('create-public-toggle',{who:'p1',hasChallenge:false,path:'/play'},async page=>{
+    await page.getByRole('button',{name:'Create Challenge',exact:true}).click();
+    const toggle=page.getByRole('switch',{name:'Show in Find an Opponent',exact:true});
+    assert.equal(await toggle.getAttribute('aria-checked'),'false');checks++;
+    await toggle.click();
+    await page.getByRole('button',{name:'Create Challenge Link',exact:true}).click();
+    await page.waitForURL('**/challenge/'+code);
+    assert.equal(await toggle.getAttribute('aria-checked'),'true');checks++;
+    assert.equal(await page.evaluate(()=>window.__challengeQA.calls.find(c=>c.body.action==='create').body.publiclyListed),true);checks++;
+    await toggle.click();
+    await page.getByText('Only people with your link can find and accept this challenge.',{exact:true}).waitFor();checks++;
+    assert.equal(await page.evaluate(()=>window.__challengeQA.calls.filter(c=>c.body.action==='visibility').length),1);checks++;
+    assert.equal(await page.evaluate(()=>window.__challengeQA.calls.filter(c=>['authorize','accept'].includes(c.body.action)).length),0);checks++;
+  });
+  for (const funded of [false,true]) {
+    await scenario('marketplace-accept-'+funded,{who:'p2',funded,publiclyListed:true,path:'/play?mode=public'},async page=>{
+      await page.getByRole('button',{name:'Accept Challenge',exact:true}).click();
+      await page.waitForURL('**/challenge/'+code+'?accept=1');checks++;
+      if(funded){
+        await page.getByRole('checkbox').check();
+        await page.getByRole('button',{name:'Accept & Reserve $27.00',exact:true}).click();
+        await page.waitForURL('**/play?match=qa-match');checks++;
+        assert.equal(await page.evaluate(()=>window.__challengeQA.calls.filter(c=>c.body.action==='accept').length),1);checks++;
+      }else{
+        await page.getByRole('heading',{name:'Available funds required'}).waitFor();checks++;
+        assert.equal(await page.evaluate(()=>window.__challengeQA.calls.filter(c=>c.body.action==='accept').length),0);checks++;
+      }
+      assert.equal(await page.evaluate(()=>window.__challengeQA.calls.filter(c=>['acceptMatch','createMatch','cancelMatch'].includes(c.name)).length),0);checks++;
+    });
+  }
 }finally{await browser.close();}
-console.log(JSON.stringify({checks,scenarios:15,failed:failures,screenshots:'/tmp/chessbet-challenge-screenshots'},null,2));
+console.log(JSON.stringify({checks,scenarios:18,failed:failures,screenshots:'/tmp/chessbet-challenge-screenshots'},null,2));
 process.exitCode=failures.length?1:0;
