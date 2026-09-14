@@ -103,7 +103,7 @@ function getTransactionExplanation(tx, match) {
       : "eligible for release after the 24-hour reporting window when no open dispute or blocking integrity or reconciliation flag remains";
     return {
       heading: "Pending release",
-      text: `You won this contest and ${amount} has been credited, but held pending the standard 24-hour contest reporting window — ${releaseText}. It does not count toward your available balance yet. Any inherited deposit withdrawal hold still applies after release.`,
+      text: `You won this contest and ${amount} has been credited, but held pending the standard 24-hour contest reporting window — ${releaseText}. It does not count toward your available balance yet.`,
     };
   }
   if (isSuppressedDuplicate(tx)) {

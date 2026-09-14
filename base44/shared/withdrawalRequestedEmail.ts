@@ -180,7 +180,7 @@ export async function sendWithdrawalRequestedEmail(base44: any, transaction: any
       amount: fresh.amount,
       result: 'email_accepted',
       eventData: {
-        email_type: 'withdrawal_request',
+        email_type: 'withdrawal_requested',
         available_balance: money(wallet.available_balance),
         total_balance: money(wallet.total_balance),
       },
@@ -202,7 +202,7 @@ export async function sendWithdrawalRequestedEmail(base44: any, transaction: any
     await logEmail(base44, {
       user_id: fresh.user_id,
       recipient_email: recipient || 'unavailable',
-      email_type: 'withdrawal_request',
+      email_type: 'withdrawal_requested',
       subject: subject || 'ChessBet withdrawal request',
       status: 'failed',
       error_message: safeError,
