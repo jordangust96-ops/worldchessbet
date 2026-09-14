@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Share2, Swords, Plus, Loader2, ChevronDown } from 'lucide-react';
+import { Share2, Swords, Plus, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 import { challengeRequest, challengeErrorMessage } from '@/lib/challengeApi';
@@ -17,7 +17,6 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
   const requestedCode = new URLSearchParams(location.search).get("challenge");
   const selectedCode = /^[a-f0-9]{32}$/.test(requestedCode || "") ? requestedCode : "";
   const [creating,setCreating] = useState(false);
-  const [showPublic,setShowPublic] = useState(()=>new URLSearchParams(location.search).get('mode')==='public');
   const [challenges,setChallenges] = useState([]);
   const [activePublic,setActivePublic] = useState(null);
   const [loading,setLoading] = useState(true);
@@ -58,10 +57,6 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
   };
   const existingChallenge = challenges.find(card => ['open','processing','claimed'].includes(card.status));
   const creationBlocked = loading || loadFailed || Boolean(activePublic) || Boolean(existingChallenge);
-  const pendingId = existingChallenge?.id || activePublic?.id || '';
-  useEffect(() => {
-    if (pendingId) setShowPublic(true);
-  }, [pendingId]);
 
   return <section className="space-y-5 rounded-3xl border border-white/5 bg-gradient-to-br from-[#1A1A1A] to-[#111] p-5 lg:h-full lg:overflow-y-auto lg:p-5">
     {userId && <LiveStatsBar />}
@@ -106,10 +101,10 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
     </div>}
     {error && <p role="status" className="text-xs text-[#E5CA7A]">{error}</p>}
     <div className="border-t border-white/10 pt-4">
-      <button onClick={()=>setShowPublic(value=>!value)} aria-expanded={showPublic} className="flex w-full items-center justify-between gap-3 text-left"><div><h2 className="font-semibold text-white/80">Find an Opponent</h2><p className="mt-1 text-xs text-white/40">Browse public challenges.</p></div><ChevronDown className={`text-white/40 transition-transform ${showPublic?'rotate-180':''}`} size={18}/></button>
-      {showPublic && <div className="mt-4 space-y-4">
+      <h2 className="font-semibold text-white/80">Find an Opponent</h2><p className="mt-1 text-xs text-white/40">Browse public challenges.</p>
+      <div className="mt-4 space-y-4">
         <AvailableMatchSection userId={userId} balance={balance} activeMatch={activePublic} onChallengeCancelled={()=>setActivePublic(null)} onAccepted={onMatchAccepted} onReview={code=>navigate(`/play?challenge=${code}&accept=1`)}/>
-      </div>}
+      </div>
     </div>
   </section>;
 }

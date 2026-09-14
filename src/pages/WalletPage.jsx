@@ -7,7 +7,6 @@ import Logo from "@/components/Logo";
 import RestrictedModeBanner from "@/components/RestrictedModeBanner";
 import TransactionHistory from "@/components/wallet/TransactionHistory";
 import SeamlessFundingPanel from "@/components/wallet/SeamlessFundingPanel";
-import ChallengeFundingContext from "@/components/wallet/ChallengeFundingContext";
 
 const TX_PAGE_SIZE = 20;
 const MATCH_HISTORY_PAGE_SIZE = 500;
@@ -266,8 +265,6 @@ export default function WalletPage() {
             </div>
           </div>
         </div>
-
-        <ChallengeFundingContext userId={userId} availableBalance={wallet?.available_balance || 0} />
 
         <SeamlessFundingPanel
           wallet={wallet}

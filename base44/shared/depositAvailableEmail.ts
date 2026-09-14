@@ -35,16 +35,6 @@ function usd(value: unknown) {
   });
 }
 
-function easternDate(value: unknown) {
-  const date = new Date(String(value || ''));
-  if (!Number.isFinite(date.getTime())) return 'Not available';
-  return new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/New_York',
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date) + ' ET';
-}
-
 function retryAt(attempts: number) {
   const index = Math.min(Math.max(attempts - 1, 0), RETRY_DELAYS_MS.length - 1);
   return new Date(Date.now() + RETRY_DELAYS_MS[index]).toISOString();
@@ -128,58 +118,13 @@ export async function sendDepositAvailableEmail(base44: any, transaction: any) {
     const supportEmail = policies[0]?.support_email || 'hello@worldchessbet.com';
     const firstName = escapeHtml(String(user?.full_name || '').trim().split(/\s+/)[0] || 'there');
     const amount = usd(fresh.amount);
-    const totalBalance = usd(wallet.total_balance);
-    const availableBalance = usd(wallet.available_balance);
-    const submittedAt = easternDate(fresh.created_date);
-    const availableAt = easternDate(new Date().toISOString());
-    const transactionId = escapeHtml(fresh.id);
-    let challengeContextHtml = '';
-    let challengeCta = { text: 'Challenge Someone', url: `${appUrl}/play` };
-    // Saved funding intent is only navigation context, never an opponent
-    // reservation or authorization to enter a contest automatically.
-    try {
-      const intents = await base44.asServiceRole.entities.IntegrationEvent.filter({
-        event_type: 'challenge.funding_intent', user_id: fresh.user_id,
-        occurred_at: { $gte: new Date(Date.now() - 14 * 86400000).toISOString() },
-      }, '-occurred_at', 1);
-      if (intents[0]?.match_id) {
-        const invite = await base44.asServiceRole.entities.Match.get(intents[0].match_id);
-        if (Number(invite?.challenge_version) === 1 && /^[a-f0-9]{32}$/.test(invite.invite_code || '')) {
-          const open = invite.status === 'searching' && Date.parse(invite.challenge_expires_at) > Date.now();
-          challengeContextHtml = open
-            ? '<p>The ' + escapeHtml(usd(invite.wager_amount)) + ' challenge you viewed is currently open. Revisit it to check both players’ readiness. It has not been reserved for you and may be accepted by someone else.</p>'
-            : '<p>The challenge you originally viewed is no longer open. Your available funds can still be used to create or accept another eligible challenge.</p>';
-          if (open) challengeCta = { text: 'Revisit Challenge', url: `${appUrl}/challenge/${invite.invite_code}` };
-        }
-      }
-    } catch { /* Optional context never prevents a deposit notification. */ }
 
-    subject = `${amount} is now available to play in your ChessBet wallet`;
-    const detailRow = (label: string, value: string, emphasize = false) => `
-      <tr>
-        <td style="padding:8px 0;color:#8f8f8f;font-size:13px;">${label}</td>
-        <td style="padding:8px 0;text-align:right;color:${emphasize ? '#C9A84C' : '#ffffff'};font-size:13px;font-weight:${emphasize ? '800' : '600'};">${value}</td>
-      </tr>`;
-
+    subject = `Your ${amount} deposit is ready to play`;
     const bodyHtml = `
       <p>Hi ${firstName},</p>
-      <p>Your bank deposit has been received and is now available to play in your ChessBet wallet. You can use these funds to enter an eligible head-to-head match.</p>
-      <table role="presentation" style="width:100%;border-collapse:collapse;margin:20px 0;background:#111111;border:1px solid #242424;border-radius:12px;">
-        <tbody>
-          ${detailRow('Amount added', escapeHtml(amount), true)}
-          ${detailRow('Available', escapeHtml(availableAt))}
-          ${detailRow('Submitted', escapeHtml(submittedAt))}
-          ${detailRow('Transaction ID', `<span style="font-family:monospace;font-size:11px;">${transactionId}</span>`)}
-          ${detailRow('Wallet balance', escapeHtml(totalBalance))}
-          ${detailRow('Ready to play', escapeHtml(availableBalance), true)}
-        </tbody>
-      </table>
-      <p>Bank withdrawals have a separate five-business-day hold from deposit submission and require a final bank-status check. This deposit's withdrawal review is scheduled on or after ${escapeHtml(easternDate(fresh.deposit_release_at))}. Contest proceeds funded by this deposit inherit its remaining withdrawal hold; the standard contest reporting window also applies. Later bank returns remain possible.</p>
-      ${challengeContextHtml}
-      <p>Challenge someone you know or find an opponent. Review the entry and separate service fee before accepting. Both players need sufficient Available Balance; creating a link does not reserve funds.</p>
-      <p style="color:#8f8f8f;font-size:12px;">You can review this deposit at any time from your <a href="${appUrl}/wallet" style="color:#C9A84C;text-decoration:none;">Transaction History</a>.</p>
-      <p>Good luck, and play well.</p>
-      <p>&mdash; The ChessBet Team</p>
+      <p>Your ${escapeHtml(amount)} deposit is ready to play in ChessBet.</p>
+      <p>Log back in to challenge a friend, share your challenge link on social media, or find a match in ChessBet’s marketplace.</p>
+      <p>Good luck, and play well!<br>The ChessBet Team</p>
     `;
 
     const html = buildChessBetEmailHtml({
@@ -187,8 +132,8 @@ export async function sendDepositAvailableEmail(base44: any, transaction: any) {
       headerTitle: 'Your deposit is ready',
       headerSubtitle: `${amount} is available to play`,
       bodyHtml,
-      ctaText: challengeCta.text,
-      ctaUrl: challengeCta.url,
+      ctaText: 'Start Playing',
+      ctaUrl: `${appUrl}/play`,
       supportEmail,
     });
 
