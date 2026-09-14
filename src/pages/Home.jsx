@@ -32,7 +32,7 @@ export default function Home() {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const code = params.get('resumeChallenge');
-    if (/^[a-f0-9]{32}$/.test(code || '')) { navigate('/challenge/' + code, { replace:true }); return; }
+    if (/^[a-f0-9]{32}$/.test(code || '')) { navigate('/play?challenge=' + code, { replace:true }); return; }
     const id = params.get('match');
     if (!user?.id || !/^[a-zA-Z0-9_-]{1,100}$/.test(id || '')) return;
     base44.entities.Match.get(id).then(match => {

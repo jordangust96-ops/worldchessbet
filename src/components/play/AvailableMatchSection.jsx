@@ -12,7 +12,7 @@ import { trackPixelEvent } from "@/lib/metaPixel";
 // matchmaking/subscriptions — does not touch acceptance or realtime gameplay.
 const AUTO_REFRESH_INTERVAL_MS = 7000;
 
-export default function AvailableMatchSection({ userId, balance, activeMatch, onChallengeCancelled, onAccepted }) {
+export default function AvailableMatchSection({ userId, balance, activeMatch, onChallengeCancelled, onAccepted, onReview }) {
   const navigate = useNavigate();
   const [opponents, setOpponents] = useState([]);
   const [declinedIds, setDeclinedIds] = useState([]);
@@ -101,7 +101,9 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
   const handleAccept = async () => {
     if (!current) return;
     if (current.challengePath) {
-      navigate(current.challengePath + '?accept=1');
+      const code = current.challengePath.split('/').pop();
+      if (onReview) onReview(code);
+      else navigate(`/play?challenge=${code}&accept=1`);
       return;
     }
     setAccepting(true);

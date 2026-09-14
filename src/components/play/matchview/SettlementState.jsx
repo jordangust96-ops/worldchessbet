@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { Trophy, Minus, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
@@ -11,6 +12,7 @@ import CreateChallengeForm from "@/components/play/CreateChallengeForm";
 import { trackPixelEvent } from "@/lib/metaPixel";
 
 export default function SettlementState({ match, game, userId, onReturn }) {
+  const navigate = useNavigate();
   const [opponentName, setOpponentName] = useState("Opponent");
   const [winnerName, setWinnerName] = useState("You");
   const [returning, setReturning] = useState(false);
@@ -58,7 +60,7 @@ export default function SettlementState({ match, game, userId, onReturn }) {
     }
   };
 
-  if (rematch) return <div className="py-3"><CreateChallengeForm initialAmount={match.wager_amount} initialTimeControl={match.time_control} rematchOf={match.id} onCancel={() => setRematch(false)} /></div>;
+  if (rematch) return <div className="py-3"><CreateChallengeForm initialAmount={match.wager_amount} initialTimeControl={match.time_control} rematchOf={match.id} onCreated={async result=>{ await handleReturn(); navigate(`/play?challenge=${result.inviteCode}`); }} onCancel={() => setRematch(false)} /></div>;
 
   return (
     <div className="space-y-5 lg:space-y-3 text-center py-4">
