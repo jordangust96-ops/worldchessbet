@@ -48,6 +48,8 @@ async function command(parts: unknown[]) {
       : 'provider_error';
     throw Object.assign(new Error('Seamless atomic store unavailable'), {
       coordinationHttpStatus: response.status, coordinationReason: reason,
+      coordinationCommands: ['EVAL','INCR','EXPIRE','GET','SET'].filter(name => new RegExp('\\b' + name + '\\b','i').test(message)),
+      coordinationReadOnly: /READONLY|read.only/i.test(message),
     });
   }
   return payload?.result;
