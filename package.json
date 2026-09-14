@@ -34,7 +34,8 @@
     "test:site-health": "node scripts/validate-site-health.mjs",
     "test:site-activity": "node scripts/validate-site-activity.mjs",
     "test:challenges": "node scripts/validate-challenge-lifecycle.mjs",
-    "test:free-play": "node scripts/validate-free-play.mjs"
+    "test:free-play": "node scripts/validate-free-play.mjs",
+    "test:funding": "node scripts/validate-funding-provenance.mjs && node scripts/validate-funding-journal.mjs"
   },
   "dependencies": {
     "@base44/sdk": "^0.8.48",
