@@ -109,7 +109,11 @@ assert.match(depositEmail, /Submitted/);
 assert.match(depositEmail, /Transaction ID/);
 assert.match(depositEmail, /Wallet balance/);
 assert.match(depositEmail, /Ready to play/);
-assert.match(depositEmail, /ctaText: 'Find a Match'/);
+assert.match(depositEmail, /ctaText: challengeCta\.text/);
+assert.match(depositEmail, /text: 'Challenge Someone'/);
+assert.match(depositEmail, /text: 'Revisit Challenge'/);
+assert.match(depositEmail, /It has not been reserved for you/);
+assert.match(depositEmail, /creating a link does not reserve funds/);
 assert.match(depositEmail, /claimWebhookEvent\(eventKey, providerLockKey, owner\)/,
   'deposit email delivery is protected by a durable idempotency claim');
 assert.match(depositEmail, /finishWebhookEvent\(eventKey, providerLockKey, owner, 'completed'\)/);
