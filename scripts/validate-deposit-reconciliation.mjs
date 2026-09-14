@@ -36,6 +36,7 @@ async function harness(version = 'same-day-ach-v1') {
   const events = new Map();
   const atomic = {
     acquireLedgerLock: async () => true, releaseLedgerLock: async () => {},
+    refreshLedgerLock: async () => true, getUserWalletBarrier: async () => '',
     claimWebhookEvent: async key => {
       if (occupied) return { claim: 'transaction_busy' };
       if (events.get(key) === 'completed') return { claim: 'completed' };
