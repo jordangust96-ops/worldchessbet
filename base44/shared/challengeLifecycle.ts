@@ -124,7 +124,7 @@ export async function createChallenge(base44: any, user: any, body: any) {
       challenge_rematch_of: rematchOf, challenge_target_id: targetId,
       challenge_expires_at: new Date(Date.now() + CHALLENGE_TTL_MS).toISOString(),
       challenge_operation_state: 'idle', player1_deposited: false, player2_deposited: false,
-      player1_certified: false, player2_certified: false,
+      player1_certified: false, player2_certified: false, notify_on_accept: true,
     });
     await challengeEvent(base44, match, 'created', user.id, 'invitation_only');
     return { match, inviteCode: code, path: challengePath(code) };
@@ -202,14 +202,16 @@ async function finishReservation(base44: any, match: any, owner: string, beforeC
         player2_certified: true, player2_certified_at: match.challenge_recipient_consent_at,
         player1_funding_operation_id: reservationGroup(match), player2_funding_operation_id: reservationGroup(match),
         acceptance_operation_id: reservationGroup(match), challenge_reservation_group_id: reservationGroup(match),
-        challenge_operation_state: 'committed', status: 'preparing',
+        // Keep the recoverable marker until BOTH wallet barriers have been
+        // cleared. A failure clearing one barrier must remain sweep-visible.
+        challenge_operation_state: 'reserving', status: 'preparing',
         preparation_started_at: match.challenge_operation_started_at,
         challenge_claimed_at: match.challenge_operation_started_at,
       });
     },
   });
   await clearChallengeWalletBarriers(ids, match.id);
-  const updated = await base44.asServiceRole.entities.Match.get(match.id);
+  const updated = await base44.asServiceRole.entities.Match.update(match.id, { challenge_operation_state: 'committed' });
   await challengeEvent(base44, updated, 'claimed', recipientId, 'both_entries_and_fees_reserved');
   return { match: updated, accepted: true };
 }
@@ -331,11 +333,11 @@ async function releaseChallengeLocked(base44: any, match: any, owner: string, re
     afterPost: async () => {
       await materializeChallengeTransactions(base44, match, recipientId, true);
       await base44.asServiceRole.entities.Match.update(match.id, { status: 'cancelled', result: 'cancelled',
-        challenge_operation_state: 'released', challenge_close_reason: reason, challenge_release_group_id: refundGroup(match) });
+        challenge_operation_state: 'releasing', challenge_close_reason: reason, challenge_release_group_id: refundGroup(match) });
     },
   });
   await clearChallengeWalletBarriers([match.player1_id, recipientId], match.id);
-  const updated = await base44.asServiceRole.entities.Match.get(match.id);
+  const updated = await base44.asServiceRole.entities.Match.update(match.id, { challenge_operation_state: 'released' });
   await challengeEvent(base44, updated, 'released', '', reason);
   return { match: updated };
 }
@@ -343,7 +345,7 @@ async function releaseChallengeLocked(base44: any, match: any, owner: string, re
 export async function cancelChallenge(base44: any, user: any, matchId: string) {
   return underMatchLock(base44, matchId, async (match, owner) => {
     if (!roleFor(match, user.id)) fail('forbidden', 'Only a participant can cancel this challenge.', 403);
-    if (match.status === 'cancelled') return { match, replay: true };
+    if (match.status === 'cancelled' && !activeOperation(match)) return { match, replay: true };
     if (['in_progress', 'settling', 'completed', 'disputed'].includes(match.status)) fail('already_started', 'This match can no longer be cancelled.');
     const ids = [match.player1_id, match.player2_id || match.challenge_claimant_id].filter(Boolean);
     return underWalletLocks(ids, owner, match.id, () => releaseChallengeLocked(base44, match, owner, 'cancelled'));
@@ -355,7 +357,7 @@ export async function readyChallenge(req: Request, base44: any, user: any, match
     const role = roleFor(match, user.id);
     if (!role) fail('forbidden', 'You are not a player in this match.', 403);
     if (match.status === 'in_progress') return { match };
-    if (match.status !== 'preparing' || activeOperation(match) || challengeStartExpired(match))
+    if (!['preparing', 'both_ready'].includes(match.status) || activeOperation(match) || challengeStartExpired(match))
       fail('ready_expired', 'The start window has ended. Reserved entry amounts and fees will be released.');
     // Available Balance was already reserved; only nonfinancial eligibility is
     // checked here. Never attempt a second debit or require a second deposit.
@@ -387,6 +389,15 @@ export async function finalizeChallengeStart(base44: any, user: any, matchId: st
     if (!roleFor(match, user.id)) fail('forbidden', 'You are not a player in this match.', 403);
     if (['in_progress', 'completed', 'cancelled', 'settling'].includes(match.status)) return { match };
     if (activeOperation(match) || !['preparing', 'both_ready'].includes(match.status)) return { match };
+    // A lost final response must resume an already-created game immediately,
+    // without another ready countdown requirement or any clock reset.
+    if (match.start_operation_id) {
+      const games = await base44.asServiceRole.entities.Game.filter({ match_id: match.id }, 'created_date', 1);
+      if (games[0] && Number(games[0].launch_epoch) === 2 && games[0].player1_id === match.player1_id && games[0].player2_id === match.player2_id) {
+        const updated = await base44.asServiceRole.entities.Match.update(match.id, { status: 'in_progress', game_id: games[0].id });
+        return { match: updated, recovered: true };
+      }
+    }
     if (challengeStartExpired(match)) fail('ready_expired', 'The start window expired. This match will close and release both reservations.');
     if (!bothChallengePlayersReady(match)) return { match, waitingForReady: true };
     if (!match.player1_certified || !match.player2_certified || !match.player1_deposited || !match.player2_deposited)
