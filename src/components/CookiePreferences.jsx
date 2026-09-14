@@ -4,7 +4,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { privacy, openCookieSettings } from "@/lib/privacy";
 const button = "rounded-lg border border-white/30 px-4 py-3 text-sm font-semibold hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C9A84C]";
 export default function CookiePreferences() {
-  const { pathname } = useLocation();
+  // Re-render on client-side navigation; publicPage is the single
+  // source of truth for where optional tracking may run.
+  const currentPath = useLocation().pathname;
+  const publicVisit = Boolean(currentPath) && privacy()?.publicPage() === true;
   const [choice, setChoice] = useState(() => privacy()?.choice() || {});
   const [open, setOpen] = useState(false);
   const [analytics, setAnalytics] = useState(false);
@@ -24,9 +27,8 @@ export default function CookiePreferences() {
     if (persisted === false) setMessage("Your choice applies to this visit. Browser settings prevented us from saving it.");
     if (window.__chessbetTrackingLoaded && ((before.analytics && !a) || (before.marketing && !m))) location.reload();
   }
-  const playing = pathname === "/play";
   return <>
-    {!choice.decided && !playing && !open && <section aria-label="Cookie choices" className="fixed bottom-4 left-3 right-3 z-[60] max-h-[80vh] overflow-y-auto rounded-2xl border border-white/20 bg-[#141414] p-6 text-white shadow-2xl sm:left-5 sm:right-auto sm:w-[460px]">
+    {!choice.decided && publicVisit && !open && <section aria-label="Cookie choices" className="fixed bottom-4 left-3 right-3 z-[60] max-h-[80vh] overflow-y-auto rounded-2xl border border-white/20 bg-[#141414] p-6 text-white shadow-2xl sm:left-5 sm:right-auto sm:w-[460px]">
       <div className="flex flex-col gap-5">
         <div className="flex-1"><h2 className="text-xl font-semibold">Cookies & privacy</h2><p className="mt-1 text-sm text-white/75">We use essential cookies to keep ChessBet working. Choose Accept to allow optional cookies that measure site visits and advertising. You can change your choice anytime.</p>{choice.gpc && <p className="mt-2 text-sm text-[#C9A84C]">Your browser privacy signal keeps optional tracking off.</p>}<a href="/privacy-policy" className="mt-2 inline-block text-sm underline">Privacy policy</a></div>
         <div className="grid grid-cols-2 gap-3"><button className={button + " bg-[#C9A84C] text-black border-[#C9A84C] hover:bg-[#E8D48B]"} onClick={() => save(true,true)}>Accept</button><button className={button + " bg-[#C9A84C] text-black border-[#C9A84C] hover:bg-[#E8D48B]"} onClick={() => save(false,false)}>Reject</button><button className={button + " col-span-2"} onClick={openCookieSettings}>Preferences</button></div>
