@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
       entryAmount: Number(match.wager_amount) + Number(match.platform_service_fee || 0),
       triggerEvent: 'accept_match', relatedEntityType: 'match', relatedEntityId: match.id,
     })).json();
-    if (eligibility.error || !eligibility.eligible)
+    if (eligibility.error || eligibility.eligible !== true)
       return Response.json({ error: eligibility.reason || eligibility.error || 'Complete wallet setup before joining.' }, { status: 403 });
 
     if (!await acquireMatchLock(match.id, owner)) return Response.json({ error: 'This match is being updated. Please try again.' }, { status: 409 });
