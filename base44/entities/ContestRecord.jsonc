@@ -216,6 +216,18 @@
       "type": "string",
       "maxLength": 1000,
       "description": "Optional description"
+    },
+    "play_mode": {
+      "type": "string",
+      "enum": [
+        "money",
+        "free"
+      ],
+      "default": "money",
+      "description": "Server snapshot of money or free play; free records contain no financial transactions.",
+      "rls": {
+        "write": false
+      }
     }
   },
   "required": [
