@@ -14,7 +14,7 @@
     "available_balance": {
       "type": "number",
       "default": 0,
-      "description": "Funds immediately usable for hosting/joining contests and withdrawals. Derived from Internal Ledger activity \u2014 never edited independently."
+      "description": "Ledger funds available for contest play; withdrawals additionally require the server funding provenance check."
     },
     "held_balance": {
       "type": "number",
