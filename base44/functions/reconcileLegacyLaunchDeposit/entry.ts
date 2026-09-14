@@ -26,7 +26,7 @@ Deno.serve(async req=>{
   let adjustments=await base44.asServiceRole.entities.WalletTransaction.filter({idempotency_key:GROUP},'-created_date',2);
   if(adjustments.length>1)throw Error('duplicate_adjustment');
   let adjustment=adjustments[0]||await base44.asServiceRole.entities.WalletTransaction.create({user_id:USER,type:'admin_reversal',amount:0.75,status:'pending',direction:'debit',currency:'USD',launch_epoch:2,idempotency_key:GROUP,source_event:'legacy_deposit_fee_adjustment',description:'Deposit fee adjustment: $0.65 Seamless fee + $0.10 ChessBet cushion on original $10 deposit. Net deposit $9.25. Authorized by account owner.',initiating_actor:'administrator',initiating_actor_id:USER});
-  await postLedgerLegs(base44,{groupId:GROUP,walletTransactionId:adjustment.id,actor:'administrator',actorId:USER,triggerEvent:'legacy_deposit_fee_adjustment',externalRefType:'provider_transaction',externalRefId:REF,updateTransactions:false,
+  await postLedgerLegs(base44,{groupId:GROUP,walletTransactionId:adjustment.id,actor:'administrator',actorId:USER,triggerEvent:'legacy_deposit_fee_adjustment',externalRefType:'provider_payment',externalRefId:REF,updateTransactions:false,
    beforePost:async()=>{
     const current=await base44.asServiceRole.entities.WalletTransaction.get(TX);
     if(current.status!=='completed'||current.deposit_hold_status!=='released')throw Error('deposit_changed');
