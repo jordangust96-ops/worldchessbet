@@ -74,7 +74,7 @@ if not current then
   return 1
 end
 if current == ARGV[1] then
-  redis.call('PEXPIRE', KEYS[1], ARGV[2])
+  redis.call('SET', KEYS[1], ARGV[1], 'PX', ARGV[2])
   return 1
 end
 return 0
@@ -231,7 +231,7 @@ export async function refreshContestLocks(matchId: string, userIds: string[], ow
   // by an old worker and mistaken for uninterrupted financial authorization.
   const script = `
 for i,k in ipairs(KEYS) do if redis.call('GET',k) ~= ARGV[1] then return 0 end end
-for i,k in ipairs(KEYS) do redis.call('PEXPIRE',k,ARGV[2]) end
+for i,k in ipairs(KEYS) do redis.call('SET',k,ARGV[1],'PX',ARGV[2]) end
 return 1`;
   return Number(await evalAtomic(script, keys, [owner, String(LOCK_TTL_MS)])) === 1;
 }
@@ -260,7 +260,7 @@ export async function releaseLedgerLock(owner: string) {
 export async function refreshLedgerLock(owner: string) {
   return Number(await evalAtomic(`
 if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
-redis.call('PEXPIRE', KEYS[1], ARGV[2]); return 1
+redis.call('SET', KEYS[1], ARGV[1], 'PX', ARGV[2]); return 1
 `, [key('ledger-lock', 'global')], [owner, String(LOCK_TTL_MS)])) === 1;
 }
 
