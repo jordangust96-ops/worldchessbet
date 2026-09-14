@@ -14,7 +14,7 @@ function money(value) {
 }
 
 // Enabled only after the shared provenance guard and payout routes pass validation.
-export const PROCESSED_PLAY_ENABLED = false;
+export const PROCESSED_PLAY_ENABLED = Deno.env.get('ACH_PROCESSED_PLAY_DISABLED') !== 'true';
 
 export function depositAvailabilityAt(transaction) {
   return bankWithdrawalAt(transaction.created_date);

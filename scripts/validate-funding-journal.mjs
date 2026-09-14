@@ -8,9 +8,7 @@ const bad=async(fn,re)=>{await assert.rejects(fn,re);checks++;};
 const root=process.cwd(), urls=new Map();
 async function moduleUrl(file) {
   if(urls.has(file))return urls.get(file);
-  let text=fs.readFileSync(file.endsWith('/shared/ledger.ts') && fs.existsSync('scripts/funding-candidates/ledger.ts') ? 'scripts/funding-candidates/ledger.ts' : file,'utf8');
-  if(file.endsWith('/shared/seamlessLedgerTransitions.ts') && fs.existsSync('scripts/funding-candidates/seamlessLedgerTransitions.ts'))text=fs.readFileSync('scripts/funding-candidates/seamlessLedgerTransitions.ts','utf8');
-  if(file.endsWith('/shared/seamlessLedgerTransitions.ts'))text=text.replace('PROCESSED_PLAY_ENABLED = false','PROCESSED_PLAY_ENABLED = true');
+  let text=fs.readFileSync(file,'utf8');
   if(file.endsWith('/seamlessAch.ts'))text='export const buildCheckLookupPath=id=>id; export const seamlessRequest=async()=>globalThis.providerResponse;';
   if(file.endsWith('/depositReconciliation.ts'))text='export const requireVerifiedDeposit=async()=>null; export const postDepositFeePassThrough=async()=>{}; export const flagDepositReview=async()=>{}; export const depositProviderReference=async(b,tx)=>tx.id;';
   if(file.endsWith('/seamlessAtomicStore.ts'))text='export const acquireLedgerLock=async()=>globalThis.acquire(); export const releaseLedgerLock=async()=>globalThis.release(); export const refreshLedgerLock=async()=>true; export const getUserWalletBarrier=async()=>""; export const claimWebhookEvent=async()=>({claim:"owned"}); export const finishWebhookEvent=async()=>{};';
@@ -20,6 +18,7 @@ async function moduleUrl(file) {
   const url='data:text/javascript;base64,'+Buffer.from(text).toString('base64');
   urls.set(file,url);return url;
 }
+globalThis.Deno={env:{get:()=>undefined}};
 let locked=false;
 globalThis.acquire=()=>{if(locked)return false;locked=true;return true;};
 globalThis.release=()=>{locked=false;};
