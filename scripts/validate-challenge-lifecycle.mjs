@@ -34,6 +34,7 @@ function fixture() {
       if(sort){const reverse=sort[0]==='-';const field=reverse?sort.slice(1):sort;rows=[...rows].sort((a,b)=>String(a[field]??'').localeCompare(String(b[field]??''))*(reverse?-1:1));}
       rows=rows.slice(skip,skip+limit);
       return clone(rows.map(row=>fields?Object.fromEntries(['id',...fields].filter(k=>row[k]!==undefined).map(k=>[k,row[k]])):row));
+    },
     get:async id=>{const row=table(name).find(x=>x.id===id);if(!row)throw Error(`not_found:${name}:${id}`);return clone(row);},
     create:async data=>{
       if(state.fail?.where===`${name}.create.before`){state.fail=null;throw Error('injected_before_commit');}
