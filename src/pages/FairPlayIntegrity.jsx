@@ -144,8 +144,8 @@ export default function FairPlayIntegrity() {
             decided solely by the participating players' chess skill.
           </p>
           <p className="text-sm text-white/60 leading-relaxed">
-            Protecting competitive integrity is essential — for the players who compete on ChessBet, for
-            the payment partners who support the platform, and for the regulators who oversee it.
+            Protecting competitive integrity is essential — for the players who compete on ChessBet, and for
+            the providers who support the platform.
           </p>
           <p className="text-sm text-white/60 leading-relaxed">
             This Fair Play & Integrity Policy supplements ChessBet's Official Rules and Terms of Service.
@@ -177,7 +177,7 @@ export default function FairPlayIntegrity() {
             The Platform Service Fee is not a percentage of stakes, is not part of the contest pool, and is not deducted from the Potential Winner Award. The winner of a decisive contest receives 100% of the combined Contest Entry Amounts.
           </p>
           <p className="text-sm text-white/60 leading-relaxed">
-            ChessBet records the Contest Entry Amount and Platform Service Fee in separate ledger and settlement entries. The Platform Service Fee is refunded or not collected if there is no decisive result, including a draw, cancellation, or platform void.
+            ChessBet records the Contest Entry Amount and Platform Service Fee in separate ledger and settlement entries. The Platform Service Fee is returned on a draw, accepted cancellation, or platform void. A no-violation review leaves decisive-result fees unchanged. On a reversal, the administrator records whether fees are retained or refunded, as explained in the Official Rules.
           </p>
         </Section>
 
@@ -209,7 +209,7 @@ export default function FairPlayIntegrity() {
           </p>
           <p className="text-sm text-white/60 leading-relaxed">
             Legal moves, game state, results, and chess clocks are validated and recorded by ChessBet's
-            servers. After completion, contests are queued for Stockfish-powered screening.
+            servers. After completion, contests can be queued for Stockfish-powered screening, subject to service availability and sufficient game data.
             Depending on the available game data, that screening may evaluate engine move agreement,
             centipawn loss, critical-position performance, move timing, and focus-loss events.
           </p>
@@ -231,8 +231,8 @@ export default function FairPlayIntegrity() {
           </p>
           <BulletList items={RISK_INDICATORS} />
           <p className="text-sm text-white/60 leading-relaxed pt-1">
-            An internal risk flag does not, by itself, establish wrongdoing. A flag simply initiates
-            additional review — it is not a finding or a penalty.
+            An internal risk flag does not, by itself, establish wrongdoing or impose a penalty.
+            Open blocking integrity or settlement-reconciliation flags can delay automatic release of pending winnings while review is unresolved.
           </p>
         </Section>
 
@@ -260,7 +260,7 @@ export default function FairPlayIntegrity() {
         {/* 9. Appeals */}
         <Section id="appeals" title="9. Appeals">
           <p className="text-sm text-white/60 leading-relaxed">
-            A user subject to an enforcement decision may:
+            A participant in a resolved case with an adverse determination may submit one in-app appeal per case. The current appeal flow has no seven-day cutoff. Users may also:
           </p>
           <BulletList
             items={["Contact ChessBet Support", "Submit additional information", "Request reconsideration of the decision"]}
@@ -313,7 +313,7 @@ export default function FairPlayIntegrity() {
         <Section title="13. Cross References">
           <p className="text-sm text-white/60 leading-relaxed">
             This policy should be read together with ChessBet's Official Rules, Terms of Service,
-            AML/KYC Policy, and{" "}
+            and{" "}
             <Link to="/privacy-policy" className="text-[#C9A84C] hover:underline underline-offset-2">
               Privacy Policy
             </Link>
