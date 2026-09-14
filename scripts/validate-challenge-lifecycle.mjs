@@ -323,11 +323,14 @@ for(const where of ['LedgerJournalBatch.create.before','LedgerJournalBatch.creat
   const ready=f.get(m.id);f.table('Match').find(x=>x.id===m.id).status='both_ready';
   await assert.rejects(()=>f.makeSdk('p2').functions.invoke('getOrCreateGame',{matchId:m.id}));assertions++;
   f.table('Match').find(x=>x.id===m.id).status='preparing';
-  const emptyHeartbeat=await f.api.readyChallenge(f.request,f.sdk,f.user('p1'),m.id,{action:'heartbeat',visible:true});check(emptyHeartbeat.needsReady);
-  await f.api.readyChallenge(f.request,f.sdk,f.user('p1'),m.id,{action:'ready'});
+  const emptyHeartbeat=await f.api.readyChallenge(f.request,f.sdk,f.user('p1'),m.id,{action:'heartbeat',presenceId:'ready_session_123456',visible:true});check(emptyHeartbeat.needsReady);
+  await f.api.readyChallenge(f.request,f.sdk,f.user('p1'),m.id,{action:'ready',presenceId:'ready_session_123456'});
   await f.api.finalizeChallengeStart(f.sdk,f.user('p1'),m.id);equal(f.table('Game').length,0);
-  await f.api.readyChallenge(f.request,f.sdk,f.user('p2'),m.id,{action:'ready'});
-  const hidden=await f.api.readyChallenge(f.request,f.sdk,f.user('p2'),m.id,{action:'heartbeat',visible:false});check(hidden.needsReady);
+  await f.api.readyChallenge(f.request,f.sdk,f.user('p2'),m.id,{action:'ready',presenceId:'ready_session_123456'});
+  const hidden=await f.api.readyChallenge(f.request,f.sdk,f.user('p2'),m.id,{action:'heartbeat',presenceId:'ready_session_123456',visible:false});check(hidden.needsReady);
+  await f.api.finalizeChallengeStart(f.sdk,f.user('p1'),m.id);equal(f.table('Game').length,0,'Hidden player cannot start');
+  const stale=await f.api.readyChallenge(f.request,f.sdk,f.user('p2'),m.id,{action:'heartbeat',presenceId:'ready_session_123456',visible:true});check(stale.needsReady);
+  await f.api.readyChallenge(f.request,f.sdk,f.user('p2'),m.id,{action:'ready',presenceId:'ready_session_123456'});
   const started=await f.api.finalizeChallengeStart(f.sdk,f.user('p1'),m.id);equal(started.match.status,'in_progress');equal(f.table('Game').length,1);
   equal(f.table('Game')[0].white_time_ms,expectedClock);equal(f.table('Game')[0].black_time_ms,expectedClock);
   await f.api.finalizeChallengeStart(f.sdk,f.user('p1'),m.id);equal(f.table('Game').length,1);
@@ -388,8 +391,8 @@ for(const phase of ['reservation','release']) {
 // A lost final match write resumes the already-created five-minute game.
 {
   const f=fixture();const m=await f.authorize(await f.create());await f.api.acceptChallenge(f.request,f.sdk,f.user('p2'),m,f.consent);
-  await f.api.readyChallenge(f.request,f.sdk,f.user('p1'),m.id,{action:'ready'});
-  await f.api.readyChallenge(f.request,f.sdk,f.user('p2'),m.id,{action:'ready'});
+  await f.api.readyChallenge(f.request,f.sdk,f.user('p1'),m.id,{action:'ready',presenceId:'ready_session_123456'});
+  await f.api.readyChallenge(f.request,f.sdk,f.user('p2'),m.id,{action:'ready',presenceId:'ready_session_123456'});
   f.state.fail={where:'Match.update',test:(_id,patch)=>patch.status==='in_progress'};
   await assert.rejects(()=>f.api.finalizeChallengeStart(f.sdk,f.user('p1'),m.id));assertions++;
   equal(f.table('Game').length,1);const anchor=f.table('Game')[0].turn_started_at;
@@ -432,3 +435,37 @@ for (const timeControl of [null,'bullet','Rapid','',{},1,'__proto__']) {
   equal(f.table('Match').length,0);equal(f.table('LedgerJournalBatch').length,0);
 }
 console.log(`Challenge lifecycle: ${assertions} assertions passed. Actual lifecycle/journal code; isolated providers, storage and locks; no live money movement.`);
+
+// Visible-HUD consent -> acceptance, no timer button or second reservation.
+for(const funded of [false,true]){
+ const f=fixture();f.balance('p1',funded?100:0);
+ const result=await f.api.createChallenge(f.sdk,f.user('p1'),{...f.consent,consentVersion:f.policy.CHALLENGE_HUD_CONSENT_VERSION,requestKey:'hud_consent_creation_1234',timeControl:'blitz'});
+ const id=result.match.id;equal(f.policy.creatorAuthorized(f.get(id)),false);
+ const body={presenceId:'hud_presence_session_1234',visible:true};
+ if(!funded){await rejected(()=>f.api.maintainCreatorPresence(f.request,f.sdk,f.user('p1'),f.get(id),body),'funds_required');f.balance('p1',100);}
+ await f.api.maintainCreatorPresence(f.request,f.sdk,f.user('p1'),f.get(id),body);
+ equal(f.policy.creatorAuthorized(f.get(id)),true);equal(f.table('LedgerJournalBatch').length,0);
+ f.state.now+=6000;await f.api.maintainCreatorPresence(f.request,f.sdk,f.user('p1'),f.get(id),body);equal(f.state.lookups,1,'Presence does not repeat paid location lookups every heartbeat');
+ await f.api.maintainCreatorPresence(f.request,f.sdk,f.user('p1'),f.get(id),{...body,visible:false});equal(f.policy.creatorAuthorized(f.get(id)),false);
+ await rejected(()=>f.api.maintainCreatorPresence(f.request,f.sdk,f.user('p1'),f.get(id),body),'presence_revoked');
+ await rejected(()=>f.api.acceptChallenge(f.request,f.sdk,f.user('p2'),f.get(id),f.consent),'creator_not_ready');
+ body.presenceId='new_hud_presence_session_5678';await f.api.maintainCreatorPresence(f.request,f.sdk,f.user('p1'),f.get(id),body);
+ f.state.now+=10001;equal(f.policy.creatorAuthorized(f.get(id)),false,'Disconnected creators expire');
+ await f.api.maintainCreatorPresence(f.request,f.sdk,f.user('p1'),f.get(id),body);
+ const accepted=await f.api.acceptChallenge(f.request,f.sdk,f.user('p2'),f.get(id),f.consent);check(accepted.accepted);equal(f.table('LedgerJournalBatch').length,1);
+ for(const who of ['p1','p2'])await f.api.readyChallenge(f.request,f.sdk,f.user(who),id,{action:'ready',presenceId:'ready_session_123456'});
+ await f.api.readyChallenge(f.request,f.sdk,f.user('p1'),id,{action:'unready',presenceId:'other_session_123456'});check(f.policy.bothChallengePlayersReady(f.get(id)),'Other tabs cannot revoke current session');
+ await f.api.readyChallenge(f.request,f.sdk,f.user('p1'),id,{action:'unready',presenceId:'ready_session_123456'});
+ await f.api.finalizeChallengeStart(f.sdk,f.user('p2'),id);equal(f.table('Game').length,0);
+ await f.api.readyChallenge(f.request,f.sdk,f.user('p1'),id,{action:'ready',presenceId:'ready_session_123456'});
+ await f.api.finalizeChallengeStart(f.sdk,f.user('p2'),id);equal(f.table('Game').length,1);equal(f.table('LedgerJournalBatch').length,1);
+}
+{
+ const f=fixture(),m=await f.create();const body={presenceId:'legacy_hud_session_1234',visible:true};
+ await rejected(()=>f.api.maintainCreatorPresence(f.request,f.sdk,f.user('p1'),m,body),'consent_required');
+ await rejected(()=>f.api.consentToHudChallenge(f.sdk,f.user('p1'),m,{...f.consent,agree:false,consentVersion:f.policy.CHALLENGE_HUD_CONSENT_VERSION}),'consent_required');
+ await f.api.consentToHudChallenge(f.sdk,f.user('p1'),m,{...f.consent,consentVersion:f.policy.CHALLENGE_HUD_CONSENT_VERSION});
+ await f.api.maintainCreatorPresence(f.request,f.sdk,f.user('p1'),f.get(m.id),body);check(f.policy.creatorAuthorized(f.get(m.id)));
+ equal(f.table('LedgerJournalBatch').length,0);
+}
+console.log('Including new HUD and presence regressions: '+assertions+' assertions passed');

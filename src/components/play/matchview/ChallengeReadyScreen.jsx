@@ -3,6 +3,7 @@ import { Check, Clock, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
+import { CHALLENGE_READY_MS } from '../../../../base44/shared/challengePolicy.js';
 import { challengeRequest, challengeLocationContext, challengeErrorMessage, handleChallengeGate } from '@/lib/challengeApi';
 
 export default function ChallengeReadyScreen({ match, userId, opponentId, onCancel, onRefresh }) {
@@ -13,11 +14,14 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
   const [armed,setArmed] = useState(false);
   const [now,setNow] = useState(Date.now());
   const inFlight = useRef(false);
+  const presenceId = useRef(crypto.randomUUID());
+  const present = useRef(true);
+  const armedRef = useRef(false);
   const isP1 = match.player1_id === userId;
   const myAt = Date.parse(match[isP1 ? 'challenge_player1_ready_at' : 'challenge_player2_ready_at'] || '');
   const otherAt = Date.parse(match[isP1 ? 'challenge_player2_ready_at' : 'challenge_player1_ready_at'] || '');
-  const myReady = myAt <= now && now-myAt < 30000;
-  const otherReady = otherAt <= now && now-otherAt < 30000;
+  const myReady = myAt <= now && now-myAt < CHALLENGE_READY_MS;
+  const otherReady = otherAt <= now && now-otherAt < CHALLENGE_READY_MS;
   const remaining = Math.max(0,Math.ceil((Date.parse(match.preparation_started_at)+120000-now)/1000));
   const total = Math.round((Number(match.wager_amount)+Number(match.platform_service_fee))*100)/100;
   useEffect(()=>{
@@ -25,10 +29,12 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
   },[opponentId]);
   useEffect(()=>{
     const timer=setInterval(()=>setNow(Date.now()),1000);
-    const hide=()=>{ if(document.visibilityState!=='visible')setArmed(false); };
+    const withdraw=()=>{present.current=false;armedRef.current=false;setArmed(false);challengeRequest('unready',{matchId:match.id,presenceId:presenceId.current}).catch(()=>{});};
+    const hide=()=>{if(document.visibilityState!=='visible')withdraw();else present.current=true;};
+    window.addEventListener('pagehide',withdraw);
     document.addEventListener('visibilitychange',hide);
-    return()=>{clearInterval(timer);document.removeEventListener('visibilitychange',hide);};
-  },[]);
+    return()=>{clearInterval(timer);document.removeEventListener('visibilitychange',hide);window.removeEventListener('pagehide',withdraw);withdraw();};
+  },[match.id]);
   useEffect(()=>{
     let active=true;
     const maintain=async()=>{
@@ -38,16 +44,17 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
         if(remaining===0) {
           await challengeRequest('recover',{matchId:match.id});
         } else {
-          if(armed) {
-            const heartbeat=await challengeRequest('heartbeat',{matchId:match.id,visible:true});
-            if(heartbeat.needsReady && active)setArmed(false);
+          if(armedRef.current && present.current) {
+            const heartbeat=await challengeRequest('heartbeat',{matchId:match.id,visible:true,presenceId:presenceId.current});
+            if(heartbeat.needsReady && active){armedRef.current=false;setArmed(false);}
+            if(!present.current || document.visibilityState!=='visible'){await challengeRequest('unready',{matchId:match.id,presenceId:presenceId.current});return;}
           }
-          if(myReady && otherReady) await challengeRequest('finalize',{matchId:match.id});
+          if(armedRef.current && present.current && document.visibilityState==='visible' && myReady && otherReady) await challengeRequest('finalize',{matchId:match.id});
         }
         await onRefresh?.();
       } catch(err) {
         const action=err?.response?.data?.action;
-        if(active && action==='location_required') {setArmed(false);setError('Please confirm readiness again to refresh your location.');}
+        if(active && action==='location_required') {armedRef.current=false;setArmed(false);setError('Please confirm readiness again to refresh your location.');}
         else if(active && action==='recovery_pending') {
           setError('Confirming the existing reservation. No additional funds are being reserved.');
           try { await challengeRequest('recover',{matchId:match.id}); await onRefresh?.(); } catch { /* Retry through the existing sweep. */ }
@@ -56,15 +63,19 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
       } finally{inFlight.current=false;}
     };
     maintain();
-    const timer=setInterval(maintain,5000);
+    const timer=setInterval(maintain,3000);
     return()=>{active=false;clearInterval(timer);};
   },[match.id,armed,myReady,otherReady,remaining===0,onRefresh]);
   const ready=async()=>{
     if(busy || remaining===0)return;
     setBusy(true);setError('');
     try {
-      await challengeRequest('ready',{matchId:match.id,...await challengeLocationContext()});
-      setArmed(true);await onRefresh?.();
+      const context=await challengeLocationContext();
+      if(!present.current || document.visibilityState!=='visible')return;
+      await challengeRequest('ready',{matchId:match.id,presenceId:presenceId.current,...context});
+      if(!present.current || document.visibilityState!=='visible'){await challengeRequest('unready',{matchId:match.id,presenceId:presenceId.current});return;}
+      armedRef.current=true;setArmed(true);await onRefresh?.();
+      if(!present.current || document.visibilityState!=='visible')return;
       await challengeRequest('finalize',{matchId:match.id});await onRefresh?.();
     } catch(err) {
       if(!handleChallengeGate(err,navigate,`/play?match=${match.id}`))setError(challengeErrorMessage(err));
@@ -85,7 +96,7 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
     {[['You',myReady], [name,otherReady]].map(([label,readyState])=><div key={String(label)} className="flex items-center justify-between rounded-xl bg-white/5 p-3 text-sm"><span className="text-white/75">{label}</span><span className={readyState?'text-[#C9A84C]':'text-white/40'}>{readyState ? <><Check className="mr-1 inline" size={14}/>Ready</> : 'Not ready yet'}</span></div>)}
     {remaining>0 ? <>
       <Button onClick={ready} disabled={busy || (armed && myReady)} className="h-12 w-full rounded-2xl gold-gradient font-bold text-black disabled:opacity-60">{busy && <Loader2 size={16} className="mr-2 animate-spin"/>}{armed && myReady?'Waiting for opponent…':'I’m Ready'}</Button>
-      <p className="text-center text-xs text-white/45">Stay on this screen after confirming. Leaving makes readiness expire; it does not start your clock.</p>
+      <p className="text-center text-xs text-white/45">Stay on this screen after confirming. Leaving withdraws your readiness; both players must be present to start.</p>
     </> : <p className="rounded-xl bg-white/5 p-3 text-sm text-white/60">The start window ended. The system is closing this unstarted match and releasing both entries and fees.</p>}
     {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
     <Button onClick={cancel} disabled={busy} variant="outline" className="h-10 w-full rounded-xl border-white/15 text-white/55">Cancel Before Start</Button>

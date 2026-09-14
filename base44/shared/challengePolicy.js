@@ -12,7 +12,9 @@ export const CHALLENGE_VERSION = 1;
 export const CHALLENGE_TTL_MS = 24 * 60 * 60 * 1000;
 export const CHALLENGE_AUTHORIZATION_MS = 2 * 60 * 1000;
 export const CHALLENGE_START_WINDOW_MS = 2 * 60 * 1000;
-export const CHALLENGE_READY_MS = 30 * 1000;
+export const CHALLENGE_READY_MS = 10 * 1000;
+export const CHALLENGE_HUD_CONSENT_VERSION = 'challenge-visible-hud-v2';
+export const CHALLENGE_HUD_TERMS = 'I agree to the Official Rules and Fair Play requirements. While I keep this challenge open on the Play screen, I authorize my displayed Entry Amount and separate Platform Service Fee to be reserved if an eligible, funded opponent accepts. Creating the link reserves no money. Both players must confirm readiness before the game starts.';
 export const CHALLENGE_NOT_RESERVED = 'This link remains open. Wallet setup and pending deposits do not reserve an opponent. Only available funds count; another eligible player may accept first.';
 // Omitted timeControl preserves the original five-minute contract for older clients.
 export const CHALLENGE_CLOCK_MS = 5 * 60 * 1000;
@@ -52,6 +54,12 @@ export function challengeExpired(match, now = Date.now()) {
   return !Number.isFinite(expiry) || now >= expiry;
 }
 export function creatorAuthorized(match, now = Date.now()) {
+  if (match?.challenge_consent_version === CHALLENGE_HUD_CONSENT_VERSION) {
+    const consent = Date.parse(match.challenge_hud_consent_at || '');
+    const until = Date.parse(match.challenge_authorized_until || '');
+    return Boolean(match.player1_certified && match.challenge_creator_presence_id &&
+      Number.isFinite(consent) && consent <= now && Number.isFinite(until) && until > now && until - now <= CHALLENGE_READY_MS);
+  }
   const at = Date.parse(match?.challenge_authorized_at || '');
   const until = Date.parse(match?.challenge_authorized_until || '');
   return Boolean(match?.player1_certified && match?.challenge_consent_version === CHALLENGE_CONSENT_VERSION &&
@@ -82,6 +90,7 @@ export function publicChallenge(match, hostName = 'ChessBet player', now = Date.
     status: processing ? 'processing' : open ? 'open' : match.challenge_close_reason === 'expired' ||
       (match.status === 'searching' && challengeExpired(match, now)) ? 'expired' :
       match.status === 'cancelled' ? 'cancelled' : match.status === 'completed' ? 'completed' : 'claimed',
+    creatorConsentRequired: match.challenge_consent_version !== CHALLENGE_HUD_CONSENT_VERSION,
     creatorReady: open && !processing && creatorAuthorized(match, now),
     creatorReadyUntil: open && !processing ? match.challenge_authorized_until || null : null,
     publiclyListed: match.challenge_publicly_listed === true,

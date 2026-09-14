@@ -2,7 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 import { ChallengeError, fail, requireChallengeSession, inspectChallengePlayer } from '../../shared/challengeAccess.ts';
 import { resolveChallenge, viewChallenge, createChallenge, listMyChallenges, authorizeChallenge,
   acceptChallenge, cancelChallenge, readyChallenge, finalizeChallengeStart, recoverChallenge,
-  pingChallengeCreator, challengeEvent, setChallengeVisibility } from '../../shared/challengeLifecycle.ts';
+  pingChallengeCreator, challengeEvent, setChallengeVisibility, consentToHudChallenge, maintainCreatorPresence } from '../../shared/challengeLifecycle.ts';
 import { CHALLENGE_VERSION, isChallenge, publicChallenge, challengePath } from '../../shared/challengePolicy.js';
 import { takeChallengeRateLimit } from '../../shared/seamlessAtomicStore.ts';
 import { getOriginalClientIp } from '../../shared/jurisdictionGates.js';
@@ -114,6 +114,8 @@ Deno.serve(async (req) => {
       await challengeEvent(base44, match, 'funding_intent', user.id, 'context_only', String(Math.floor(Date.now()/3600000)));
       return response({ remembered:true, reserved:false });
     }
+    if (action === 'consent') return response(await consentToHudChallenge(base44,user,match,body));
+    if (action === 'presence') return response(await maintainCreatorPresence(req,base44,user,match,body));
     if (action === 'visibility') return response(await setChallengeVisibility(base44,user,match,body));
     if (action === 'authorize') return response(await authorizeChallenge(req,base44,user,match,body));
     if (action === 'accept') {
@@ -121,7 +123,7 @@ Deno.serve(async (req) => {
       return response(result, result.processing ? 202 : 200);
     }
     if (action === 'cancel') return response(await cancelChallenge(base44,user,match.id));
-    if (action === 'ready' || action === 'heartbeat') return response(await readyChallenge(req,base44,user,match.id,body));
+    if (action === 'ready' || action === 'heartbeat' || action === 'unready') return response(await readyChallenge(req,base44,user,match.id,body));
     if (action === 'finalize') return response(await finalizeChallengeStart(base44,user,match.id));
     if (action === 'recover') {
       if (![match.player1_id,match.player2_id,match.challenge_claimant_id].includes(user.id)) fail('forbidden','Only participants may recover this challenge.',403);

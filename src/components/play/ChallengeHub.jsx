@@ -4,6 +4,7 @@ import { Share2, Swords, Plus, Loader2, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 import { challengeRequest, challengeErrorMessage } from '@/lib/challengeApi';
+import ChallengeAvailability from '@/components/play/ChallengeAvailability';
 import ChallengePanel from '@/components/play/ChallengePanel';
 import CreateChallengeForm from '@/components/play/CreateChallengeForm';
 import AvailableMatchSection from '@/components/play/AvailableMatchSection';
@@ -96,6 +97,7 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
           <p className="text-sm leading-relaxed text-white/65">To play this match, you need ${Number(card.totalRequired).toFixed(2)} in available wallet funds, including the service fee. Pending deposits cannot be used yet.</p>
           <Button asChild variant="outline" className="h-11 w-full rounded-xl border-[#C9A84C]/30 font-semibold text-[#E5CA7A]"><Link to={`/wallet?challenge=${card.inviteCode}`}>Fund Wallet</Link></Button>
         </div>}
+        {card.status==='open' && <ChallengeAvailability card={card} onChanged={refresh}/>}
         {card.status!=='open' && <Link to={`/play?challenge=${card.inviteCode}`} className="block text-xs font-semibold text-[#C9A84C]">Open Match</Link>}
       </article>)}</div>}
       {activePublic && <ActiveChallengeCard match={activePublic} onCancel={async()=>{await base44.functions.invoke('cancelMatch',{matchId:activePublic.id});await refresh();}}/>}

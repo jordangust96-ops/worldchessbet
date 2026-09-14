@@ -53,7 +53,7 @@ export default function Home() {
   // null on remount and let the same dismissed match resurface.
   const dismissedMatchIdRef = useRef(sessionStorage.getItem("chessbet_dismissed_match_id"));
   const gameActive =
-    boardState === "in_progress" || boardState === "finalizing" || boardState === "settlement";
+    boardState === "countdown" || boardState === "in_progress" || boardState === "finalizing" || boardState === "settlement";
   const isLive = boardState === "in_progress";
   const touchOnlyInput = useTouchOnlyInput();
   const touchOnlyInputRef = useRef(touchOnlyInput);

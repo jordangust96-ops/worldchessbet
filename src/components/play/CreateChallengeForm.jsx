@@ -6,13 +6,14 @@ import ChallengeVisibilityToggle from '@/components/play/ChallengeVisibilityTogg
 import { computeContestFinancials } from '@/lib/contestFinancials';
 import { challengeRequest, challengeErrorMessage, handleChallengeGate } from '@/lib/challengeApi';
 
-import { CHALLENGE_TIME_CONTROLS, ENTRY_AMOUNTS, validNewEntry } from '../../../base44/shared/challengePolicy.js';
+import { CHALLENGE_TIME_CONTROLS, ENTRY_AMOUNTS, validNewEntry, CHALLENGE_HUD_TERMS, CHALLENGE_HUD_CONSENT_VERSION } from '../../../base44/shared/challengePolicy.js';
 
 export default function CreateChallengeForm({ initialAmount = 10, initialTimeControl = 'blitz', rematchOf = '', onCreated, onCancel }) {
   const navigate = useNavigate();
   const [amount, setAmount] = useState(String(validNewEntry(initialAmount) ? Number(initialAmount) : 10));
   const [timeControl, setTimeControl] = useState(CHALLENGE_TIME_CONTROLS.some(tc => tc.value === initialTimeControl) ? initialTimeControl : 'blitz');
   const [publiclyListed, setPubliclyListed] = useState(!rematchOf);
+  const [agree, setAgree] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const request = useRef({ terms:'', key:'' });
@@ -20,12 +21,12 @@ export default function CreateChallengeForm({ initialAmount = 10, initialTimeCon
   const financials = computeContestFinancials(Number(amount));
   const create = async (event) => {
     event.preventDefault();
-    if (busy || !valid) return;
+    if (busy || !valid || !agree) return;
     setBusy(true); setError('');
     const terms = `${Number(amount)}:${timeControl}:${rematchOf}:${publiclyListed}`;
     if (request.current.terms !== terms) request.current = { terms, key:crypto.randomUUID().replaceAll('-','') };
     try {
-      const result = await challengeRequest('create', { entryAmount:Number(amount), timeControl, publiclyListed, requestKey:request.current.key, ...(rematchOf ? { rematchOf } : {}) });
+      const result = await challengeRequest('create', { agree, consentVersion:CHALLENGE_HUD_CONSENT_VERSION, serviceFee:financials.serviceFee, entryAmount:Number(amount), timeControl, publiclyListed, requestKey:request.current.key, ...(rematchOf ? { rematchOf } : {}) });
       if (!result.path || !/^[a-f0-9]{32}$/.test(result.inviteCode || '')) throw new Error('The invitation was not returned. Please retry this request.');
       if (onCreated) await onCreated(result);
       else navigate('/play');
@@ -63,8 +64,9 @@ export default function CreateChallengeForm({ initialAmount = 10, initialTimeCon
     <p className="text-xs leading-relaxed text-white/50">Creating a link reserves no money. Both players must have available funds and pass eligibility checks when the challenge is accepted.</p>
     <ChallengeVisibilityToggle checked={publiclyListed} onChange={setPubliclyListed} disabled={busy} rematch={Boolean(rematchOf)} />
     {rematchOf && <p className="text-xs text-[#C9A84C]">This rematch link is for your previous opponent. Share it with them after creation.</p>}
+    <label className="flex items-start gap-3 rounded-xl border border-white/10 p-3 text-xs leading-relaxed text-white/60"><input type="checkbox" checked={agree} onChange={e=>setAgree(e.target.checked)} className="mt-1"/><span>{CHALLENGE_HUD_TERMS}</span></label>
     {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
-    <Button type="submit" disabled={busy || !valid} className="h-12 w-full rounded-2xl gold-gradient font-bold text-black disabled:opacity-40">
+    <Button type="submit" disabled={busy || !valid || !agree} className="h-12 w-full rounded-2xl gold-gradient font-bold text-black disabled:opacity-40">
       {busy ? <Loader2 size={17} className="mr-2 animate-spin" /> : <ArrowRight size={17} className="mr-2" />}
       {busy ? 'Creating link…' : rematchOf ? 'Create Rematch Link' : 'Create Challenge Link'}
     </Button>

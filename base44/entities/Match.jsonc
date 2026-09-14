@@ -1,7 +1,14 @@
 {
   "name": "Match",
   "properties": {
-    "challenge_publicly_listed": { "type": "boolean", "default": false, "description": "Creator opt-in to Find an Opponent. Discovery only; shared challenge acceptance and participant-only record access remain unchanged.", "rls": { "write": false } },
+    "challenge_publicly_listed": {
+      "type": "boolean",
+      "default": false,
+      "description": "Creator opt-in to Find an Opponent. Discovery only; shared challenge acceptance and participant-only record access remain unchanged.",
+      "rls": {
+        "write": false
+      }
+    },
     "challenge_version": {
       "type": "integer",
       "description": "1 identifies challenge-first invitation records. Unset on legacy/public matches."
@@ -352,6 +359,22 @@
       "rls": {
         "read": false,
         "write": false
+      }
+    },
+    "challenge_hud_consent_at": {
+      "type": "string",
+      "description": "Explicit creator consent to reservation while present in the HUD.",
+      "rls": {
+        "write": false,
+        "read": false
+      }
+    },
+    "challenge_creator_presence_id": {
+      "type": "string",
+      "description": "Server hash binding creator availability to one mounted HUD session.",
+      "rls": {
+        "write": false,
+        "read": false
       }
     }
   },

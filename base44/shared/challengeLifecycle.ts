@@ -9,7 +9,7 @@ import { paidContestsEnabled } from './seamlessFundingConfig.ts';
 import { acquireMatchLock, releaseMatchLock, acquireUserWalletLock, releaseUserWalletLock,
   setChallengeWalletBarriers, clearChallengeWalletBarriers, takeChallengeRateLimit, refreshContestLocks } from './seamlessAtomicStore.ts';
 import { CHALLENGE_VERSION, CHALLENGE_TTL_MS, CHALLENGE_AUTHORIZATION_MS, challengeTimeControl,
-  CHALLENGE_CONSENT_VERSION, VALID_INVITE, VALID_REQUEST_KEY,
+  CHALLENGE_CONSENT_VERSION, CHALLENGE_HUD_CONSENT_VERSION, CHALLENGE_READY_MS, VALID_INVITE, VALID_REQUEST_KEY,
   validNewEntry, isChallenge, challengeExpired, creatorAuthorized, challengeStartExpired,
   bothChallengePlayersReady, publicChallenge, reservationGroup, refundGroup,
   challengeReservationLegs, challengeReleaseLegs, challengePath } from './challengePolicy.js';
@@ -91,6 +91,9 @@ export async function createChallenge(base44: any, user: any, body: any) {
   if (!timeControl) fail('invalid_time_control', 'Choose Blitz, Rapid, or Classical.', 400);
   if (body.publiclyListed !== undefined && typeof body.publiclyListed !== 'boolean') fail('invalid_visibility', 'Choose whether to show the challenge in Find an Opponent.', 400);
   if (body.publiclyListed === true && body.rematchOf) fail('private_rematch', 'A rematch for a specific opponent must remain link-only.', 400);
+  const hudConsent = body.agree === true && body.consentVersion === CHALLENGE_HUD_CONSENT_VERSION;
+  if (body.consentVersion && (!hudConsent || Number(body.serviceFee) !== getPlatformServiceFee(Number(body.entryAmount))))
+    fail('consent_required', 'Review the displayed entry and fee before creating the challenge.', 400);
   await requireChallengePolicies(base44, user.id);
   return withChallengeCreationLock(user.id, async checkLease => {
     const existing = await base44.asServiceRole.entities.Match.filter({
@@ -124,7 +127,8 @@ export async function createChallenge(base44: any, user: any, body: any) {
       challenge_rematch_of: rematchOf, challenge_target_id: targetId,
       challenge_expires_at: new Date(Date.now() + CHALLENGE_TTL_MS).toISOString(),
       challenge_operation_state: 'idle', player1_deposited: false, player2_deposited: false,
-      player1_certified: false, player2_certified: false, notify_on_accept: true,
+      player1_certified: hudConsent, player2_certified: false, notify_on_accept: true,
+      ...(hudConsent ? { challenge_consent_version:CHALLENGE_HUD_CONSENT_VERSION, challenge_hud_consent_at:createdAt, player1_certified_at:createdAt } : {}),
     });
     await challengeEvent(base44, match, 'created', user.id, 'invitation_only');
     await recordIntegrationEvent(base44, { eventType:'contest.created', aggregateType:'match',
@@ -178,6 +182,52 @@ export async function authorizeChallenge(req: Request, base44: any, user: any, m
     });
     await challengeEvent(base44, updated, 'creator_ready', user.id, 'no_funds_reserved', updated.challenge_authorized_at);
     return { challenge: publicChallenge(updated, publicName(user)), authorizedUntil: updated.challenge_authorized_until };
+  });
+}
+
+// Consent is explicit; presence renewals never manufacture consent or reserve money.
+async function presenceHash(req: Request, body: any) {
+  if (!VALID_REQUEST_KEY.test(String(body.presenceId || ''))) fail('presence_required', 'Return to the Play screen and try again.', 400);
+  return sha256Hex(`${req.headers.get('user-agent') || ''}:${body.presenceId}`);
+}
+export async function consentToHudChallenge(base44: any, user: any, match: any, body: any) {
+  return underMatchLock(base44, match.id, async fresh => {
+    if (fresh.player1_id !== user.id) fail('forbidden', 'Only the creator can confirm these terms.', 403);
+    if (fresh.status !== 'searching' || challengeExpired(fresh) || activeOperation(fresh)) fail('unavailable', 'This challenge is no longer open.');
+    if (body.agree !== true || body.consentVersion !== CHALLENGE_HUD_CONSENT_VERSION ||
+        Number(body.entryAmount) !== Number(fresh.wager_amount) || Number(body.serviceFee) !== Number(fresh.platform_service_fee))
+      fail('consent_required', 'Review the displayed entry and fee.', 400);
+    await requireChallengePolicies(base44,user.id);
+    const updated=await base44.asServiceRole.entities.Match.update(fresh.id, {
+      challenge_consent_version:CHALLENGE_HUD_CONSENT_VERSION, challenge_hud_consent_at:nowIso(),
+      player1_certified:true, player1_certified_at:nowIso(), challenge_authorized_until:'', challenge_creator_presence_id:'',
+    });
+    return {challenge:publicChallenge(updated)};
+  });
+}
+export async function maintainCreatorPresence(req: Request, base44: any, user: any, match: any, body: any) {
+  const hash=await presenceHash(req,body);
+  return underMatchLock(base44,match.id,async fresh=>{
+    if(fresh.player1_id!==user.id)fail('forbidden','Only the creator can update their presence.',403);
+    if(fresh.status!=='searching' || activeOperation(fresh) || challengeExpired(fresh))return {available:false};
+    if(body.visible!==true){
+      if(fresh.challenge_creator_presence_id===hash)await base44.asServiceRole.entities.Match.update(fresh.id,{challenge_authorized_until:''});
+      return {available:false};
+    }
+    if(fresh.challenge_creator_presence_id===hash && !fresh.challenge_authorized_until)fail('presence_revoked','Return to the Play screen to resume availability.',409);
+    if(fresh.challenge_consent_version!==CHALLENGE_HUD_CONSENT_VERSION)fail('consent_required','Confirm the challenge terms first.',400);
+    const checked=Date.parse(fresh.challenge_authorized_at || '');
+    if(fresh.challenge_creator_presence_id!==hash || !Number.isFinite(checked) || Date.now()-checked>=90000){
+      await requireChallengePlayer(base44,user.id,fresh);
+      const location=await verifyMatchLocation(req,fresh,body);
+      if(location.status!=='approved')fail('location_required',location.reason || 'Verify your location before playing.',403);
+    }
+    const updated=await base44.asServiceRole.entities.Match.update(fresh.id,{
+      challenge_creator_presence_id:hash,
+      challenge_authorized_at:fresh.challenge_creator_presence_id!==hash || !Number.isFinite(checked) || Date.now()-checked>=90000 ? nowIso() : fresh.challenge_authorized_at,
+      challenge_authorized_until:new Date(Date.now()+CHALLENGE_READY_MS).toISOString(),
+    });
+    return {available:true,challenge:publicChallenge(updated)};
   });
 }
 
@@ -275,16 +325,16 @@ export async function acceptChallenge(req: Request, base44: any, user: any, matc
       fail('different_opponent', 'This rematch is for the previous opponent.', 403);
     await requireChallengePlayer(base44, user.id, fresh);
     await requireChallengePlayer(base44, fresh.player1_id, fresh, true);
-    if (!creatorAuthorized(fresh)) fail('creator_not_ready', 'The creator needs to confirm they are ready. This link remains open; neither wallet is reserved.');
+    if (!creatorAuthorized(fresh)) fail('creator_not_ready', 'The creator needs to return to the Play screen. This link remains open; neither wallet is reserved.');
     const location = await verifyMatchLocation(req, fresh, body);
     if (location.status !== 'approved') fail('location_required', location.reason || 'Verify your location to accept.', 403);
     const candidate = { ...fresh, player2_id: user.id };
     if (!(await getMatchLocationReadiness(base44, candidate)).ready)
-      fail('creator_not_ready', 'Both players need current location checks. Ask the creator to confirm readiness.');
+      fail('creator_not_ready', 'Both players need current location checks. Ask the creator to return to the Play screen.');
     return underWalletLocks([fresh.player1_id, user.id], owner, fresh.id, async () => {
       await requireChallengePlayer(base44, user.id, fresh);
       await requireChallengePlayer(base44, fresh.player1_id, fresh, true);
-      if (!creatorAuthorized(fresh) || challengeExpired(fresh)) fail('creator_not_ready', 'Readiness expired. No funds have been reserved.');
+      if (!creatorAuthorized(fresh) || challengeExpired(fresh)) fail('creator_not_ready', 'The creator is no longer available. No funds have been reserved.');
       // This is a short recovery marker, never an onboarding/funding queue.
       const operating = await base44.asServiceRole.entities.Match.update(fresh.id, {
         challenge_operation_state: 'reserving', challenge_claimant_id: user.id,
@@ -414,13 +464,20 @@ export async function readyChallenge(req: Request, base44: any, user: any, match
     const current = await base44.asServiceRole.entities.User.get(user.id);
     if (!paidContestsEnabled() || !await hasVerifiedIdentity(base44, current) || current.withdrawal_hold)
       fail('account_restricted', 'Your account is not currently eligible to start this match.', 403);
-    const deviceHash = await sha256Hex(req.headers.get('user-agent') || '');
+    const deviceHash = await presenceHash(req, body);
+    if (body.action === 'unready' || (body.action === 'heartbeat' && body.visible !== true)) {
+      if (match[`challenge_${role}_device_hash`] !== deviceHash) return {match, needsReady:true};
+      const updated = await base44.asServiceRole.entities.Match.update(match.id, {
+        [`challenge_${role}_ready_at`]:'', [`challenge_${role}_device_hash`]:'',
+      });
+      return {match:updated,needsReady:true};
+    }
     if (body.action === 'heartbeat') {
       // Renew only a visible, already-readied device. A background tab or
       // unrelated session cannot create or inherit start readiness.
       const old = Date.parse(match[`challenge_${role}_ready_at`] || '');
       if (body.visible !== true || match[`challenge_${role}_device_hash`] !== deviceHash ||
-          !Number.isFinite(old) || old > Date.now() || Date.now() - old >= 30000) return { match, needsReady: true };
+          !Number.isFinite(old) || old > Date.now() || Date.now() - old >= CHALLENGE_READY_MS) return { match, needsReady: true };
     } else {
       const location = await verifyMatchLocation(req, match, body);
       if (location.status !== 'approved') fail('location_required', location.reason || 'Recheck your location before play.', 403);

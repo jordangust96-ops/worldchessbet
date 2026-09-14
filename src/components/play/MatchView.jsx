@@ -89,7 +89,7 @@ export default function MatchView({
     } else if (match.status === "in_progress") {
       if (!countdownDone) {
         stateKey = "countdown";
-        content = <MatchStartCountdown onDone={() => setCountdownDone(true)} />;
+        content = <MatchStartCountdown game={game} onDone={() => setCountdownDone(true)} />;
       } else {
         stateKey = "in_progress";
         content = (

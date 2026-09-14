@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { Copy, Share2, Loader2, ArrowLeft, Clock, Check } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
+import ChallengeAvailability from '@/components/play/ChallengeAvailability';
 import ChallengeVisibilityToggle from '@/components/play/ChallengeVisibilityToggle';
 import Logo from '@/components/Logo';
 import SEO from '@/components/seo/SEO';
@@ -37,7 +38,6 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
   const creator = view?.role === 'player1';
   const open = card?.status === 'open';
   const creatorReady = card?.creatorReady && Date.parse(card.creatorReadyUntil || '') > now;
-  const seconds = Math.max(0, Math.ceil((Date.parse(card?.creatorReadyUntil || '')-now)/1000));
   const shareUrl = `${window.location.origin}${path}`;
 
   const refresh = useCallback(async () => {
@@ -51,7 +51,7 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
   useEffect(() => {
     refresh();
     const update = () => { if (document.visibilityState === 'visible') refresh(); };
-    const timer = setInterval(update, 15000);
+    const timer = setInterval(update, 3000);
     const clock = setInterval(() => setNow(Date.now()),1000);
     window.addEventListener('focus',update);
     window.addEventListener('online',update);
@@ -77,7 +77,7 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
   // Show the creator's setup or explicit authorization directly; checking
   // eligibility here neither requests location nor authorizes any funds.
   useEffect(() => {
-    if (!open || !user || (creator ? creatorReady : !marketplaceReview)) return;
+    if (!open || !user || creator || !marketplaceReview) return;
     let cancelled = false;
     setCreatorChecking(true); setError('');
     challengeRequest('readiness', { inviteCode }).then(state => {
@@ -182,7 +182,8 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
             <p className="text-sm leading-relaxed text-white/55">No funds are reserved yet. Share the link, keep playing elsewhere, or cancel it. An unfunded recipient cannot claim it.</p>
             <ChallengeVisibilityToggle checked={Boolean(card.publiclyListed)} disabled={Boolean(busy)} rematch={Boolean(card.isRematch)}
               onChange={publiclyListed=>withAction('visibility',async()=>{ await challengeRequest('visibility',{inviteCode,publiclyListed}); await refresh(); })} />
-            {creatorReady && <div className="rounded-xl border border-[#C9A84C]/20 bg-[#C9A84C]/10 p-3 text-sm text-[#E5CA7A]">Acceptance enabled for {seconds} seconds. You are not locked into an opponent.</div>}
+            <Button onClick={fund} disabled={Boolean(busy)} variant="outline" className="w-full rounded-xl">Fund Wallet</Button>
+            <ChallengeAvailability card={{...card,inviteCode}} onChanged={refresh}/>
           </div>}
           {open && !creator && (!marketplaceReview || !user) && stage === 'preview' && <Button disabled={Boolean(busy)} onClick={begin} className="h-12 w-full rounded-2xl gold-gradient font-bold text-black">
             {busy === 'check' && <Loader2 size={16} className="mr-2 animate-spin" />}Accept Challenge
@@ -196,8 +197,8 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
             {walletCodes.includes(readiness?.code) ? <Button onClick={fund} disabled={Boolean(busy)} className="h-11 w-full rounded-xl gold-gradient text-black font-semibold">Open Wallet Setup</Button> : <Link to="/play" className="text-[#C9A84C]">Return to Play</Link>}
             <button onClick={begin} className="w-full py-1 text-sm text-white/50">Check again</button>
           </div>}
-          {open && stage === 'confirm' && <div className="space-y-3">
-            {!creator && !creatorReady && <div className="rounded-xl bg-white/5 p-3 text-sm text-white/60">The creator needs to confirm readiness. No opponent or funds are reserved.
+          {open && !creator && stage === 'confirm' && <div className="space-y-3">
+            {!creator && !creatorReady && <div className="rounded-xl bg-white/5 p-3 text-sm text-white/60">Waiting for the creator to return to the Play screen with enough available funds. No opponent or funds are reserved.
               <button disabled={Boolean(busy)} onClick={()=>withAction('ping',async()=>{ const data=await challengeRequest('ping',{inviteCode}); setMessage(data.notified ? 'The creator was notified. The challenge is still open.' : 'A notification could not be sent. Share the link with the creator.'); })} className="mt-2 block font-semibold text-[#C9A84C]">Notify Creator</button></div>}
             <label className="flex items-start gap-3 rounded-xl border border-white/10 p-3 text-xs leading-relaxed text-white/65"><input type="checkbox" checked={agree} onChange={e=>setAgree(e.target.checked)} className="mt-1 h-4 w-4 shrink-0" />
               <span>{creator ? CHALLENGE_TERMS : `I agree to the Official Rules and Fair Play requirements and authorize ${usd(card.totalRequired)} (${usd(card.entryAmount)} entry plus ${usd(card.serviceFee)} fee) to be reserved only if both players qualify and the challenge is successfully claimed.`}</span></label>
