@@ -254,6 +254,22 @@ async function collect(svc: any, config: any, previous: any, now: number) {
     }),
     async () => read('analyzer_failed', 'Recent analyzer failures', () => svc.FairPlayAnalysis.filter({ status: 'failed', updated_date: { $gte: since } }, '-updated_date', 501), rows =>
       check('analyzer_failed', 'Recent analyzer failures', rows.length ? 'warning' : 'healthy', rows.length + ' failed analyses updated in the last 24 hours. No re-analysis is triggered.', rows.length, 'failures')),
+    async () => read('challenge_recovery', 'Challenge reservation recovery', () => svc.Match.filter({
+      launch_epoch: 2, challenge_version: 1,
+      challenge_operation_state: { $in: ['reserving', 'releasing'] },
+      challenge_operation_started_at: { $lt: new Date(now - 10 * 60000).toISOString() },
+    }, 'challenge_operation_started_at', 101), rows =>
+      check('challenge_recovery', 'Challenge reservation recovery', rows.length ? 'critical' : 'healthy',
+        rows.length + ' invitation financial operations have remained unresolved for over 10 minutes. ' +
+        'Affected wallets remain protected until journal recovery; investigate Preparation Timeout and ledger recovery. ' +
+        (rows.length >= 101 ? 'Count is a lower bound.' : ''), rows.length, 'operations')),
+    async () => read('challenge_no_shows', 'Challenge no-show releases', () => svc.Match.filter({
+      launch_epoch: 2, challenge_version: 1, status: { $in: ['preparing', 'both_ready'] },
+      preparation_started_at: { $lt: new Date(now - 10 * 60000).toISOString() },
+    }, 'preparation_started_at', 101), rows =>
+      check('challenge_no_shows', 'Challenge no-show releases', rows.length ? 'warning' : 'healthy',
+        rows.length + ' claimed invitations remain unstarted for over 10 minutes. The existing timeout workflow should release unstarted contest entries and fees. ' +
+        (rows.length >= 101 ? 'Count is a lower bound.' : ''), rows.length, 'challenges')),
     async () => read('integration_failures', 'Integration delivery failures', () => svc.IntegrationEvent.filter({ delivery_state: 'failed', updated_date: { $gte: since } }, '-updated_date', 501), rows =>
       check('integration_failures', 'Integration delivery failures', rows.length ? 'warning' : 'healthy',
         rows.length + ' failed outbox deliveries updated in the last 24 hours. This is not proof of provider webhook availability.', rows.length, 'failures')),
