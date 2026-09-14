@@ -115,21 +115,54 @@ const json=await healthy.json();eq(json.ga4,null);eq(json.charts[0].traffic,null
 assert.equal(JSON.stringify(json).includes('ip_address'),false);checks++;
 failSource=true;eq((await handler({json:async()=>({preset:'today'})})).status,500);
 
-const tasks=[], inserted=[];
-const analyticsSource=fs.readFileSync('src/lib/deferredAnalytics.js','utf8').replace('export function','function');
-const analyticsContext=vm.createContext({
- window:{dataLayer:[],requestAnimationFrame:fn=>tasks.push(fn),setTimeout:(fn)=>{tasks.push(fn);return tasks.length;},addEventListener:()=>{},removeEventListener:()=>{},clearTimeout:()=>{}},
- document:{readyState:'loading',getElementById:id=>inserted.find(s=>s.id===id),createElement:()=>({}),head:{appendChild:el=>inserted.push(el)}}
-});
-vm.runInContext(analyticsSource,analyticsContext);vm.runInContext('scheduleDeferredAnalytics()',analyticsContext);
-tasks.shift()();tasks.shift()();
-eq(inserted[0].id,'chessbet-ga4');eq(inserted.length,1);
-const pageEvents=[],ref={current:null};let location={pathname:'/play',search:''};
-const tracker=fs.readFileSync('src/components/GoogleAnalyticsTracker.jsx','utf8').replace(/^import .*;\n/gm,'').replace('export default function','function');
-const trackerContext=vm.createContext({useLocation:()=>location,useRef:()=>ref,useEffect:fn=>fn(),window:{gtag:(...args)=>pageEvents.push(args),location:{href:'https://worldchessbet.com/play'}},document:{title:'ChessBet'}});
-vm.runInContext(tracker,trackerContext);
-vm.runInContext('GoogleAnalyticsTracker(); GoogleAnalyticsTracker();',trackerContext);
-eq(pageEvents.length,1);
-location={pathname:'/wallet',search:''};vm.runInContext('GoogleAnalyticsTracker()',trackerContext);eq(pageEvents.length,2);
-console.log('PASS: '+checks+' total checks, including authorization, unavailable sources, GA failure, early collector load, and duplicate page-view protection.');
+// Execute the real privacy bootstrap and ESM analytics modules with a local
+// browser fixture. Optional analytics must NOT load early or track gameplay.
+const inserted=[], listeners=new Map();
+const storage=()=>{ const values=new Map(); return {
+ getItem:key=>values.get(key) ?? null, setItem:(key,value)=>values.set(key,String(value)), removeItem:key=>values.delete(key),
+}; };
+const localStorage=storage(), sessionStorage=storage();
+const location=new URL('https://worldchessbet.com/about');
+const navigator={globalPrivacyControl:false};
+const document={cookie:'',title:'ChessBet',getElementById:id=>inserted.find(s=>s.id===id),
+ createElement:()=>({}),head:{appendChild:el=>inserted.push(el)}};
+const window={location,localStorage,sessionStorage,fetch:async()=>new Response(null,{status:204}),
+ addEventListener:(name,fn)=>{const list=listeners.get(name)||[];list.push(fn);listeners.set(name,list);},
+ dispatchEvent:event=>{for(const fn of listeners.get(event.type)||[])fn(event);},
+};
+class FakeXHR {open(){} send(){} abort(){}}
+const analyticsContext=vm.createContext({window,document,navigator,location,localStorage,sessionStorage,
+ XMLHttpRequest:FakeXHR,history:{pushState(){},replaceState(){}},URL,Response,Event,Date,console});
+vm.runInContext(fs.readFileSync('public/privacy-bootstrap.js','utf8'),analyticsContext);
+function clientModule(file,dependencies={}) {
+ const source=fs.readFileSync(file,'utf8');
+ const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+ const module={exports:{}};
+ const run=vm.runInContext('(function(require,module,exports){'+compiled+'\n})',analyticsContext);
+ run(name=>{if(!(name in dependencies))throw Error('Unexpected analytics import '+name);return dependencies[name];},module,module.exports);
+ return module.exports;
+}
+const privacy=clientModule('src/lib/privacy.js');
+const analytics=clientModule('src/lib/deferredAnalytics.js',{'./privacy':privacy});
+const tracker=clientModule('src/components/GoogleAnalyticsTracker.jsx',{
+ 'react':{useEffect:fn=>fn()},'react-router-dom':{useLocation:()=>location},'@/lib/deferredAnalytics':analytics,
+}).default;
+const pageViews=()=>Array.from(window.dataLayer||[]).filter(args=>args[0]==='event'&&args[1]==='page_view');
+analytics.scheduleDeferredAnalytics();tracker();eq(inserted.length,0);eq(pageViews().length,0);
+window.ChessBetPrivacy.save({analytics:true,marketing:false});
+eq(inserted.length,1);eq(inserted[0].id,'chessbet-ga4');eq(pageViews().length,1);
+tracker();tracker();eq(pageViews().length,1);
+location.pathname='/faq';tracker();eq(pageViews().length,2);
+// Actual privacy route/consent policy, not a hard-coded true stub.
+for(const pathname of ['/play','/wallet','/login','/register','/verify-mfa','/admin/challenges','/challenge/'+ 'a'.repeat(32)]) {
+ location.pathname=pathname;tracker();eq(pageViews().length,2);eq(inserted.length,1);
+}
+location.pathname='/about';location.search='?invite=private';tracker();eq(pageViews().length,2);
+location.search='';location.hash='#private';tracker();eq(pageViews().length,2);location.hash='';
+localStorage.setItem('base44_access_token','fixture');tracker();eq(pageViews().length,2);localStorage.removeItem('base44_access_token');
+navigator.globalPrivacyControl=true;tracker();eq(pageViews().length,2);navigator.globalPrivacyControl=false;
+window.ChessBetPrivacy.save({analytics:false,marketing:false});tracker();eq(pageViews().length,2);
+eq(inserted.some(s=>s.id==='chessbet-meta-pixel'),false);
+const last=pageViews()[1][2];eq(last.page_location,'https://worldchessbet.com/faq');eq(last.page_referrer,'');
+console.log('PASS: '+checks+' total checks, including authorization, unavailable sources, GA failure, consent gates, private challenge redaction, and duplicate page-view protection.');
 
