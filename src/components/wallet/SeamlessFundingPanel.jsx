@@ -302,7 +302,7 @@ export default function SeamlessFundingPanel({
       {/* Provider webhooks are authoritative for account and bank status. */}
       {effectiveWithdrawalHold && (
         <p className="text-xs text-red-400/80 text-center">
-          Withdrawals are temporarily on hold while we complete a routine account review.
+          Additional account verification is required. Contact hello@worldchessbet.com for help.
         </p>
       )}
       {!effectiveWithdrawalHold && notVerified && effectiveAccountState === "provisional" && (
