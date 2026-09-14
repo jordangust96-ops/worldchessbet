@@ -290,7 +290,6 @@ export default function SeamlessFundingPanel({
           <span className="text-xs text-white/60">{[locationApproved, !!state?.identity?.verified, depositSourceReady].filter(Boolean).length} of 3 complete</span>
         </div>
         <div className="divide-y divide-white/10">
-          <p className="mb-3 text-sm text-white/60">You can play free chess while your wallet is being set up or funds are clearing. <Link to="/play" className="font-semibold text-[#E5CA7A]">Play for Free</Link></p>
           <DepositLocationStep decision={location} onDecision={setLocationOverride} />
           <SocureIdentityStep identity={{...state?.identity,can_start:state?.identity?.can_start && locationApproved}} locationApproved={locationApproved} onRefresh={load} />
           <WalletSetupStep number={3} label="Bank connection" title={depositSourceReady ? "Bank Connected" : bankPending ? "Bank verification pending" : bankReady ? "Choose your deposit bank" : bankNeedsAttention ? "Bank connection needs attention" : "Connect your bank"} complete={depositSourceReady} pending={!depositSourceReady && bankPending} attention={bankNeedsAttention && !bankPending}
