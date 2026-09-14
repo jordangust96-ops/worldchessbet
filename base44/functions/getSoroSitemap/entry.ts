@@ -35,7 +35,7 @@ function extractPublishedArticles(source: string) {
 function buildSitemap(articles: Array<{ slug: string; isoDate: string }>) {
   const urls = articles
     .map((article) => {
-      const articleUrl = `${SITE_URL}/blog?post=${encodeURIComponent(article.slug)}`;
+      const articleUrl = `${SITE_URL}/blog/${encodeURIComponent(article.slug)}`;
       return [
         "  <url>",
         `    <loc>${escapeXml(articleUrl)}</loc>`,
