@@ -300,7 +300,9 @@ function renderBlogArticle(article, content) {
 
 async function prerenderBlog() {
   try {
-    const source = await fetchText(SORO_EMBED_URL);
+    // Use a fresh cache key so publication includes recently corrected article copy.
+    const publicationRevision = Date.now();
+    const source = await fetchText(`${SORO_EMBED_URL}?v=${publicationRevision}`);
     const articles = extractSoroArticles(source);
     await writeRoute("/blog", renderBlogIndex(articles));
 
@@ -308,7 +310,7 @@ async function prerenderBlog() {
       articles.map(async (article) => {
         let content = "";
         try {
-          const payload = await fetchJson(`${SORO_API_BASE}/api/embed/${SORO_TOKEN}/article/${article.id}`);
+          const payload = await fetchJson(`${SORO_API_BASE}/api/embed/${SORO_TOKEN}/article/${article.id}?v=${publicationRevision}`);
           content = typeof payload?.content === "string" ? payload.content : "";
         } catch (error) {
           console.warn(`[prerender] Soro body fallback for ${article.slug}: ${error.message}`);
