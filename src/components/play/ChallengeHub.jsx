@@ -1,3 +1,4 @@
+import NotifyOnAcceptToggle from '@/components/play/NotifyOnAcceptToggle';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Share2, Swords, Plus, Loader2, Copy, Check } from 'lucide-react';
@@ -106,7 +107,8 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
             <span className="min-w-0 truncate text-xs text-white/55">{`${window.location.origin}${card.path}`}</span>
             <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-[#E5CA7A]">{copiedId===card.id?<><Check size={14}/>Copied</>:<><Copy size={14}/>Copy URL</>}</span>
           </button>
-          <p className="text-xs text-white/45">{card.playMode==='free'?'You can leave this screen. We’ll email you when someone accepts.':card.creatorFundsReserved ? `${Number(card.totalRequired).toFixed(2)} reserved for this match. We’ll email you when someone accepts.` : 'Both players must qualify before acceptance.'}</p>
+          {card.playMode!=='free' && card.creatorFundsReserved && <p className="text-xs text-white/45">${Number(card.totalRequired).toFixed(2)} reserved for this match.</p>}
+          <NotifyOnAcceptToggle match={{id:card.id,notify_on_accept:card.notifyOnAccept}} onChanged={refresh} />
         </>}
         {card.status==='open' && card.playMode!=='free' && !card.creatorFundsReserved && <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
           <p className="text-sm leading-relaxed text-white/65">To play this match, you need ${Number(card.totalRequired).toFixed(2)} in available wallet funds, including the service fee. Pending deposits cannot be used yet.</p>
