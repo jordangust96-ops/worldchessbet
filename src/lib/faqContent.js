@@ -57,14 +57,14 @@ export const FAQ_SECTIONS = [
         question: "What payment methods are accepted?",
         paragraphs: [
           "ChessBet supports ACH bank transfers through a connected bank account for eligible, verified users.",
-          "Deposits have a $10 wallet-credit minimum and a $1,100 total bank-debit maximum including the separate deposit fee. The Wallet shows wallet credit, deposit fee, and total debit before submission. Funds become available only after clearing and a final provider-status check.",
+          "Deposits have a $10 wallet-credit minimum and a $1,100 total bank-debit maximum including the separate deposit fee. The Wallet shows wallet credit, deposit fee, and total debit before submission. Deposits become available to play after Seamless reports Processed and ChessBet completes the provider and settlement checks. Bank withdrawals require five business days from submission and a final provider check; prizes and refunds inherit remaining holds.",
         ],
       },
       {
         question: "Can I withdraw anytime?",
         paragraphs: [
           "When withdrawals are enabled and your account is eligible, you may request available funds through your verified bank. Requests are limited to $1,100 each and shared platform capacity of $1,100 per rolling 24 hours and $22,000 per rolling 31 days across all users.",
-          "Pending deposits, Clearing funds, reserved contest funds, pending winnings, and existing withdrawal reservations are unavailable to withdraw. Requests below $10 have a separate $2.50 fee, waived for a withdrawal of your entire Available Balance. Confirmed failed or reversed withdrawals return any associated charged withdrawal fee. Provider processing and reviews can delay arrival.",
+          "Pending deposits, Clearing funds, reserved contest funds, pending winnings, and existing withdrawal reservations are unavailable to withdraw. Requests below $10 have a separate $2.50 fee, waived for a withdrawal of your entire Available to Withdraw balance. Confirmed failed or reversed withdrawals return any associated charged withdrawal fee. Provider processing and reviews can delay arrival.",
         ],
       },
       {

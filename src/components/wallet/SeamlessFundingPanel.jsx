@@ -170,7 +170,7 @@ export default function SeamlessFundingPanel({
       // asks the server for the same logical transfer, never a second ACH request.
       if (data?.status !== "uncertain") requestKey.current = "";
       if (data?.status !== "uncertain") setAmount("");
-      setNotice(data?.status === "uncertain" ? "Your bank has not confirmed this request yet. Do not submit another transfer; check Transaction History for updates." : direction === "deposit" ? "Deposit requested. Funds become available after processing and clearing. Follow its progress in Transaction History." : "Withdrawal requested. Follow its progress in Transaction History.");
+      setNotice(data?.status === "uncertain" ? "Your bank has not confirmed this request yet. Do not submit another transfer; check Transaction History for updates." : direction === "deposit" ? "Deposit requested. Funds become available to play after Processed and the final checks. A separate withdrawal hold applies. Follow its progress in Transaction History." : "Withdrawal requested. Follow its progress in Transaction History.");
       await load();
       if (onRefresh) onRefresh();
     } catch (e) {
@@ -624,7 +624,7 @@ export default function SeamlessFundingPanel({
                   <div className="flex justify-between gap-3 text-white/75"><span>Added to your wallet</span><span>${quote.walletAmount.toFixed(2)}</span></div>
                   <div className="flex justify-between gap-3 text-white/60"><span>Deposit fee</span><span>${quote.fee.toFixed(2)}</span></div>
                   <div className="flex justify-between gap-3 border-t border-white/10 pt-3 font-semibold text-white"><span>Total bank charge</span><span>${quote.bankDebit.toFixed(2)}</span></div>
-                  <p className="pt-1 text-[11px] leading-relaxed text-white/45">The deposit fee helps ChessBet cover payment processing and verification expenses. Your wallet receives the full ${quote.walletAmount.toFixed(2)} after Seamless confirms the deposit and clearing is complete.</p>
+                  <p className="pt-1 text-[11px] leading-relaxed text-white/45">The deposit fee helps ChessBet cover payment processing and verification expenses. Your wallet receives the full ${quote.walletAmount.toFixed(2)} for play after Seamless reports Processed and the final checks pass. A separate withdrawal hold applies.</p>
                   <p className="text-[11px] leading-relaxed text-white/60">By clicking Deposit, you authorize a one-time debit of ${quote.bankDebit.toFixed(2)} from the connected bank shown above, including the ${quote.fee.toFixed(2)} deposit fee.</p>
                 </div>
               )}
