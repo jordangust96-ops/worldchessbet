@@ -1,7 +1,7 @@
 // Shared, pure challenge rules. No provider requests, entity writes, or wallet mutations.
-export const CHALLENGE_VERSION = 2;
+export const CHALLENGE_VERSION = 1;
 export const CHALLENGE_TTL_MS = 24 * 60 * 60 * 1000;
-export const CHALLENGE_AUTHORIZATION_MS = 90 * 1000;
+export const CHALLENGE_AUTHORIZATION_MS = 2 * 60 * 1000;
 export const CHALLENGE_START_WINDOW_MS = 2 * 60 * 1000;
 export const CHALLENGE_READY_MS = 30 * 1000;
 export const CHALLENGE_CLOCK_MS = 5 * 60 * 1000;
@@ -24,8 +24,8 @@ export function challengeExpired(match, now = Date.now()) {
   return !Number.isFinite(expiry) || now >= expiry;
 }
 export function creatorAuthorized(match, now = Date.now()) {
-  const at = Date.parse(match?.challenge_creator_consent_at || '');
-  const until = Date.parse(match?.challenge_creator_ready_until || '');
+  const at = Date.parse(match?.challenge_authorized_at || '');
+  const until = Date.parse(match?.challenge_authorized_until || '');
   return Boolean(match?.player1_certified && match?.challenge_consent_version === CHALLENGE_CONSENT_VERSION &&
     Number.isFinite(at) && at <= now && now < until && until - at <= CHALLENGE_AUTHORIZATION_MS);
 }
@@ -35,13 +35,13 @@ export function challengeStartExpired(match, now = Date.now()) {
 }
 export function bothChallengePlayersReady(match, now = Date.now()) {
   return ['player1', 'player2'].every(role => {
-    const until = Date.parse(match?.[`challenge_${role}_ready_until`] || '');
-    return Number.isFinite(until) && until > now && until <= now + CHALLENGE_READY_MS;
+    const at = Date.parse(match?.[`challenge_${role}_ready_at`] || '');
+    return Number.isFinite(at) && at <= now && now - at < CHALLENGE_READY_MS;
   });
 }
 export function publicChallenge(match, hostName = 'ChessBet player', now = Date.now()) {
   const open = match.status === 'searching' && !challengeExpired(match, now);
-  const processing = ['reserving', 'releasing'].includes(match.challenge_commit_state);
+  const processing = ['reserving', 'releasing'].includes(match.challenge_operation_state);
   return {
     id: match.id,
     creatorName: hostName,
