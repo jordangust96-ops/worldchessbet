@@ -204,7 +204,7 @@ export async function setChallengeVisibility(base44: any, user: any, match: any,
 
 export async function authorizeChallenge(req: Request, base44: any, user: any, match: any, body: any) {
   if (match.player1_id !== user.id) fail('forbidden', 'Only the creator can enable acceptance.', 403);
-  if (body.agree !== true || Number(body.entryAmount) !== Number(match.wager_amount) || Number(body.serviceFee) !== Number(match.platform_service_fee))
+  if ((!isFreeMatch(match) && body.agree !== true) || Number(body.entryAmount) !== Number(match.wager_amount) || Number(body.serviceFee) !== Number(match.platform_service_fee))
     fail('consent_required', 'Review and agree to the displayed entry, fee, and Fair Play requirements.', 400);
   return underMatchLock(base44, match.id, async (fresh) => {
     if (fresh.status !== 'searching' || challengeExpired(fresh) || activeOperation(fresh)) fail('unavailable', 'This challenge is no longer open.');
@@ -440,14 +440,14 @@ export async function acceptChallenge(req: Request, base44: any, user: any, matc
       fail('different_opponent', 'This rematch is for the previous opponent.', 403);
     await requireChallengePlayer(base44, user.id, fresh);
     await requireChallengePlayer(base44, fresh.player1_id, fresh, true);
-    if (!creatorAuthorized(fresh)) fail('creator_not_ready', 'The creator needs to return to the Play screen. This link remains open.');
+    if (!isFreeMatch(fresh) && !creatorAuthorized(fresh)) fail('creator_not_ready', 'The creator needs to return to the Play screen. This link remains open.');
     if (isFreeMatch(fresh)) {
       assertFreeMatch(fresh);
       await checkPlayerLeases();
       if (!await refreshContestLocks(fresh.id, [], owner)) fail('busy','Challenge ownership changed.');
-      if (!creatorAuthorized(fresh) || challengeExpired(fresh)) fail('creator_not_ready','The creator needs to return to the Play screen.');
+      if (challengeExpired(fresh)) fail('unavailable','This challenge expired.');
       const updated = await base44.asServiceRole.entities.Match.update(fresh.id, {
-        player2_id:user.id, player2_certified:!reservesOnCreation(fresh), player2_certified_at:reservesOnCreation(fresh)?'':nowIso(),
+        player2_id:user.id, player2_certified:false, player2_certified_at:'',
         status:'preparing', preparation_started_at:nowIso(), challenge_claimed_at:nowIso(),
         challenge_recipient_consent_at:nowIso(), challenge_operation_state:'idle',
       });
