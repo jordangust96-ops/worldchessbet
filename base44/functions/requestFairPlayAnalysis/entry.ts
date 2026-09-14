@@ -38,7 +38,8 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     // Expired or missing sessions are authentication failures, not server errors.
-    const user = await base44.auth.me().catch(() => null);
+    let user = null;
+    try { user = await base44.auth.me(); } catch { /* SDK may throw before returning a promise. */ }
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
