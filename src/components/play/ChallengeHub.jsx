@@ -14,7 +14,6 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
   const navigate = useNavigate();
   const requestedCode = new URLSearchParams(location.search).get("challenge");
   const selectedCode = /^[a-f0-9]{32}$/.test(requestedCode || "") ? requestedCode : "";
-  const openInHud = code => { setCreating(false); navigate(`/play?challenge=${code}`); };
   const [creating,setCreating] = useState(false);
   const [showPublic,setShowPublic] = useState(()=>new URLSearchParams(location.search).get('mode')==='public');
   const [challenges,setChallenges] = useState([]);
@@ -57,20 +56,43 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
   };
   const existingChallenge = challenges.find(card => ['open','processing','claimed'].includes(card.status));
   const creationBlocked = loading || loadFailed || Boolean(activePublic) || Boolean(existingChallenge);
+  const pendingId = existingChallenge?.id || activePublic?.id || '';
+  useEffect(() => {
+    if (pendingId) setShowPublic(true);
+  }, [pendingId]);
+
   return <section className="space-y-5 rounded-3xl border border-white/5 bg-gradient-to-br from-[#1A1A1A] to-[#111] p-5 lg:h-full lg:overflow-y-auto lg:p-5">
-    {selectedCode ? <ChallengePanel key={selectedCode} inviteCode={selectedCode} embedded onClose={()=>navigate("/play")} onChanged={refresh}/> : loading ? <Loader2 aria-label="Loading your challenge" size={20} className="animate-spin text-white/40"/> : creating && !creationBlocked ? <CreateChallengeForm onCreated={async result=>{ openInHud(result.inviteCode); await refresh(); }} onCancel={()=>setCreating(false)}/> : !creationBlocked ? <div className="space-y-3">
+    {selectedCode ? <ChallengePanel key={selectedCode} inviteCode={selectedCode} embedded onClose={()=>navigate("/play")} onChanged={refresh}/> : loading ? <Loader2 aria-label="Loading your challenge" size={20} className="animate-spin text-white/40"/> : creating && !creationBlocked ? <CreateChallengeForm onCreated={async()=>{ await refresh(); setCreating(false); navigate('/play', { replace:true }); }} onCancel={()=>setCreating(false)}/> : !creationBlocked ? <div className="space-y-3">
       <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#C9A84C]/10 text-[#C9A84C]"><Swords size={21}/></div>
       <div><h1 className="text-2xl font-extrabold text-white">Challenge Someone</h1><p className="mt-2 text-sm leading-relaxed text-white/55">Your friend. Your rival. Your next opponent. Create a link and play chess for money.</p></div>
       <Button disabled={creationBlocked} onClick={()=>setCreating(true)} className="h-12 w-full rounded-2xl gold-gradient font-bold text-black"><Plus size={18} className="mr-2"/>Create Challenge</Button>
       <p className="text-xs leading-relaxed text-white/40">Links reserve no money or opponent. Both players need available funds when the challenge is accepted.</p>
     </div> : null}
     {!selectedCode && !loading && (challenges.length > 0 || activePublic) && <div className="border-t border-white/10 pt-4">
-      <h2 className="mb-3 text-sm font-semibold text-white/75">Your pending challenge</h2>
-      {challenges.length > 0 && <div className="space-y-2">{challenges.map(card=><article key={card.id} className="rounded-2xl border border-white/10 bg-white/[0.025] p-3">
-        <div className="flex items-center justify-between gap-3"><Link to={`/play?challenge=${card.inviteCode}`} className="font-semibold text-white">${Number(card.entryAmount).toFixed(2)} · {card.displayName}</Link><span className="text-xs text-[#C9A84C]">{card.status==='open'?(card.publiclyListed?'Public challenge':'Link-only challenge'):card.status==='processing'?'Confirming…':'Accepted'}</span></div>
-        <div className="mt-3 flex flex-wrap items-center gap-4 text-xs"><Link to={`/play?challenge=${card.inviteCode}`} className="font-semibold text-[#C9A84C]">{card.status==='open'?'Open Challenge':'Open Match'}</Link>
-          {card.status==='open' && <><button onClick={()=>share(card)} className="inline-flex items-center gap-1 text-white/55"><Share2 size={13}/>Share</button><button onClick={()=>cancel(card)} disabled={Boolean(busyId)} className="text-white/40">{busyId===card.id?'Cancelling…':'Cancel'}</button></>}
+      <div className="mb-4 flex items-center gap-3">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#C9A84C]/25 bg-[#C9A84C]/10 text-[#E5CA7A]"><Swords size={23}/></div>
+        <div><p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-[#C9A84C]">Challenge posted</p>
+          <h2 className="text-xl font-extrabold leading-tight text-white">Your next match starts here</h2></div>
+      </div>
+      {challenges.length > 0 && <div className="space-y-3">{challenges.map(card=><article key={card.id} className="space-y-3 rounded-2xl border border-[#C9A84C]/20 bg-gradient-to-br from-[#C9A84C]/10 to-transparent p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="rounded-full border border-[#C9A84C]/20 bg-[#C9A84C]/10 px-2.5 py-1 text-xs font-semibold text-[#E5CA7A]">{card.status==='open'?(card.publiclyListed?'Public challenge':'Link-only challenge'):card.status==='processing'?'Confirming…':'Accepted'}</span>
+          <span className="text-xs text-white/55">{card.displayName} · No increment</span>
         </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><p className="text-xs text-white/50">Entry Amount</p><p className="mt-1 text-2xl font-bold text-white">${Number(card.entryAmount).toFixed(2)}</p></div>
+          <div><p className="text-xs text-white/50">Winner award</p><p className="mt-1 text-2xl font-bold text-[#E5CA7A]">${Number(card.winnerAward).toFixed(2)}</p></div>
+        </div>
+        <p className="text-xs text-white/55">${Number(card.serviceFee).toFixed(2)} service fee · ${Number(card.totalRequired).toFixed(2)} required per player</p>
+        <p className="text-sm leading-relaxed text-white/65">{card.publiclyListed ? 'Your challenge is listed in Find an Opponent. Share the link with a friend, or meet someone new.' : 'Your challenge is link-only. Share it with the person you want to play.'}</p>
+        {card.status==='open' && <>
+          <div className="grid grid-cols-2 gap-2">
+            <Button onClick={()=>share(card)} className="h-11 rounded-xl gold-gradient font-bold text-black"><Share2 size={15} className="mr-2"/>Share</Button>
+            <Button variant="outline" onClick={()=>cancel(card)} disabled={Boolean(busyId)} className="h-11 rounded-xl border-white/15 text-white/65">{busyId===card.id?'Cancelling…':'Cancel'}</Button>
+          </div>
+          <p className="text-xs text-white/45">No funds reserved. Both players must qualify before acceptance.</p>
+        </>}
+        <Link to={`/play?challenge=${card.inviteCode}`} className="block text-xs font-semibold text-[#C9A84C]">{card.status==='open' ? (card.creatorReady ? 'Challenge details & visibility' : 'Review eligibility & enable acceptance') : 'Open Match'}</Link>
       </article>)}</div>}
       {activePublic && <ActiveChallengeCard match={activePublic} onCancel={async()=>{await base44.functions.invoke('cancelMatch',{matchId:activePublic.id});await refresh();}}/>}
     </div>}

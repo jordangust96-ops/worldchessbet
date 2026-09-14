@@ -12,7 +12,7 @@ export default function CreateChallengeForm({ initialAmount = 10, initialTimeCon
   const navigate = useNavigate();
   const [amount, setAmount] = useState(String(validNewEntry(initialAmount) ? Number(initialAmount) : 10));
   const [timeControl, setTimeControl] = useState(CHALLENGE_TIME_CONTROLS.some(tc => tc.value === initialTimeControl) ? initialTimeControl : 'blitz');
-  const [publiclyListed, setPubliclyListed] = useState(false);
+  const [publiclyListed, setPubliclyListed] = useState(!rematchOf);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const request = useRef({ terms:'', key:'' });
@@ -28,7 +28,7 @@ export default function CreateChallengeForm({ initialAmount = 10, initialTimeCon
       const result = await challengeRequest('create', { entryAmount:Number(amount), timeControl, publiclyListed, requestKey:request.current.key, ...(rematchOf ? { rematchOf } : {}) });
       if (!result.path || !/^[a-f0-9]{32}$/.test(result.inviteCode || '')) throw new Error('The invitation was not returned. Please retry this request.');
       if (onCreated) await onCreated(result);
-      else navigate(`/play?challenge=${result.inviteCode}`);
+      else navigate('/play');
     } catch (err) {
       if (!handleChallengeGate(err,navigate,'/play')) setError(challengeErrorMessage(err));
     } finally { setBusy(false); }
