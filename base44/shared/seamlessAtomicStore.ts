@@ -38,7 +38,18 @@ async function command(parts: unknown[]) {
     signal: AbortSignal.timeout(12_000),
   });
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok || payload?.error) throw new Error('Seamless atomic store unavailable');
+  if (!response.ok || payload?.error) {
+    const message = String(payload?.error || '');
+    // Operational categories only: never propagate provider payloads or tokens.
+    const reason = /READONLY|read.only/i.test(message) ? 'read_only'
+      : /NOAUTH|NOPERM|auth|permission|token/i.test(message) ? 'authorization'
+      : /quota|limit|capacity/i.test(message) ? 'capacity'
+      : /script|lua|syntax|compile/i.test(message) ? 'script'
+      : 'provider_error';
+    throw Object.assign(new Error('Seamless atomic store unavailable'), {
+      coordinationHttpStatus: response.status, coordinationReason: reason,
+    });
+  }
   return payload?.result;
 }
 
