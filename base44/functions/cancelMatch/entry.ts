@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { postLedgerLegs } from '../../shared/ledger.ts';
+import { cancelChallenge } from '../../shared/challengeLifecycle.ts';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 
 // Cancels a pending (not yet in-progress) match and refunds any escrowed
@@ -19,6 +20,7 @@ Deno.serve(async (req) => {
     let match = await base44.asServiceRole.entities.Match.get(matchId);
     if (!match) return Response.json({ error: 'Match not found' }, { status: 404 });
     if (Number(match.launch_epoch) !== 2) return Response.json({ error: 'Match not available' }, { status: 410 });
+    if (Number(match.challenge_version) === 1) return Response.json(await cancelChallenge(base44, user, match.id));
 
     const isP1 = match.player1_id === user.id;
     const isP2 = match.player2_id === user.id;
@@ -158,6 +160,7 @@ Deno.serve(async (req) => {
 
     return Response.json({ match: updatedMatch });
   } catch (error) {
+    if (error?.code && error?.status) return Response.json({ error: error.message, code: error.code }, { status: error.status });
     console.error(JSON.stringify({ event: 'backend_function_failed', error: error?.message || 'unknown_error' }));
     return Response.json({ error: 'internal_error' }, { status: 500 });
   }
