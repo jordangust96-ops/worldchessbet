@@ -11,7 +11,7 @@ const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
 try{
 for(const width of [390,1280])for(const scenario of ['invite','marketplace','paid']){
 const context=await browser.newContext({viewport:{width,height:900}}),page=await context.newPage(),errors=[];
-page.on('pageerror',e=>errors.push(e.message));
+page.on('pageerror',e=>{errors.push(e.message);console.log('PAGEERROR',e.message);});page.on('console',m=>{if(m.type()==='error')console.log(m.text());});
 await page.addInitScript(({scenario})=>{
  const calls=[],code='a'.repeat(32),free=scenario!=='paid';
  const card={id:'mock',inviteCode:code,status:'open',playMode:free?'free':'money',creatorName:'Host',displayName:'Blitz (3+0)',entryAmount:free?0:5,serviceFee:free?0:1,totalRequired:6,expiresAt:new Date(Date.now()+86400000).toISOString(),creatorReady:false};
