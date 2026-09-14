@@ -86,7 +86,7 @@ for (const prohibited of ['verified_id_hash', 'full_name', 'email:', 'pgn:', 'mo
 }
 
 const lifecycleSources = {
-  'contest.created': 'base44/functions/createMatch/entry.ts',
+  'contest.created': 'base44/shared/challengeLifecycle.ts',
   'contest.accepted': 'base44/functions/acceptMatch/entry.ts',
   'contest.fair_play_certified': 'base44/functions/certifyFairPlay/entry.ts',
   'contest.participant_funded': 'base44/shared/lockWager.ts',

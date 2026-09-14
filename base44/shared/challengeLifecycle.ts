@@ -127,6 +127,13 @@ export async function createChallenge(base44: any, user: any, body: any) {
       player1_certified: false, player2_certified: false, notify_on_accept: true,
     });
     await challengeEvent(base44, match, 'created', user.id, 'invitation_only');
+    await recordIntegrationEvent(base44, { eventType:'contest.created', aggregateType:'match',
+      aggregateId:match.id, correlationId:match.id, idempotencyKey:`contest.created:${match.id}`,
+      actorType:'user', actorId:user.id, userId:user.id, matchId:match.id,
+      status:match.status, amount:match.wager_amount, result:'created',
+      eventData:{ time_control:match.time_control, entry_amount:match.wager_amount,
+        platform_service_fee:match.platform_service_fee, publicly_listed:match.challenge_publicly_listed } });
+
     return { match, inviteCode: code, path: challengePath(code) };
   });
 }

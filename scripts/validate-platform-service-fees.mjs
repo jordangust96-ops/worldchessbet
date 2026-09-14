@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 const [feeSchedule, createMatch, lockWager, settleMatch, cancelMatch, prepTimeout, disputes, contestRecord] = await Promise.all([
   read('base44/shared/platformFee.ts'),
-  read('base44/functions/createMatch/entry.ts'),
+  read('base44/shared/challengeLifecycle.ts'),
   read('base44/shared/lockWager.ts'),
   read('base44/functions/settleMatch/entry.ts'),
   read('base44/functions/cancelMatch/entry.ts'),
@@ -17,7 +17,7 @@ const [feeSchedule, createMatch, lockWager, settleMatch, cancelMatch, prepTimeou
 assert.match(feeSchedule, /PLATFORM_FEE_SCHEDULE_VERSION = '2026-07-28'/);
 assert.match(feeSchedule, /feeCents: 100/);
 assert.match(feeSchedule, /feeCents: 4000/);
-assert.match(createMatch, /platform_service_fee: platformServiceFee/);
+assert.match(createMatch, /platform_service_fee: getPlatformServiceFee/);
 assert.match(createMatch, /platform_fee_schedule_version: PLATFORM_FEE_SCHEDULE_VERSION/);
 
 // Funding: Entry Amount and Platform Service Fee are reserved independently.

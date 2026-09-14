@@ -208,9 +208,10 @@ ok(identitySrc.indexOf('await walletOnboardingLocation(') < identitySrc.indexOf(
 
 // ---------- 8. Backend enforcement call sites (preserved) ----------
 const createSrc = await read('base44/functions/createMatch/entry.ts');
-ok(createSrc.includes('runContestEligibility'), 'createMatch invokes runContestEligibility (jurisdiction gate)');
-ok(/triggerEvent:\s*['"]create_match['"]/.test(createSrc), 'createMatch passes triggerEvent create_match');
-ok(/!eligibilityRes\.data\?\.eligible/.test(createSrc), 'createMatch fails closed when not eligible');
+ok(createSrc.includes('unified_challenge_required'), 'retired creation endpoint rejects stale clients');
+const challengeSrc = await read('base44/shared/challengeLifecycle.ts');
+ok(challengeSrc.includes('verifyMatchLocation(req, fresh, body)'), 'unified acceptance verifies location');
+ok(challengeSrc.includes("location.status !== 'approved'") && challengeSrc.includes('getMatchLocationReadiness'), 'unified acceptance fails closed on both players location evidence');
 
 const acceptSrc = await read('base44/functions/acceptMatch/entry.ts');
 ok(acceptSrc.includes('runContestEligibility'), 'acceptMatch invokes runContestEligibility (jurisdiction gate)');
