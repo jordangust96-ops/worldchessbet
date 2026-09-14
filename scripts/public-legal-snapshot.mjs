@@ -7,31 +7,58 @@ export const PUBLIC_LEGAL_DOCUMENTS = {
     label: "Official Rules",
     title: "Cash Chess Rules | Entries, Prizes & Fair Play — ChessBet",
     description: "Read ChessBet's Official Rules governing skill-based chess contests, entry amounts, match settlement, fair play standards, and eligibility requirements.",
-    version: "5.0",
-    lastUpdated: "September 9, 2026",
+    version: "6.0",
+    lastUpdated: "September 13, 2026",
     supportEmail: "hello@worldchessbet.com",
     markdown: `## Contest Format
 Each Contest is a head-to-head (1v1), real-money chess match conducted through ChessBet's server-authoritative game engine. The server validates move legality, enforces time controls, and detects game-ending conditions, and the server-maintained game state (FEN position and move log) is the sole authoritative record of gameplay.
 
+## Player Eligibility
+Real-money features require verified identity and age 21 or older, U.S. residency, and physical presence in a location supported by ChessBet. The current supported states are Arkansas, Colorado, Georgia, Iowa, Kansas, North Dakota, Texas, Virginia, Wisconsin, and Wyoming. This is ChessBet's access policy, not a representation of government approval or a legal determination for any state. Availability can change and remains subject to applicable law, account restrictions, and enabled payment and contest services. Each player may maintain only one Account.
+
+Location checks use IP-based estimates and available device/browser location evidence at onboarding, funding, contest entry, and pre-match readiness. A home address or successful bank connection does not establish physical-location eligibility. Uncertain, conflicting, or unsupported location evidence can prevent access. Players must remain in a supported location during play; these checks are not a claim of continuous GPS monitoring.
+
+## Challenge Preparation and Cancellation
+Use Create Challenge to choose the offered Entry Amount and time control, or Join Challenge to accept another player's terms. Public and private challenges use the same eligibility and preparation checks. Creating or joining does not itself reserve funds. Before play begins, both players must complete readiness, fair-play certification, funding reservation, and fresh match-location checks.
+
+Participants may cancel before the match begins its start transition. Stale preparation can be cancelled after the two-minute preparation window by the timeout process, returning any funds actually reserved. Once the start transition or live play has begun, ordinary cancellation is unavailable; game outcomes and administrative review govern instead.
+
 ## Contest Entry Amounts and Platform Service Fees
-Each participant selects a Contest Entry Amount from the published Preset Entry Tiers. Before entry, ChessBet discloses the Contest Entry Amount, the applicable Platform Service Fee, and the Total Reserve Amount (Contest Entry Amount plus Platform Service Fee) that will be reserved from your Account Balance as Reserved Contest Funds. The Platform Service Fee is a fixed-dollar, per-player charge, separate from the Contest Entry Amount, and is never deducted from the Contest Pool.
+The challenge states the same Entry Amount for each player. Before reservation, ChessBet discloses the Entry Amount, fixed per-player Platform Service Fee, Total Reserve Amount (entry plus fee), and Contest Prize (both entries combined). The fee is separate from the entries and is never deducted from the Contest Prize. The fee schedule below covers supported amounts; the challenge interface determines which entry options are currently offered.
+
 
 ## Platform Service Fee Schedule
 Contest Entry Amount $5.00–$10.00: $1.00 per player. $10.01–$25.00: $2.00. $25.01–$50.00: $4.00. $50.01–$100.00: $6.00. $100.01–$250.00: $10.00. $250.01–$500.00: $15.00. $500.01–$1,000.00: $20.00. $1,000.01–$2,500.00: $30.00. $2,500.01–$5,000.00: $40.00.
 
 ## Settlement of Contest Outcomes
-Decisive Result (checkmate, resignation, or timeout resulting in a winner): the winner receives 100% of the Contest Pool. Both players' Platform Service Fees are earned by ChessBet. The winnings remain pending during the standard twenty-four (24) hour reporting window and become available automatically if no report is filed. If a report is filed, the affected funds remain held pending review and resolution.
+A decisive result credits the winner with the full combined Entry Amounts as the Contest Prize and recognizes both players' separately reserved Platform Service Fees. The prize includes the winner's own Entry Amount; it is not the winner's net profit.
+
+After a decisive result, the Contest Prize is credited to pending winnings. The standard reporting window is twenty-four (24) hours from the recorded settlement. Release is processed automatically after the deadline when no open dispute or blocking integrity or settlement-reconciliation flag remains. Processing may occur after the displayed deadline; a report is not the only reason funds can remain held.
+
+A draw, accepted cancellation, or administrative void returns each player's Entry Amount and Platform Service Fee actually reserved. A connection problem or technical complaint does not automatically void a Contest; the server result and any subsequent review determine the treatment. Integrity-review reversals are described below.
+
 
 Draw (stalemate, threefold repetition, fifty-move rule, insufficient material, mutual agreement, or timeout with insufficient mating material): both players' Contest Entry Amounts and Platform Service Fees are returned, and no fee is assessed. Void, Cancellation, or Technical Failure: both players' Contest Entry Amounts and Platform Service Fees are returned, and no fee is assessed. Integrity Review: affected Contest funds are held pending the outcome of the review.
 
 ## Determining a Winner
-A Contest is decided by checkmate, resignation, or timeout. Consistent with FIDE Article 6.9, a player who is timed out while their opponent has insufficient material to deliver checkmate does not lose outright — the Contest is instead recorded as a draw. Draws also result from stalemate, threefold repetition, the fifty-move rule, or mutual agreement.
+A Contest can end by checkmate, resignation, timeout, or a draw. The app automatically recognizes stalemate, threefold repetition, the fifty-move rule, and insufficient material through its chess engine; players can also agree to a draw.
+
+For timeout decisions, ChessBet currently uses a material-count rule: the non-timed-out player has sufficient material if they have a pawn, rook, queen, or at least two bishops/knights in total. A lone king, or a king with only one bishop or knight, is treated as insufficient and the result is a draw. This simplified online rule is not a full position-by-position implementation of FIDE Article 6.9.
+
 
 ## Disconnections and Technical Issues
-If a player disconnects, their clock continues to run and no separate grace period is applied. A player who fails to reconnect before their clock expires forfeits the Contest by timeout, subject to the insufficient-material exception above.
+A disconnection does not pause the chess clock. Any reconnection indicator is informational and does not grant extra time. If the side-to-move clock expires, the server applies the timeout rule above. Report a technical concern through the in-app reporting process; a report does not itself change the result.
+
 
 ## Fair Play Screening, Integrity Review, and Appeals
-All Contests are subject to ChessBet's fair-play standards. Live gameplay uses server-authoritative move validation, game-state recording, result determination, and chess-clock enforcement.
+Completed Contests can be queued for Stockfish-powered post-game screening and rule-based behavioral checks. Screening depends on service availability and sufficient game data; queuing is not a guarantee of completed analysis. Available indicators may include engine agreement, centipawn loss, critical-position performance, move timing, focus-loss events, repeated opponents, unusual resignations, and unusual timeouts.
+
+Automated signals do not by themselves prove cheating, change a result, or impose an account penalty. Open blocking integrity or settlement-reconciliation flags can delay the automatic release of pending winnings while the matter is reviewed. A person considers the available game, technical, account, report, and dispute evidence before an enforcement decision.
+
+An Integrity Review does not itself establish a violation. If no violation is found, the result and ordinary decisive-result fees stand. If a Contest is voided, both players' Entry Amounts and Platform Service Fees are returned. A reversal of a settled decisive result removes the original winner's Contest Prize, returns the original loser's Entry Amount, and leaves the remaining entry funds reserved for a separate disposition; it does not automatically award the full prize to the other player. On a reversal, the administrator records whether the separately charged Platform Service Fees are retained or refunded. Contest entry funds are not recorded as platform fee revenue.
+
+A participant in a resolved case with an adverse determination may submit one in-app appeal per case and supporting information. The current in-app appeal flow does not impose a seven-day cutoff. Contact {{SUPPORT_EMAIL}} if account restrictions prevent access.
+
 
 ChessBet queues completed Contests for Stockfish-powered post-game screening. Depending on the available game data, screening may evaluate engine move agreement, centipawn loss, critical-position performance, per-move timing, and focus-loss events. Separate rule-based checks may flag repeated opponent pairings, unusual resignations, or unusual timeouts. Player reports and dispute evidence may also initiate or support review.
 
@@ -43,7 +70,7 @@ Suspected cheating, collusion, or other prohibited conduct may trigger an Integr
 Players should report a Contest concern through the app within the standard twenty-four (24) hour reporting window shown in wallet history. ChessBet may review game records, server logs, automated screening records, integrity flags, player reports, dispute evidence, and other relevant information to resolve disputes. A timely report keeps affected funds held during review.
 
 ## Amendments
-These Official Rules may be updated periodically to reflect new features or Contest formats. Amendments apply prospectively and do not alter the outcome or settlement of previously completed Contests.
+Updates apply prospectively. Historical Contests and authorizations retain their recorded terms; this revision does not retroactively change an existing user's settlement, refund, or appeal rights.
 
 ## Contact
 Questions about these Official Rules can be sent to {{SUPPORT_EMAIL}}.`
@@ -53,34 +80,69 @@ Questions about these Official Rules can be sent to {{SUPPORT_EMAIL}}.`
     label: "Terms of Service",
     title: "ChessBet Terms | Eligibility, Fees & Dispute Rules",
     description: "Review ChessBet's Terms of Service outlining account eligibility, contest rules, platform fees, dispute resolution, and your rights as a registered player.",
-    version: "5.0",
-    lastUpdated: "September 9, 2026",
+    version: "6.0",
+    lastUpdated: "September 13, 2026",
     supportEmail: "hello@worldchessbet.com",
     markdown: `## Acceptance of Terms
-By creating an Account, accessing the Platform, or participating in any Contest, you agree to be bound by these Terms of Service, the Official Rules, the Privacy Policy, and ChessBet's AML/KYC and Financial Integrity Program.
+By creating an Account, accessing the Platform, or participating in a Contest, you agree to these Terms of Service, the Official Rules, and the Privacy Policy. The fair-play, identity-verification, and financial-integrity requirements described in these documents apply to use of the Platform.
+
 
 ## Eligibility
-You must be at least 18 years of age (or such higher age as required by your jurisdiction), a legal resident of the United States, and physically located in an Approved Jurisdiction to use real-money features of the Platform. Each user may maintain only one Account.
+Real-money features require verified identity and age 21 or older, U.S. residency, and physical presence in a location supported by ChessBet. The current supported states are Arkansas, Colorado, Georgia, Iowa, Kansas, North Dakota, Texas, Virginia, Wisconsin, and Wyoming. This is ChessBet's access policy, not a representation of government approval or a legal determination for any state. Availability can change and remains subject to applicable law, account restrictions, and enabled payment and contest services. Each player may maintain only one Account.
+
+Location checks use IP-based estimates and available device/browser location evidence at onboarding, funding, contest entry, and pre-match readiness. A home address or successful bank connection does not establish physical-location eligibility. Uncertain, conflicting, or unsupported location evidence can prevent access. Players must remain in a supported location during play; these checks are not a claim of continuous GPS monitoring.
+
 
 ## Account Registration and Identity Verification
 You must register with accurate, complete, and current information. ChessBet requires identity verification before you may deposit funds, participate in Contests, or withdraw funds. You are responsible for maintaining the confidentiality of your Account credentials and for all activity that occurs under your Account.
 
 ## Platform Description
-ChessBet is a real-money, peer-to-peer, skill-based chess competition platform. ChessBet does not offer, facilitate, or promote gambling, casino games, or games of chance. All gameplay is processed through ChessBet's server-authoritative game engine, whose recorded game state is the sole authoritative record of any Contest outcome.
+ChessBet offers head-to-head chess contests in which the participating players compete for their combined Entry Amounts. ChessBet does not offer wagers on third-party matches, casino games, or random prize games. Describing the product as a skill contest does not establish its legal classification or availability in a particular jurisdiction. Gameplay uses server-recorded moves, clocks, and results, subject to the correction and dispute procedures in the Official Rules.
+
 
 ## Contests, Entry Amounts, and Platform Service Fees
-Upon Contest entry, the Total Reserve Amount — your Contest Entry Amount plus the applicable Platform Service Fee — is reserved from your Available Balance as Reserved Contest Funds. The Platform Service Fee is a separate, fixed-dollar, per-player charge disclosed before entry. It is never deducted from the Contest Pool, and it is earned by ChessBet only on a decisive outcome. On a draw, void, or cancellation, both the Contest Entry Amount and the Platform Service Fee are returned.
+Creating or joining a challenge begins the matching and preparation process; it does not itself debit your balance. During preparation, each player confirms readiness and fair-play certification, and the Entry Amount plus separately disclosed fixed Platform Service Fee is reserved before play starts. The Contest Prize is the two Entry Amounts combined. The Platform Service Fee is never deducted from that prize. Fees are recognized on a decisive settlement; draws, cancellations, and voids return reserved Entry Amounts and Platform Service Fees. Integrity-review reversals follow the separate fee treatment described below.
+
+After a decisive result, the Contest Prize is credited to pending winnings. The standard reporting window is twenty-four (24) hours from the recorded settlement. Release is processed automatically after the deadline when no open dispute or blocking integrity or settlement-reconciliation flag remains. Processing may occur after the displayed deadline; a report is not the only reason funds can remain held.
+
 
 After a decisive result, the winner's Contest winnings remain pending during the standard twenty-four (24) hour reporting window. If no report is filed, the winnings become available automatically. If a report is filed, the affected funds may remain held until review and resolution.
 
 ## Deposits and Withdrawals
-Deposits and withdrawals are processed by ACH through ChessBet's payment processor and are subject to identity verification, fraud prevention, compliance review, and confirmed provider status. A deposit may first appear as Pending while the payment provider confirms submission, then as Clearing during the ACH return-risk period. Pending and Clearing funds are not available for Contest entry or withdrawal. Reserved Contest Funds and winnings within the reporting window are also unavailable for withdrawal. You may request withdrawal of your Available Balance, subject to applicable reviews and holds.
+ChessBet uses SeamlessChex (Seamless) for bank authorization and payment processing, with Plaid inside Seamless's hosted bank-connection flow. Socure identity and age verification is separate from bank verification. Connecting a bank does not itself transfer money or complete player identity verification. Each transfer requires the applicable authorization, verified account, available service, and account checks.
+
+Before a deposit is submitted, the Wallet shows the amount to be credited, the deposit fee, and the total bank debit. The deposit fee is separate from any Platform Service Fee. The current deposit minimum is $10 of wallet credit, and the total bank debit including the deposit fee cannot exceed $1,100. Provider submission does not make funds spendable: deposits can remain Pending, then Clearing, until their displayed clearance date and a successful final bank-status check. The clearance date is an estimate, not a guarantee against a later bank return.
+
+A failed or returned bank deposit may remove previously credited funds. If the available or clearing funds do not cover the return, the account can be placed on hold with a balance due for review. Deposit-fee reconciliation and any related adjustment depend on the recorded transfer and provider settlement evidence; cancelling or drawing a Contest does not refund a separate deposit fee.
+
+Withdrawals use the verified connected bank and are subject to identity verification, account holds, available balance, and provider status. Standard bank processing applies; an eligible faster transfer may be used only when supported and enabled. No instant arrival is guaranteed. Pending deposits, Clearing funds, Reserved Contest Funds, pending winnings, and funds already reserved for withdrawal are unavailable for another withdrawal.
+
+The current withdrawal maximum is $1,100 per request. Shared platform transfer capacity also limits aggregate payouts to $1,100 in a rolling 24-hour window and $22,000 in a rolling 31-day window, across all users. A request can be temporarily unavailable even when the user has sufficient Available Balance. A withdrawal below $10 has a separate $2.50 fee, waived when withdrawing the entire Available Balance. The fee is charged after the provider accepts the request; a confirmed failed or reversed withdrawal returns its associated charged withdrawal fee. An unknown provider outcome stays pending for reconciliation.
+
+Contest refunds return to the ChessBet ledger balance; they are not automatic transfers to a bank. A bank withdrawal is a separate request.
+
+
+## Wallet and Funds Flow
+ChessBet maintains an internal ledger for Available Balance, Clearing funds, Reserved Contest Funds, pending winnings, and withdrawal reservations. Contest entry funds and Platform Service Fees are recorded separately. Bank transfers are reconciled against payment-provider records; a displayed ledger balance or a submitted transfer is not proof that money has arrived at a bank.
+
+The app does not provide a personal bank account. ChessBet does not represent its internal wallet balances as an independently administered escrow account or promise FDIC insurance for them.
+
+## Taxes
+Contest proceeds may create tax obligations. You are responsible for keeping records and obtaining advice about your own reporting obligations. Wallet history is not a tax return or tax advice. ChessBet does not promise automatic tax withholding or a particular tax form; the absence of a form does not determine whether income is reportable.
 
 ## Prohibited Conduct
-You may not use the Platform while located outside an Approved Jurisdiction, circumvent geolocation or identity verification controls, use a chess engine, AI tool, or other outside assistance during a Contest, collude or manipulate Contest outcomes, or exploit bugs or errors for competitive advantage.
+You may not enter or play paid Contests outside a supported location, circumvent geolocation or identity-verification controls, use a chess engine, AI tool, or other outside assistance during a Contest, collude or manipulate Contest outcomes, or exploit bugs or errors for competitive advantage. Contact Support for help with existing funds if you are no longer eligible for paid play.
+
 
 ## Fair Play, Anti-Cheating, and Integrity Review
-ChessBet protects competitive integrity through server-authoritative move validation, game-state recording, result determination, and chess-clock enforcement; automated post-game Stockfish screening; rule-based behavioral checks; player reporting; dispute records; and confidential administrative review.
+Completed Contests can be queued for Stockfish-powered post-game screening and rule-based behavioral checks. Screening depends on service availability and sufficient game data; queuing is not a guarantee of completed analysis. Available indicators may include engine agreement, centipawn loss, critical-position performance, move timing, focus-loss events, repeated opponents, unusual resignations, and unusual timeouts.
+
+Automated signals do not by themselves prove cheating, change a result, or impose an account penalty. Open blocking integrity or settlement-reconciliation flags can delay the automatic release of pending winnings while the matter is reviewed. A person considers the available game, technical, account, report, and dispute evidence before an enforcement decision.
+
+An Integrity Review does not itself establish a violation. If no violation is found, the result and ordinary decisive-result fees stand. If a Contest is voided, both players' Entry Amounts and Platform Service Fees are returned. A reversal of a settled decisive result removes the original winner's Contest Prize, returns the original loser's Entry Amount, and leaves the remaining entry funds reserved for a separate disposition; it does not automatically award the full prize to the other player. On a reversal, the administrator records whether the separately charged Platform Service Fees are retained or refunded. Contest entry funds are not recorded as platform fee revenue.
+
+A participant in a resolved case with an adverse determination may submit one in-app appeal per case and supporting information. The current in-app appeal flow does not impose a seven-day cutoff. Contact {{SUPPORT_EMAIL}} if account restrictions prevent access.
+
 
 ChessBet queues completed Contests for post-game screening. Depending on the available game data, the screening may evaluate engine move agreement, centipawn loss, critical-position performance, per-move timing, and focus-loss events. ChessBet may also identify patterns such as repeated opponent pairings, unusual resignations, or unusual timeouts for closer review.
 
@@ -89,19 +151,23 @@ Automated screening results and rule-based flags are indicators only. They do no
 During an Integrity Review, funds for the affected Contest may be held. ChessBet does not retain any Contest Entry Amount or Platform Service Fee as revenue from a Contest resolved through Integrity Review. Users may appeal an Integrity Review disposition within seven (7) calendar days of notification.
 
 ## Account Suspension, Restrictions, and Closure
-ChessBet may suspend, restrict, or close your Account, or place holds on your funds, for violations of these Terms, suspected fraud or collusion, failure to complete verification, or as required by law or a payment processor. Forfeiture of your Account Balance occurs only in limited circumstances described in these Terms, and never authorizes ChessBet to retain forfeited Contest Entry Amounts as revenue.
+ChessBet may suspend, restrict, or close an Account, or hold funds, for suspected fraud, prohibited conduct, unresolved verification, bank returns, or legal or processor requirements. Holds and case remedies follow the recorded review and settlement process; a restriction does not convert Contest Entry Amounts into platform revenue.
+
+Account closure does not erase financial or compliance records, cancel a live game's clock, or accelerate pending funds. Remaining funds can require settlement, verification, review, or one or more supported bank transfers before they can be returned. Contact {{SUPPORT_EMAIL}} for help accessing existing funds when self-service access is restricted.
+
 
 ## Dispute Handling
 Contest concerns should be reported through the Platform within the standard twenty-four (24) hour reporting window. Contest outcomes and settlement disputes are governed by the Official Rules. For other Account or Platform disputes, you agree to first attempt informal resolution with ChessBet before pursuing formal dispute resolution.
 
 ## Disclaimer of Warranties and Limitation of Liability
-The Platform is provided "as is" and "as available," without warranties of any kind, and ChessBet does not warrant or guarantee any particular Contest outcome or financial result. To the maximum extent permitted by law, ChessBet's aggregate liability is limited as described in these Terms.
+The Platform is provided "as is" and "as available" to the extent permitted by applicable law. ChessBet does not guarantee uninterrupted service, detection of every violation, a particular Contest outcome, or a financial result. Nothing in these Terms excludes rights or liability that applicable law does not permit to be excluded.
+
 
 ## Governing Law and Dispute Resolution
 These Terms are governed by the laws of the State of Michigan. Disputes are resolved through binding arbitration administered by the American Arbitration Association, with a class action waiver and jury trial waiver, subject to your right to opt out by written notice within thirty (30) days of creating your Account.
 
 ## Changes to These Terms
-ChessBet may modify these Terms at any time. Continued use of the Platform after a modification's effective date constitutes acceptance of the modified Terms.
+Updates apply prospectively through the Platform's policy-acceptance process. This revision describes the current build and does not retroactively change recorded Contest terms, transfer authorizations, or existing rights.
 
 ## Contact
 Questions about these Terms of Service can be sent to {{SUPPORT_EMAIL}}.`
@@ -111,33 +177,45 @@ Questions about these Terms of Service can be sent to {{SUPPORT_EMAIL}}.`
     label: "Privacy Policy",
     title: "ChessBet Privacy | Identity, Payment & Account Data",
     description: "Learn how ChessBet collects, uses, and protects your personal data, including identity verification, payment details, and account activity information.",
-    version: "3.2",
-    lastUpdated: "September 12, 2026",
+    version: "4.0",
+    lastUpdated: "September 13, 2026",
     supportEmail: "hello@worldchessbet.com",
     markdown: `## Information We Collect
-We collect information you provide directly — identity information (name, date of birth, and government-issued ID when required), account information (email, username, and hashed password), identity and bank-account verification information (through Seamless and its hosted Plaid authorization flow), payment and transaction information (through Seamless), and customer support communications.
+We collect account and contact information you provide, including your name, email, username, and support communications. Authentication is handled through Base44. Socure handles the hosted identity and age-verification process, which may collect identity details, date of birth, government-ID images, and related verification evidence as required by that flow. ChessBet receives verification decisions, verified name and age indicators, provider references, and retained provider-report evidence.
+
+SeamlessChex (Seamless) and its hosted Plaid flow handle bank connection. The current bank-connection flow does not ask you to enter bank-login credentials or complete bank account numbers into ChessBet. ChessBet retains provider references, bank-verification status and available bank metadata, ACH authorization text and signer information, and payment/transaction records. Bank verification is separate from Socure player identity verification.
+
 
 Bank credentials and complete bank account numbers are entered only in the Seamless-hosted Plaid flow and do not enter ChessBet.
 
 ## Information Collected Automatically
-We automatically collect device and technical information, geolocation information (via MaxMind, used to confirm you are located in an Approved Jurisdiction), account activity such as login history and session data, and essential browser storage. Optional public-page analytics and advertising measurement are collected only when enabled through Cookie settings; Global Privacy Control keeps optional tracking off.
+We collect device and technical information, account activity, session/security records, IP-based geolocation and risk information through MaxMind, and browser/device location evidence when provided or permitted. Location evidence is used to assess access and detect mismatches; it is an estimate and can be inconclusive. Gameplay records include moves, clock/timing data, focus-loss events, and operational telemetry. Essential browser storage supports the service. Optional public-page analytics and advertising measurement are collected only when enabled through Cookie settings; Global Privacy Control keeps optional tracking off.
+
 
 ## Information Generated by the Platform
 ChessBet generates and maintains Contest records, Internal Ledger records (deposits, Contest Entry Amounts, Platform Service Fees, and withdrawals), Integrity Review records, and audit and security logs associated with your account and activity.
 
 ## How We Use Information
-We use this information to create and secure your account; verify your identity, age, and geographic eligibility; process deposits and withdrawals; facilitate and settle Contests; detect and prevent fraud and other prohibited conduct; support our AML/KYC and Financial Integrity Program; resolve disputes; and meet legal and regulatory obligations.
+We use information to create and secure accounts; verify identity, age, bank authorization, and location eligibility; process and reconcile transfers; facilitate and settle Contests; identify potential fraud or prohibited conduct; review disputes and appeals; provide support and permitted communications; and meet applicable legal and processor requirements.
+
 
 ## Third-Party Service Providers
-ChessBet works with third-party providers to operate the Platform, including Base44 (hosting and infrastructure), Seamless (bank authorization and payment processing), Plaid through Seamless's hosted authorization flow (bank-account connection), MaxMind (geolocation and risk assessment), Google Analytics (optional public-page analytics), and Meta (optional public-page advertising measurement). Information is shared with these providers only as reasonably necessary for them to perform their designated functions.
+Providers include Base44 (application hosting, authentication, data storage, and supported communications), Socure (identity and age verification), SeamlessChex and its hosted Plaid integration (bank authorization and payment processing), MaxMind (IP geolocation and risk data), infrastructure services used for financial coordination and post-game Stockfish analysis, and Soro (embedded blog content). The blog contacts Soro to load articles and may load externally hosted article images; those requests disclose connection information to the receiving service.
+
+Google Analytics and Meta provide optional public-page measurement under the choices described below. Information is shared as needed for the relevant service. Hosted identity and bank services have their own notices, which describe their collection and processing.
+
 
 We also use optional public-page measurement, when permitted, to understand site usage and advertising performance.
 
 ## Data Storage and Security
-We use encryption of data in transit, encryption of sensitive data at rest where supported, access controls, and administrative, technical, and physical safeguards to protect your information. No method of storage or transmission is completely secure.
+ChessBet retains account, transaction, game, and review records in its application data store. Retained Socure provider-report evidence is encrypted before storage. Access controls restrict sensitive verification, financial, and administrative records. Infrastructure services also process data needed for their functions. No storage or transmission method is completely secure.
+
 
 ## Account Closure and Data Retention
-You may request closure of your account, subject to resolution of any pending Contests, outstanding balances, or active investigations. Records related to identity verification, financial transactions, Contest history, and compliance activities are retained for a minimum of seven (7) years, or longer where required by applicable law or processor requirement.
+You may request account closure or exercise applicable data rights through {{SUPPORT_EMAIL}}. Closure does not automatically delete identity evidence, transaction history, Contest records, or investigation records, and does not accelerate pending settlements.
+
+Current retention controls set minimum two-year periods for transaction records and relevant identity/authorization evidence, with deadlines extended by related activity. Some existing deadlines may be longer. These are retention minimums, not automatic deletion dates: records can remain longer for account operations, disputes, fraud prevention, and applicable legal or processor obligations. Other record types do not share one universal deletion schedule. Contact us about the records associated with your account and any applicable deletion rights.
+
 
 ## Cookies and Similar Technologies
 Essential cookies and browser storage support authentication, MFA, security, requested game features, and remembering your privacy choice. Rejecting optional cookies does not prevent account access or gameplay.
@@ -155,7 +233,8 @@ Base44 session recording and HeyCatch browser tracking are disabled as of Septem
 Hosted identity and bank-authorization services have their own privacy notices. Review those notices when using their services.
 
 ## Children's Privacy
-ChessBet is not directed to, and is not intended for use by, anyone under the age of 18. We do not knowingly collect personal information from anyone under 18.
+Real-money features require verified age 21 or older under ChessBet's current platform policy. The service is not directed to children. Contact {{SUPPORT_EMAIL}} if you believe a child has provided personal information so we can review the account and applicable obligations.
+
 
 ## International Processing
 ChessBet is operated from the United States. Real-money Contest access is currently limited to users physically located in an Approved Jurisdiction within the United States.
