@@ -1,6 +1,6 @@
 import { allLedgerRows } from './ledgerPagination.ts';
 import { recordIntegrationEvent } from './integrationEvents.ts';
-import { acquireLedgerLock, releaseLedgerLock } from './seamlessAtomicStore.ts';
+import { acquireLedgerLock, releaseLedgerLock, getUserWalletBarrier } from './seamlessAtomicStore.ts';
 
 function number(value) {
   const parsed = Number(value || 0);
@@ -137,6 +137,12 @@ export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletT
     const affectedSystemAccounts = [...new Set(
       legs.filter((leg) => leg.ledgerAccount !== 'user_account').map((leg) => leg.ledgerAccount)
     )];
+    for (const userId of affectedUserIds) {
+      const barrier = await getUserWalletBarrier(userId);
+      if (barrier && !(barrier === matchId && ['challenge_reservation', 'challenge_release'].includes(triggerEvent))) {
+        throw new Error('wallet_financial_recovery_pending');
+      }
+    }
 
     let existing = await base44.asServiceRole.entities.LedgerEntry.filter(
       { ledger_group_id: groupId },
