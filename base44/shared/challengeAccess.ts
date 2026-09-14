@@ -62,7 +62,9 @@ export async function findConflictingMatch(base44: any, userId: string, exceptId
 // Read-only, cost-aware gates. Available Balance only; neither pending deposits
 // nor Held Balance (including pending winnings) can qualify a player.
 export async function inspectChallengePlayer(base44: any, userId: string, match: any) {
-  if (!validEntry(match.wager_amount) || !Number.isFinite(Number(match.platform_service_fee)) || Number(match.platform_service_fee) < 0)
+  if (!validEntry(match.wager_amount) || typeof match.platform_service_fee !== 'number' ||
+      !Number.isFinite(match.platform_service_fee) || match.platform_service_fee < 0 ||
+      Math.abs(match.platform_service_fee * 100 - Math.round(match.platform_service_fee * 100)) > 0.000001)
     return { ready: false, code: 'invalid_terms', reason: 'This challenge has invalid financial terms.' };
   if (!paidContestsEnabled()) return { ready: false, code: 'paid_contests_disabled', reason: 'Money matches are temporarily unavailable.' };
   const user = await base44.asServiceRole.entities.User.get(userId);
