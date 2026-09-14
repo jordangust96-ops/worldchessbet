@@ -208,12 +208,12 @@
         "returned",
         "void"
       ],
-      "description": "Only meaningful for type 'deposit'. A provider-Processed ACH debit is first credited to Held Balance and remains unavailable until deposit_release_at and a fresh provider status check both confirm it is still Processed."
+      "description": "held while awaiting playable release; released means playable, with withdrawal eligibility tracked separately; returned means reversed."
     },
     "deposit_release_at": {
       "type": "string",
       "format": "date-time",
-      "description": "Earliest time a provider-Processed deposit may move from Held to Available Balance. Defaults to five business days after submission and always requires a fresh provider confirmation."
+      "description": "Original five banking business day withdrawal threshold. Never restarted at Processed; a fresh provider confirmation is required for withdrawal release."
     },
     "provider_last_status": {
       "type": "string",
@@ -269,6 +269,20 @@
       "type": "string",
       "format": "date-time",
       "description": "Only meaningful for type 'payout' with payout_hold_status 'held'. The earliest time releasePendingWinnings may release this payout to Available Balance \u2014 24 hours after settlement, matching the contest report deadline. Never released before this time, and never while a DisputeCase or open Fair Play / settlement integrity flag exists for the match."
+    },
+    "deposit_withdrawal_status": {
+      "type": "string",
+      "enum": [
+        "held",
+        "released",
+        "returned"
+      ],
+      "description": "Withdrawal restriction on this deposit and inherited contest proceeds."
+    },
+    "deposit_playable_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When verified settled principal became usable for paid contests."
     }
   },
   "required": [
