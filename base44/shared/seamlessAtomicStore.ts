@@ -228,6 +228,15 @@ export async function releaseLedgerLock(owner: string) {
   await evalAtomic(RELEASE_LOCK, [key('ledger-lock', 'global')], [owner]);
 }
 
+// Refresh only an existing lease. A delayed worker cannot reacquire an
+// expired lease and then commit with an obsolete authorization.
+export async function refreshLedgerLock(owner: string) {
+  return Number(await evalAtomic(`
+if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
+redis.call('PEXPIRE', KEYS[1], ARGV[2]); return 1
+`, [key('ledger-lock', 'global')], [owner, String(LOCK_TTL_MS)])) === 1;
+}
+
 async function claimPaymentOperation(kind: 'deposit' | 'withdrawal', userId: string, idempotencyKey: string, amount: number) {
   const recordKey = key(kind, `${userId}:${idempotencyKey}`);
   const proposed = JSON.stringify({ user_id: userId, idempotency_key: idempotencyKey, amount, state: 'new' });
