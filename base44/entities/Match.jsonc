@@ -325,19 +325,33 @@
       "description": "Time both participants were financially committed in one journal batch.",
       "format": "date-time"
     },
-    "challenge_request_notified_at": {
+    "challenge_target_id": {
       "type": "string",
-      "description": "Rate limit for a funded recipient asking the creator to return; not acceptance.",
-      "format": "date-time"
-    },
-    "challenge_financial_plan_json": {
-      "type": "string",
-      "description": "Server-only stable transaction/ledger plan for idempotent crash recovery.",
+      "description": "Optional server-derived previous opponent for a rematch. Ordinary invitation links have no target restriction.",
       "rls": {
         "read": false,
         "write": false
-      },
-      "maxLength": 30000
+      }
+    },
+    "challenge_rematch_of": {
+      "type": "string",
+      "description": "The completed match from which the player explicitly requested a rematch."
+    },
+    "challenge_player1_device_hash": {
+      "type": "string",
+      "description": "Server hash binding active readiness to the creator device.",
+      "rls": {
+        "read": false,
+        "write": false
+      }
+    },
+    "challenge_player2_device_hash": {
+      "type": "string",
+      "description": "Server hash binding active readiness to the recipient device.",
+      "rls": {
+        "read": false,
+        "write": false
+      }
     }
   },
   "required": [
