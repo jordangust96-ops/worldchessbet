@@ -7,8 +7,8 @@ export const PUBLIC_LEGAL_DOCUMENTS = {
     label: "Official Rules",
     title: "Cash Chess Rules | Entries, Prizes & Fair Play — ChessBet",
     description: "Read ChessBet's Official Rules governing skill-based chess contests, entry amounts, match settlement, fair play standards, and eligibility requirements.",
-    version: "6.0",
-    lastUpdated: "September 13, 2026",
+    version: "7.0",
+    lastUpdated: "September 14, 2026",
     supportEmail: "hello@worldchessbet.com",
     markdown: `## Contest Format
 Each Contest is a head-to-head (1v1), real-money chess match conducted through ChessBet's server-authoritative game engine. The server validates move legality, enforces time controls, and detects game-ending conditions, and the server-maintained game state (FEN position and move log) is the sole authoritative record of gameplay.
@@ -19,7 +19,13 @@ Real-money features require verified identity and age 21 or older, U.S. residenc
 Location checks use IP-based estimates and available device/browser location evidence at onboarding, funding, contest entry, and pre-match readiness. A home address or successful bank connection does not establish physical-location eligibility. Uncertain, conflicting, or unsupported location evidence can prevent access. Players must remain in a supported location during play; these checks are not a claim of continuous GPS monitoring.
 
 ## Challenge Preparation and Cancellation
-Use Create Challenge to choose the offered Entry Amount and time control, or Join Challenge to accept another player's terms. Public and private challenges use the same eligibility and preparation checks. Creating or joining does not itself reserve funds. Before play begins, both players must complete readiness, fair-play certification, funding reservation, and fresh match-location checks.
+Challenge Someone creates a shareable invitation for a five-minute-per-player chess match with no increment. An unclaimed invitation normally expires after twenty-four hours. Creating, sharing or viewing a link, completing account setup, or initiating a deposit does not reserve an opponent or Contest funds. An unclaimed creator may play other matches or cancel the invitation. An ordinary shared link may be accepted by the first eligible, funded player who completes acceptance while the creator has enabled it; a rematch link may be restricted to the previous opponent.
+
+The creator explicitly agrees to the disclosed Entry Amount, separate Platform Service Fee and Fair Play requirements and enables a short, two-minute acceptance window after the required account and match-location checks. This authorization itself reserves no funds. The recipient's final Accept & Reserve action rechecks both players' eligibility, availability and sufficient Available Balance. Both players' Entry Amounts and Platform Service Fees are committed together in one balanced financial journal operation before the opponent assignment is confirmed. Pending deposits, Clearing funds, pending winnings and other held funds cannot qualify a player. An unfinished wallet setup never claims the invitation.
+
+After successful acceptance, both players must explicitly confirm readiness and remain present for the match to start. A two-minute start window applies. Unstarted matches are closed and reserved Entry Amounts and Platform Service Fees are released through the foreground recovery or scheduled timeout process; processing can occur after the displayed deadline. An interrupted response may require recovery of the same recorded financial operation and must not be treated as permission to submit another payment.
+
+Find an Opponent retains the public marketplace and its separate preparation flow. Creating or joining a public listing does not itself reserve funds; each player confirms readiness and Fair Play and reserves the disclosed entry and fee during preparation. Both players must be funded and pass fresh match-location checks before either route starts gameplay. The same game, fair-play, settlement, reporting-window and winnings-release rules apply to both routes.
 
 Participants may cancel before the match begins its start transition. Stale preparation can be cancelled after the two-minute preparation window by the timeout process, returning any funds actually reserved. Once the start transition or live play has begun, ordinary cancellation is unavailable; game outcomes and administrative review govern instead.
 
@@ -67,8 +73,8 @@ Questions about these Official Rules can be sent to {{SUPPORT_EMAIL}}.`
     label: "Terms of Service",
     title: "ChessBet Terms | Eligibility, Fees & Dispute Rules",
     description: "Review ChessBet's Terms of Service outlining account eligibility, contest rules, platform fees, dispute resolution, and your rights as a registered player.",
-    version: "6.0",
-    lastUpdated: "September 13, 2026",
+    version: "7.0",
+    lastUpdated: "September 14, 2026",
     supportEmail: "hello@worldchessbet.com",
     markdown: `## Acceptance of Terms
 By creating an Account, accessing the Platform, or participating in a Contest, you agree to these Terms of Service, the Official Rules, and the Privacy Policy. The fair-play, identity-verification, and financial-integrity requirements described in these documents apply to use of the Platform.
@@ -85,7 +91,9 @@ You must register with accurate, complete, and current information. ChessBet req
 ChessBet offers head-to-head chess contests in which the participating players compete for their combined Entry Amounts. ChessBet does not offer wagers on third-party matches, casino games, or random prize games. Describing the product as a skill contest does not establish its legal classification or availability in a particular jurisdiction. Gameplay uses server-recorded moves, clocks, and results, subject to the correction and dispute procedures in the Official Rules.
 
 ## Contests, Entry Amounts, and Platform Service Fees
-Creating or joining a challenge begins the matching and preparation process; it does not itself debit your balance. During preparation, each player confirms readiness and fair-play certification, and the Entry Amount plus separately disclosed fixed Platform Service Fee is reserved before play starts. The Contest Prize is the two Entry Amounts combined. The Platform Service Fee is never deducted from that prize. Fees are recognized on a decisive settlement; draws, cancellations, and voids return reserved Entry Amounts and Platform Service Fees. Integrity-review reversals follow the separate fee treatment described below.
+Creating or viewing a shared challenge link is a non-binding invitation and does not reserve an opponent or funds. Completing wallet setup or starting a deposit does not claim it. The creator explicitly authorizes the disclosed Entry Amount and separate Platform Service Fee for a short acceptance window. At the recipient's final Accept & Reserve action, both players are rechecked and both entries and fees are committed together before the opponent assignment is confirmed. Only sufficient Available Balance qualifies; pending or held funds do not. Both players then explicitly confirm readiness before gameplay. An unstarted claimed challenge is subject to the two-minute start window and the recovery/release process in the Official Rules. An unclaimed creator remains free to play elsewhere.
+
+Public marketplace listings retain their preparation flow: creating or joining a public listing does not itself debit the balance; each player confirms readiness and Fair Play and reserves the entry plus separately disclosed fixed fee before play starts. The Contest Prize is the two Entry Amounts combined. The Platform Service Fee is never deducted from that prize. Fees are recognized on a decisive settlement; draws, cancellations, and voids return reserved Entry Amounts and Platform Service Fees. Integrity-review reversals follow the separate fee treatment described below.
 
 After a decisive result, the Contest Prize is credited to pending winnings. The standard reporting window is twenty-four (24) hours from the recorded settlement. Release is processed automatically after the deadline when no open dispute or blocking integrity or settlement-reconciliation flag remains. Processing may occur after the displayed deadline; a report is not the only reason funds can remain held.
 
