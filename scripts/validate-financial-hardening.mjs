@@ -97,7 +97,7 @@ assert.match(pooledWorkflow, /7 \* \* \* \*/);
 assert.match(history, /heading: "Clearing"/);
 assert.match(history, /Withdrawal Fee Refund/);
 assert.match(walletPage, />Available to Play</);
-assert.match(walletPage, />Reserved \/ Held</);
+assert.match(walletPage, />Reserved</);
 
 assert.match(transitions, /deposit_available_email_status: 'pending'/);
 assert.match(releaseSweep, /sendDepositAvailableEmail/);
