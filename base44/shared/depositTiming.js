@@ -11,9 +11,11 @@ function holiday(date) {
 export function bankWithdrawalAt(value) {
   if(!value)throw new Error('invalid_deposit_timestamp');
   // Base44 timestamps without an offset are UTC.
-  const text=String(value), parsed=new Date(/[zZ]|[+-]\\d\\d:\\d\\d$/.test(text)?text:text+'Z');
+  const text=String(value), parsed=new Date(/[zZ]|[+-]\d\d:\d\d$/.test(text)?text:text+'Z');
   if(!Number.isFinite(parsed.getTime()))throw new Error('invalid_deposit_timestamp');
-  let days=5;
-  while(days){parsed.setUTCDate(parsed.getUTCDate()+1);if(![0,6].includes(parsed.getUTCDay())&&!holiday(parsed))days--;}
-  return parsed.toISOString();
+  const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',year:'numeric',month:'numeric',day:'numeric'}).formatToParts(parsed).map(p=>[p.type,p.value]));
+  const cursor=new Date(Date.UTC(Number(parts.year),Number(parts.month)-1,Number(parts.day),12));
+  let days=5,elapsed=0;
+  while(days){cursor.setUTCDate(cursor.getUTCDate()+1);elapsed++;if(![0,6].includes(cursor.getUTCDay())&&!holiday(cursor))days--;}
+  return new Date(parsed.getTime()+elapsed*86400000).toISOString();
 }
