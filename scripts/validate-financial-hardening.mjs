@@ -103,17 +103,10 @@ assert.match(transitions, /deposit_available_email_status: 'pending'/);
 assert.match(releaseSweep, /sendDepositAvailableEmail/);
 assert.match(depositEmail, /deposit_hold_status !== 'released'/,
   'email is impossible before funds are actually available');
-assert.match(depositEmail, /Amount added/);
-assert.match(depositEmail, /Available/);
-assert.match(depositEmail, /Submitted/);
-assert.match(depositEmail, /Transaction ID/);
-assert.match(depositEmail, /Wallet balance/);
-assert.match(depositEmail, /Ready to play/);
-assert.match(depositEmail, /ctaText: challengeCta\.text/);
-assert.match(depositEmail, /text: 'Challenge Someone'/);
-assert.match(depositEmail, /text: 'Revisit Challenge'/);
-assert.match(depositEmail, /It has not been reserved for you/);
-assert.match(depositEmail, /creating a link does not reserve funds/);
+assert.match(depositEmail, /ctaText: 'Start Playing'/);
+assert.match(depositEmail, /share your challenge link on social media/);
+assert.doesNotMatch(depositEmail, /entities\\.Match|challengeCta|Revisit Challenge|Transaction ID|Amount added/);
+assert.doesNotMatch(walletPage, /ChallengeFundingContext/);
 assert.match(depositEmail, /claimWebhookEvent\(eventKey, providerLockKey, owner\)/,
   'deposit email delivery is protected by a durable idempotency claim');
 assert.match(depositEmail, /finishWebhookEvent\(eventKey, providerLockKey, owner, 'completed'\)/);

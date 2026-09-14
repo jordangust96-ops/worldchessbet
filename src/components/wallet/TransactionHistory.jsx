@@ -14,6 +14,7 @@ import ReportContestButton from "@/components/disputes/ReportContestButton";
 import { getTransferFailureMessage } from "@/components/wallet/transferFailureCopy";
 
 const typeConfig = {
+  admin_reversal: { icon: Minus, color: "text-amber-400", bg: "bg-amber-500/10", label: "Wallet Adjustment" },
   deposit: { icon: ArrowDownLeft, color: "text-green-400", bg: "bg-green-500/10", label: "Deposit" },
   withdrawal: { icon: ArrowUpRight, color: "text-red-400", bg: "bg-red-500/10", label: "Withdraw Funds" },
   wager_lock: { icon: Minus, color: "text-orange-400", bg: "bg-orange-500/10", label: "Contest Entry Reserved" },
