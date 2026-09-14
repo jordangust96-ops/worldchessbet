@@ -133,9 +133,9 @@ function renderAbout() {
     <h2>Head-to-head chess for real money</h2>
     <p style="color:#ccc">Players can compete in blitz, rapid, and classical chess. Before a paid contest begins, ChessBet shows the Contest Entry Amount and the separate fixed Platform Service Fee.</p>
     <h2>Clear settlement</h2>
-    <p style="color:#ccc">The winner of a decisive contest receives the combined Contest Entry Amounts after the standard reporting window closes without a report. Draws, voids, and cancellations are handled under the Official Rules.</p>
+    <p style="color:#ccc">The winner of a decisive contest receives the combined Contest Entry Amounts as pending winnings, released after the 24-hour reporting window when no open dispute or blocking integrity or reconciliation flag remains. Draws, voids, and cancellations are handled under the Official Rules.</p>
     <h2>Eligibility and fair play</h2>
-    <p style="color:#ccc">Real-money activity requires identity and physical-location eligibility. Server-authoritative gameplay, post-game Stockfish screening, player reporting, and human review support competitive integrity.</p>
+    <p style="color:#ccc">Real-money activity requires verified identity, age 21+, and physical-location eligibility. Server-authoritative gameplay, post-game Stockfish screening, player reporting, and human review support competitive integrity.</p>
     <p><a href="/official-rules" style="color:#C9A84C">Official Rules</a> · <a href="/fair-play-integrity" style="color:#C9A84C">Fair Play &amp; Integrity</a> · <a href="/faq" style="color:#C9A84C">FAQ</a></p>`;
   return renderPage({
     title: "About ChessBet | Fair, Skill-Based Head-to-Head Chess",
@@ -159,7 +159,7 @@ function renderFairPlay() {
     <h2>How ChessBet protects matches</h2>
     <p style="color:#ccc">ChessBet validates moves, clocks, game state, and results on its servers. Completed contests may be screened with Stockfish and behavioral checks, and player reports can supply evidence for review.</p>
     <h2>Human review before enforcement</h2>
-    <p style="color:#ccc">Automated screening signals and rule-based flags are indicators for confidential human review. They do not, by themselves, establish wrongdoing, change a result, impose a penalty, or trigger a financial action.</p>
+    <p style="color:#ccc">Automated screening signals and rule-based flags are indicators for confidential human review. They do not, by themselves, establish wrongdoing, change a result, or impose a penalty. Open blocking integrity or settlement-reconciliation flags can delay automatic release of pending winnings.</p>
     <h2>Prohibited conduct</h2>
     <p style="color:#ccc">Engine assistance, AI assistance, collusion, account sharing, geolocation circumvention, identity manipulation, outcome manipulation, and exploitation of platform errors are prohibited.</p>
     <h2>Reports and appeals</h2>
