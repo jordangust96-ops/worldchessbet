@@ -1,6 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { postLedgerLegs } from '../../shared/ledger.ts';
-import { cancelChallenge } from '../../shared/challengeLifecycle.ts';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 
 // Cancels a pending (not yet in-progress) match and refunds any escrowed
@@ -20,7 +19,7 @@ Deno.serve(async (req) => {
     let match = await base44.asServiceRole.entities.Match.get(matchId);
     if (!match) return Response.json({ error: 'Match not found' }, { status: 404 });
     if (Number(match.launch_epoch) !== 2) return Response.json({ error: 'Match not available' }, { status: 410 });
-    if (Number(match.challenge_version) === 1) return Response.json(await cancelChallenge(base44, user, match.id));
+    if (Number(match.challenge_version) === 1) return Response.json({ error: 'Use the challenge screen to cancel this invitation.', action: 'challenge_link_required' }, { status: 409 });
 
     const isP1 = match.player1_id === user.id;
     const isP2 = match.player2_id === user.id;

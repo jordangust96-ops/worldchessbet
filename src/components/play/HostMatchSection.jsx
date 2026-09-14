@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Loader2, Wallet, Lock } from "lucide-react";
+import { Loader2, Wallet } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { computeContestFinancials, getPlatformServiceFee } from "@/lib/contestFinancials";
 import { trackPixelEvent } from "@/lib/metaPixel";
@@ -20,9 +20,8 @@ export const TIME_CONTROLS = [
   { value: "classical", emoji: "🧠", label: "Classical", minutes: 15 },
 ];
 
-// A single wager/time-control configuration, published either publicly (to
-// the marketplace) or privately (via an invite link) — same Match, same
-// escrow/gameplay/settlement flow either way. Only the publish button differs.
+// Public marketplace creation only. Shareable invitations use the separate
+// challenge-first invitation controller and the same underlying match engine.
 export default function HostMatchSection({ userId, balance, onHosted, disabled = false }) {
   const [wagerValue, setWagerValue] = useState(DEFAULT_WAGER);
   const [timeControl, setTimeControl] = useState("rapid");
@@ -43,7 +42,7 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled =
   const financials = computeContestFinancials(wagerValue);
   const canAffordTotal = financials.totalCharge !== null && balance >= financials.totalCharge;
 
-  const handleHost = async (isPrivate) => {
+  const handleHost = async () => {
     if (launchClosed || !wagerValue || !userId || !canAffordTotal) return;
     setHosting(true);
     setHostError("");
@@ -55,14 +54,10 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled =
         wagerAmount: wagerValue,
         timeControl,
         displayName: selectedTimeControl.label,
-        isPrivate,
+        isPrivate: false,
       });
       if (data?.match) {
         trackPixelEvent("Match Hosted", { value: wagerValue, currency: "USD", time_control: timeControl });
-        if (isPrivate) {
-          base44.analytics.track({ eventName: "private_game_link_created", properties: { wager_amount: wagerValue, time_control: timeControl } });
-          trackPixelEvent("Private Game Link Created", { value: wagerValue, currency: "USD", time_control: timeControl });
-        }
         onHosted?.(data.match);
       } else {
         setHostError(data?.error || "Unable to create this challenge right now.");
@@ -86,7 +81,7 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled =
         <div className="rounded-xl bg-[#C9A84C]/10 border border-[#C9A84C]/20 p-3 flex items-center gap-2.5">
           <Wallet size={15} className="text-[#C9A84C] shrink-0" />
           <p className="text-xs text-[#C9A84C]/80 leading-snug">
-            {launchClosed ? "Paid contests are currently unavailable." : noFunds ? "Fund your wallet to host or accept a challenge." : availability?.deposits_enabled ? "Add funds to create a challenge." : "Deposits are currently unavailable."}{" "}
+            {launchClosed ? "Paid contests are currently unavailable." : noFunds ? "Available funds are required to post or accept a public match." : availability?.deposits_enabled ? "Add funds to create a challenge." : "Deposits are currently unavailable."}{" "}
             <Link to="/wallet" className="underline font-semibold hover:text-[#C9A84C]">
               {!launchClosed && availability?.deposits_enabled ? "Fund Wallet" : "View Wallet"}
             </Link>
@@ -96,7 +91,7 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled =
 
       <div className={`space-y-5 lg:space-y-2 ${disabled || launchClosed || noFunds ? "opacity-40 pointer-events-none" : ""}`}>
         <div>
-          <h3 className="text-base lg:text-sm font-bold text-white">Create a Challenge</h3>
+          <h3 className="text-base lg:text-sm font-bold text-white">Post a Public Match</h3>
           <p className="text-xs text-white/40 mt-0.5 lg:hidden">Choose an entry amount and time control.</p>
           {disabled && (
             <p className="text-xs text-[#C9A84C]/70 mt-1">
@@ -190,21 +185,12 @@ export default function HostMatchSection({ userId, balance, onHosted, disabled =
 
         <div className="space-y-2 lg:space-y-1.5">
           <Button
-            onClick={() => handleHost(false)}
+            onClick={handleHost}
             disabled={!wagerValue || hosting || disabled || launchClosed || noFunds || !canAffordTotal}
             className="w-full h-12 lg:h-9 lg:text-sm rounded-2xl font-bold gold-gradient text-black hover:opacity-90 disabled:opacity-30 transition-opacity"
           >
             {hosting ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
             Create {buttonWagerLabel} {selectedTimeControl.label} Challenge
-          </Button>
-          <Button
-            onClick={() => handleHost(true)}
-            disabled={!wagerValue || hosting || disabled || launchClosed || noFunds || !canAffordTotal}
-            variant="outline"
-            className="w-full h-12 lg:h-9 lg:text-sm rounded-2xl font-bold border-white/10 text-white/70 hover:bg-white/5 hover:text-white disabled:opacity-30 transition-colors"
-          >
-            {hosting ? <Loader2 className="animate-spin mr-2" size={16} /> : <Lock size={14} className="mr-2" />}
-            Create a Private Challenge
           </Button>
           {hostError && <p className="text-xs text-red-400 text-center">{hostError}</p>}
         </div>

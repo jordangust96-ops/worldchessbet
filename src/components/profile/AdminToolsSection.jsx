@@ -97,6 +97,7 @@ export default function AdminToolsSection({ userEmail }) {
         <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-wider text-white/35">Operations</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <ToolCard to="/admin/health" icon={BarChart3} label="Site Health" description="Review connection health, alerts, and capacity warnings." />
+          <ToolCard to="/admin/challenges" icon={BellRing} label="Challenge Operations" description="Inspect invitations, acceptance, dual reservations, no-show releases and recovery." />
           <ToolCard
             to="/admin/transaction-ledger"
             icon={ScrollText}

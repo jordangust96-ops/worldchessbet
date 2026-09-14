@@ -7,12 +7,14 @@ import ShareOnXButton from "./ShareOnXButton";
 import ShareOnFacebookButton from "./ShareOnFacebookButton";
 import DownloadVictoryCardButton from "./DownloadVictoryCardButton";
 import ReportContestButton from "@/components/disputes/ReportContestButton";
+import CreateChallengeForm from "@/components/play/CreateChallengeForm";
 import { trackPixelEvent } from "@/lib/metaPixel";
 
 export default function SettlementState({ match, game, userId, onReturn }) {
   const [opponentName, setOpponentName] = useState("Opponent");
   const [winnerName, setWinnerName] = useState("You");
   const [returning, setReturning] = useState(false);
+  const [rematch, setRematch] = useState(false);
   // Guards against firing "Match Completed" more than once for the same
   // match if this component re-renders/remounts while still showing it.
   const trackedMatchIdRef = useRef(null);
@@ -56,6 +58,8 @@ export default function SettlementState({ match, game, userId, onReturn }) {
     }
   };
 
+  if (rematch) return <div className="py-3"><CreateChallengeForm initialAmount={match.wager_amount} rematchOf={match.id} onCancel={() => setRematch(false)} /></div>;
+
   return (
     <div className="space-y-5 lg:space-y-3 text-center py-4">
       <div
@@ -90,15 +94,16 @@ export default function SettlementState({ match, game, userId, onReturn }) {
           <p className="text-2xl font-extrabold text-[#C9A84C]">+${(match.wager_amount * 2).toFixed(2)}</p>
         </div>
       )}
-      <p className="text-xs text-white/30">Wallet Updated</p>
+      <p className="text-xs text-white/40">{won && !draw ? "Winner awards follow the standard report-window hold before becoming available. A rematch needs a separate available balance." : "Wallet updated"}</p>
       <div className="space-y-2">
+        <Button onClick={() => setRematch(true)} className="w-full h-12 rounded-2xl font-bold gold-gradient text-black">Run It Back</Button>
         <Button
           onClick={handleReturn}
           disabled={returning}
           className="w-full h-12 rounded-2xl font-bold gold-gradient text-black hover:opacity-90 disabled:opacity-60"
         >
           {returning ? <Loader2 size={16} className="animate-spin mr-2" /> : null}
-          {returning ? "Updating Balance..." : "Return to Marketplace"}
+          {returning ? "Updating Balance..." : "Challenge Someone Else"}
         </Button>
         {won && (
           <>

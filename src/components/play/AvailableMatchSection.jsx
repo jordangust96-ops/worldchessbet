@@ -70,7 +70,7 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
 
   const visibleOpponents = opponents.filter((o) => !declinedIds.includes(o.id));
   const current = visibleOpponents[0];
-  const insufficientFunds = current ? (balance || 0) < current.wager_amount : false;
+  const insufficientFunds = current ? (balance || 0) < Number(current.wager_amount) + Number(current.platform_service_fee || 0) : false;
 
   const handleFindMatch = async () => {
     setSearching(true);
