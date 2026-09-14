@@ -384,7 +384,7 @@ export default function SeamlessFundingPanel({
                 </h4>
                 <p className="mt-1 text-xs leading-relaxed text-white/45">
                   {direction === "deposit"
-                    ? journey.anotherDeposit ? "Funds in your ChessBet wallet are used to create or accept match challenges. You can withdraw your funds at any time." : "Choose an amount and add it securely from your connected bank."
+                    ? journey.anotherDeposit ? "Use available funds to create or accept match challenges. Bank withdrawals are limited to your Available to Withdraw balance." : "Choose an amount and add it securely from your connected bank."
                     : "Send available wallet funds back to your connected bank."}
                 </p>
               </div>
@@ -631,8 +631,8 @@ export default function SeamlessFundingPanel({
 
               {direction === "deposit" && (
                 <p className="text-center text-xs leading-relaxed text-white/50">
-                  Deposits typically appear in your ChessBet wallet within 3–4 business days.
-                  We’ll notify you when your funds land.
+                  Deposits become available to play after the bank reports Processed and the final checks pass.
+                  We’ll notify you when they are ready to play. A separate five-business-day withdrawal hold applies.
                 </p>
               )}
 
