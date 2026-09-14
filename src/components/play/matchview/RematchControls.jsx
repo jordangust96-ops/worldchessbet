@@ -90,7 +90,7 @@ const RematchControls=forwardRef(function RematchControls({match,opponentName,on
       <Button disabled={!!busy} onClick={()=>run('rematch_decline')} variant="outline" className="flex-1 rounded-xl">Decline</Button>
     </div>:open ? <Button disabled={!!busy} onClick={()=>run('rematch_cancel')} variant="outline" className="w-full rounded-xl">Cancel Rematch Request</Button>:
     <Button disabled={!!busy || !present || !canAfford || ['accepted','processing'].includes(offer?.status)} onClick={()=>run('rematch_request')} className="w-full h-12 rounded-2xl font-bold gold-gradient text-black">{busy==='rematch_request'?'Requesting…':'Request Rematch'}</Button>}
-    {view && !free && !canAfford && (!open || offer.incoming) && <p className="text-xs text-white/55">{playable===null?'Checking playable balance…':`You need ${money(total)} in playable funds to rematch.`}</p>}
+    {view && !free && !canAfford && (!open || offer.incoming) && <p className="text-xs text-white/55">{playable===null?'Checking playable balance…':`You need $${money(total)} in playable funds to rematch.`}</p>}
     {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
   </section>;
 });
