@@ -3,21 +3,19 @@
   "properties": {
     "challenge_version": {
       "type": "integer",
-      "description": "2 identifies challenge-first invitation records. Unset on legacy/public matches."
+      "description": "1 identifies challenge-first invitation records. Unset on legacy/public matches."
     },
     "clock_initial_ms": {
       "type": "integer",
-      "minimum": 60000,
-      "maximum": 3600000,
-      "description": "Server-snapshotted clock per player. New challenge links use five minutes; existing time controls stay unchanged."
+      "description": "New invitation games use 300000 ms per player; legacy time controls are unchanged."
     },
     "challenge_creation_key": {
       "type": "string",
+      "description": "Owner-scoped idempotency key for invitation creation.",
       "rls": {
         "read": false,
         "write": false
-      },
-      "description": "Creator-scoped invitation creation idempotency key."
+      }
     },
     "challenge_location_started_at": {
       "type": "string",
@@ -31,43 +29,48 @@
     },
     "challenge_authorized_at": {
       "type": "string",
-      "format": "date-time",
-      "description": "Creator explicitly agreed to the displayed entry and fee for first eligible acceptance."
+      "description": "Explicit creator consent to the disclosed entry, fee and Fair Play terms; no funds move here.",
+      "format": "date-time"
     },
     "challenge_authorized_until": {
       "type": "string",
-      "format": "date-time",
-      "description": "Short-lived acceptance authorization. No money is reserved by this alone."
+      "description": "Short server-timed creator availability lease; never a wallet hold.",
+      "format": "date-time"
     },
     "challenge_consent_version": {
       "type": "string"
     },
     "challenge_claimant_id": {
       "type": "string",
+      "description": "Server-only candidate for an in-flight claim. Never a slot assignment until the journal commits.",
       "rls": {
         "read": false,
         "write": false
-      },
-      "description": "Backend recovery identity for an in-flight dual reservation; never a funding wait queue."
+      }
     },
     "challenge_operation_state": {
       "type": "string",
-      "enum": [
-        "idle",
-        "reserving",
-        "committed",
-        "releasing",
-        "released"
-      ],
-      "description": "Financial recovery marker. The complete immutable journal decides whether both reservations committed."
-    },
-    "challenge_operation_started_at": {
-      "type": "string",
+      "description": "Internal reservation recovery state; not an onboarding wait state.",
       "rls": {
         "read": false,
         "write": false
       },
-      "description": "ISO operation time, or empty when no operation is pending."
+      "enum": [
+        "reserving",
+        "committed",
+        "releasing",
+        "released",
+        "idle"
+      ]
+    },
+    "challenge_operation_started_at": {
+      "type": "string",
+      "description": "Server time of a recoverable financial operation.",
+      "format": "date-time",
+      "rls": {
+        "read": false,
+        "write": false
+      }
     },
     "challenge_recipient_consent_at": {
       "type": "string",
@@ -79,7 +82,11 @@
     },
     "challenge_reservation_group_id": {
       "type": "string",
-      "description": "One balanced journal batch containing both entries and both fees."
+      "description": "Deterministic reference to one balanced dual-reservation journal batch.",
+      "rls": {
+        "read": false,
+        "write": false
+      }
     },
     "challenge_release_group_id": {
       "type": "string",
@@ -95,13 +102,13 @@
     },
     "challenge_player1_ready_at": {
       "type": "string",
-      "format": "date-time",
-      "description": "Explicit readiness renewed only by an active session; expires in 30 seconds."
+      "description": "Short explicit post-claim start readiness, never inferred from funding.",
+      "format": "date-time"
     },
     "challenge_player2_ready_at": {
       "type": "string",
-      "format": "date-time",
-      "description": "Explicit readiness renewed only by an active session; expires in 30 seconds."
+      "description": "Short explicit post-claim start readiness, never inferred from funding.",
+      "format": "date-time"
     },
     "accept_notification_sent": {
       "default": false,
@@ -279,7 +286,7 @@
     },
     "status": {
       "default": "searching",
-      "description": "'searching': host waiting for an opponent. 'preparing': an opponent has joined and the opponent slot is reserved \u2014 both players must independently certify Fair Play and reserve their Entry Amount in the shared Preparing Match screen. 'both_ready': transient status set the instant both players have certified and funded, while the Game is created/loaded. 'in_progress': gameplay is live. 'matched'/'deposited' are legacy values kept only for historical records and are no longer written by current flows. For challenge_version=2, searching is a nonfinancial invitation; preparing means BOTH entry amounts and fees are committed, awaiting explicit live readiness.",
+      "description": "'searching': host waiting for an opponent. 'preparing': an opponent has joined and the opponent slot is reserved \u2014 both players must independently certify Fair Play and reserve their Entry Amount in the shared Preparing Match screen. 'both_ready': transient status set the instant both players have certified and funded, while the Game is created/loaded. 'in_progress': gameplay is live. 'matched'/'deposited' are legacy values kept only for historical records and are no longer written by current flows. For challenge_version=1, searching is a nonfinancial invitation; preparing means BOTH entry amounts and fees are committed, awaiting explicit live readiness.",
       "enum": [
         "searching",
         "matched",
@@ -313,71 +320,15 @@
       "description": "User ID of the winner",
       "type": "string"
     },
-    "challenge_initial_time_ms": {
-      "type": "integer",
-      "description": "New invitation games use 300000 ms per player; legacy time controls are unchanged."
-    },
-    "challenge_creator_consent_at": {
-      "type": "string",
-      "description": "Explicit creator consent to the disclosed entry, fee and Fair Play terms; no funds move here.",
-      "format": "date-time"
-    },
-    "challenge_creator_ready_until": {
-      "type": "string",
-      "description": "Short server-timed creator availability lease; never a wallet hold.",
-      "format": "date-time"
-    },
     "challenge_claimed_at": {
       "type": "string",
       "description": "Time both participants were financially committed in one journal batch.",
-      "format": "date-time"
-    },
-    "challenge_player1_ready_until": {
-      "type": "string",
-      "description": "Short explicit post-claim start readiness, never inferred from funding.",
-      "format": "date-time"
-    },
-    "challenge_player2_ready_until": {
-      "type": "string",
-      "description": "Short explicit post-claim start readiness, never inferred from funding.",
       "format": "date-time"
     },
     "challenge_request_notified_at": {
       "type": "string",
       "description": "Rate limit for a funded recipient asking the creator to return; not acceptance.",
       "format": "date-time"
-    },
-    "challenge_commit_started_at": {
-      "type": "string",
-      "description": "Server time of a recoverable financial operation.",
-      "format": "date-time",
-      "rls": {
-        "read": false,
-        "write": false
-      }
-    },
-    "challenge_commit_state": {
-      "type": "string",
-      "description": "Internal reservation recovery state; not an onboarding wait state.",
-      "rls": {
-        "read": false,
-        "write": false
-      },
-      "enum": [
-        "reserving",
-        "committed",
-        "releasing",
-        "released",
-        "aborted"
-      ]
-    },
-    "challenge_candidate_id": {
-      "type": "string",
-      "description": "Server-only candidate for an in-flight claim. Never a slot assignment until the journal commits.",
-      "rls": {
-        "read": false,
-        "write": false
-      }
     },
     "challenge_financial_plan_json": {
       "type": "string",
@@ -387,22 +338,6 @@
         "write": false
       },
       "maxLength": 30000
-    },
-    "challenge_financial_group_id": {
-      "type": "string",
-      "description": "Deterministic reference to one balanced dual-reservation journal batch.",
-      "rls": {
-        "read": false,
-        "write": false
-      }
-    },
-    "challenge_create_key": {
-      "type": "string",
-      "description": "Owner-scoped idempotency key for invitation creation.",
-      "rls": {
-        "read": false,
-        "write": false
-      }
     }
   },
   "required": [
