@@ -155,13 +155,16 @@ for (const entryAmount of [0,4,6,10.01,26,499,2501,5000,NaN,Infinity,null,true,[
   equal(f.table('Match').length,0);equal(f.table('LedgerJournalBatch').length,0);
   const response=await f.load('base44/functions/createMatch/entry.ts').handler(new Request('https://example.invalid',{
     method:'POST',body:JSON.stringify({wagerAmount:entryAmount,timeControl:'blitz'})}));
-  equal(response.status,400);equal(f.table('Match').length,0);
+  equal(response.status,409);equal(f.table('Match').length,0);
 }
 { const f=fixture();check(f.policy.validEntry(26),'Historical terms still recognized');check(!f.policy.validNewEntry(26),'New custom entries prohibited'); }
 async function publicCreate(f) {
-  return f.load('base44/functions/createMatch/entry.ts').handler(new Request('https://example.invalid',{
-    method:'POST',body:JSON.stringify({wagerAmount:25,timeControl:'blitz'})}));
+  try {
+    const result=await f.api.createChallenge(f.sdk,f.user('p1'),{entryAmount:25,timeControl:'blitz',publiclyListed:true,requestKey:'public_create_'+crypto.randomUUID()});
+    return Response.json(result);
+  } catch(error) {return Response.json({code:error.code},{status:error.status || 500});}
 }
+
 for (const first of ['private','public']) {
   const f=fixture();
   if(first==='private')await f.create();else equal((await publicCreate(f)).status,200);
@@ -199,6 +202,54 @@ for (const closed of ['cancelled','expired','completed']) {
   const f=fixture();f.atomic.refreshContestLocks=async()=>false;
   await rejected(()=>f.create(),'busy');equal(f.table('Match').length,0);
   equal((await publicCreate(f)).status,409);equal(f.table('Match').length,0);
+}
+// Discovery uses a public allowlist projection while the record stays participant-only.
+{
+  const f=fixture();const m=await f.create();
+  const query=f.load('base44/shared/marketplaceStats.ts').exports.publicAvailableMatchQuery('p2');
+  equal(f.table('Match').filter(row=>matches(row,query)).length,0);
+  await rejected(()=>f.api.setChallengeVisibility(f.sdk,f.user('p2'),m,{publiclyListed:true}),'forbidden');
+  await f.api.setChallengeVisibility(f.sdk,f.user('p1'),m,{publiclyListed:true});
+  equal(f.table('Match').filter(row=>matches(row,query)).length,1);
+  equal(f.get(m.id).is_private,true);
+  const listed=await f.makeSdk('p2').functions.invoke('getAvailableMatches',{});
+  equal(listed.data.matches.length,1);
+  equal(listed.data.matches[0].challengePath,f.policy.challengePath(m.invite_code));
+  for(const field of ['challenge_creation_key','challenge_claimant_id','challenge_target_id','invite_code','challenge_authorized_until'])
+    check(!(field in listed.data.matches[0]),'Public response excludes '+field);
+  await f.api.setChallengeVisibility(f.sdk,f.user('p1'),f.get(m.id),{publiclyListed:false});
+  equal(f.table('Match').filter(row=>matches(row,query)).length,0);
+  equal(f.get(m.id).invite_code,m.invite_code);equal(f.table('Match').length,1);
+  equal(f.table('LedgerJournalBatch').length,0);equal(f.table('WalletTransaction').length,0);
+  const authorized=await f.authorize(f.get(m.id));
+  await f.api.acceptChallenge(f.request,f.sdk,f.user('p2'),authorized,f.consent);
+  await rejected(()=>f.api.setChallengeVisibility(f.sdk,f.user('p1'),f.get(m.id),{publiclyListed:true}),'unavailable');
+}
+for (const publiclyListed of [true,false]) {
+  const f=fixture();const created=await f.api.createChallenge(f.sdk,f.user('p1'),{entryAmount:25,publiclyListed,requestKey:'visibility_create_12345'});
+  equal(created.match.challenge_publicly_listed,publiclyListed);
+  await rejected(()=>f.create('another_visibility_12345'),'open_limit');
+}
+{
+  const f=fixture();const created=await publicCreate(f);equal(created.status,200);
+  let m=f.table('Match')[0];m.challenge_expires_at=new Date(f.state.now-1).toISOString();
+  const query=f.load('base44/shared/marketplaceStats.ts').exports.publicAvailableMatchQuery('p2');
+  equal(f.table('Match').filter(row=>matches(row,query)).length,0);
+  await rejected(()=>f.api.setChallengeVisibility(f.sdk,f.user('p1'),m,{publiclyListed:false}),'unavailable');
+}
+{
+  const f=fixture();const m=await f.authorize(await f.create());
+  await f.api.setChallengeVisibility(f.sdk,f.user('p1'),m,{publiclyListed:true});
+  const outcomes=await Promise.allSettled(['p2','p3'].map(id=>f.makeSdk(id).functions.invoke('manageChallenge',{action:'accept',inviteCode:m.invite_code,...f.consent})));
+  equal(outcomes.filter(x=>x.status==='fulfilled').length,1);equal(f.table('LedgerJournalBatch').length,1);
+  const query=f.load('base44/shared/marketplaceStats.ts').exports.publicAvailableMatchQuery('p4');
+  equal(f.table('Match').filter(row=>matches(row,query)).length,0);
+}
+{
+  const f=fixture();const m=await f.create();
+  await f.sdk.asServiceRole.entities.Match.update(m.id,{challenge_target_id:'p2'});
+  await rejected(()=>f.api.setChallengeVisibility(f.sdk,f.user('p1'),f.get(m.id),{publiclyListed:true}),'private_rematch');
+  await rejected(()=>f.api.createChallenge(f.sdk,f.user('p1'),{entryAmount:25,publiclyListed:'true',requestKey:'bad_visibility_12345'}),'invalid_visibility');
 }
 for (selectedTimeControl of [undefined, 'blitz', 'rapid', 'classical']) {
 const expectedClock = {blitz:180000,rapid:600000,classical:900000}[selectedTimeControl] || 300000;

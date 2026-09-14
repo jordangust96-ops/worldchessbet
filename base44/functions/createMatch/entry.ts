@@ -1,111 +1,11 @@
-import { withChallengeCreationLock, requireNoExistingChallenge } from '../../shared/challengeCreation.ts';
-import { ChallengeError } from '../../shared/challengeAccess.ts';
-import { validNewEntry } from '../../shared/challengePolicy.js';
-import { runContestEligibility } from '../../shared/runContestEligibility.ts';
-import { paidContestsEnabled } from '../../shared/seamlessFundingConfig.ts';
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
-import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
-import { getPlatformServiceFee, PLATFORM_FEE_SCHEDULE_VERSION, requiresManualFeeApproval } from '../../shared/platformFee.ts';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 
-// Creates a new challenge (public or private). No funds move at creation time
-// — the host's Entry Amount is reserved later, together with the joiner's,
-// during the shared Preparing Match phase (see acceptMatch / certifyFairPlay
-// / lockWager). This keeps hosting and joining perfectly symmetric: every
-// player independently certifies Fair Play and reserves funds in the exact
-// same screen, regardless of how they found their opponent.
-
-const VALID_TIME_CONTROLS = new Set(['blitz', 'rapid', 'classical']);
-const TIME_CONTROL_LABELS = {
-  blitz: 'Blitz (3+0)',
-  rapid: 'Rapid (10+0)',
-  classical: 'Classical (15+0)',
-};
-
+// New matches use manageChallenge.create. Existing posted matches keep their
+// original acceptance and settlement handlers; stale creation clients must refresh.
 Deno.serve(async (req) => {
-  try {
-    const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me().catch(() => null);
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    if (!paidContestsEnabled()) {
-      return Response.json({ eligible: false, error: 'Paid contests are temporarily unavailable.', reason: 'Paid contests are temporarily unavailable.', action: 'paid_contests_disabled' }, { status: 409 });
-    }
-
-    const { wagerAmount, timeControl, isPrivate } = await req.json();
-    // Shareable invitations must use the dual-funded challenge lifecycle.
-    if (isPrivate) return Response.json({ error: 'Use Challenge Someone to create a shareable invitation.', action: 'challenge_link_required' }, { status: 409 });
-    const wager = Number(wagerAmount);
-    if (!validNewEntry(wagerAmount)) {
-      return Response.json({ error: 'Choose one of the available Entry Amounts.' }, { status: 400 });
-    }
-    if (requiresManualFeeApproval(wager)) {
-      return Response.json({ error: 'Contest Entry Amounts above $5,000 require manual approval and a separately disclosed Platform Service Fee before acceptance.' }, { status: 400 });
-    }
-    const platformServiceFee = getPlatformServiceFee(wager);
-    if (platformServiceFee === null) {
-      return Response.json({ error: 'No published Platform Service Fee applies to this Contest Entry Amount.' }, { status: 400 });
-    }
-    if (!VALID_TIME_CONTROLS.has(timeControl)) {
-      return Response.json({ error: 'Invalid time control' }, { status: 400 });
-    }
-
-    // Eligibility — the single shared pipeline (identity, geolocation,
-    // participation restrictions, available balance) also used by Join
-    // Match. No funds are held here; this is only an early eligibility check.
-    const eligibilityRes = { data: await (await runContestEligibility(req, {
-      entryAmount: wager,
-      triggerEvent: 'create_match',
-      relatedEntityType: 'match',
-    })).json() };
-    if (eligibilityRes.data?.error || !eligibilityRes.data?.eligible) {
-      return Response.json({ error: eligibilityRes.data?.reason || eligibilityRes.data?.error || 'You are not eligible to create this contest' }, { status: 403 });
-    }
-
-    const match = await withChallengeCreationLock(user.id, async checkLease => {
-      await requireNoExistingChallenge(base44, user.id);
-      await checkLease();
-      return base44.asServiceRole.entities.Match.create({
-      launch_epoch: 2,
-      player1_id: user.id,
-      wager_amount: wager,
-      platform_service_fee: platformServiceFee,
-      platform_fee_schedule_version: PLATFORM_FEE_SCHEDULE_VERSION,
-      time_control: timeControl,
-      display_name: TIME_CONTROL_LABELS[timeControl],
-      status: 'searching',
-      is_private: false,
-      player1_deposited: false,
-      player1_certified: false,
-      // Public marketplace only. Invitation tokens belong to challengeActions.
-      });
-    });
-
-    await recordIntegrationEvent(base44, {
-      eventType: 'contest.created',
-      aggregateType: 'match',
-      aggregateId: match.id,
-      correlationId: match.id,
-      idempotencyKey: `contest.created:${match.id}`,
-      actorType: 'user',
-      actorId: user.id,
-      userId: user.id,
-      matchId: match.id,
-      status: match.status,
-      amount: match.wager_amount,
-      result: 'created',
-      eventData: {
-        player1_id: match.player1_id,
-        time_control: match.time_control,
-        entry_amount: match.wager_amount,
-        platform_service_fee: match.platform_service_fee,
-        platform_fee_schedule_version: match.platform_fee_schedule_version,
-        is_private: !!match.is_private,
-      },
-    });
-
-    return Response.json({ match });
-  } catch (error) {
-    if (error instanceof ChallengeError) return Response.json({ error: error.message, code: error.code, ...error.details }, { status: error.status });
-    console.error(JSON.stringify({ event: 'backend_function_failed', error: error?.message || 'unknown_error' }));
-    return Response.json({ error: 'internal_error' }, { status: 500 });
-  }
+  const base44 = createClientFromRequest(req);
+  const user = await base44.auth.me().catch(() => null);
+  if (!user) return Response.json({ error:'Unauthorized' }, { status:401 });
+  return Response.json({ error:'Use Create Challenge and turn on Show in Find an Opponent to post publicly.',
+    action:'unified_challenge_required', path:'/play' }, { status:409 });
 });
