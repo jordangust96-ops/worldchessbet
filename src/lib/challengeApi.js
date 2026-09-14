@@ -28,7 +28,8 @@ export function handleChallengeGate(error, navigate, path) {
   }
   if (action === 'policies_required') {
     setPostAuthRedirect(path);
-    const code = /^\/challenge\/([a-f0-9]{32})$/.exec(path)?.[1];
+    const code = /^\/challenge\/([a-f0-9]{32})$/.exec(path)?.[1] ||
+      /^[a-f0-9]{32}$/.exec(new URLSearchParams(path.split('?')[1] || '').get('challenge') || '')?.[0];
     navigate(code ? `/play?resumeChallenge=${code}` : '/play');
     return true;
   }

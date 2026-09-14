@@ -155,7 +155,7 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
   const Container = embedded ? "div" : "main";
   return <Container className={embedded ? "space-y-4 text-white" : "min-h-screen bg-[#0A0A0A] px-5 py-7 text-white sm:py-12"}>
     {!embedded && <SEO title={card ? `${usd(card.entryAmount)} Chess Challenge | ChessBet` : 'Chess Challenge | ChessBet'} description="Open a ChessBet challenge, review the entry amount, and play someone you know. Eligibility and available funds are required." noindex />}
-    {!embedded && <Helmet><meta name="referrer" content="no-referrer" /></Helmet>}
+    <Helmet><meta name="referrer" content="no-referrer" /></Helmet>
     <div className={embedded ? "space-y-4" : "mx-auto max-w-lg space-y-6"}>
       {embedded ? <button onClick={onClose} className="inline-flex items-center gap-1 text-sm text-white/50"><ArrowLeft size={15} />Challenges</button> : <div className="flex items-center justify-between gap-4"><Link to="/" aria-label="ChessBet"><Logo size="sm" /></Link>
         <Link to="/play" className="inline-flex items-center gap-1 text-sm text-white/50"><ArrowLeft size={15} />Play</Link></div>}
