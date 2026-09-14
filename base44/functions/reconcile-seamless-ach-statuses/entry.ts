@@ -237,7 +237,7 @@ Deno.serve(async (req) => {
 
     const candidates = [...byId.values()]
       .filter((tx) => {
-        const createdAt = timeMs(tx.created_date);
+        const createdAt = timeMs(tx.withdrawal_provider_attempt_at || tx.created_date);
         if (!createdAt || nowMs - createdAt < INITIAL_DELAY_MS) return false;
         const tracker = trackerByTransaction.get(tx.id);
         if (isClosedTrackerState(tracker)) return false;
@@ -264,7 +264,7 @@ Deno.serve(async (req) => {
 
     for (const candidate of candidates) {
       let tracker = trackerByTransaction.get(candidate.id) || null;
-      const firstSeenAt = tracker?.first_seen_at || candidate.created_date || nowIso;
+      const firstSeenAt = tracker?.first_seen_at || candidate.withdrawal_provider_attempt_at || candidate.created_date || nowIso;
       const ageMs = nowMs - timeMs(firstSeenAt);
 
       const refs = await base44.asServiceRole.entities.IntegrationReference.filter(
