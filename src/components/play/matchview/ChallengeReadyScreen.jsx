@@ -48,6 +48,10 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
       } catch(err) {
         const action=err?.response?.data?.action;
         if(active && action==='location_required') {setArmed(false);setError('Please confirm readiness again to refresh your location.');}
+        else if(active && action==='recovery_pending') {
+          setError('Confirming the existing reservation. No additional funds are being reserved.');
+          try { await challengeRequest('recover',{matchId:match.id}); await onRefresh?.(); } catch { /* Retry through the existing sweep. */ }
+        }
         else if(active && !['busy','wallet_busy','retry'].includes(action)) setError(challengeErrorMessage(err));
       } finally{inFlight.current=false;}
     };
