@@ -88,13 +88,13 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
             <Button onClick={()=>share(card)} className="h-11 rounded-xl gold-gradient font-bold text-black"><Share2 size={15} className="mr-2"/>Share</Button>
             <Button variant="outline" onClick={()=>cancel(card)} disabled={Boolean(busyId)} className="h-11 rounded-xl border-white/15 text-white/65">{busyId===card.id?'Cancelling…':'Cancel'}</Button>
           </div>
-          <p className="text-xs text-white/45">{card.playMode==='free'?'Stay on the Play screen so an opponent can accept.':card.creatorFundsReserved ? `${Number(card.totalRequired).toFixed(2)} reserved for this match. Cancel to return it to your playable balance.` : 'Both players must qualify before acceptance.'}</p>
+          <p className="text-xs text-white/45">{card.playMode==='free'?'You can leave this screen. We’ll email you when someone accepts.':card.creatorFundsReserved ? `${Number(card.totalRequired).toFixed(2)} reserved for this match. We’ll email you when someone accepts.` : 'Both players must qualify before acceptance.'}</p>
         </>}
         {card.status==='open' && card.playMode!=='free' && !card.creatorFundsReserved && <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
           <p className="text-sm leading-relaxed text-white/65">To play this match, you need ${Number(card.totalRequired).toFixed(2)} in available wallet funds, including the service fee. Pending deposits cannot be used yet.</p>
           <Button asChild variant="outline" className="h-11 w-full rounded-xl border-[#C9A84C]/30 font-semibold text-[#E5CA7A]"><Link to={`/wallet?challenge=${card.inviteCode}`}>Fund Wallet</Link></Button>
         </div>}
-        {card.status==='open' && <ChallengeAvailability card={card} onChanged={refresh}/>}
+        {card.status==='open' && card.creatorPresenceRequired !== false && <ChallengeAvailability card={card} onChanged={refresh}/>}
         {card.status!=='open' && <Link to={`/play?challenge=${card.inviteCode}`} className="block text-xs font-semibold text-[#C9A84C]">Open Match</Link>}
       </article>)}</div>}
       {activePublic && <ActiveChallengeCard match={activePublic} onCancel={async()=>{await base44.functions.invoke('cancelMatch',{matchId:activePublic.id});await refresh();}}/>}

@@ -120,7 +120,7 @@
     },
     "accept_notification_sent": {
       "default": false,
-      "description": "Set once the match-accepted notification has been sent, to guarantee it is only ever sent once per match. Written only by the notifyMatchAccepted backend function (service role) \u2014 never by any client.",
+      "description": "Provider accepted the match-acceptance email. Written by notifyMatchAccepted under a distributed notification lease; not proof of inbox delivery.",
       "type": "boolean"
     },
     "acceptance_operation_id": {
@@ -182,7 +182,7 @@
     },
     "notify_on_accept": {
       "default": true,
-      "description": "Whether the host (player1) wants to be notified when an opponent accepts this challenge. Only relevant while the match is searching for an opponent. Only the host (created_by_id) can update this record client-side \u2014 the accepting opponent has no client-side write access to Match at all.",
+      "description": "Whether the host (player1) wants to be notified when an opponent accepts this challenge. Only relevant while the match is searching for an opponent. Only the host (created_by_id) can update this record client-side — the accepting opponent has no client-side write access to Match at all.",
       "type": "boolean"
     },
     "platform_fee_schedule_version": {
@@ -248,7 +248,7 @@
       "type": "string"
     },
     "preparation_started_at": {
-      "description": "Timestamp the shared Preparing Match phase began (set when the opponent joins). Used to enforce the preparation timeout \u2014 if both players are not fully ready within the timeout window, the match is automatically cancelled and any reserved funds released.",
+      "description": "Timestamp the shared Preparing Match phase began (set when the opponent joins). Used to enforce the preparation timeout — if both players are not fully ready within the timeout window, the match is automatically cancelled and any reserved funds released.",
       "format": "date-time",
       "type": "string"
     },
@@ -273,7 +273,7 @@
     },
     "settlement_hold": {
       "default": false,
-      "description": "Set by an administrator (via a Dispute Case pre-settlement hold) to pause automatic settlement while an investigation is open. While true, settleMatch takes no action even after the Game completes \u2014 both players' funds remain in the Contest Clearing Account. Cleared only by the administrator releasing the hold, which resumes settlement.",
+      "description": "Set by an administrator (via a Dispute Case pre-settlement hold) to pause automatic settlement while an investigation is open. While true, settleMatch takes no action even after the Game completes — both players' funds remain in the Contest Clearing Account. Cleared only by the administrator releasing the hold, which resumes settlement.",
       "type": "boolean"
     },
     "settlement_operation_id": {
@@ -294,7 +294,7 @@
     },
     "status": {
       "default": "searching",
-      "description": "'searching': host waiting for an opponent. 'preparing': an opponent has joined and the opponent slot is reserved \u2014 both players must independently certify Fair Play and reserve their Entry Amount in the shared Preparing Match screen. 'both_ready': transient status set the instant both players have certified and funded, while the Game is created/loaded. 'in_progress': gameplay is live. 'matched'/'deposited' are legacy values kept only for historical records and are no longer written by current flows. For challenge_version=1, searching is a nonfinancial invitation; preparing means BOTH entry amounts and fees are committed, awaiting explicit live readiness.",
+      "description": "'searching': host waiting for an opponent. 'preparing': an opponent has joined and the opponent slot is reserved — both players must independently certify Fair Play and reserve their Entry Amount in the shared Preparing Match screen. 'both_ready': transient status set the instant both players have certified and funded, while the Game is created/loaded. 'in_progress': gameplay is live. 'matched'/'deposited' are legacy values kept only for historical records and are no longer written by current flows. For challenge_version=1, searching is a nonfinancial invitation; preparing means BOTH entry amounts and fees are committed, awaiting explicit live readiness.",
       "enum": [
         "searching",
         "matched",
@@ -385,6 +385,14 @@
       ],
       "default": "money",
       "description": "Server-owned play mode. Free games have zero entry, service fee, and money award. Legacy records are money play.",
+      "rls": {
+        "write": false
+      }
+    },
+    "challenge_start_deadline_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Server-recorded five-minute deadline after successful acceptance. Existing accepted matches retain their recorded deadline.",
       "rls": {
         "write": false
       }

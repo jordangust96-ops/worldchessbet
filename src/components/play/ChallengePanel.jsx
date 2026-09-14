@@ -40,7 +40,7 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
   const free=card?.playMode==='free';
   const creator = view?.role === 'player1';
   const open = card?.status === 'open';
-  const creatorReady = card?.creatorReady && Date.parse(card.creatorReadyUntil || '') > now;
+  const creatorReady = card?.creatorPresenceRequired === false || (card?.creatorReady && Date.parse(card.creatorReadyUntil || '') > now);
   const shareUrl = `${window.location.origin}${path}`;
 
   const refresh = useCallback(async () => {
@@ -118,7 +118,7 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
       if (!handleChallengeGate(err,navigate,returnPath)) {
         setError(challengeErrorMessage(err));
         const detail = err?.response?.data;
-        if (walletCodes.includes(detail?.code)) setReadiness({ ...detail, ready:false });
+        if (walletCodes.includes(detail?.code)) { setReadiness({ ...detail, ready:false, reason:challengeErrorMessage(err) }); setStage('setup'); }
       }
     } finally { actionRef.current = false; setBusy(''); }
   };
@@ -155,7 +155,7 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
   const share = async () => {
     if (!navigator.share) { await copy(); return; }
     try { await navigator.share({ title:free?'A free ChessBet challenge':`A ${usd(card.entryAmount)} ChessBet challenge`,
-      text:free?'Think you can beat me? Join my free chess challenge.':`Think you can beat me? ${usd(card.entryAmount)} entry, separate service fee. First eligible, funded player to accept while I’m ready gets the match.`,url:shareUrl }); }
+      text:free?'Think you can beat me? Join my free chess challenge.':`Think you can beat me? ${usd(card.entryAmount)} entry, separate service fee. First eligible, funded player to accept gets the match.`,url:shareUrl }); }
     catch (err) { if (err?.name !== 'AbortError') await copy(); }
   };
 
@@ -190,7 +190,7 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
             <ChallengeVisibilityToggle checked={Boolean(card.publiclyListed)} disabled={Boolean(busy)} rematch={Boolean(card.isRematch)}
               onChange={publiclyListed=>withAction('visibility',async()=>{ await challengeRequest('visibility',{inviteCode,publiclyListed}); await refresh(); })} />
             {!free && <Button onClick={fund} disabled={Boolean(busy)} variant="outline" className="w-full rounded-xl">Fund Wallet</Button>}
-            <ChallengeAvailability card={{...card,inviteCode}} onChanged={refresh}/>
+            {card.creatorPresenceRequired !== false && <ChallengeAvailability card={{...card,inviteCode}} onChanged={refresh}/>}
           </div>}
           {open && !creator && (free || !marketplaceReview || !user) && stage === 'preview' && <Button disabled={Boolean(busy)} onClick={begin} className="h-12 w-full rounded-2xl gold-gradient font-bold text-black">
             {busy && <Loader2 size={16} className="mr-2 animate-spin" />}{busy === 'accept' ? 'Joining…' : 'Accept Challenge'}
@@ -208,7 +208,7 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
             {!creator && !creatorReady && <div className="rounded-xl bg-white/5 p-3 text-sm text-white/60">{free?'Waiting for the creator to return to the Play screen.':'Waiting for the creator to return to the Play screen with enough available funds. No opponent or funds are reserved.'}
               <button disabled={Boolean(busy)} onClick={()=>withAction('ping',async()=>{ const data=await challengeRequest('ping',{inviteCode}); setMessage(data.notified ? 'The creator was notified. The challenge is still open.' : 'A notification could not be sent. Share the link with the creator.'); })} className="mt-2 block font-semibold text-[#C9A84C]">Notify Creator</button></div>}
             <label className="flex items-start gap-3 rounded-xl border border-white/10 p-3 text-xs leading-relaxed text-white/65"><input type="checkbox" checked={agree} onChange={e=>setAgree(e.target.checked)} className="mt-1 h-4 w-4 shrink-0" />
-              <span>{creator ? CHALLENGE_TERMS : `I agree to the Official Rules and Fair Play requirements and authorize ${usd(card.totalRequired)} (${usd(card.entryAmount)} entry plus ${usd(card.serviceFee)} fee) to be reserved only if both players qualify and the challenge is successfully claimed.`}</span></label>
+              <span>{creator ? CHALLENGE_TERMS : `I agree to the Official Rules and Fair Play requirements and authorize ${usd(card.totalRequired)} (${usd(card.entryAmount)} entry plus ${usd(card.serviceFee)} fee) to be reserved only if the challenge is successfully claimed.`}</span></label>
             <Button disabled={!agree || Boolean(busy) || (!creator && !creatorReady)} onClick={commit} className="h-12 w-full rounded-2xl gold-gradient font-bold text-black disabled:opacity-40">
               {busy && <Loader2 size={16} className="mr-2 animate-spin" />}{free ? 'Accept Free Challenge' : creator ? 'Enable Acceptance for 2 Minutes' : `Accept & Reserve ${usd(card.totalRequired)}`}</Button>
             {creator && <p className="text-xs text-white/45">Enabling acceptance reserves nothing. Both players are checked again at final acceptance.</p>}

@@ -19,7 +19,7 @@ export function safeChallengeMatch(match: any) {
     'platform_fee_schedule_version','time_control','display_name','status','game_id','is_private',
     'player1_certified','player2_certified','player1_deposited','player2_deposited','preparation_started_at',
     'challenge_version','clock_initial_ms','challenge_expires_at','challenge_close_reason',
-    'challenge_player1_ready_at','challenge_player2_ready_at','challenge_claimed_at','result','winner_id','completed_at'];
+    'challenge_start_deadline_at','challenge_player1_ready_at','challenge_player2_ready_at','challenge_claimed_at','result','winner_id','completed_at'];
   return Object.fromEntries(fields.filter(key => match[key] !== undefined).map(key => [key, match[key]]));
 }
 function response(value: any, status = 200) {

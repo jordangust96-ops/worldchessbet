@@ -9,6 +9,7 @@ import { paidContestsEnabled } from './seamlessFundingConfig.ts';
 import { acquireMatchLock, releaseMatchLock, acquireUserWalletLock, releaseUserWalletLock,
   setChallengeWalletBarriers, clearChallengeWalletBarriers, takeChallengeRateLimit, refreshContestLocks } from './seamlessAtomicStore.ts';
 import { CHALLENGE_CREATION_VERSION, FAIR_PLAY_ATTESTATION_VERSION, reservesOnCreation, creatorReservationGroup, creatorReleaseGroup, creatorReservationLegs, creatorReleaseLegs,
+  CHALLENGE_RETURN_WINDOW_MS,
   CHALLENGE_VERSION, CHALLENGE_TTL_MS, CHALLENGE_AUTHORIZATION_MS, challengeTimeControl,
   CHALLENGE_CONSENT_VERSION, CHALLENGE_HUD_CONSENT_VERSION, CHALLENGE_READY_MS, VALID_INVITE, VALID_REQUEST_KEY,
   validNewEntry, isChallenge, isFreeMatch, assertFreeMatch, challengeExpired, creatorAuthorized, challengeStartExpired,
@@ -392,7 +393,8 @@ async function finishReservation(base44: any, match: any, owner: string, beforeC
         // Keep the recoverable marker until BOTH wallet barriers have been
         // cleared. A failure clearing one barrier must remain sweep-visible.
         challenge_operation_state: 'reserving', status: 'preparing',
-        preparation_started_at: match.challenge_operation_started_at,
+        preparation_started_at: match.preparation_started_at || nowIso(),
+        challenge_start_deadline_at: match.challenge_start_deadline_at || new Date(Date.now()+CHALLENGE_RETURN_WINDOW_MS).toISOString(),
         challenge_claimed_at: match.challenge_operation_started_at,
       });
     },
@@ -449,6 +451,7 @@ export async function acceptChallenge(req: Request, base44: any, user: any, matc
       const updated = await base44.asServiceRole.entities.Match.update(fresh.id, {
         player2_id:user.id, player2_certified:false, player2_certified_at:'',
         status:'preparing', preparation_started_at:nowIso(), challenge_claimed_at:nowIso(),
+        challenge_start_deadline_at:new Date(Date.now()+CHALLENGE_RETURN_WINDOW_MS).toISOString(),
         challenge_recipient_consent_at:nowIso(), challenge_operation_state:'idle',
       });
       return {match:updated,accepted:true};
@@ -456,7 +459,7 @@ export async function acceptChallenge(req: Request, base44: any, user: any, matc
     const location = await verifyMatchLocation(req, fresh, body);
     if (location.status !== 'approved') fail('location_required', location.reason || 'Verify your location to accept.', 403);
     const candidate = { ...fresh, player2_id: user.id };
-    if (!(await getMatchLocationReadiness(base44, candidate)).ready)
+    if (!(await getMatchLocationReadiness(base44, candidate, reservesOnCreation(fresh) ? [user.id] : undefined)).ready)
       fail('creator_not_ready', 'Both players need current location checks. Ask the creator to return to the Play screen.');
     return underWalletLocks([fresh.player1_id, user.id], owner, fresh.id, async () => {
       await requireChallengePlayer(base44, user.id, fresh);
@@ -478,7 +481,7 @@ export async function acceptChallenge(req: Request, base44: any, user: any, matc
             fail('unavailable', 'This challenge is no longer ready. No additional funds were reserved.');
           await requireChallengePlayer(base44, user.id, latest);
           await requireChallengePlayer(base44, latest.player1_id, latest, true);
-          if (!(await getMatchLocationReadiness(base44, { ...latest, player2_id: user.id })).ready)
+          if (!(await getMatchLocationReadiness(base44, { ...latest, player2_id: user.id }, reservesOnCreation(latest) ? [user.id] : undefined)).ready)
             fail('location_required', 'Readiness expired. Recheck location before accepting.', 403);
           await checkPlayerLeases();
           commitAuthorized = true;
@@ -610,6 +613,7 @@ export async function readyChallenge(req: Request, base44: any, user: any, match
     if (!['heartbeat','unready'].includes(body.action) && (body.agree!==true || body.attestationVersion!==FAIR_PLAY_ATTESTATION_VERSION))
       fail('fair_play_required','Confirm that you will play fairly before starting.',400);
     if (body.action==='heartbeat' && !match[`${role}_certified`]) return {match,needsReady:true};
+    if (!['heartbeat','unready'].includes(body.action)) await requireChallengePolicies(base44,user.id);
     const deviceHash = await presenceHash(req, body);
     if (body.action === 'unready' || (body.action === 'heartbeat' && body.visible !== true)) {
       if (match[`challenge_${role}_device_hash`] !== deviceHash) return {match, needsReady:true};

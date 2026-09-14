@@ -279,3 +279,15 @@ assert.equal((await testHelpers.getMatchLocationReadiness(testClient,{...match,p
 const mixed=await testHelpers.getMatchLocationReadiness(testClient,{...match,player1_id:testers[0].id,player2_id:'ordinary-user'});
 assert.equal(mixed.ready,false);assert.deepEqual([...mixed.requiredUserIds],['ordinary-user']);
 console.log('Both named testers pass wallet and final match gates without location evidence; ordinary opponents remain gated.');
+
+// Offline acceptance checks only the recipient now; actual paid game start
+// still requires fresh, match-bound evidence from BOTH players.
+logs.p1=undefined;logs.p2=evidence('p2');
+assert.equal((await helpers.getMatchLocationReadiness(client,match,['p2'])).ready,true);
+assert.equal((await helpers.getMatchLocationReadiness(client,match)).ready,false);
+assert.equal((await helpers.getMatchLocationReadiness(client,match,['outsider'])).ready,false);
+assert.equal((await helpers.getMatchLocationReadiness(client,match,[])).ready,false);
+logs.p2={...evidence('p2'),verified_at:new Date(now-121000).toISOString()};
+assert.equal((await helpers.getMatchLocationReadiness(client,match,['p2'])).ready,false);
+logs.p1=evidence('p1');logs.p2=evidence('p2');
+console.log('Offline acceptance location scope: recipient checked at acceptance; both required at start.');

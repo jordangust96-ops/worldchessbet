@@ -114,6 +114,8 @@ export async function requireChallengePlayer(base44: any, userId: string, match:
     if (isCreator) fail('creator_unavailable', 'The creator is not ready to play right now.', 409);
     fail(state.code || 'not_ready', state.reason || 'Complete wallet setup before playing.', 403, state);
   }
-  await requireChallengePolicies(base44, userId);
+  // A reserved creator's existing authorization survives being offline and policy
+  // revisions. Require current acceptance when that player returns to ready.
+  if (!isCreator || !reservesOnCreation(match)) await requireChallengePolicies(base44, userId);
   return state;
 }

@@ -1,10 +1,6 @@
+import { challengeStartDeadline, isChallenge, challengeStartExpired } from '../../shared/challengePolicy.js';
+import { acquireMatchLock, releaseMatchLock } from '../../shared/seamlessAtomicStore.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
-
-// Presence-based "away" detection: the host's client periodically stamps
-// User.last_active_at while the app is open (see PresenceHeartbeat.jsx). If
-// the host was active within this window, they're still in the app and will
-// see the match transition live — no email needed.
-const AWAY_THRESHOLD_MS = 45 * 1000;
 
 async function resolveOpponentName(base44Client, opponentId) {
   if (!opponentId) return 'Your opponent';
@@ -27,14 +23,14 @@ function escapeHtml(value) {
     .replaceAll("'", '&#39;');
 }
 
-function buildEmailBody({ opponentName, wagerAmount, timeControlLabel, appUrl, free = false }) {
+function buildEmailBody({ opponentName, wagerAmount, timeControlLabel, appUrl, matchId, deadline, free = false }) {
   const safeOpponentName = escapeHtml(opponentName);
   const safeTimeControlLabel = escapeHtml(timeControlLabel);
   const safeAppUrl = escapeHtml(appUrl);
   return `
     <div style="font-family: Arial, sans-serif; color: #111; line-height: 1.6; max-width: 480px;">
       <p style="color:#C9A84C; font-weight:bold; letter-spacing:1px; text-transform:uppercase; font-size:12px;">ChessBet</p>
-      <p>Your opponent has accepted your challenge and is ready to play.</p>
+      <p>Your challenge has been accepted.</p>
       <table style="width:100%; border-collapse: collapse; margin: 20px 0;">
         <tr>
           <td style="padding: 8px 0; color:#555;">Opponent</td>
@@ -50,11 +46,11 @@ function buildEmailBody({ opponentName, wagerAmount, timeControlLabel, appUrl, f
         </tr>
       </table>
       <p style="margin-top: 24px;">
-        <a href="${safeAppUrl}/" style="background: #C9A84C; color: #000; font-weight: bold; padding: 12px 24px; border-radius: 8px; text-decoration: none; display:inline-block;">
+        <a href="${safeAppUrl}/play?match=${encodeURIComponent(matchId)}" style="background: #C9A84C; color: #000; font-weight: bold; padding: 12px 24px; border-radius: 8px; text-decoration: none; display:inline-block;">
           Play Now
         </a>
       </p>
-      <p style="color:#999; font-size:12px; margin-top:16px;">Your active match resumes automatically when you open ChessBet.</p>
+      <p style="color:#999; font-size:12px; margin-top:16px;">Return before ${escapeHtml(deadline)}. Both players must confirm readiness to start. You can cancel before play starts.</p>
     </div>
   `;
 }
@@ -64,6 +60,7 @@ function buildEmailBody({ opponentName, wagerAmount, timeControlLabel, appUrl, f
 // host is always resolved from match.player1_id, so this cannot be spoofed
 // into notifying, or suppressing a notification for, the wrong user.
 Deno.serve(async (req) => {
+  const owner=crypto.randomUUID();let lockId='';
   try {
     const base44 = createClientFromRequest(req);
     const caller = await base44.auth.me().catch(() => null);
@@ -73,6 +70,8 @@ Deno.serve(async (req) => {
     const { matchId } = await req.json();
     if (!matchId) return Response.json({ error: 'matchId is required' }, { status: 400 });
 
+    lockId='accept-notification:'+matchId;
+    if(!await acquireMatchLock(lockId,owner)){lockId='';return Response.json({status:'failed',reason:'notification_busy'});}
     const match = await base44.asServiceRole.entities.Match.get(matchId);
     if (!match) return Response.json({ error: 'Match not found' }, { status: 404 });
 
@@ -80,10 +79,10 @@ Deno.serve(async (req) => {
     if (match.accept_notification_sent) {
       return Response.json({ status: 'skipped', reason: 'already_sent' });
     }
-    if (!match.notify_on_accept) {
+    if (match.notify_on_accept === false) {
       return Response.json({ status: 'skipped', reason: 'preference_off' });
     }
-    if (match.status === 'cancelled' || match.status === 'searching') {
+    if (!['preparing','both_ready'].includes(match.status) || !match.player2_id || (isChallenge(match) && challengeStartExpired(match))) {
       return Response.json({ status: 'skipped', reason: 'not_applicable' });
     }
 
@@ -92,16 +91,8 @@ Deno.serve(async (req) => {
       return Response.json({ status: 'skipped', reason: 'no_host_email' });
     }
 
-    // Presence check — skip if the host has been active in the app recently.
-    if (hostUser.last_active_at) {
-      const elapsed = Date.now() - new Date(hostUser.last_active_at).getTime();
-      if (elapsed < AWAY_THRESHOLD_MS) {
-        return Response.json({ status: 'skipped', reason: 'host_active' });
-      }
-    }
-
     const opponentName = await resolveOpponentName(base44, match.player2_id);
-    const appUrl = (Deno.env.get('APP_URL') || `https://${Deno.env.get('BASE44_APP_ID')}.base44.app`).replace(/\/$/, '');
+    const appUrl = (Deno.env.get('APP_URL') || 'https://worldchessbet.com').replace(/\/$/, '');
 
     try {
       await base44.asServiceRole.integrations.Core.SendEmail({
@@ -112,7 +103,8 @@ Deno.serve(async (req) => {
           free: match.play_mode === 'free',
           wagerAmount: match.wager_amount,
           timeControlLabel: match.display_name || match.time_control,
-          appUrl,
+          appUrl, matchId:match.id,
+          deadline:new Date(challengeStartDeadline(match)).toLocaleString('en-US',{timeZone:'America/New_York',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'}),
         }),
         from_name: 'ChessBet',
       });
@@ -130,5 +122,5 @@ Deno.serve(async (req) => {
     return Response.json({ status: 'sent' });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
-  }
+  } finally { if(lockId)await releaseMatchLock(lockId,owner).catch(()=>{}); }
 });

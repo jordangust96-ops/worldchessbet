@@ -18,7 +18,12 @@ export const creatorReservationLegs = match => challengeReservationLegs({...matc
 export const creatorReleaseLegs = match => challengeReleaseLegs(match, match.player1_id).slice(0,4);
 export const CHALLENGE_TTL_MS = 24 * 60 * 60 * 1000;
 export const CHALLENGE_AUTHORIZATION_MS = 2 * 60 * 1000;
-export const CHALLENGE_START_WINDOW_MS = 2 * 60 * 1000;
+export const CHALLENGE_START_WINDOW_MS = 2 * 60 * 1000; // Historical accepted matches without a recorded deadline.
+export const CHALLENGE_RETURN_WINDOW_MS = 5 * 60 * 1000;
+export function challengeStartDeadline(match) {
+  const explicit = Date.parse(match?.challenge_start_deadline_at || '');
+  return Number.isFinite(explicit) ? explicit : Date.parse(match?.preparation_started_at || '') + CHALLENGE_START_WINDOW_MS;
+}
 export const CHALLENGE_READY_MS = 10 * 1000;
 export const CHALLENGE_HUD_CONSENT_VERSION = 'challenge-visible-hud-v2';
 export const CHALLENGE_HUD_TERMS = 'I agree to the Official Rules and Fair Play requirements. While I keep this challenge open on the Play screen, I authorize my displayed Entry Amount and separate Platform Service Fee to be reserved if an eligible, funded opponent accepts. Creating the link reserves no money. Both players must confirm readiness before the game starts.';
@@ -61,7 +66,10 @@ export function challengeExpired(match, now = Date.now()) {
   return !Number.isFinite(expiry) || now >= expiry;
 }
 export function creatorAuthorized(match, now = Date.now()) {
-  if (reservesOnCreation(match) || match?.challenge_consent_version === CHALLENGE_HUD_CONSENT_VERSION) {
+  // The creator already authorized and reserved funds at creation; being online
+  // is required at game start, not when a recipient accepts the invitation.
+  if (reservesOnCreation(match)) return Boolean(isFreeMatch(match) || match.player1_deposited);
+  if (match?.challenge_consent_version === CHALLENGE_HUD_CONSENT_VERSION) {
     const consent = Date.parse(match.challenge_hud_consent_at || '');
     const until = Date.parse(match.challenge_authorized_until || '');
     return Boolean((reservesOnCreation(match) || match.player1_certified) && match.challenge_creator_presence_id &&
@@ -73,8 +81,8 @@ export function creatorAuthorized(match, now = Date.now()) {
     Number.isFinite(at) && Number.isFinite(until) && at <= now && now < until && until > at && until - at <= CHALLENGE_AUTHORIZATION_MS);
 }
 export function challengeStartExpired(match, now = Date.now()) {
-  const at = Date.parse(match?.preparation_started_at || '');
-  return !Number.isFinite(at) || now >= at + CHALLENGE_START_WINDOW_MS;
+  const deadline = challengeStartDeadline(match);
+  return !Number.isFinite(deadline) || now >= deadline;
 }
 export function bothChallengePlayersReady(match, now = Date.now()) {
   return ['player1', 'player2'].every(role => {
@@ -100,6 +108,7 @@ export function publicChallenge(match, hostName = 'ChessBet player', now = Date.
       match.status === 'cancelled' ? 'cancelled' : match.status === 'completed' ? 'completed' : 'claimed',
     creatorConsentRequired: !reservesOnCreation(match) && match.challenge_consent_version !== CHALLENGE_HUD_CONSENT_VERSION,
     creatorFundsReserved: !isFreeMatch(match) && Boolean(match.player1_deposited),
+    creatorPresenceRequired: !isFreeMatch(match) && !reservesOnCreation(match),
     creatorReady: open && !processing && creatorAuthorized(match, now),
     creatorReadyUntil: open && !processing ? match.challenge_authorized_until || null : null,
     publiclyListed: match.challenge_publicly_listed === true,

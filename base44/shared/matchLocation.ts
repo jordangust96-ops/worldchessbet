@@ -24,9 +24,11 @@ export async function verifyChallengeCreationLocation(req, requestKey) {
 
 // Read-only start gate. Never tries to locate the opponent using the caller's
 // IP, and never performs paid lookups from an automatic retry or sweep.
-export async function getMatchLocationReadiness(base44, match) {
-  const userIds = [match.player1_id, match.player2_id];
-  if (!userIds[0] || !userIds[1] || userIds[0] === userIds[1]) {
+export async function getMatchLocationReadiness(base44, match, requestedUserIds = undefined) {
+  const participants = [match.player1_id, match.player2_id];
+  const userIds = requestedUserIds === undefined ? participants : requestedUserIds;
+  if (!Array.isArray(userIds) || !userIds.length || userIds.some(id=>!participants.includes(id))) return {ready:false,requiredUserIds:participants};
+  if (!participants[0] || !participants[1] || participants[0] === participants[1]) {
     return { ready: false, requiredUserIds: userIds.filter(Boolean) };
   }
   const exempt = await Promise.all(userIds.map(async userId =>

@@ -32,7 +32,8 @@ Deno.serve(async (req) => {
       $or: [
         { challenge_operation_state: { $in: ['reserving', 'releasing'] } },
         { status: 'searching', challenge_expires_at: { $lte: new Date().toISOString() } },
-        { status: { $in: ['preparing', 'both_ready'] }, preparation_started_at: { $lte: new Date(Date.now()-PREPARATION_TIMEOUT_MS).toISOString() } },
+        { status: { $in: ['preparing', 'both_ready'] }, challenge_start_deadline_at: { $lte: new Date().toISOString() } },
+        { status: { $in: ['preparing', 'both_ready'] }, challenge_start_deadline_at: { $exists:false }, preparation_started_at: { $lte: new Date(Date.now()-PREPARATION_TIMEOUT_MS).toISOString() } },
       ],
     }, 'created_date', 40);
     const challengeRecovery = { checked: challengeDue.length, recovered: 0, failed: 0 };

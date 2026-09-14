@@ -248,7 +248,7 @@ for(const where of ['LedgerJournalBatch.create.before','LedgerJournalBatch.creat
 for(const phase of ['open_expired','accepted_timeout','accepted_cancel']){
  const f=fixture(),m=await f.authorize(await f.create());
  if(phase!=='open_expired')await f.api.acceptChallenge(f.request,f.sdk,f.user('p2'),m,f.consent);
- f.state.now+=phase==='open_expired'?86400001:121000;
+ f.state.now+=phase==='open_expired'?86400001:301000;
  if(phase==='accepted_cancel')await f.api.cancelChallenge(f.sdk,f.user('p2'),m.id);else await f.api.recoverChallenge(f.sdk,m.id);
  await f.api.recoverChallenge(f.sdk,m.id);
  equal(f.get(m.id).status,'cancelled');for(const id of ['p1','p2']){equal(wallet(f,id).available_balance,100);equal(wallet(f,id).held_balance,0);}

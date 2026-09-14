@@ -24,7 +24,7 @@ for(const publiclyListed of [false,true])for(const timeControl of ['blitz','rapi
 }
 for(const phase of ['open','accepted','expired','no_show']){
  const f=freeFixture(),m=await made(f);await available(f,m);if(['accepted','no_show'].includes(phase))await accepted(f,m);
- if(phase==='expired')f.state.now+=86400001;if(phase==='no_show')f.state.now+=120001;
+ if(phase==='expired')f.state.now+=86400001;if(phase==='no_show')f.state.now+=300001;
  if(['expired','no_show'].includes(phase))await call(f,'p1','recover',{matchId:m.id});else await call(f,phase==='accepted'?'p2':'p1','cancel',{matchId:m.id});
  equal(f.get(m.id).status,'cancelled');await call(f,'p1','cancel',{matchId:m.id});equal(f.table('Game').length,0);noMoney(f);
 }

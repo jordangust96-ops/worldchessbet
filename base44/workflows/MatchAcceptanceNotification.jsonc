@@ -1,6 +1,6 @@
 {
   "name": "Match Acceptance Notification",
-  "description": "When a hosted match gets accepted, waits briefly for a presence check, then sends an optional one-time notification, retrying up to 3 times (1m, 5m, 15m backoff) on transient failure.",
+  "description": "Email the creator after acceptance, including a direct match link and the recorded start deadline. Retry transient failure within the five-minute return window.",
   "trigger": {
     "config": {
       "trigger_type": "entity",
@@ -21,11 +21,11 @@
     "do": [
       {
         "grace_period": {
-          "wait": "PT30S",
+          "wait": "PT1S",
           "then": "attempt_1",
           "x-base44": {
             "title": "Grace period",
-            "description": "Allow presence check to settle"
+            "description": "Send promptly after acceptance"
           }
         }
       },
@@ -60,10 +60,10 @@
       },
       {
         "wait_1": {
-          "wait": "PT1M",
+          "wait": "PT15S",
           "then": "attempt_2",
           "x-base44": {
-            "title": "Wait 1 minute",
+            "title": "Wait 15 seconds",
             "description": "Before retry 1"
           }
         }
@@ -99,10 +99,10 @@
       },
       {
         "wait_2": {
-          "wait": "PT5M",
+          "wait": "PT30S",
           "then": "attempt_3",
           "x-base44": {
-            "title": "Wait 5 minutes",
+            "title": "Wait 30 seconds",
             "description": "Before retry 2"
           }
         }
@@ -138,10 +138,10 @@
       },
       {
         "wait_3": {
-          "wait": "PT15M",
+          "wait": "PT60S",
           "then": "attempt_4",
           "x-base44": {
-            "title": "Wait 15 minutes",
+            "title": "Wait 60 seconds",
             "description": "Before final retry"
           }
         }
