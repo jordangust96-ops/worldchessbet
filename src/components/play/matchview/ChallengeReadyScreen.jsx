@@ -39,6 +39,8 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
     base44.functions.invoke('getUserDisplayNames',{userIds:[opponentId]}).then(({data})=>setName(data?.names?.[opponentId] || 'Opponent')).catch(()=>{});
   },[opponentId]);
   useEffect(()=>{
+    present.current=document.visibilityState==='visible';
+    armedRef.current=false;setArmed(false);setAcknowledgedUntil(0);
     const timer=setInterval(()=>setNow(Date.now()),1000);
     const withdraw=()=>{setAcknowledgedUntil(0);present.current=false;armedRef.current=false;setArmed(false);challengeRequest('unready',{matchId:match.id,presenceId:presenceId.current}).catch(()=>{});};
     const hide=()=>{if(document.visibilityState!=='visible')withdraw();else present.current=true;};
