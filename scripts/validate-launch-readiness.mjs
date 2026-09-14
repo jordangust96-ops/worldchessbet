@@ -41,11 +41,27 @@ assert.match(readinessProbe, /hosted_plaid_enabled: hostedPlaidEnabled/);
 assert.match(complianceEvidence, /last_provider_event_id/);
 assert.match(complianceEvidence, /funding_source_id: fundingSourceId/);
 
-for (const source of [
-  fundingConfig, createLink, ensureCustomer, webhook, walletState,
-  fundingPanel, walletPage, readinessProbe, complianceEvidence,
+// Current production identity and bank verification are deliberately separate.
+// The retired hosted-Plaid-only rollout asserted that Socure never appeared;
+// that assertion now rejects the required production identity controls.
+const identityEligibility = await read('base44/shared/identityEligibility.js');
+assert.match(identityEligibility, /identity_verification_provider === 'socure'/);
+assert.match(identityEligibility, /identity_age_verified === true/);
+assert.match(identityEligibility, /identity_age_over_21 === true/);
+assert.match(identityEligibility, /SocureIdentityVerification\.filter/);
+assert.match(identityEligibility, /isVerifiedKycEvidence\(rows\[0\], current\)/);
+// A bank authorization callback must never promote bank verification into KYC.
+for (const source of [createLink, ensureCustomer, webhook]) {
+  assert.doesNotMatch(source, /identity_verification_provider\s*:\s*['"](?:plaid|seamless)['"]/i);
+}
+for (const file of [
+  'base44/shared/runContestEligibility.ts',
+  'base44/shared/lockWager.ts',
+  'base44/shared/challengeAccess.ts',
+  'base44/functions/submitSeamlessDeposit/entry.ts',
+  'base44/functions/submitSeamlessWithdrawal/entry.ts',
 ]) {
-  assert.doesNotMatch(source, /Socure|SOCURE|socure/);
+  assert.match(await read(file), /hasVerifiedIdentity\(/, `${file} must retain the authoritative identity check`);
 }
 
 async function collect(dir) {
