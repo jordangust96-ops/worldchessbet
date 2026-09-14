@@ -49,6 +49,7 @@ Deno.serve(async (req) => {
       // funding, slot assignment or contest journal is created here.
       const ip = getOriginalClientIp(req) || 'unknown-edge';
       const bucket = await sha256Hex(`${ip}:${req.headers.get('user-agent') || ''}`);
+      requestStage = 'preview_coordination';
       if (!await takeChallengeRateLimit(`view:${bucket}`, 180, 60)) return response({ error:'Please try again shortly.' }, 429);
       requestStage = 'preview_lookup';
       const match = await resolveChallenge(base44, body.inviteCode);
@@ -132,6 +133,8 @@ Deno.serve(async (req) => {
     console.error(JSON.stringify({ event:'challenge_request_failed', stage:requestStage, error:String(error?.message || 'unknown').slice(0,160) }));
     // A stable component label aids operational diagnosis without exposing
     // credentials, account records, provider payloads, or raw exceptions.
-    return response({ error:'This challenge could not be updated. Please retry; do not start another payment.', action:'retry', component:requestStage },503);
+    const coordinationStatus = error?.message === 'Seamless atomic store is not configured' ? 'not_configured'
+      : error?.message === 'Seamless atomic store unavailable' ? 'unavailable' : 'unexpected_failure';
+    return response({ error:'This challenge could not be updated. Please retry; do not start another payment.', action:'retry', component:requestStage, diagnostic:coordinationStatus },503);
   }
 });
