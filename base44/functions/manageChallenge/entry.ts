@@ -136,7 +136,8 @@ Deno.serve(async (req) => {
     const coordinationStatus = error?.message === 'Seamless atomic store is not configured' ? 'not_configured'
       : error?.message === 'Seamless atomic store unavailable' ? 'unavailable' : 'unexpected_failure';
     return response({ error:'This challenge could not be updated. Please retry; do not start another payment.', action:'retry', component:requestStage, diagnostic:coordinationStatus,
-      ...(error?.coordinationReason ? { dependencyStatus:error.coordinationHttpStatus, dependencyReason:error.coordinationReason } : {}),
+      ...(error?.coordinationReason ? { dependencyStatus:error.coordinationHttpStatus, dependencyReason:error.coordinationReason,
+        dependencyCommands:error.coordinationCommands, dependencyReadOnly:error.coordinationReadOnly } : {}),
     },503);
   }
 });
