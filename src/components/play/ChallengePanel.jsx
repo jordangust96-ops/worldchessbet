@@ -1,3 +1,4 @@
+import NotifyOnAcceptToggle from '@/components/play/NotifyOnAcceptToggle';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { Copy, Share2, Loader2, ArrowLeft, Clock, Check } from 'lucide-react';
@@ -190,6 +191,7 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
             </button>
             <input aria-label="Your shareable challenge link" value={shareUrl} readOnly onFocus={e=>e.target.select()} className="sr-only" />
             <p className="text-sm leading-relaxed text-white/55">{free?'Share the link. Both players confirm readiness before play.':card.creatorFundsReserved ? `${usd(card.totalRequired)} is reserved for this challenge. Cancel before the match starts to return it to your playable balance.` : 'Share the link and stay on the Play screen. An unfunded recipient cannot claim it.'}</p>
+            <NotifyOnAcceptToggle match={{id:card.id,notify_on_accept:card.notifyOnAccept}} onChanged={refresh} />
             <ChallengeVisibilityToggle checked={Boolean(card.publiclyListed)} disabled={Boolean(busy)} rematch={Boolean(card.isRematch)}
               onChange={publiclyListed=>withAction('visibility',async()=>{ await challengeRequest('visibility',{inviteCode,publiclyListed}); await refresh(); })} />
             {!free && <Button onClick={fund} disabled={Boolean(busy)} variant="outline" className="w-full rounded-xl">Fund Wallet</Button>}
