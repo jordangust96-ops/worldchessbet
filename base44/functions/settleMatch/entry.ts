@@ -199,7 +199,7 @@ Deno.serve(async (req) => {
       if ((game.winner_id || '') !== winner) return Response.json({error:'invalid_free_game_winner'},{status:409});
       if (match.status==='completed') return Response.json({alreadySettled:true,match});
       const updated=await base44.asServiceRole.entities.Match.update(match.id,{
-        status:'completed',winner_id:winner,result:game.result,completed_at:game.completed_at || new Date().toISOString(),
+        status:'completed',winner_id:winner,result:game.result==='white_win'?'player1_win':game.result==='black_win'?'player2_win':'draw',completed_at:game.completed_at || new Date().toISOString(),
       });
       return Response.json({match:updated,freePlay:true});
     }

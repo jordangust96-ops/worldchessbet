@@ -19,7 +19,7 @@ for(const publiclyListed of [false,true])for(const timeControl of ['blitz','rapi
  if(end==='checkmate'){for(const [who,from,to] of [['p1','f2','f3'],['p2','e7','e5'],['p1','g2','g4'],['p2','d8','h4']]){f.state.now+=1000;await f.makeSdk(who).functions.invoke('submitMove',{gameId:game.id,from,to});}}
  if(end==='timeout'){f.state.now+=game.white_time_ms+5000;await f.makeSdk('p2').functions.invoke('checkTimeout',{gameId:game.id});}
  equal(f.table('Game')[0].status,'completed');equal(f.table('Game')[0].end_reason,end==='draw'?'draw_agreement':end);
- await Promise.all(['p1','p2','p1'].map(who=>f.makeSdk(who).functions.invoke('settleMatch',{gameId:game.id})));equal(f.get(m.id).status,'completed');equal(f.get(m.id).result,end==='draw'?'draw':'black_win');
+ await Promise.all(['p1','p2','p1'].map(who=>f.makeSdk(who).functions.invoke('settleMatch',{gameId:game.id})));equal(f.get(m.id).status,'completed');equal(f.get(m.id).result,end==='draw'?'draw':'player2_win');
  noMoney(f);
 }
 for(const phase of ['open','accepted','expired','no_show']){

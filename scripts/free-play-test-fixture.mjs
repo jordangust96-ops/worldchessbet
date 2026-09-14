@@ -31,6 +31,7 @@ function fixture() {
   class Clock extends Date { constructor(...args){super(...(args.length?args:[state.now]));} static now(){return state.now;} }
   const table=name=>state.db[name] ||= [];
   const read=name=>{state.reads.push(name);if(state.noMoney && /Wallet|Ledger|Bank|Identity|Socure|Payment|Transfer/.test(name))throw Error('Unexpected free-game financial access: '+name);};
+  const validate=(name,patch)=>{if(!['Match','Game'].includes(name))return;const schema=JSON.parse(fs.readFileSync(path.join(root,'base44/entities/'+name+'.jsonc'),'utf8'));for(const [key,value] of Object.entries(patch)){const rule=schema.properties[key];if(rule?.enum && !rule.enum.includes(value))throw Error('Schema enum violation: '+name+'.'+key+'='+value);}};
   const entities=new Proxy({}, {get:(_,name)=>({
     filter:async(query={},sort='',limit=500,skip=0,fields)=>{
       read(name);let rows=table(name).filter(row=>matches(row,query));
@@ -40,6 +41,7 @@ function fixture() {
     },
     get:async id=>{read(name);const row=table(name).find(x=>x.id===id);if(!row)throw Error(`not_found:${name}:${id}`);return clone(row);},
     create:async data=>{
+      validate(name,data);
       if(state.noMoney && /Wallet|Ledger|Bank|Payment|Transfer/.test(name))throw Error('Unexpected financial write: '+name);
       if(state.fail?.where===`${name}.create.before`){state.fail=null;throw Error('injected_before_commit');}
       const row={id:`${String(name).toLowerCase()}-${++state.serial}`,created_date:new Clock().toISOString(),...clone(data)};
@@ -48,6 +50,7 @@ function fixture() {
       return clone(row);
     },
     update:async(id,patch)=>{
+      validate(name,patch);
       if(state.fail?.where===`${name}.update` && (!state.fail.test || state.fail.test(id,patch))) {state.fail=null;throw Error('injected_projection_failure');}
       const row=table(name).find(x=>x.id===id);if(!row)throw Error('update_missing');Object.assign(row,clone(patch));return clone(row);
     },
