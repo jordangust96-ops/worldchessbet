@@ -197,13 +197,27 @@ export async function clearChallengeWalletBarriers(userIds: string[], matchId: s
   for (const id of userIds) await evalAtomic(RELEASE_LOCK, [key('wallet-barrier', id)], [matchId]);
 }
 
-// Shared Redis, not a new queue or notification service.
+// Fixed-window rate limiting uses only GET and SET inside atomic EVAL, the
+// commands already authorized for this store's financial coordination token.
+// INCR is not permitted by its current command policy. Do not relax that
+// policy or bypass rate limits; use the existing supported atomic primitives.
+export const CHALLENGE_RATE_LIMIT_SCRIPT = `
+local now = tonumber(ARGV[3])
+local maximum = tonumber(ARGV[1])
+local duration = tonumber(ARGV[2]) * 1000
+local current = redis.call('GET', KEYS[1])
+local record = current and cjson.decode(current) or { count = 0, until_ms = now + duration }
+if tonumber(record.until_ms) <= now then record = { count = 0, until_ms = now + duration } end
+if tonumber(record.count) >= maximum then return 0 end
+record.count = tonumber(record.count) + 1
+redis.call('SET', KEYS[1], cjson.encode(record), 'EX', ARGV[2])
+return 1
+`;
 export async function takeChallengeRateLimit(scope: string, limit: number, seconds: number) {
-  const result = await evalAtomic(`
-local n = redis.call('INCR', KEYS[1])
-if n == 1 then redis.call('EXPIRE', KEYS[1], ARGV[2]) end
-return n <= tonumber(ARGV[1]) and 1 or 0
-`, [key('challenge-rate', scope)], [String(limit), String(seconds)]);
+  if (!Number.isInteger(limit) || limit < 1 || !Number.isInteger(seconds) || seconds < 1)
+    throw new Error('Invalid challenge rate policy');
+  const result = await evalAtomic(CHALLENGE_RATE_LIMIT_SCRIPT,
+    [key('challenge-rate-v2', scope)], [String(limit), String(seconds), String(Date.now())]);
   return Number(result) === 1;
 }
 
