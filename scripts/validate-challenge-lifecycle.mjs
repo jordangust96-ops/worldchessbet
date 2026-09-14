@@ -24,6 +24,7 @@ function matches(row,query) {
     return actual===value;
   });
 }
+let selectedTimeControl;
 function fixture() {
   const state={now:Date.parse('2026-09-14T12:00:00Z'),serial:0,db:{},fail:null,location:true,errors:[],lookups:0,creates:[]};
   class Clock extends Date { constructor(...args){super(...(args.length?args:[state.now]));} static now(){return state.now;} }
@@ -134,13 +135,15 @@ function fixture() {
     Object.assign(table('LedgerEntry').find(e=>e.id==='seed-'+id),{credit_amount:amount,available_delta:amount,total_deposited_delta:amount});
   };
   const create=async(key='creation_key_123456')=>{
-    const r=await api.createChallenge(sdk,user('p1'),{entryAmount:25,requestKey:key});return get(r.match.id);
+    const r=await api.createChallenge(sdk,user('p1'),{entryAmount:25,requestKey:key,...(selectedTimeControl ? {timeControl:selectedTimeControl} : {})});return get(r.match.id);
   };
   const authorize=async m=>{await api.authorizeChallenge(request,sdk,user('p1'),m,consent);return get(m.id);};
   return {state,db:state.db,table,api,policy,access,sdk,makeSdk,atomic,barriers,mutex,load,user,request,consent,get,balance,create,authorize};
 }
 async function rejected(work,code){let failure;try{await work();}catch(error){failure=error;}check(failure,`Expected rejection ${code}`);if(code)equal(failure.code,code);}
 
+for (selectedTimeControl of [undefined, 'blitz', 'rapid', 'classical']) {
+const expectedClock = {blitz:180000,rapid:600000,classical:900000}[selectedTimeControl] || 300000;
 // Nonfinancial invitation creation works without a funded or verified wallet.
 {
   const f=fixture();f.balance('p1',0);f.table('User')[0].verified=false;
@@ -217,7 +220,7 @@ for(const where of ['LedgerJournalBatch.create.before','LedgerJournalBatch.creat
   await f.api.readyChallenge(f.request,f.sdk,f.user('p2'),m.id,{action:'ready'});
   const hidden=await f.api.readyChallenge(f.request,f.sdk,f.user('p2'),m.id,{action:'heartbeat',visible:false});check(hidden.needsReady);
   const started=await f.api.finalizeChallengeStart(f.sdk,f.user('p1'),m.id);equal(started.match.status,'in_progress');equal(f.table('Game').length,1);
-  equal(f.table('Game')[0].white_time_ms,300000);equal(f.table('Game')[0].black_time_ms,300000);
+  equal(f.table('Game')[0].white_time_ms,expectedClock);equal(f.table('Game')[0].black_time_ms,expectedClock);
   await f.api.finalizeChallengeStart(f.sdk,f.user('p1'),m.id);equal(f.table('Game').length,1);
   await rejected(()=>f.api.cancelChallenge(f.sdk,f.user('p1'),m.id),'already_started');equal(f.table('LedgerJournalBatch').length,1);
 }
@@ -293,5 +296,27 @@ for(const phase of ['reservation','release']) {
 for(const fee of [null,undefined,'2',NaN,-1,2.001]) {
   const f=fixture();const m=await f.create();const state=await f.access.inspectChallengePlayer(f.sdk,'p2',{...m,platform_service_fee:fee});
   equal(state.ready,false);equal(state.code,'invalid_terms');
+}
+}
+// Creation validates the selected control, snapshots clocks and rejects conflicting retries.
+for (const timeControl of ['blitz','rapid','classical']) {
+  const f=fixture();
+  const body={entryAmount:25,timeControl,requestKey:'control_request_12345',clock_initial_ms:1,displayName:'forged'};
+  const result=await f.makeSdk('p1').functions.invoke('manageChallenge',{action:'create',...body});
+  const m=f.get(result.data.match.id);
+  const expected={blitz:180000,rapid:600000,classical:900000}[timeControl];
+  equal(m.clock_initial_ms,expected);equal(m.time_control,timeControl);
+  equal(f.policy.publicChallenge(m).displayName,{blitz:'Blitz (3+0)',rapid:'Rapid (10+0)',classical:'Classical (15+0)'}[timeControl]);
+  const replay=await f.api.createChallenge(f.sdk,f.user('p1'),body);equal(replay.match.id,m.id);
+  await rejected(()=>f.api.createChallenge(f.sdk,f.user('p1'),{...body,timeControl:timeControl==='rapid'?'blitz':'rapid'}),'request_conflict');
+  equal(f.table('LedgerJournalBatch').length,0);
+  await f.api.cancelChallenge(f.sdk,f.user('p1'),m.id);
+  f.table('Match').push({id:'previous',launch_epoch:2,status:'completed',player1_id:'p1',player2_id:'p2',time_control:timeControl});
+  const rematch=await f.api.createChallenge(f.sdk,f.user('p1'),{...body,requestKey:'rematch_control_12345',rematchOf:'previous'});
+  equal(rematch.match.time_control,timeControl);equal(rematch.match.clock_initial_ms,expected);equal(rematch.match.challenge_target_id,'p2');
+}
+for (const timeControl of [null,'bullet','Rapid','',{},1,'__proto__']) {
+  const f=fixture();await rejected(()=>f.api.createChallenge(f.sdk,f.user('p1'),{entryAmount:25,timeControl,requestKey:'invalid_control_12345'}),'invalid_time_control');
+  equal(f.table('Match').length,0);equal(f.table('LedgerJournalBatch').length,0);
 }
 console.log(`Challenge lifecycle: ${assertions} assertions passed. Actual lifecycle/journal code; isolated providers, storage and locks; no live money movement.`);

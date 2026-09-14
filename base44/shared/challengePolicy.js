@@ -5,7 +5,25 @@ export const CHALLENGE_AUTHORIZATION_MS = 2 * 60 * 1000;
 export const CHALLENGE_START_WINDOW_MS = 2 * 60 * 1000;
 export const CHALLENGE_READY_MS = 30 * 1000;
 export const CHALLENGE_NOT_RESERVED = 'This link remains open. Wallet setup and pending deposits do not reserve an opponent. Only available funds count; another eligible player may accept first.';
+// Omitted timeControl preserves the original five-minute contract for older clients.
 export const CHALLENGE_CLOCK_MS = 5 * 60 * 1000;
+export const CHALLENGE_TIME_CONTROLS = [
+  { value: 'blitz', label: 'Blitz', minutes: 3, displayName: 'Blitz (3+0)', clockMs: 180000 },
+  { value: 'rapid', label: 'Rapid', minutes: 10, displayName: 'Rapid (10+0)', clockMs: 600000 },
+  { value: 'classical', label: 'Classical', minutes: 15, displayName: 'Classical (15+0)', clockMs: 900000 },
+];
+export function challengeTimeControl(value) {
+  if (value === undefined) return { value: 'blitz', displayName: 'Blitz (5+0)', clockMs: CHALLENGE_CLOCK_MS };
+  return CHALLENGE_TIME_CONTROLS.find(control => control.value === value) || null;
+}
+export function challengeClockMs(match) {
+  const control = challengeTimeControl(match.time_control);
+  if (!control) throw new Error('invalid_challenge_time_control');
+  const clock = match.clock_initial_ms ?? (match.time_control === 'blitz' ? CHALLENGE_CLOCK_MS : control.clockMs);
+  if (clock !== control.clockMs && !(match.time_control === 'blitz' && clock === CHALLENGE_CLOCK_MS))
+    throw new Error('invalid_challenge_clock');
+  return clock;
+}
 export const CHALLENGE_OPEN_LIMIT = 5;
 export const CHALLENGE_CONSENT_VERSION = 'challenge-dual-reservation-v1';
 export const CHALLENGE_TERMS = 'I agree to the Official Rules and Fair Play requirements. I authorize my displayed Entry Amount and separate Platform Service Fee to be reserved together with the first eligible, funded opponent while I am ready. Creating or sharing this link alone does not reserve funds.';

@@ -58,7 +58,7 @@ export default function SettlementState({ match, game, userId, onReturn }) {
     }
   };
 
-  if (rematch) return <div className="py-3"><CreateChallengeForm initialAmount={match.wager_amount} rematchOf={match.id} onCancel={() => setRematch(false)} /></div>;
+  if (rematch) return <div className="py-3"><CreateChallengeForm initialAmount={match.wager_amount} initialTimeControl={match.time_control} rematchOf={match.id} onCancel={() => setRematch(false)} /></div>;
 
   return (
     <div className="space-y-5 lg:space-y-3 text-center py-4">

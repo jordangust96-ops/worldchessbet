@@ -1,6 +1,8 @@
 import { getMatchLocationReadiness, matchLocationRequiredResponse } from '../../shared/matchLocation.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 
+import { challengeClockMs } from '../../shared/challengePolicy.js';
+
 const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 const CLOCK_START_DELAY_MS = 4000;
 
@@ -90,7 +92,7 @@ Deno.serve(async (req) => {
 
     if (candidates.length === 0) {
       const tc = Number(match.challenge_version) === 1
-        ? { initialMs: 5 * 60 * 1000 }
+        ? { initialMs: challengeClockMs(match) }
         : TIME_CONTROLS[match.time_control] || TIME_CONTROLS.rapid;
       await base44.asServiceRole.entities.Game.create({
         launch_epoch: 2,

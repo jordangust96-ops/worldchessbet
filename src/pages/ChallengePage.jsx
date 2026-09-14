@@ -132,7 +132,7 @@ export default function ChallengePage() {
         <section className="space-y-5 rounded-3xl border border-[#C9A84C]/20 bg-gradient-to-br from-[#191610] to-[#111] p-5 sm:p-7">
           <div className="space-y-2"><p className="text-xs font-semibold uppercase tracking-widest text-[#C9A84C]">{card.isRematch ? 'Rematch invitation' : 'Chess for money'}</p>
             <h1 className="text-2xl font-extrabold sm:text-3xl">{creator ? 'Your challenge is ready' : `${card.creatorName}’s challenge`}</h1>
-            <p className="flex items-center gap-2 text-sm text-white/55"><Clock size={15} />5-minute Blitz · No increment</p></div>
+            <p className="flex items-center gap-2 text-sm text-white/55"><Clock size={15} />{card.displayName} · No increment</p></div>
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4"><p className="text-xs text-white/55">Entry per player</p><p className="mt-1 text-3xl font-bold">{usd(card.entryAmount)}</p></div>
             <div className="rounded-2xl border border-[#C9A84C]/20 bg-[#C9A84C]/5 p-4"><p className="text-xs text-white/55">Winner award</p><p className="mt-1 text-3xl font-bold text-[#C9A84C]">{usd(card.winnerAward)}</p></div>

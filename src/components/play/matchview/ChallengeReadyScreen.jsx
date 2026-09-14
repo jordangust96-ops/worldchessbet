@@ -78,7 +78,7 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
     <div className="flex items-start justify-between gap-3"><div><p className="text-xs uppercase tracking-widest text-[#C9A84C]">Challenge accepted</p><h2 className="mt-1 text-xl font-bold text-white">Ready to play?</h2></div>
       <span className="flex shrink-0 items-center gap-1 rounded-full bg-white/5 px-3 py-2 text-xs text-white/65"><Clock size={13}/>{Math.floor(remaining/60)}:{String(remaining%60).padStart(2,'0')}</span></div>
     <div className="rounded-2xl border border-[#C9A84C]/25 bg-[#C9A84C]/5 p-4">
-      <p className="font-semibold text-white">${Number(match.wager_amount).toFixed(2)} · 5-minute Blitz</p>
+      <p className="font-semibold text-white">${Number(match.wager_amount).toFixed(2)} · {match.display_name}</p>
       <p className="mt-2 text-sm text-white/60">Both entries and both service fees are reserved. Your total reservation is ${total.toFixed(2)}.</p>
       <p className="mt-2 text-xs leading-relaxed text-white/45">No further deposit or reservation is required. The game starts only when both players confirm and remain present.</p>
     </div>

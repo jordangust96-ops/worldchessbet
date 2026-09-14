@@ -7,7 +7,7 @@ import { getPlatformServiceFee, PLATFORM_FEE_SCHEDULE_VERSION } from './platform
 import { paidContestsEnabled } from './seamlessFundingConfig.ts';
 import { acquireMatchLock, releaseMatchLock, acquireUserWalletLock, releaseUserWalletLock,
   setChallengeWalletBarriers, clearChallengeWalletBarriers, takeChallengeRateLimit, refreshContestLocks } from './seamlessAtomicStore.ts';
-import { CHALLENGE_VERSION, CHALLENGE_TTL_MS, CHALLENGE_AUTHORIZATION_MS, CHALLENGE_CLOCK_MS,
+import { CHALLENGE_VERSION, CHALLENGE_TTL_MS, CHALLENGE_AUTHORIZATION_MS, challengeTimeControl,
   CHALLENGE_OPEN_LIMIT, CHALLENGE_CONSENT_VERSION, VALID_INVITE, VALID_REQUEST_KEY,
   validEntry, isChallenge, challengeExpired, creatorAuthorized, challengeStartExpired,
   bothChallengePlayersReady, publicChallenge, reservationGroup, refundGroup,
@@ -86,6 +86,8 @@ export async function createChallenge(base44: any, user: any, body: any) {
   if (!paidContestsEnabled()) fail('paid_contests_disabled', 'Money challenges are temporarily unavailable.');
   if (!validEntry(body.entryAmount)) fail('invalid_entry', 'Choose an Entry Amount from $5 to $5,000, in whole cents.', 400);
   if (!VALID_REQUEST_KEY.test(String(body.requestKey || ''))) fail('invalid_request', 'Please refresh and try again.', 400);
+  const timeControl = challengeTimeControl(body.timeControl);
+  if (!timeControl) fail('invalid_time_control', 'Choose Blitz, Rapid, or Classical.', 400);
   await requireChallengePolicies(base44, user.id);
   const owner = crypto.randomUUID();
   const lockId = `challenge-creation:${user.id}`;
@@ -95,7 +97,7 @@ export async function createChallenge(base44: any, user: any, body: any) {
       launch_epoch: 2, player1_id: user.id, challenge_creation_key: body.requestKey,
     }, '-created_date', 2);
     if (existing.length) {
-      if (Number(existing[0].wager_amount) !== Number(body.entryAmount) || (existing[0].challenge_rematch_of || '') !== (body.rematchOf || ''))
+      if (existing[0].time_control !== timeControl.value || existing[0].clock_initial_ms !== timeControl.clockMs || Number(existing[0].wager_amount) !== Number(body.entryAmount) || (existing[0].challenge_rematch_of || '') !== (body.rematchOf || ''))
         fail('request_conflict', 'This request already created a challenge with different terms. Start a new request.');
       return { match: existing[0], inviteCode: existing[0].invite_code, path: challengePath(existing[0].invite_code) };
     }
@@ -118,7 +120,7 @@ export async function createChallenge(base44: any, user: any, body: any) {
     const match = await base44.asServiceRole.entities.Match.create({
       launch_epoch: 2, player1_id: user.id, wager_amount: Number(body.entryAmount),
       platform_service_fee: getPlatformServiceFee(Number(body.entryAmount)), platform_fee_schedule_version: PLATFORM_FEE_SCHEDULE_VERSION,
-      time_control: 'blitz', display_name: 'Blitz (5+0)', clock_initial_ms: CHALLENGE_CLOCK_MS,
+      time_control: timeControl.value, display_name: timeControl.displayName, clock_initial_ms: timeControl.clockMs,
       status: 'searching', is_private: true, invite_code: code, challenge_version: CHALLENGE_VERSION,
       challenge_creation_key: body.requestKey, challenge_location_started_at: createdAt,
       challenge_rematch_of: rematchOf, challenge_target_id: targetId,

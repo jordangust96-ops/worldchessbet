@@ -18,7 +18,7 @@ async function scenario(name,{who=null,funded=false,status='open',width=390,path
   await context.addInitScript(({who,funded,status,code})=>{
     const user=who?{id:who,role:'user',launch_epoch:2,mfa_bypass:true,account_state:'verified',chess_com_username:who,full_name:'Test Player'}:null;
     const match={id:'qa-match',launch_epoch:2,challenge_version:1,player1_id:'p1',...(status==='claimed'?{player2_id:'p2'}:{}),wager_amount:25,platform_service_fee:2,platform_fee_schedule_version:'2026-07-28',time_control:'blitz',display_name:'Blitz (5+0)',clock_initial_ms:300000,status:status==='claimed'?'preparing':status==='open'?'searching':'cancelled',is_private:true,invite_code:code,player1_certified:status==='claimed',player2_certified:status==='claimed',player1_deposited:status==='claimed',player2_deposited:status==='claimed',preparation_started_at:new Date().toISOString(),challenge_expires_at:new Date(Date.now()+86400000).toISOString()};
-    const card=()=>({id:match.id,creatorName:'Jordan',entryAmount:25,serviceFee:2,totalRequired:27,winnerAward:50,displayName:'Blitz (5+0)',expiresAt:match.challenge_expires_at,status:match.status==='searching'?'open':match.status==='preparing'?'claimed':'cancelled',creatorReady:true,creatorReadyUntil:new Date(Date.now()+119000).toISOString()});
+    const card=()=>({id:match.id,creatorName:'Jordan',entryAmount:25,serviceFee:2,totalRequired:27,winnerAward:50,displayName:match.display_name,expiresAt:match.challenge_expires_at,status:match.status==='searching'?'open':match.status==='preparing'?'claimed':'cancelled',creatorReady:true,creatorReadyUntil:new Date(Date.now()+119000).toISOString()});
     const wallet={id:'qa-wallet',user_id:who,balance:funded?100:0,available_balance:funded?100:0,held_balance:status==='claimed'?27:0,total_balance:funded?100:0};
     const calls=[];
     const listeners=[];
@@ -39,7 +39,7 @@ async function scenario(name,{who=null,funded=false,status='open',width=390,path
         if(name==='manageChallenge'){
           if(body.action==='view')return {data:{challenge:card(),role:who==='p1'?'player1':who==='p2'&&match.player2_id?'player2':'',participant:who==='p1'||(who==='p2'&&!!match.player2_id)}};
           if(body.action==='list')return {data:{challenges:who==='p1'&&match.status==='searching'?[{...card(),inviteCode:code,path:'/challenge/'+code}]:[]}};
-          if(body.action==='create')return {data:{match:{...match},inviteCode:code,path:'/challenge/'+code}};
+          if(body.action==='create'){const tc={blitz:['Blitz (3+0)',180000],rapid:['Rapid (10+0)',600000],classical:['Classical (15+0)',900000]}[body.timeControl];update({time_control:body.timeControl,display_name:tc[0],clock_initial_ms:tc[1]});return {data:{match:{...match},inviteCode:code,path:'/challenge/'+code}};}
           if(body.action==='readiness')return {data:funded?{ready:true,availableBalance:100,totalRequired:27}:{ready:false,code:'funds_required',reason:'Your wallet needs enough available funds. Pending funds do not count.',availableBalance:0,totalRequired:27}};
           if(body.action==='remember')return {data:{remembered:true,reserved:false}};
           if(body.action==='intent')return {data:{intent:null}};
@@ -134,6 +134,17 @@ try{
     await page.getByText('Waiting for opponent…',{exact:true}).waitFor();checks++;
     assert.equal(await page.evaluate(()=>window.__challengeQA.calls.filter(c=>c.body.action==='accept'||c.name==='lockWager').length),0);checks++;
   });
+  for (const [value,label,minutes] of [['blitz','Blitz',3],['rapid','Rapid',10],['classical','Classical',15]]) {
+    await scenario('create-'+value,{who:'p1',path:'/play',width:value==='rapid'?1280:390},async page=>{
+      await page.getByRole('button',{name:'Create Challenge',exact:true}).click();
+      await page.getByRole('radio',{name:label+' '+minutes+' min',exact:true}).check();
+      assert.equal(await page.getByText('The winner award includes both entry amounts; the fee is separate.',{exact:false}).count(),0);checks++;
+      await page.getByRole('button',{name:'Create Challenge Link',exact:true}).click();
+      await page.waitForURL('**/challenge/'+code);
+      await page.getByText(label+' ('+minutes+'+0) · No increment',{exact:true}).waitFor();checks++;
+      assert.equal(await page.evaluate(()=>window.__challengeQA.calls.find(c=>c.body.action==='create').body.timeControl),value);checks++;
+    });
+  }
 }finally{await browser.close();}
-console.log(JSON.stringify({checks,scenarios:7,failed:failures,screenshots:'/tmp/chessbet-challenge-screenshots'},null,2));
+console.log(JSON.stringify({checks,scenarios:10,failed:failures,screenshots:'/tmp/chessbet-challenge-screenshots'},null,2));
 process.exitCode=failures.length?1:0;
