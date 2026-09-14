@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import ChessboardPreview from "@/components/play/ChessboardPreview";
 import MatchCenter from "@/components/play/MatchCenter";
+import LiveStatsBar from "@/components/play/LiveStatsBar";
 import MatchView from "@/components/play/MatchView";
 import RestrictedModeBanner from "@/components/RestrictedModeBanner";
 import { useChessGame } from "@/hooks/useChessGame";
@@ -397,6 +398,8 @@ export default function Home() {
           <RestrictedModeBanner />
         </div>
       </motion.div>
+
+      {user?.id && <div className="w-full max-w-6xl mx-auto shrink-0"><LiveStatsBar /></div>}
 
       {/* Main Layout */}
       <div className="flex flex-col lg:flex-row gap-6 max-w-6xl mx-auto lg:flex-1 lg:min-h-0 w-full lg:items-stretch">
