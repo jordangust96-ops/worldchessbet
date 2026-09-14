@@ -107,6 +107,10 @@ try{
       assert.equal(await page.getByRole('button',{name:'Free play',exact:true}).getAttribute('aria-pressed'),'true');checks++;
       assert.equal(await page.getByRole('button',{name:'$25',exact:true}).count(),0);checks++;
       assert.equal(await page.getByRole('spinbutton').count(),0);checks++;
+      const formText=(await page.getByRole('form',{name:'Create shared challenge'}).innerText()).replace('Money play','');
+      assert.equal(/money|wallet|deposit|service fee|entry charge/i.test(formText),false);checks++;
+      assert.equal(await page.getByRole('button',{name:'Recheck Location',exact:true}).count(),0);checks++;
+      assert.equal(await page.getByText('Money play eligibility',{exact:true}).count(),0);checks++;
       const toggle=page.getByRole('switch',{name:'Show in Find an Opponent',exact:true});
       assert.equal(await toggle.getAttribute('aria-checked'),'true');checks++;
       if(!publiclyListed)await toggle.click();
@@ -131,19 +135,21 @@ try{
     assert.equal(await page.getByText('Both entries and both service fees are reserved.',{exact:false}).count(),0);checks++;
     assert.equal(await page.evaluate(()=>window.__challengeQA.calls.filter(c=>c.name==='lockWager').length),0);checks++;
   });
-  await scenario('money-location-recheck',{who:'p1',funded:false,hasChallenge:false,path:'/play'},async page=>{
+  await scenario('money-mode-focused-copy',{who:'p1',funded:false,hasChallenge:false,path:'/play'},async page=>{
     await page.getByRole('button',{name:'Create Challenge',exact:true}).click();
     await page.getByRole('button',{name:'Money play',exact:true}).click();
-    await page.getByRole('button',{name:'Recheck Location',exact:true}).first().click();
-    await page.getByText('Money play isn’t available in your current location. You can still play for free.',{exact:true}).waitFor();checks++;
-    await page.evaluate(()=>{const invoke=window.__challengeQA.sdk.functions.invoke;window.__challengeQA.sdk.functions.invoke=async(name,body)=>body?.action==='money_location'?{data:{approved:true,message:'Your location is approved for money play. Continue wallet setup.'}}:invoke(name,body);});
-    await page.getByRole('button',{name:'Recheck Location',exact:true}).first().click();
-    await page.getByRole('link',{name:'Continue Wallet Setup',exact:true}).waitFor();checks++;
-    assert.equal(await page.evaluate(()=>window.__challengeQA.calls.filter(c=>c.body.action==='create').length),0);checks++;
+    assert.equal(await page.getByRole('button',{name:'Recheck Location',exact:true}).count(),0);checks++;
+    assert.equal(await page.getByText('Money play eligibility',{exact:true}).count(),0);checks++;
+    const form=page.getByRole('form',{name:'Create shared challenge'});
+    assert.equal((await form.innerText()).replace('Free play','').toLowerCase().includes('free'),false);checks++;
+    await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Create Challenge Link',exact:true}).click();
+    await page.getByRole('button',{name:'Fund Wallet',exact:true}).waitFor();checks++;
+    assert.equal(await page.getByRole('button',{name:'Play for Free Instead',exact:true}).count(),0);checks++;
+    assert.equal(await page.evaluate(()=>window.__challengeQA.calls.filter(c=>c.body.action==='money_location').length),0);checks++;
   });
   await scenario('free-game-results',{who:'p1',free:true,funded:false,status:'completed',path:'/play?match=qa-match'},async page=>{
-    await page.getByText('Free game completed. No money was charged or awarded.',{exact:true}).waitFor();checks++;
-    await page.getByText('This game counts toward your rating. No settlement waiting period.',{exact:true}).waitFor();checks++;
+    await page.getByText('Free game completed.',{exact:true}).waitFor();checks++;
+    await page.getByText('This game counts toward your rating.',{exact:true}).waitFor();checks++;
     assert.equal(await page.getByText(/24-hour review/).count(),0);checks++;
     assert.equal(await page.getByText('Winner Award',{exact:true}).count(),0);checks++;
     await page.getByRole('button',{name:'Run It Back',exact:true}).click();

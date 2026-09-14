@@ -2,7 +2,6 @@ import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import MoneyPlayLocation from '@/components/play/MoneyPlayLocation';
 import ChallengeVisibilityToggle from '@/components/play/ChallengeVisibilityToggle';
 import { computeContestFinancials } from '@/lib/contestFinancials';
 import { challengeRequest, challengeErrorMessage, handleChallengeGate } from '@/lib/challengeApi';
@@ -69,13 +68,11 @@ export default function CreateChallengeForm({ initialAmount = 10, initialMode = 
       <div className="flex justify-between gap-4 border-t border-white/10 pt-2 font-semibold"><dt className="text-white/75">Required per player</dt><dd className="text-white">${financials.totalCharge.toFixed(2)}</dd></div>
       <div className="flex justify-between gap-4"><dt className="text-white/55">Winner award</dt><dd className="font-bold text-[#C9A84C]">${financials.potentialWinnerAward.toFixed(2)}</dd></div>
     </dl>}
-    <p className="text-xs leading-relaxed text-white/50">{free?'Play worldwide for free. No wallet, identity verification, or money-play location approval required. No charges or money awards.':'Before creating a money challenge, you must pass eligibility and current location checks and have enough cleared, available funds for the entry and fee. Pending deposits do not count. Creating the link reserves no money.'}</p>
-    {!free && <MoneyPlayLocation/>}
+    <p className="text-xs leading-relaxed text-white/50">{free?'Play chess worldwide. Challenge a friend or meet a new opponent. Completed games count toward your rating.':'Your location and eligibility are checked automatically when you create or accept a challenge, and again before the game starts. You need cleared, available funds for the entry and fee. Pending deposits do not count. Creating the link reserves no money.'}</p>
     <ChallengeVisibilityToggle checked={publiclyListed} onChange={setPubliclyListed} disabled={busy} rematch={Boolean(rematchOf)} />
     {rematchOf && <p className="text-xs text-[#C9A84C]">This rematch link is for your previous opponent. Share it with them after creation.</p>}
     <label className="flex items-start gap-3 rounded-xl border border-white/10 p-3 text-xs leading-relaxed text-white/60"><input type="checkbox" checked={agree} onChange={e=>setAgree(e.target.checked)} className="mt-1"/><span>{free?FREE_PLAY_TERMS:CHALLENGE_HUD_TERMS}</span></label>
     {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
-    {!free && error && <button type="button" onClick={()=>{setPlayMode('free');setAgree(false);setError('');setGate('');}} className="w-full py-2 font-semibold text-[#E5CA7A]">Play for Free Instead</button>}
     {['funds_required','identity_required','bank_required'].includes(gate) && <Button type="button" variant="outline" onClick={()=>navigate('/wallet')} className="w-full rounded-xl border-[#C9A84C]/30 text-[#E5CA7A]">{gate==='funds_required'?'Fund Wallet':'Complete Wallet Setup'}</Button>}
     <Button type="submit" disabled={busy || !valid || !agree} className="h-12 w-full rounded-2xl gold-gradient font-bold text-black disabled:opacity-40">
       {busy ? <Loader2 size={17} className="mr-2 animate-spin" /> : <ArrowRight size={17} className="mr-2" />}

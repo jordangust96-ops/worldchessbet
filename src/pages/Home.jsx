@@ -5,7 +5,6 @@ import { base44 } from "@/api/base44Client";
 import ChessboardPreview from "@/components/play/ChessboardPreview";
 import MatchCenter from "@/components/play/MatchCenter";
 import MatchView from "@/components/play/MatchView";
-import RestrictedModeBanner from "@/components/RestrictedModeBanner";
 import { useChessGame } from "@/hooks/useChessGame";
 import { useSize } from "@/hooks/use-size";
 import { useTouchOnlyInput } from "@/hooks/use-touch-only-input";
@@ -387,17 +386,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen px-5 pt-2 lg:min-h-0 lg:h-[calc(100dvh-88px)] lg:overflow-hidden lg:flex lg:flex-col lg:pb-24">
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-6 lg:mb-4 lg:shrink-0"
-      >
-        <div className="mt-3 space-y-3">
-          <RestrictedModeBanner />
-        </div>
-      </motion.div>
-
       {/* Main Layout */}
       <div className="flex flex-col lg:flex-row gap-6 max-w-6xl mx-auto lg:flex-1 lg:min-h-0 w-full lg:items-stretch">
         {/* Board */}

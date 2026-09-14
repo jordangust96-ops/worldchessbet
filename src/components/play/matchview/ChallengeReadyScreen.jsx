@@ -91,7 +91,7 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
       <span className="flex shrink-0 items-center gap-1 rounded-full bg-white/5 px-3 py-2 text-xs text-white/65"><Clock size={13}/>{Math.floor(remaining/60)}:{String(remaining%60).padStart(2,'0')}</span></div>
     <div className="rounded-2xl border border-[#C9A84C]/25 bg-[#C9A84C]/5 p-4">
       <p className="font-semibold text-white">{free?'Free play':`$${Number(match.wager_amount).toFixed(2)}`} · {match.display_name}</p>
-      <p className="mt-2 text-sm text-white/60">{free?'No entry charges, service fees, or money awards.':`Both entries and both service fees are reserved. Your total reservation is $${total.toFixed(2)}.`}</p>
+      <p className="mt-2 text-sm text-white/60">{free?'Both players must be ready before the game starts.':`Both entries and both service fees are reserved. Your total reservation is $${total.toFixed(2)}.`}</p>
       <p className="mt-2 text-xs leading-relaxed text-white/45">The game starts only when both players confirm and remain present.</p>
     </div>
     {[['You',myReady], [name,otherReady]].map(([label,readyState])=><div key={String(label)} className="flex items-center justify-between rounded-xl bg-white/5 p-3 text-sm"><span className="text-white/75">{label}</span><span className={readyState?'text-[#C9A84C]':'text-white/40'}>{readyState ? <><Check className="mr-1 inline" size={14}/>Ready</> : 'Not ready yet'}</span></div>)}

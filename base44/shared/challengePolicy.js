@@ -126,7 +126,7 @@ export function challengeReleaseLegs(match, recipientId) {
 
 // Only a server-created explicit mode can select the free path. Legacy rows
 // remain money matches. Zero entry alone never exempts a money match.
-export const FREE_PLAY_TERMS = 'I agree to the Fair Play requirements. This is a free chess game with no entry charge, service fee, or money award.';
+export const FREE_PLAY_TERMS = 'I agree to the Fair Play requirements for this free chess game.';
 export const isFreeMatch = match => match?.play_mode === 'free';
 export function assertFreeMatch(match) {
   if (!isChallenge(match) || !isFreeMatch(match) || match.wager_amount !== 0 ||

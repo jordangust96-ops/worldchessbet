@@ -9,7 +9,6 @@ import ChallengePanel from '@/components/play/ChallengePanel';
 import CreateChallengeForm from '@/components/play/CreateChallengeForm';
 import AvailableMatchSection from '@/components/play/AvailableMatchSection';
 import ActiveChallengeCard from '@/components/play/ActiveChallengeCard';
-import MoneyPlayLocation from '@/components/play/MoneyPlayLocation';
 import LiveStatsBar from '@/components/play/LiveStatsBar';
 
 export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
@@ -53,7 +52,7 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
   const share=async card=>{
     const url=`${window.location.origin}${card.path}`;
     try{
-      if(navigator.share)await navigator.share({title:'ChessBet Challenge',text:card.playMode==='free'?'Join my free ChessBet challenge. No charges or money awards.':`A $${card.entryAmount} chess challenge. Entry plus separate service fee; eligibility and available funds required.`,url});
+      if(navigator.share)await navigator.share({title:'ChessBet Challenge',text:card.playMode==='free'?'Join my free ChessBet challenge.':`A $${card.entryAmount} chess challenge. Entry plus separate service fee; eligibility and available funds required.`,url});
       else{await navigator.clipboard.writeText(url);setError('Link copied.');}
     }catch(err){if(err?.name!=='AbortError')setError('Open the challenge to copy its link.');}
   };
@@ -94,7 +93,7 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
             <Button onClick={()=>share(card)} className="h-11 rounded-xl gold-gradient font-bold text-black"><Share2 size={15} className="mr-2"/>Share</Button>
             <Button variant="outline" onClick={()=>cancel(card)} disabled={Boolean(busyId)} className="h-11 rounded-xl border-white/15 text-white/65">{busyId===card.id?'Cancelling…':'Cancel'}</Button>
           </div>
-          <p className="text-xs text-white/45">{card.playMode==='free'?'No charges, fees, or money awards.':'No funds reserved. Both players must qualify before acceptance.'}</p>
+          <p className="text-xs text-white/45">{card.playMode==='free'?'Stay on the Play screen so an opponent can accept.':'No funds reserved. Both players must qualify before acceptance.'}</p>
         </>}
         {card.status==='open' && card.playMode!=='free' && <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
           <p className="text-sm leading-relaxed text-white/65">To play this match, you need ${Number(card.totalRequired).toFixed(2)} in available wallet funds, including the service fee. Pending deposits cannot be used yet.</p>
@@ -112,6 +111,5 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
         <AvailableMatchSection userId={userId} balance={balance} activeMatch={activePublic} onChallengeCancelled={()=>setActivePublic(null)} onAccepted={onMatchAccepted} onReview={code=>navigate(`/play?challenge=${code}&accept=1`)}/>
       </div>}
     </div>
-    <details className="border-t border-white/10 pt-3"><summary className="cursor-pointer text-xs text-white/50">Money play eligibility</summary><div className="mt-3"><MoneyPlayLocation/></div></details>
   </section>;
 }

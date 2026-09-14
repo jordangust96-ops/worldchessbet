@@ -13,7 +13,7 @@ import { challengeRequest, challengeLocationContext, challengeErrorMessage, hand
   saveChallengeContext, CHALLENGE_TERMS, CHALLENGE_NOT_RESERVED, VALID_INVITE } from '@/lib/challengeApi';
 
 const usd = value => `$${Number(value || 0).toFixed(2)}`;
-const FREE_TERMS = 'I agree to the Fair Play requirements. This is a free game with no charges, fees, or money awards.';
+const FREE_TERMS = 'I agree to the Fair Play requirements for this free chess game.';
 const walletCodes = ['identity_required','bank_required','funds_required'];
 
 export default function ChallengePanel({ inviteCode:providedInviteCode, embedded=false, onClose, onChanged }) {
@@ -156,7 +156,7 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
 
   const Container = embedded ? "div" : "main";
   return <Container className={embedded ? "space-y-4 text-white" : "min-h-screen bg-[#0A0A0A] px-5 py-7 text-white sm:py-12"}>
-    {!embedded && <SEO title={card ? `${free?'Free':usd(card.entryAmount)} Chess Challenge | ChessBet` : 'Chess Challenge | ChessBet'} description="Open a ChessBet challenge, review the entry amount, and play someone you know. Eligibility and available funds are required." noindex />}
+    {!embedded && <SEO title={card ? `${free?'Free':usd(card.entryAmount)} Chess Challenge | ChessBet` : 'Chess Challenge | ChessBet'} description={free?'Open a free ChessBet challenge and play chess with someone you know.':'Open a ChessBet challenge, review the entry amount, and play someone you know. Eligibility and available funds are required.'} noindex />}
     <Helmet><meta name="referrer" content="no-referrer" /></Helmet>
     <div className={embedded ? "space-y-4" : "mx-auto max-w-lg space-y-6"}>
       {embedded ? <button onClick={onClose} className="inline-flex items-center gap-1 text-sm text-white/50"><ArrowLeft size={15} />Challenges</button> : <div className="flex items-center justify-between gap-4"><Link to="/" aria-label="ChessBet"><Logo size="sm" /></Link>
@@ -166,7 +166,7 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
           <div className="space-y-2"><p className="text-xs font-semibold uppercase tracking-widest text-[#C9A84C]">{free ? 'Free chess' : card.isRematch ? 'Rematch invitation' : 'Chess for money'}</p>
             <h1 className="text-2xl font-extrabold sm:text-3xl">{creator ? 'Your challenge is ready' : `${card.creatorName}’s challenge`}</h1>
             <p className="flex items-center gap-2 text-sm text-white/55"><Clock size={15} />{card.displayName} · No increment</p></div>
-          {free ? <p className="rounded-2xl border border-[#C9A84C]/20 bg-[#C9A84C]/5 p-4 text-sm text-[#E5CA7A]">Free play · No entry charge, service fee, or money award.</p> : <><div className="grid grid-cols-2 gap-3">
+          {free ? <p className="rounded-2xl border border-[#C9A84C]/20 bg-[#C9A84C]/5 p-4 text-sm text-[#E5CA7A]">Free play · Play worldwide and build your rating.</p> : <><div className="grid grid-cols-2 gap-3">
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4"><p className="text-xs text-white/55">Entry per player</p><p className="mt-1 text-3xl font-bold">{usd(card.entryAmount)}</p></div>
             <div className="rounded-2xl border border-[#C9A84C]/20 bg-[#C9A84C]/5 p-4"><p className="text-xs text-white/55">Winner award</p><p className="mt-1 text-3xl font-bold text-[#C9A84C]">{usd(card.winnerAward)}</p></div>
           </div>
