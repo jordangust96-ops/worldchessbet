@@ -46,7 +46,7 @@ const HERO_FEATURES = [
     label: "Win real\nUSD",
     heading: "Real dollars—not tokens",
     description: "A confirmed winner earns 100% of the combined entry amounts.",
-    points: ["No tokens", "No crypto", "Platform fee shown separately"],
+    points: ["No tokens", "No crypto", "Platform Service Fee shown separately"],
   },
 ];
 
@@ -80,7 +80,7 @@ const STRUCTURED_DATA = [
     description: "One-on-one, skill-based chess contests for real USD, backed by server-verified results, integrity screening, human review, and an appeals path.",
     provider: { "@id": `${SITE_URL}/#organization` },
     isRelatedTo: { "@id": `${LANDING_URL}#product` },
-    areaServed: "US",
+    areaServed: ["Arkansas", "Colorado", "Georgia", "Iowa", "Kansas", "North Dakota", "Texas", "Virginia", "Wisconsin", "Wyoming"],
     audience: { "@type": "Audience", audienceType: "Blitz, rapid, and classical chess players" },
     url: LANDING_URL,
   },
@@ -177,7 +177,7 @@ export default function Landing() {
                 </Button>
               </Link>
               <p className="mt-3 text-xs leading-relaxed text-white/60">
-                Cash-prize contests are limited to eligible players in supported U.S. locations — check eligibility before funding your account in the{" "}
+                Cash-prize contests require verified age 21+ and eligibility in supported U.S. locations — check eligibility before funding your account in the{" "}
                 <Link to="/official-rules#eligibility" className="font-semibold text-[#C9A84C] hover:underline underline-offset-4">Official Rules</Link>.
               </p>
               <p className="text-white/50 text-xs mt-4">
@@ -242,7 +242,7 @@ export default function Landing() {
           )}
 
           <p className="text-white/55 text-xs mt-8 max-w-sm">
-            Identity, location, and account eligibility are required for cash-prize contests.
+            The fixed Platform Service Fee is separate from the Contest Prize. Winnings remain pending for the 24-hour reporting window and any unresolved review.
           </p>
         </section>
 
