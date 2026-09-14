@@ -26,8 +26,11 @@ function response(value: any, status = 200) {
   });
 }
 
+// Enabled only after the source, schema and adversarial checks are complete.
+const IMPLEMENTATION_ENABLED = false;
 Deno.serve(async (req) => {
   try {
+    if (!IMPLEMENTATION_ENABLED) return response({ error:'Challenge invitations are being updated.', action:'temporarily_unavailable' },503);
     if (req.method !== 'POST') return response({ error:'Method not allowed' }, 405);
     const text = await req.text();
     if (text.length > 6000) return response({ error:'Request too large' }, 413);
