@@ -65,6 +65,7 @@ export async function lockWager(req, context = null) {
     let match = await base44.asServiceRole.entities.Match.get(matchId);
     if (!match) return Response.json({ error: 'Match not found' }, { status: 404 });
     if (Number(match.launch_epoch) !== 2) return Response.json({ error: 'Match not available' }, { status: 410 });
+    if (Number(match.challenge_version) === 1) return Response.json({ error: 'Challenge entry amounts and fees are reserved together. Use the challenge readiness action.', action: 'challenge_link_required' }, { status: 409 });
 
     const isP1 = match.player1_id === user.id;
     const isP2 = match.player2_id === user.id;
