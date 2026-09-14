@@ -21,8 +21,8 @@ export const FAQ_SECTIONS = [
         list: [
           "Create an account and complete the required identity and location checks.",
           "Connect an eligible bank account and fund your wallet.",
-          "Create and share a Challenge Someone link, or use Find an Opponent for the public marketplace. Creating a link does not require a funded wallet or reserve an opponent.",
-          "For a shared challenge, both players need sufficient Available Balance. The creator enables acceptance, the recipient reviews and accepts the entry plus separate fee, and both players then confirm readiness.",
+          "Create and share a Challenge Someone link, or use Find an Opponent for the public marketplace. Free links need no funds. A money challenge requires approved identity and location plus enough playable funds for the entry and fee; creating it reserves that total.",
+          "The recipient reviews and accepts the entry plus separate fee. Both players complete a brief Fair Play attestation and confirm readiness before the game starts. Cancelling an unstarted challenge returns its reserved funds to the wallet.",
           "Complete the match.",
           "After a decisive settlement, winnings remain pending for the standard 24-hour reporting window. Automatic release follows when the deadline has passed and no open dispute or blocking integrity or settlement-reconciliation flag remains.",
         ],

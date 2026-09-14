@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import {fixture,check,equal,rejected,assertionCount} from './free-play-test-fixture.mjs';
-const bodyFor=(f,extra={})=>({playMode:'free',entryAmount:0,serviceFee:0,agree:true,consentVersion:f.policy.CHALLENGE_HUD_CONSENT_VERSION,timeControl:'blitz',publiclyListed:true,requestKey:'free_creation_123456',...extra});
+const bodyFor=(f,extra={})=>({playMode:'free',entryAmount:0,serviceFee:0,creationVersion:f.policy.CHALLENGE_CREATION_VERSION,timeControl:'blitz',publiclyListed:true,requestKey:'free_creation_123456',...extra});
 async function call(f,who,action,body={}) {return (await f.makeSdk(who).functions.invoke('manageChallenge',{action,...body})).data;}
 async function made(f,extra={}) {return (await call(f,'p1','create',bodyFor(f,extra))).match;}
 async function available(f,m) {await call(f,'p1','presence',{inviteCode:f.get(m.id).invite_code,presenceId:'free_creator_presence_123456',visible:true});return f.get(m.id);}
 async function accepted(f,m,who='p2') {await call(f,who,'accept',{inviteCode:f.get(m.id).invite_code,agree:true,entryAmount:0,serviceFee:0});return f.get(m.id);}
-async function started(f,m){for(const who of ['p1','p2'])await call(f,who,'ready',{matchId:m.id,presenceId:'free_ready_session_123456'});await call(f,'p1','finalize',{matchId:m.id});return f.table('Game')[0];}
+async function started(f,m){for(const who of ['p1','p2'])await call(f,who,'ready',{matchId:m.id,presenceId:'free_ready_session_123456',agree:true,attestationVersion:f.policy.FAIR_PLAY_ATTESTATION_VERSION});await call(f,'p1','finalize',{matchId:m.id});return f.table('Game')[0];}
 function noMoney(f){equal(f.state.lookups,0,'No location request');equal(f.state.creationLookups||0,0);equal(f.table('LedgerJournalBatch').length,0);equal(f.table('WalletTransaction').length,0);equal(f.table('LedgerEntry').length,4,'Seed money untouched');equal(f.barriers.size,0);}
 function freeFixture(){const f=fixture();f.state.location=false;f.state.paid=false;f.state.noMoney=true;for(const u of f.table('User'))Object.assign(u,{verified:false,account_state:'unverified',withdrawal_hold:true});f.table('Wallet').length=0;f.table('SeamlessBankAccount').length=0;return f;}
 for(const publiclyListed of [false,true])for(const timeControl of ['blitz','rapid','classical'])for(const end of ['resignation','draw','checkmate','timeout']){
@@ -38,27 +38,27 @@ for(const phase of ['open','accepted','expired','no_show']){
  const other=await call(f,'p3','create',bodyFor(f,{requestKey:'other_match_123456'}));
  await assert.rejects(()=>accepted(f,other.match,'p2'));noMoney(f);
 }
-for(const patch of [{entryAmount:5},{serviceFee:2},{entryAmount:'0'},{agree:false},{playMode:'FREE'},{playMode:null},{playMode:'money'},{playMode:undefined}]){
+for(const patch of [{entryAmount:5},{serviceFee:2},{entryAmount:'0'},{playMode:'FREE'},{playMode:null},{playMode:'money'},{playMode:undefined}]){
  const f=freeFixture();await assert.rejects(()=>made(f,patch));equal(f.table('Match').length,0);noMoney(f);
 }
 for(const phase of ['create','accept','ready','finalize']){
  const f=freeFixture();if(phase==='create'){f.table('User')[0].account_state='suspended';await assert.rejects(()=>made(f));}
  else {const m=await made(f);await available(f,m);if(phase==='accept'){f.table('User')[1].account_state='closed';await assert.rejects(()=>accepted(f,m));}
- else {await accepted(f,m);if(phase==='ready'){f.table('User')[1].account_state='suspended';await assert.rejects(()=>call(f,'p2','ready',{matchId:m.id,presenceId:'free_ready_session_123456'}));}
- else {for(const who of ['p1','p2'])await call(f,who,'ready',{matchId:m.id,presenceId:'free_ready_session_123456'});f.table('User')[0].account_state='suspended';await assert.rejects(()=>call(f,'p2','finalize',{matchId:m.id}));}}}
+ else {await accepted(f,m);if(phase==='ready'){f.table('User')[1].account_state='suspended';await assert.rejects(()=>call(f,'p2','ready',{matchId:m.id,presenceId:'free_ready_session_123456',agree:true,attestationVersion:f.policy.FAIR_PLAY_ATTESTATION_VERSION}));}
+ else {for(const who of ['p1','p2'])await call(f,who,'ready',{matchId:m.id,presenceId:'free_ready_session_123456',agree:true,attestationVersion:f.policy.FAIR_PLAY_ATTESTATION_VERSION});f.table('User')[0].account_state='suspended';await assert.rejects(()=>call(f,'p2','finalize',{matchId:m.id}));}}}
  equal(f.table('Game').length,0);noMoney(f);
 }
 {
  const f=freeFixture(),m=await made(f);await available(f,m);await accepted(f,m);
- for(const who of ['p1','p2'])await call(f,who,'ready',{matchId:m.id,presenceId:'free_ready_session_123456'});
+ for(const who of ['p1','p2'])await call(f,who,'ready',{matchId:m.id,presenceId:'free_ready_session_123456',agree:true,attestationVersion:f.policy.FAIR_PLAY_ATTESTATION_VERSION});
  f.state.fail={where:'Match.update',test:(_id,p)=>p.status==='in_progress'};
  await assert.rejects(()=>call(f,'p1','finalize',{matchId:m.id}));equal(f.table('Game').length,1);const anchor=f.table('Game')[0].turn_started_at;f.state.now+=35000;
  await call(f,'p2','finalize',{matchId:m.id});equal(f.get(m.id).status,'in_progress');equal(f.table('Game').length,1);equal(f.table('Game')[0].turn_started_at,anchor);noMoney(f);
 }
 {
  const f=freeFixture(),m=await made(f);await available(f,m);await accepted(f,m);
- await call(f,'p1','ready',{matchId:m.id,presenceId:'free_ready_session_123456'});await call(f,'p1','finalize',{matchId:m.id});equal(f.table('Game').length,0);
- await call(f,'p2','ready',{matchId:m.id,presenceId:'free_ready_session_123456'});f.state.now+=10001;await call(f,'p1','finalize',{matchId:m.id});equal(f.table('Game').length,0);noMoney(f);
+ await call(f,'p1','ready',{matchId:m.id,presenceId:'free_ready_session_123456',agree:true,attestationVersion:f.policy.FAIR_PLAY_ATTESTATION_VERSION});await call(f,'p1','finalize',{matchId:m.id});equal(f.table('Game').length,0);
+ await call(f,'p2','ready',{matchId:m.id,presenceId:'free_ready_session_123456',agree:true,attestationVersion:f.policy.FAIR_PLAY_ATTESTATION_VERSION});f.state.now+=10001;await call(f,'p1','finalize',{matchId:m.id});equal(f.table('Game').length,0);noMoney(f);
 }
 // Current money location is checked explicitly using original request evidence; it never creates a match.
 for(const approved of [false,true]){

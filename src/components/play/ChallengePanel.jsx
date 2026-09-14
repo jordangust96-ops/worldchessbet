@@ -181,7 +181,7 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
             <div className="grid grid-cols-2 gap-2"><Button onClick={share} className="h-11 rounded-xl gold-gradient font-bold text-black"><Share2 size={16} className="mr-2" />Share</Button>
               <Button onClick={copy} variant="outline" className="h-11 rounded-xl border-white/15 text-white"><Copy size={16} className="mr-2" />Copy Link</Button></div>
             <input aria-label="Your shareable challenge link" value={shareUrl} readOnly onFocus={e=>e.target.select()} className="h-10 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-xs text-white/55" />
-            <p className="text-sm leading-relaxed text-white/55">{free?'Share the link and stay on the Play screen so an opponent can accept.':'No funds are reserved yet. Share the link and stay on the Play screen. An unfunded recipient cannot claim it.'}</p>
+            <p className="text-sm leading-relaxed text-white/55">{free?'Share the link and stay on the Play screen so an opponent can accept.':card.creatorFundsReserved ? `${usd(card.totalRequired)} is reserved for this challenge. Cancel before the match starts to return it to your playable balance.` : 'Share the link and stay on the Play screen. An unfunded recipient cannot claim it.'}</p>
             <ChallengeVisibilityToggle checked={Boolean(card.publiclyListed)} disabled={Boolean(busy)} rematch={Boolean(card.isRematch)}
               onChange={publiclyListed=>withAction('visibility',async()=>{ await challengeRequest('visibility',{inviteCode,publiclyListed}); await refresh(); })} />
             {!free && <Button onClick={fund} disabled={Boolean(busy)} variant="outline" className="w-full rounded-xl">Fund Wallet</Button>}

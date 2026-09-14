@@ -3,13 +3,15 @@ import { Check, Clock, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
-import { CHALLENGE_READY_MS } from '../../../../base44/shared/challengePolicy.js';
+import { CHALLENGE_READY_MS, FAIR_PLAY_ATTESTATION_VERSION } from '../../../../base44/shared/challengePolicy.js';
 import { challengeRequest, challengeLocationContext, challengeErrorMessage, handleChallengeGate } from '@/lib/challengeApi';
 
 export default function ChallengeReadyScreen({ match, userId, opponentId, onCancel, onRefresh }) {
   const navigate = useNavigate();
   const free=match.play_mode==='free';
+  useEffect(()=>{setAgree(false);},[match.id]);
   const [name,setName] = useState('Opponent');
+  const [agree,setAgree] = useState(false);
   const [busy,setBusy] = useState(false);
   const [error,setError] = useState('');
   const [armed,setArmed] = useState(false);
@@ -68,12 +70,12 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
     return()=>{active=false;clearInterval(timer);};
   },[match.id,armed,myReady,otherReady,remaining===0,onRefresh]);
   const ready=async()=>{
-    if(busy || remaining===0)return;
+    if(busy || remaining===0 || !agree)return;
     setBusy(true);setError('');
     try {
       const context=free?{}:await challengeLocationContext();
       if(!present.current || document.visibilityState!=='visible')return;
-      await challengeRequest('ready',{matchId:match.id,presenceId:presenceId.current,...context});
+      await challengeRequest('ready',{matchId:match.id,presenceId:presenceId.current,agree,attestationVersion:FAIR_PLAY_ATTESTATION_VERSION,...context});
       if(!present.current || document.visibilityState!=='visible'){await challengeRequest('unready',{matchId:match.id,presenceId:presenceId.current});return;}
       armedRef.current=true;setArmed(true);await onRefresh?.();
       if(!present.current || document.visibilityState!=='visible')return;
@@ -96,7 +98,8 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
     </div>
     {[['You',myReady], [name,otherReady]].map(([label,readyState])=><div key={String(label)} className="flex items-center justify-between rounded-xl bg-white/5 p-3 text-sm"><span className="text-white/75">{label}</span><span className={readyState?'text-[#C9A84C]':'text-white/40'}>{readyState ? <><Check className="mr-1 inline" size={14}/>Ready</> : 'Not ready yet'}</span></div>)}
     {remaining>0 ? <>
-      <Button onClick={ready} disabled={busy || (armed && myReady)} className="h-12 w-full rounded-2xl gold-gradient font-bold text-black disabled:opacity-60">{busy && <Loader2 size={16} className="mr-2 animate-spin"/>}{armed && myReady?'Waiting for opponent…':'I’m Ready'}</Button>
+      <label className="flex items-start gap-3 rounded-xl border border-white/10 p-3 text-xs leading-relaxed text-white/65"><input type="checkbox" checked={agree} disabled={busy || (armed && myReady)} onChange={e=>setAgree(e.target.checked)} className="mt-0.5"/><span>I will play fairly, without chess engines, AI, or outside assistance.</span></label>
+      <Button onClick={ready} disabled={busy || !agree || (armed && myReady)} className="h-12 w-full rounded-2xl gold-gradient font-bold text-black disabled:opacity-60">{busy && <Loader2 size={16} className="mr-2 animate-spin"/>}{armed && myReady?'Waiting for opponent…':'I’m Ready'}</Button>
       <p className="text-center text-xs text-white/45">Stay on this screen after confirming. Leaving withdraws your readiness; both players must be present to start.</p>
     </> : <p className="rounded-xl bg-white/5 p-3 text-sm text-white/60">{free?'The start window ended. This unstarted free game is closing.':'The start window ended. The system is closing this unstarted match and releasing both entries and fees.'}</p>}
     {error && <p role="alert" className="text-sm text-red-300">{error}</p>}

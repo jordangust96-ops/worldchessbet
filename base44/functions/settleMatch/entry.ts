@@ -597,7 +597,7 @@ Deno.serve(async (req) => {
       status: 'completed',
       settlement_operation_id: settlementOperationId,
       winner_id: game.winner_id || '',
-      result: game.result,
+      result: isDraw ? 'draw' : game.winner_id === match.player1_id ? 'player1_win' : 'player2_win',
       completed_at: game.completed_at || new Date().toISOString(),
     });
 

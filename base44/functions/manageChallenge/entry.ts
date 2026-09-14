@@ -1,3 +1,4 @@
+import { challengeWalletSummary } from '../../shared/challengeWalletSummary.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 import { ChallengeError, fail, requireChallengeSession, inspectChallengePlayer } from '../../shared/challengeAccess.ts';
 import { resolveChallenge, viewChallenge, createChallenge, listMyChallenges, authorizeChallenge,
@@ -62,6 +63,7 @@ Deno.serve(async (req) => {
       return response(data);
     }
     await requireChallengeSession(req, base44, user, body.sessionToken);
+    if (action === 'wallet_summary') return response(await challengeWalletSummary(base44,user.id));
     if (action === 'create') return response(await createChallenge(base44, user, body, req));
     if (action === 'money_location') {
       if (!await takeChallengeRateLimit('money-location:'+user.id,10,60)) fail('rate_limited','Please wait before rechecking your location.',429);

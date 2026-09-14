@@ -1,7 +1,9 @@
+import { readFundingState, readFundingSources, walletFundingSummary } from './fundingProvenance.ts';
+import { sourceState } from './fundingProvenancePure.js';
 import { processValidateSession } from './mfaVerify.js';
 import { hasVerifiedIdentity } from './identityEligibility.js';
 import { paidContestsEnabled } from './seamlessFundingConfig.ts';
-import { cents, validEntry, isFreeMatch, assertFreeMatch } from './challengePolicy.js';
+import { cents, validEntry, isFreeMatch, assertFreeMatch, reservesOnCreation, creatorReservationGroup } from './challengePolicy.js';
 
 export class ChallengeError extends Error {
   code: string; status: number; details: any;
@@ -85,9 +87,19 @@ export async function inspectChallengePlayer(base44: any, userId: string, match:
   if (!banks.some((bank: any) => bank.source_id))
     return { ready: false, code: 'bank_required', reason: 'Connect a verified bank account in your wallet.' };
   const wallets = await base44.asServiceRole.entities.Wallet.filter({ user_id: userId });
-  const available = cents(wallets[0]?.available_balance || 0);
+  const available = Math.min(cents(wallets[0]?.available_balance || 0), cents((await walletFundingSummary(base44, userId)).available_to_play));
   const required = cents(match.wager_amount) + cents(match.platform_service_fee);
-  if (!Number.isFinite(available) || available < required)
+  let reserved = false;
+  if (reservesOnCreation(match) && userId === match.player1_id && match.player1_deposited) {
+    const batches = await base44.asServiceRole.entities.LedgerJournalBatch.filter({ledger_group_id:creatorReservationGroup(match)}, '-created_at', 2);
+    const state = await readFundingState(base44,userId);
+    const sources = await readFundingSources(base44,{[userId]:state});
+    const lots = state.held['match:'+match.id] || [];
+    reserved = batches.length === 1 && lots.reduce((n,lot)=>n+lot.cents,0) === required &&
+      !lots.some(lot=>lot.sources.some(id=>sourceState(sources[id])==='blocked'));
+    if (!reserved) return {ready:false,code:'reservation_unavailable',reason:'This challenge reservation needs review. Cancel the challenge or contact support.'};
+  }
+  if (!reserved && (!Number.isFinite(available) || available < required))
     return { ready: false, code: 'funds_required', reason: 'Your wallet needs enough available funds for the entry and fee. Pending funds do not count.',
       availableBalance: Math.max(0, available || 0) / 100, totalRequired: required / 100 };
   if (await findConflictingMatch(base44, userId, match.id))
@@ -99,7 +111,7 @@ export async function inspectChallengePlayer(base44: any, userId: string, match:
 export async function requireChallengePlayer(base44: any, userId: string, match: any, isCreator = false) {
   const state = await inspectChallengePlayer(base44, userId, match);
   if (!state.ready) {
-    if (isCreator) fail('creator_unavailable', 'The creator is not ready to play right now. No funds have been reserved.', 409);
+    if (isCreator) fail('creator_unavailable', 'The creator is not ready to play right now.', 409);
     fail(state.code || 'not_ready', state.reason || 'Complete wallet setup before playing.', 403, state);
   }
   await requireChallengePolicies(base44, userId);

@@ -113,7 +113,7 @@ function fixture() {
       return load(resolved).exports;
     };
     vm.runInNewContext(compiled,{module,exports:module.exports,require:req,Date:Clock,Request,Response,Headers,URL,AbortSignal,
-      TextEncoder,TextDecoder,Map,Set,crypto:crypto.webcrypto,console:{error:(...x)=>state.errors.push(x),log:()=>{}},
+      TextEncoder,TextDecoder,Map,Set,structuredClone,crypto:crypto.webcrypto,console:{error:(...x)=>state.errors.push(x),log:()=>{}},
       setInterval:()=>1,clearInterval:()=>{},setTimeout:fn=>{fn();return 1;},clearTimeout:()=>{},
       Deno:{env:{get:()=>undefined},serve:handler=>{result.handler=handler;}},
     },{filename:file});
@@ -149,7 +149,7 @@ function fixture() {
     Object.assign(table('LedgerEntry').find(e=>e.id==='seed-'+id),{credit_amount:amount,available_delta:amount,total_deposited_delta:amount});
   };
   const create=async(key='creation_key_123456')=>{
-    const r=await api.createChallenge(sdk,user('p1'),{entryAmount:25,requestKey:key,...(selectedTimeControl ? {timeControl:selectedTimeControl} : {})});return get(r.match.id);
+    const r=await api.createChallenge(sdk,user('p1'),{creationVersion:policy.CHALLENGE_CREATION_VERSION,serviceFee:2,entryAmount:25,requestKey:key,...(selectedTimeControl ? {timeControl:selectedTimeControl} : {})});return get(r.match.id);
   };
   const authorize=async m=>{await api.authorizeChallenge(request,sdk,user('p1'),m,consent);return get(m.id);};
   return {state,db:state.db,table,api,policy,access,sdk,makeSdk,atomic,barriers,mutex,load,user,request,consent,get,balance,create,authorize};

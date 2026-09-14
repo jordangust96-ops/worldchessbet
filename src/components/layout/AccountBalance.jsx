@@ -1,3 +1,4 @@
+import { challengeRequest } from '@/lib/challengeApi';
 import React, { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -13,7 +14,7 @@ export default function AccountBalance() {
     queryKey, enabled: !!user?.id, staleTime: 10000,
     refetchInterval: 30000, refetchIntervalInBackground: false, refetchOnWindowFocus: true,
     queryFn: async () => {
-      const wallets = await base44.entities.Wallet.filter({ user_id: user.id });
+      const funding = await challengeRequest('wallet_summary');
       let pendingCents = 0;
       for (let skip = 0; ; skip += 500) {
         const rows = await base44.entities.WalletTransaction.filter(
@@ -22,7 +23,7 @@ export default function AccountBalance() {
         pendingCents += rows.reduce((sum, row) => sum + Math.round(Number(row.amount || 0) * 100), 0);
         if (rows.length < 500) break;
       }
-      return { balance: Number(wallets[0]?.balance || 0), pending: pendingCents / 100 };
+      return { balance: Number(funding.available_to_play || 0), reserved: Number(funding.reserved_for_matches || 0), pending: pendingCents / 100 };
     },
   });
   useEffect(() => {
@@ -32,16 +33,18 @@ export default function AccountBalance() {
         client.invalidateQueries({ queryKey: ['header-wallet', user.id] });
     };
     const stopWallet = base44.entities.Wallet.subscribe(changed);
+    const stopMatches = base44.entities.Match.subscribe(event => { if ([event.data?.player1_id,event.data?.player2_id].includes(user.id) || event.type==='delete') client.invalidateQueries({queryKey:['header-wallet',user.id]}); });
     const stopTransactions = base44.entities.WalletTransaction.subscribe(changed);
-    return () => { stopWallet(); stopTransactions(); };
+    return () => { stopWallet(); stopTransactions(); stopMatches(); };
   }, [user?.id, client]);
   const content = <>
     <span className="block text-[10px] uppercase tracking-widest text-white/40">Balance</span>
     <span className="block text-lg font-bold leading-6 text-[#C9A84C] tabular-nums">{data ? `$${data.balance.toFixed(2)}` : '—'}</span>
+    {data?.reserved > 0 && <span className="block text-xs font-normal leading-4 text-white/65 tabular-nums">${data.reserved.toFixed(2)} reserved for matches</span>}
     {data?.pending > 0 && <span className="block text-xs font-normal leading-4 text-white/50 tabular-nums">${data.pending.toFixed(2)} pending deposit</span>}
     {isError && <span className="block text-[10px] text-white/50">Balance update unavailable</span>}
   </>;
   return pathname.replace(/\/$/, '') === '/wallet'
     ? <div className="text-right" aria-label="Wallet balance">{content}</div>
-    : <Link to="/wallet" className="rounded-md text-right focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#C9A84C]" aria-label="View wallet balance and pending deposits">{content}</Link>;
+    : <Link to="/wallet" className="rounded-md text-right focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#C9A84C]" aria-label="View wallet balance, match reservations and pending deposits">{content}</Link>;
 }

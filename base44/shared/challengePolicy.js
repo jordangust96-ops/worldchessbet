@@ -9,6 +9,13 @@ export function validNewEntry(value) {
   return (typeof value === 'number' || typeof value === 'string') && ENTRY_AMOUNTS.includes(Number(value));
 }
 export const CHALLENGE_VERSION = 1;
+export const CHALLENGE_CREATION_VERSION = 'challenge-create-reserve-v3';
+export const FAIR_PLAY_ATTESTATION_VERSION = 'match-fair-play-v1';
+export const reservesOnCreation = match => match?.challenge_consent_version === CHALLENGE_CREATION_VERSION;
+export const creatorReservationGroup = match => `match:${match.id}:challenge_creator_reservation:v1`;
+export const creatorReleaseGroup = match => `match:${match.id}:challenge_creator_release:v1`;
+export const creatorReservationLegs = match => challengeReservationLegs({...match, challenge_consent_version:''}, match.player1_id).slice(0,4);
+export const creatorReleaseLegs = match => challengeReleaseLegs(match, match.player1_id).slice(0,4);
 export const CHALLENGE_TTL_MS = 24 * 60 * 60 * 1000;
 export const CHALLENGE_AUTHORIZATION_MS = 2 * 60 * 1000;
 export const CHALLENGE_START_WINDOW_MS = 2 * 60 * 1000;
@@ -54,10 +61,10 @@ export function challengeExpired(match, now = Date.now()) {
   return !Number.isFinite(expiry) || now >= expiry;
 }
 export function creatorAuthorized(match, now = Date.now()) {
-  if (match?.challenge_consent_version === CHALLENGE_HUD_CONSENT_VERSION) {
+  if (reservesOnCreation(match) || match?.challenge_consent_version === CHALLENGE_HUD_CONSENT_VERSION) {
     const consent = Date.parse(match.challenge_hud_consent_at || '');
     const until = Date.parse(match.challenge_authorized_until || '');
-    return Boolean(match.player1_certified && match.challenge_creator_presence_id &&
+    return Boolean((reservesOnCreation(match) || match.player1_certified) && match.challenge_creator_presence_id &&
       Number.isFinite(consent) && consent <= now && Number.isFinite(until) && until > now && until - now <= CHALLENGE_READY_MS);
   }
   const at = Date.parse(match?.challenge_authorized_at || '');
@@ -91,7 +98,8 @@ export function publicChallenge(match, hostName = 'ChessBet player', now = Date.
     status: processing ? 'processing' : open ? 'open' : match.challenge_close_reason === 'expired' ||
       (match.status === 'searching' && challengeExpired(match, now)) ? 'expired' :
       match.status === 'cancelled' ? 'cancelled' : match.status === 'completed' ? 'completed' : 'claimed',
-    creatorConsentRequired: match.challenge_consent_version !== CHALLENGE_HUD_CONSENT_VERSION,
+    creatorConsentRequired: !reservesOnCreation(match) && match.challenge_consent_version !== CHALLENGE_HUD_CONSENT_VERSION,
+    creatorFundsReserved: !isFreeMatch(match) && Boolean(match.player1_deposited),
     creatorReady: open && !processing && creatorAuthorized(match, now),
     creatorReadyUntil: open && !processing ? match.challenge_authorized_until || null : null,
     publiclyListed: match.challenge_publicly_listed === true,
@@ -103,7 +111,7 @@ export function publicChallenge(match, hostName = 'ChessBet player', now = Date.
 // Transaction projections are created only after that batch commits.
 export function challengeReservationLegs(match, recipientId) {
   if (isFreeMatch(match)) throw new Error('free_match_cannot_reserve');
-  return [match.player1_id, recipientId].flatMap(userId => [
+  return (reservesOnCreation(match) ? [recipientId] : [match.player1_id, recipientId]).flatMap(userId => [
     { ledgerAccount: 'user_account', userId, debit: Number(match.wager_amount), credit: 0,
       heldDelta: Number(match.wager_amount), totalWageredDelta: Number(match.wager_amount), transactionType: 'match_entry' },
     { ledgerAccount: 'contest_clearing', debit: 0, credit: Number(match.wager_amount), transactionType: 'match_entry' },

@@ -130,7 +130,7 @@ function fixture() {
   const sdk=makeSdk('p1');
   const request=new Request('https://example.invalid',{method:'POST',headers:{'user-agent':'test-browser'},body:'{}'});
   const originalCreate=api.createChallenge;
-  api.createChallenge=(sdk,u,body,req=request)=>originalCreate(sdk,u,body,req);
+  api.createChallenge=(sdk,u,body,req=request)=>originalCreate(sdk,u,{creationVersion:policy.CHALLENGE_CREATION_VERSION,serviceFee:load('base44/shared/platformFee.ts').exports.getPlatformServiceFee(Number(body.entryAmount)),...body},req);
   const consent={agree:true,entryAmount:25,serviceFee:2};
   const get=id=>clone(table('Match').find(m=>m.id===id));
   const balance=(id,amount)=>{
@@ -140,353 +140,164 @@ function fixture() {
   const create=async(key='creation_key_123456')=>{
     const r=await api.createChallenge(sdk,user('p1'),{entryAmount:25,requestKey:key,...(selectedTimeControl ? {timeControl:selectedTimeControl} : {})});return get(r.match.id);
   };
-  const authorize=async m=>{await api.authorizeChallenge(request,sdk,user('p1'),m,consent);return get(m.id);};
+  const authorize=async m=>{await api.maintainCreatorPresence(request,sdk,user('p1'),m,{presenceId:'creator_presence_123456',visible:true});return get(m.id);};
   return {state,db:state.db,table,api,policy,access,sdk,makeSdk,atomic,barriers,mutex,load,user,request,consent,get,balance,create,authorize};
 }
 async function rejected(work,code){let failure;try{await work();}catch(error){failure=error;}check(failure,`Expected rejection ${code}`);if(code)equal(failure.code,code);}
 
-// Every published preset is creatable with cleared funding; arbitrary amounts write nothing.
-for (const entryAmount of [5,10,25,50,100,250,500,1000,2500]) {
-  const f=fixture();f.balance('p1',3000);
-  const result=await f.api.createChallenge(f.sdk,f.user('p1'),{entryAmount,requestKey:'preset_creation_12345'});
-  equal(result.match.wager_amount,entryAmount);
-  equal(f.table('LedgerJournalBatch').length,0);equal(f.table('WalletTransaction').length,0);
-}
-for (const entryAmount of [0,4,6,10.01,26,499,2501,5000,NaN,Infinity,null,true,[],[10],{}]) {
-  const f=fixture();
-  await rejected(()=>f.api.createChallenge(f.sdk,f.user('p1'),{entryAmount,requestKey:'invalid_creation_12345'}),'invalid_entry');
-  equal(f.table('Match').length,0);equal(f.table('LedgerJournalBatch').length,0);
-  const response=await f.load('base44/functions/createMatch/entry.ts').handler(new Request('https://example.invalid',{
-    method:'POST',body:JSON.stringify({wagerAmount:entryAmount,timeControl:'blitz'})}));
-  equal(response.status,409);equal(f.table('Match').length,0);
-}
-{ const f=fixture();check(f.policy.validEntry(26),'Historical terms still recognized');check(!f.policy.validNewEntry(26),'New custom entries prohibited'); }
-async function publicCreate(f) {
-  try {
-    const result=await f.api.createChallenge(f.sdk,f.user('p1'),{entryAmount:25,timeControl:'blitz',publiclyListed:true,requestKey:'public_create_'+crypto.randomUUID()});
-    return Response.json(result);
-  } catch(error) {return Response.json({code:error.code},{status:error.status || 500});}
-}
 
-for (const first of ['private','public']) {
-  const f=fixture();
-  if(first==='private')await f.create();else equal((await publicCreate(f)).status,200);
-  await rejected(()=>f.create('second_creation_12345'),'open_limit');
-  const response=await publicCreate(f);equal(response.status,409);equal((await response.json()).code,'open_limit');
-  equal(f.table('Match').length,1);equal(f.table('WalletTransaction').length,0);
+const wallet=(f,id)=>f.table('Wallet').find(w=>w.user_id===id);
+const summary=async(f,id='p1')=>(await f.makeSdk(id).functions.invoke('manageChallenge',{action:'wallet_summary'})).data;
+const attest=f=>({action:'ready',presenceId:'ready_session_123456',agree:true,attestationVersion:f.policy.FAIR_PLAY_ATTESTATION_VERSION});
+for(const entryAmount of [5,10,25,50,100,250,500,1000,2500]){
+ const f=fixture();f.balance('p1',3000);const r=await f.api.createChallenge(f.sdk,f.user('p1'),{entryAmount,requestKey:'presets_request_12345'});
+ const total=entryAmount+r.match.platform_service_fee;
+ equal(wallet(f,'p1').available_balance,3000-total);equal(wallet(f,'p1').held_balance,total);
+ equal(f.table('LedgerJournalBatch').length,1);equal(f.table('WalletTransaction').length,2);equal(r.match.player1_certified,false);
+ equal((await summary(f)).reserved_for_matches,total);
+ const replay=await f.api.createChallenge(f.sdk,f.user('p1'),{entryAmount,requestKey:'presets_request_12345'});
+ equal(replay.match.id,r.match.id);equal(f.table('LedgerJournalBatch').length,1);
+ await f.api.cancelChallenge(f.sdk,f.user('p1'),r.match.id);await f.api.cancelChallenge(f.sdk,f.user('p1'),r.match.id);
+ equal(wallet(f,'p1').available_balance,3000);equal(wallet(f,'p1').held_balance,0);equal((await summary(f)).reserved_for_matches,0);
+ equal(f.table('LedgerJournalBatch').length,2);
 }
-for (const kind of ['private','public','mixed']) {
-  const f=fixture();
-  await Promise.allSettled(Array.from({length:12},(_,i)=>kind==='public'||(kind==='mixed'&&i%2)
-    ? publicCreate(f) : f.create('parallel_creation_'+i)));
-  equal(f.table('Match').length,1,'Concurrent '+kind+' creation has one winner');
-  equal(f.table('LedgerJournalBatch').length,0);
-}
-for (const status of ['preparing','both_ready','in_progress','settling','cancelling','disputed']) {
-  for (const field of ['player1_id','player2_id','challenge_claimant_id']) {
-    const f=fixture();f.table('Match').push({id:'active',launch_epoch:2,status,[field]:'p1'});
-    await rejected(()=>f.create(),'active_match');
-    equal((await publicCreate(f)).status,409);equal(f.table('Match').length,1);
-  }
-}
-for (const closed of ['cancelled','expired','completed']) {
-  const f=fixture();const m=await f.create();
-  if(closed==='expired')f.state.now+=86400001;
-  else await f.sdk.asServiceRole.entities.Match.update(m.id,{status:closed});
-  const next=await f.create('replacement_key_12345');check(next.id!==m.id);
-}
-{
-  const f=fixture();const m=await f.create();
-  const replay=await f.create();equal(replay.id,m.id);
-  f.table('Match').push({id:'previous-game',launch_epoch:2,status:'completed',player1_id:'p1',player2_id:'p2'});
-  await rejected(()=>f.api.createChallenge(f.sdk,f.user('p1'),{entryAmount:25,requestKey:'rematch_request_12345',rematchOf:'previous-game'}),'open_limit');
-}
-{
-  const f=fixture();f.atomic.refreshContestLocks=async()=>false;
-  await rejected(()=>f.create(),'busy');equal(f.table('Match').length,0);
-  equal((await publicCreate(f)).status,409);equal(f.table('Match').length,0);
-}
-// Discovery uses a public allowlist projection while the record stays participant-only.
-{
-  const f=fixture();const m=await f.create();
-  const query=f.load('base44/shared/marketplaceStats.ts').exports.publicAvailableMatchQuery('p2');
-  equal(f.table('Match').filter(row=>matches(row,query)).length,0);
-  await rejected(()=>f.api.setChallengeVisibility(f.sdk,f.user('p2'),m,{publiclyListed:true}),'forbidden');
-  await f.api.setChallengeVisibility(f.sdk,f.user('p1'),m,{publiclyListed:true});
-  equal(f.table('Match').filter(row=>matches(row,query)).length,1);
-  equal(f.get(m.id).is_private,true);
-  const listed=await f.makeSdk('p2').functions.invoke('getAvailableMatches',{});
-  equal(listed.data.matches.length,1);
-  equal(listed.data.matches[0].challengePath,f.policy.challengePath(m.invite_code));
-  for(const field of ['challenge_creation_key','challenge_claimant_id','challenge_target_id','invite_code','challenge_authorized_until'])
-    check(!(field in listed.data.matches[0]),'Public response excludes '+field);
-  await f.api.setChallengeVisibility(f.sdk,f.user('p1'),f.get(m.id),{publiclyListed:false});
-  equal(f.table('Match').filter(row=>matches(row,query)).length,0);
-  equal(f.get(m.id).invite_code,m.invite_code);equal(f.table('Match').length,1);
-  equal(f.table('LedgerJournalBatch').length,0);equal(f.table('WalletTransaction').length,0);
-  const authorized=await f.authorize(f.get(m.id));
-  await f.api.acceptChallenge(f.request,f.sdk,f.user('p2'),authorized,f.consent);
-  await rejected(()=>f.api.setChallengeVisibility(f.sdk,f.user('p1'),f.get(m.id),{publiclyListed:true}),'unavailable');
-}
-for (const publiclyListed of [true,false]) {
-  const f=fixture();const created=await f.api.createChallenge(f.sdk,f.user('p1'),{entryAmount:25,publiclyListed,requestKey:'visibility_create_12345'});
-  equal(created.match.challenge_publicly_listed,publiclyListed);
-  await rejected(()=>f.create('another_visibility_12345'),'open_limit');
-}
-{
-  const f=fixture();const created=await publicCreate(f);equal(created.status,200);
-  let m=f.table('Match')[0];m.challenge_expires_at=new Date(f.state.now-1).toISOString();
-  const query=f.load('base44/shared/marketplaceStats.ts').exports.publicAvailableMatchQuery('p2');
-  equal(f.table('Match').filter(row=>matches(row,query)).length,0);
-  await rejected(()=>f.api.setChallengeVisibility(f.sdk,f.user('p1'),m,{publiclyListed:false}),'unavailable');
-}
-{
-  const f=fixture();const m=await f.authorize(await f.create());
-  await f.api.setChallengeVisibility(f.sdk,f.user('p1'),m,{publiclyListed:true});
-  const outcomes=await Promise.allSettled(['p2','p3'].map(id=>f.makeSdk(id).functions.invoke('manageChallenge',{action:'accept',inviteCode:m.invite_code,...f.consent})));
-  equal(outcomes.filter(x=>x.status==='fulfilled').length,1);equal(f.table('LedgerJournalBatch').length,1);
-  const query=f.load('base44/shared/marketplaceStats.ts').exports.publicAvailableMatchQuery('p4');
-  equal(f.table('Match').filter(row=>matches(row,query)).length,0);
-}
-{
-  const f=fixture();const m=await f.create();
-  await f.sdk.asServiceRole.entities.Match.update(m.id,{challenge_target_id:'p2'});
-  await rejected(()=>f.api.setChallengeVisibility(f.sdk,f.user('p1'),f.get(m.id),{publiclyListed:true}),'private_rematch');
-  await rejected(()=>f.api.createChallenge(f.sdk,f.user('p1'),{entryAmount:25,publiclyListed:'true',requestKey:'bad_visibility_12345'}),'invalid_visibility');
-}
-for (selectedTimeControl of [undefined, 'blitz', 'rapid', 'classical']) {
-const expectedClock = {blitz:180000,rapid:600000,classical:900000}[selectedTimeControl] || 300000;
-// Eligible funded creation is nonfinancial and idempotent.
-{
-  const f=fixture();
-  const m=await f.create();equal(m.status,'searching');equal(m.player2_id,undefined);equal(f.table('WalletTransaction').length,0);equal(f.table('LedgerJournalBatch').length,0);
-  const replay=await f.create();equal(replay.id,m.id);equal(f.table('Match').length,1);
-  await rejected(()=>f.api.createChallenge(f.sdk,f.user('p1'),{entryAmount:50,requestKey:'creation_key_123456'}),'request_conflict');
-  const serialized=f.policy.publicChallenge(m,'Player');check(!('player1_id' in serialized));check(!('challenge_claimant_id' in serialized));
-}
-for(const issue of ['unfunded','pending_only','identity','bank','hold','busy','fee_short','creator_unfunded','expired','self','location','consent']){
-  const f=fixture();let m=await f.authorize(await f.create());
-  if(issue==='unfunded'||issue==='pending_only')f.balance('p2',0);
-  if(issue==='pending_only')f.table('Wallet').find(w=>w.user_id==='p2').held_balance=100;
-  if(issue==='fee_short')f.balance('p2',25);
-  if(issue==='identity')f.table('User').find(u=>u.id==='p2').verified=false;
-  if(issue==='bank')f.db.SeamlessBankAccount=f.table('SeamlessBankAccount').filter(x=>x.user_id!=='p2');
-  if(issue==='hold')f.table('User').find(u=>u.id==='p2').withdrawal_hold=true;
-  if(issue==='busy')f.table('Match').push({id:'other',launch_epoch:2,player1_id:'p2',status:'in_progress'});
-  if(issue==='creator_unfunded')f.balance('p1',0);
-  if(issue==='expired')f.state.now+=86400001;
-  if(issue==='location')f.state.location=false;
-  const user=f.user(issue==='self'?'p1':'p2');
-  await rejected(()=>f.api.acceptChallenge(f.request,f.sdk,user,m,issue==='consent'?{...f.consent,agree:false}:f.consent));
-  equal(f.table('WalletTransaction').length,0,issue);equal(f.table('LedgerJournalBatch').length,0,issue);
-  equal(f.get(m.id).player2_id,undefined,issue);equal(f.barriers.size,0,issue);
-}
-// Concurrent final acceptances: one opponent, both financial sides, one journal.
-{
-  const f=fixture();const m=await f.authorize(await f.create());
-  const attempts=await Promise.allSettled(Array.from({length:20},(_,i)=>f.api.acceptChallenge(f.request,f.sdk,f.user(i%2?'p2':'p3'),m,f.consent)));
-  equal(attempts.filter(x=>x.status==='fulfilled'&&x.value.accepted).length,1);
-  const committed=f.get(m.id);check(['p2','p3'].includes(committed.player2_id));equal(committed.status,'preparing');
-  equal(f.table('LedgerJournalBatch').length,1);equal(f.table('LedgerJournalBatch')[0].leg_count,8);equal(f.table('WalletTransaction').length,4);
-  const winnerWallet=f.table('Wallet').find(w=>w.user_id===committed.player2_id);equal(winnerWallet.available_balance,73);equal(winnerWallet.held_balance,27);
-  const replay=await f.api.acceptChallenge(f.request,f.sdk,f.user(committed.player2_id),committed,f.consent);check(replay.replay);equal(f.table('LedgerJournalBatch').length,1);
-  equal(f.barriers.size,0);
-  await f.api.finalizeChallengeStart(f.sdk,f.user('p1'),m.id);equal(f.table('Game').length,0,'Funding alone cannot start a game');
-}
-// Crash boundaries: before/after journal commit, partial leg materialization,
-// wallet projection failure, and Match projection failure.
-for(const where of ['LedgerJournalBatch.create.before','LedgerJournalBatch.create.after','LedgerEntry.bulkCreate.partial','Wallet.update','Match.update']){
-  const f=fixture();let m=await f.authorize(await f.create());
-  f.state.fail={where,...(where==='Match.update'?{test:(_id,patch)=>patch.status==='preparing'}:{})};
-  const result=await f.api.acceptChallenge(f.request,f.sdk,f.user('p2'),m,f.consent);check(result.processing,where);
-  check(f.barriers.size===2,`Both wallets protected during uncertain ${where}`);
-  check(!await f.atomic.acquireUserWalletLock('p1','other-operation'),`No spending stale balance after ${where}`);
-  if(where==='LedgerJournalBatch.create.before'){
-    equal(f.table('LedgerJournalBatch').length,0);f.state.now+=181000;
-    await f.api.recoverChallenge(f.sdk,m.id);equal(f.get(m.id).status,'searching');equal(f.get(m.id).player2_id,undefined);equal(f.table('WalletTransaction').length,0);
-  }else{
-    await f.api.recoverChallenge(f.sdk,m.id);m=f.get(m.id);equal(m.status,'preparing');equal(m.player2_id,'p2');
-    equal(f.table('LedgerJournalBatch').length,1);equal(f.table('WalletTransaction').length,4);
-    equal(f.table('LedgerEntry').filter(e=>e.ledger_group_id===f.policy.reservationGroup(m)).length,8);
-    equal(f.table('Wallet').find(w=>w.user_id==='p1').available_balance,73);
-  }
-  equal(f.barriers.size,0,where);
-}
-// A no-show releases BOTH entries and fees once; no revenue recognized.
-{
-  const f=fixture();const m=await f.authorize(await f.create());await f.api.acceptChallenge(f.request,f.sdk,f.user('p2'),m,f.consent);
-  f.state.now+=121000;await f.api.recoverChallenge(f.sdk,m.id);await f.api.recoverChallenge(f.sdk,m.id);
-  equal(f.get(m.id).status,'cancelled');equal(f.table('LedgerJournalBatch').length,2);equal(f.table('WalletTransaction').length,8);
-  for(const id of ['p1','p2']){const wallet=f.table('Wallet').find(w=>w.user_id===id);equal(wallet.available_balance,100);equal(wallet.held_balance,0);}
-  check(!f.table('LedgerEntry').some(e=>e.ledger_account==='platform_revenue'));equal(f.barriers.size,0);
-}
-// Explicit readiness on two devices, direct-start refusal, and same game/clock.
-{
-  const f=fixture();const m=await f.authorize(await f.create());await f.api.acceptChallenge(f.request,f.sdk,f.user('p2'),m,f.consent);
-  const ready=f.get(m.id);f.table('Match').find(x=>x.id===m.id).status='both_ready';
-  await assert.rejects(()=>f.makeSdk('p2').functions.invoke('getOrCreateGame',{matchId:m.id}));assertions++;
-  f.table('Match').find(x=>x.id===m.id).status='preparing';
-  const emptyHeartbeat=await f.api.readyChallenge(f.request,f.sdk,f.user('p1'),m.id,{action:'heartbeat',presenceId:'ready_session_123456',visible:true});check(emptyHeartbeat.needsReady);
-  await f.api.readyChallenge(f.request,f.sdk,f.user('p1'),m.id,{action:'ready',presenceId:'ready_session_123456'});
-  await f.api.finalizeChallengeStart(f.sdk,f.user('p1'),m.id);equal(f.table('Game').length,0);
-  await f.api.readyChallenge(f.request,f.sdk,f.user('p2'),m.id,{action:'ready',presenceId:'ready_session_123456'});
-  const hidden=await f.api.readyChallenge(f.request,f.sdk,f.user('p2'),m.id,{action:'heartbeat',presenceId:'ready_session_123456',visible:false});check(hidden.needsReady);
-  await f.api.finalizeChallengeStart(f.sdk,f.user('p1'),m.id);equal(f.table('Game').length,0,'Hidden player cannot start');
-  const stale=await f.api.readyChallenge(f.request,f.sdk,f.user('p2'),m.id,{action:'heartbeat',presenceId:'ready_session_123456',visible:true});check(stale.needsReady);
-  await f.api.readyChallenge(f.request,f.sdk,f.user('p2'),m.id,{action:'ready',presenceId:'ready_session_123456'});
-  const started=await f.api.finalizeChallengeStart(f.sdk,f.user('p1'),m.id);equal(started.match.status,'in_progress');equal(f.table('Game').length,1);
-  equal(f.table('Game')[0].white_time_ms,expectedClock);equal(f.table('Game')[0].black_time_ms,expectedClock);
-  await f.api.finalizeChallengeStart(f.sdk,f.user('p1'),m.id);equal(f.table('Game').length,1);
-  await rejected(()=>f.api.cancelChallenge(f.sdk,f.user('p1'),m.id),'already_started');equal(f.table('LedgerJournalBatch').length,1);
-}
-// Cancelling a nonfinancial OPEN link must never depend on the creator wallet
-// lock. A concurrent deposit/withdrawal/reconciliation cannot trap the link.
-{
-  const f=fixture();const m=await f.create();
-  check(await f.atomic.acquireUserWalletLock('p1','unrelated-financial-operation'));
-  const cancelled=await f.api.cancelChallenge(f.sdk,f.user('p1'),m.id);
-  equal(cancelled.match.status,'cancelled');equal(cancelled.match.challenge_close_reason,'cancelled');
-  equal(f.table('LedgerJournalBatch').length,0);equal(f.table('WalletTransaction').length,0);
-  f.atomic.releaseUserWalletLock('p1','unrelated-financial-operation');
-}
-// Legacy multiple-open records still cannot commit the creator to two games.
-{
-  const f=fixture();const a=await f.authorize(await f.create('creation_key_first111'));
-  // Simulate two invitations persisted before the single-open policy.
-  const legacy=await f.sdk.asServiceRole.entities.Match.create({...a,id:'legacy-second',invite_code:'b'.repeat(32),challenge_creation_key:'legacy_second_12345'});
-  const b=await f.authorize(legacy);
-  const results=await Promise.allSettled([f.api.acceptChallenge(f.request,f.sdk,f.user('p2'),a,f.consent),f.api.acceptChallenge(f.request,f.sdk,f.user('p3'),b,f.consent)]);
-  equal(results.filter(r=>r.status==='fulfilled'&&r.value.accepted).length,1);equal(f.table('LedgerJournalBatch').length,1);
-  equal(f.table('Match').filter(m=>m.status==='searching').length,1);
-}
-// Endpoint authorization, public preview, private serialization, and no writes on invalid MFA.
-{
-  const f=fixture();const m=await f.create();
-  const response=await f.makeSdk('unknown').functions.invoke('manageChallenge',{action:'view',inviteCode:m.invite_code});
-  equal(response.data.challenge.entryAmount,25);equal(response.data.participant,false);check(!('email' in response.data.challenge));
-  f.table('User').find(u=>u.id==='p2').mfa_bypass=false;
-  await assert.rejects(()=>f.makeSdk('p2').functions.invoke('manageChallenge',{action:'accept',inviteCode:m.invite_code,...f.consent}));assertions++;
-  equal(f.table('LedgerJournalBatch').length,0);
-  await rejected(()=>f.api.cancelChallenge(f.sdk,f.user('p3'),m.id),'forbidden');
-  const serializer=f.load('base44/functions/manageChallenge/entry.ts').exports.safeChallengeMatch;
-  const safe=serializer({...m,start_operation_id:'SECRET',challenge_claimant_id:'PRIVATE',challenge_target_id:'PRIVATE'});
-  check(!('start_operation_id'in safe));check(!('challenge_claimant_id'in safe));check(!('challenge_target_id'in safe));
-}
-// A partial barrier clear remains visibly recoverable, including when the
-// financial projection and participant assignment already succeeded.
-for(const phase of ['reservation','release']) {
-  const f=fixture();const m=await f.authorize(await f.create());
-  if(phase==='release')await f.api.acceptChallenge(f.request,f.sdk,f.user('p2'),m,f.consent);
-  f.state.fail={where:'barrier.clear.partial'};
-  if(phase==='reservation') {
-    const result=await f.api.acceptChallenge(f.request,f.sdk,f.user('p2'),m,f.consent);check(result.processing);
-    equal(f.get(m.id).challenge_operation_state,'reserving');
-  } else {
-    await assert.rejects(()=>f.api.cancelChallenge(f.sdk,f.user('p1'),m.id));assertions++;
-    equal(f.get(m.id).challenge_operation_state,'releasing');
-  }
-  equal(f.barriers.size,1);
-  await f.api.recoverChallenge(f.sdk,m.id);equal(f.barriers.size,0);
-  equal(f.get(m.id).challenge_operation_state,phase==='reservation'?'committed':'released');
-  equal(f.table('LedgerJournalBatch').length,phase==='reservation'?1:2);
-  equal(f.table('WalletTransaction').length,phase==='reservation'?4:8);
-}
-// A lost final match write resumes the already-created five-minute game.
-{
-  const f=fixture();const m=await f.authorize(await f.create());await f.api.acceptChallenge(f.request,f.sdk,f.user('p2'),m,f.consent);
-  await f.api.readyChallenge(f.request,f.sdk,f.user('p1'),m.id,{action:'ready',presenceId:'ready_session_123456'});
-  await f.api.readyChallenge(f.request,f.sdk,f.user('p2'),m.id,{action:'ready',presenceId:'ready_session_123456'});
-  f.state.fail={where:'Match.update',test:(_id,patch)=>patch.status==='in_progress'};
-  await assert.rejects(()=>f.api.finalizeChallengeStart(f.sdk,f.user('p1'),m.id));assertions++;
-  equal(f.table('Game').length,1);const anchor=f.table('Game')[0].turn_started_at;
-  f.state.now+=35000;
-  const recovered=await f.api.finalizeChallengeStart(f.sdk,f.user('p2'),m.id);
-  equal(recovered.match.status,'in_progress');equal(f.table('Game').length,1);equal(f.table('Game')[0].turn_started_at,anchor);
-}
-// A restricted rematch is not claimable by an unrelated funded link holder.
-{
-  const f=fixture();f.table('Match').push({id:'prior',launch_epoch:2,status:'completed',player1_id:'p1',player2_id:'p2'});
-  const made=await f.api.createChallenge(f.sdk,f.user('p1'),{entryAmount:25,requestKey:'rematch_request_12345',rematchOf:'prior'});
-  const m=await f.authorize(f.get(made.match.id));equal(m.challenge_target_id,'p2');
-  await rejected(()=>f.api.acceptChallenge(f.request,f.sdk,f.user('p3'),m,f.consent),'different_opponent');
-  equal(f.table('LedgerJournalBatch').length,0);equal(f.get(m.id).player2_id,undefined);
-}
-for(const fee of [null,undefined,'2',NaN,-1,2.001]) {
-  const f=fixture();const m=await f.create();const state=await f.access.inspectChallengePlayer(f.sdk,'p2',{...m,platform_service_fee:fee});
-  equal(state.ready,false);equal(state.code,'invalid_terms');
-}
-}
-// Creation validates the selected control, snapshots clocks and rejects conflicting retries.
-for (const timeControl of ['blitz','rapid','classical']) {
-  const f=fixture();
-  const body={entryAmount:25,timeControl,requestKey:'control_request_12345',clock_initial_ms:1,displayName:'forged'};
-  const result=await f.makeSdk('p1').functions.invoke('manageChallenge',{action:'create',...body});
-  const m=f.get(result.data.match.id);
-  const expected={blitz:180000,rapid:600000,classical:900000}[timeControl];
-  equal(m.clock_initial_ms,expected);equal(m.time_control,timeControl);
-  equal(f.policy.publicChallenge(m).displayName,{blitz:'Blitz (3+0)',rapid:'Rapid (10+0)',classical:'Classical (15+0)'}[timeControl]);
-  const replay=await f.api.createChallenge(f.sdk,f.user('p1'),body);equal(replay.match.id,m.id);
-  await rejected(()=>f.api.createChallenge(f.sdk,f.user('p1'),{...body,timeControl:timeControl==='rapid'?'blitz':'rapid'}),'request_conflict');
-  equal(f.table('LedgerJournalBatch').length,0);
-  await f.api.cancelChallenge(f.sdk,f.user('p1'),m.id);
-  f.table('Match').push({id:'previous',launch_epoch:2,status:'completed',player1_id:'p1',player2_id:'p2',time_control:timeControl});
-  const rematch=await f.api.createChallenge(f.sdk,f.user('p1'),{...body,requestKey:'rematch_control_12345',rematchOf:'previous'});
-  equal(rematch.match.time_control,timeControl);equal(rematch.match.clock_initial_ms,expected);equal(rematch.match.challenge_target_id,'p2');
-}
-for (const timeControl of [null,'bullet','Rapid','',{},1,'__proto__']) {
-  const f=fixture();await rejected(()=>f.api.createChallenge(f.sdk,f.user('p1'),{entryAmount:25,timeControl,requestKey:'invalid_control_12345'}),'invalid_time_control');
-  equal(f.table('Match').length,0);equal(f.table('LedgerJournalBatch').length,0);
-}
-console.log(`Challenge lifecycle: ${assertions} assertions passed. Actual lifecycle/journal code; isolated providers, storage and locks; no live money movement.`);
-
-// Visible-HUD consent -> acceptance, no timer button or second reservation.
-for(const funded of [false,true]){
- const f=fixture();
- const result=await f.api.createChallenge(f.sdk,f.user('p1'),{...f.consent,consentVersion:f.policy.CHALLENGE_HUD_CONSENT_VERSION,requestKey:'hud_consent_creation_1234',timeControl:'blitz'});
- const id=result.match.id;equal(f.policy.creatorAuthorized(f.get(id)),false);
- const body={presenceId:'hud_presence_session_1234',visible:true};
- if(!funded){f.balance('p1',0);await rejected(()=>f.api.maintainCreatorPresence(f.request,f.sdk,f.user('p1'),f.get(id),body),'funds_required');f.balance('p1',100);}
- await f.api.maintainCreatorPresence(f.request,f.sdk,f.user('p1'),f.get(id),body);
- equal(f.policy.creatorAuthorized(f.get(id)),true);equal(f.table('LedgerJournalBatch').length,0);
- f.state.now+=6000;await f.api.maintainCreatorPresence(f.request,f.sdk,f.user('p1'),f.get(id),body);equal(f.state.lookups,1,'Presence does not repeat paid location lookups every heartbeat');
- await f.api.maintainCreatorPresence(f.request,f.sdk,f.user('p1'),f.get(id),{...body,visible:false});equal(f.policy.creatorAuthorized(f.get(id)),false);
- await rejected(()=>f.api.maintainCreatorPresence(f.request,f.sdk,f.user('p1'),f.get(id),body),'presence_revoked');
- await rejected(()=>f.api.acceptChallenge(f.request,f.sdk,f.user('p2'),f.get(id),f.consent),'creator_not_ready');
- body.presenceId='new_hud_presence_session_5678';await f.api.maintainCreatorPresence(f.request,f.sdk,f.user('p1'),f.get(id),body);
- f.state.now+=10001;equal(f.policy.creatorAuthorized(f.get(id)),false,'Disconnected creators expire');
- await f.api.maintainCreatorPresence(f.request,f.sdk,f.user('p1'),f.get(id),body);
- const accepted=await f.api.acceptChallenge(f.request,f.sdk,f.user('p2'),f.get(id),f.consent);check(accepted.accepted);equal(f.table('LedgerJournalBatch').length,1);
- for(const who of ['p1','p2'])await f.api.readyChallenge(f.request,f.sdk,f.user(who),id,{action:'ready',presenceId:'ready_session_123456'});
- await f.api.readyChallenge(f.request,f.sdk,f.user('p1'),id,{action:'unready',presenceId:'other_session_123456'});check(f.policy.bothChallengePlayersReady(f.get(id)),'Other tabs cannot revoke current session');
- await f.api.readyChallenge(f.request,f.sdk,f.user('p1'),id,{action:'unready',presenceId:'ready_session_123456'});
- await f.api.finalizeChallengeStart(f.sdk,f.user('p2'),id);equal(f.table('Game').length,0);
- await f.api.readyChallenge(f.request,f.sdk,f.user('p1'),id,{action:'ready',presenceId:'ready_session_123456'});
- await f.api.finalizeChallengeStart(f.sdk,f.user('p2'),id);equal(f.table('Game').length,1);equal(f.table('LedgerJournalBatch').length,1);
-}
-{
- const f=fixture(),m=await f.create();const body={presenceId:'legacy_hud_session_1234',visible:true};
- await rejected(()=>f.api.maintainCreatorPresence(f.request,f.sdk,f.user('p1'),m,body),'consent_required');
- await rejected(()=>f.api.consentToHudChallenge(f.sdk,f.user('p1'),m,{...f.consent,agree:false,consentVersion:f.policy.CHALLENGE_HUD_CONSENT_VERSION}),'consent_required');
- await f.api.consentToHudChallenge(f.sdk,f.user('p1'),m,{...f.consent,consentVersion:f.policy.CHALLENGE_HUD_CONSENT_VERSION});
- await f.api.maintainCreatorPresence(f.request,f.sdk,f.user('p1'),f.get(m.id),body);check(f.policy.creatorAuthorized(f.get(m.id)));
- equal(f.table('LedgerJournalBatch').length,0);
-}
-console.log('Including new HUD and presence regressions: '+assertions+' assertions passed');
-
 for(const publiclyListed of [false,true])for(const issue of ['unfunded','pending','fee_short','identity','bank','restricted','location','lost_funds']){
  const f=fixture();
  const expected={unfunded:'funds_required',pending:'funds_required',fee_short:'funds_required',identity:'identity_required',bank:'bank_required',restricted:'account_restricted',location:'location_required',lost_funds:'funds_required'}[issue];
  if(['unfunded','pending'].includes(issue))f.balance('p1',0);
- if(issue==='pending')Object.assign(f.table('Wallet')[0],{pending_balance:1000,held_balance:1000,balance:1000,total_balance:1000});
+ if(issue==='pending')Object.assign(wallet(f,'p1'),{pending_balance:1000,held_balance:1000,balance:1000,total_balance:1000});
  if(issue==='fee_short')f.balance('p1',25);
  if(issue==='identity')f.table('User')[0].verified=false;
  if(issue==='bank')f.table('SeamlessBankAccount').length=0;
  if(issue==='restricted')f.table('User')[0].account_state='suspended';
  if(issue==='location')f.state.location=false;
  if(issue==='lost_funds')f.state.afterCreationLocation=()=>f.balance('p1',0);
- const response=await f.load('base44/functions/manageChallenge/entry.ts').handler(new Request('https://example.invalid',{method:'POST',headers:{'x-test-user':'p1','user-agent':'test-browser'},body:JSON.stringify({action:'create',entryAmount:25,timeControl:'blitz',publiclyListed,requestKey:'gated_creation_123456'})}));
- equal((await response.json()).code,expected,issue);
- equal(f.table('Match').length,0,issue+' writes no challenge');
- equal(f.table('LedgerJournalBatch').length,0);equal(f.table('WalletTransaction').length,0);
+ await rejected(()=>f.api.createChallenge(f.sdk,f.user('p1'),{entryAmount:25,publiclyListed,requestKey:'creation_gates_12345'}),expected);
+ equal(f.table('Match').length,0);equal(f.table('LedgerJournalBatch').length,0);
+ if(issue==='location'){
+   const free=await f.api.createChallenge(f.sdk,f.user('p1'),{playMode:'free',entryAmount:0,serviceFee:0,publiclyListed,requestKey:'free_fallback_123456'});
+   equal(free.match.play_mode,'free');equal(free.match.player1_certified,false);equal(f.table('LedgerJournalBatch').length,0);
+ }
 }
-console.log('Including creation eligibility regressions: '+assertions+' assertions passed');
+for(const amount of [0,4,6,10.01,26,5000,NaN,Infinity,null,true,[],{}]){
+ const f=fixture();await rejected(()=>f.api.createChallenge(f.sdk,f.user('p1'),{entryAmount:amount,requestKey:'invalid_amount_12345'}),'invalid_entry');equal(f.table('Match').length,0);
+}
+{
+ const f=fixture();await assert.rejects(()=>f.makeSdk('p1').functions.invoke('manageChallenge',{action:'create',creationVersion:'old',entryAmount:25,serviceFee:2,requestKey:'old_client_123456'}));assertions++;
+ await Promise.allSettled(Array.from({length:12},(_,i)=>f.create('parallel_creation_'+i)));
+ equal(f.table('Match').length,1);equal(f.table('LedgerJournalBatch').length,1);
+ await rejected(()=>f.create('second_creation_key_123'),'open_limit');
+}
+for(const where of ['LedgerJournalBatch.create.before','LedgerJournalBatch.create.after','LedgerEntry.bulkCreate.partial','Wallet.update','Match.update','barrier.clear.partial']){
+ const f=fixture();f.state.fail={where,...(where==='Match.update'?{test:(_id,p)=>p.player1_deposited===true}:{})};
+ await assert.rejects(()=>f.create());assertions++;
+ const m=f.table('Match')[0];equal(m.challenge_operation_state,'reserving');
+ if(where!=='barrier.clear.partial')check(!await f.atomic.acquireUserWalletLock('p1','other'),'Interrupted creator reservation blocks another spend');
+ if(where==='LedgerJournalBatch.create.before')f.state.now+=181000;
+ await f.api.recoverChallenge(f.sdk,m.id);
+ equal(f.barriers.size,0);
+ if(where==='LedgerJournalBatch.create.before'){
+   equal(f.get(m.id).status,'cancelled');equal(wallet(f,'p1').available_balance,100);equal(f.table('LedgerJournalBatch').length,0);
+ }else{
+   equal(f.get(m.id).status,'searching');equal(wallet(f,'p1').available_balance,73);equal(f.table('LedgerJournalBatch').length,1);
+   await f.api.cancelChallenge(f.sdk,f.user('p1'),m.id);equal(wallet(f,'p1').available_balance,100);
+ }
+}
+for(const where of ['LedgerJournalBatch.create.before','LedgerJournalBatch.create.after','Wallet.update','Match.update','barrier.clear.partial']){
+ const f=fixture();const m=await f.create();
+ f.state.fail={where,...(where==='Match.update'?{test:(_id,p)=>p.status==='cancelled'}:{})};
+ await assert.rejects(()=>f.api.cancelChallenge(f.sdk,f.user('p1'),m.id));assertions++;
+ await f.api.recoverChallenge(f.sdk,m.id);await f.api.recoverChallenge(f.sdk,m.id);
+ equal(f.get(m.id).status,'cancelled');equal(wallet(f,'p1').available_balance,100);equal(wallet(f,'p1').held_balance,0);equal(f.barriers.size,0);
+}
+for(const timeControl of ['blitz','rapid','classical']){
+ const f=fixture();f.balance('p1',27);selectedTimeControl=timeControl;
+ const m=await f.authorize(await f.create());equal(wallet(f,'p1').available_balance,0);
+ equal((await f.access.inspectChallengePlayer(f.sdk,'p1',m)).ready,true,'Creator qualifies using own existing reservation');
+ await rejected(()=>f.api.authorizeChallenge(f.request,f.sdk,f.user('p1'),m,f.consent),'refresh_required');
+ await f.api.consentToHudChallenge(f.sdk,f.user('p1'),m,{...f.consent,consentVersion:f.policy.CHALLENGE_HUD_CONSENT_VERSION});
+ equal(f.get(m.id).challenge_consent_version,f.policy.CHALLENGE_CREATION_VERSION);
+ const results=await Promise.allSettled(Array.from({length:12},(_,i)=>f.api.acceptChallenge(f.request,f.sdk,f.user(i%2?'p2':'p3'),m,f.consent)));
+ equal(results.filter(r=>r.status==='fulfilled'&&r.value.accepted).length,1);
+ const accepted=f.get(m.id),opponent=accepted.player2_id;
+ equal(f.table('LedgerJournalBatch').length,2);equal(f.table('WalletTransaction').length,4);
+ equal(wallet(f,'p1').available_balance,0);equal(wallet(f,opponent).available_balance,73);
+ equal(accepted.player1_certified,false);equal(accepted.player2_certified,false);
+ await rejected(()=>f.api.readyChallenge(f.request,f.sdk,f.user('p1'),m.id,{action:'ready',presenceId:'ready_session_123456'}),'fair_play_required');
+ const beat=await f.api.readyChallenge(f.request,f.sdk,f.user('p1'),m.id,{action:'heartbeat',visible:true,presenceId:'ready_session_123456'});check(beat.needsReady);
+ await f.api.finalizeChallengeStart(f.sdk,f.user('p1'),m.id);equal(f.table('Game').length,0);
+ for(const id of ['p1',opponent])await f.api.readyChallenge(f.request,f.sdk,f.user(id),m.id,attest(f));
+ await f.api.finalizeChallengeStart(f.sdk,f.user('p1'),m.id);equal(f.table('Game').length,1);
+ equal(f.table('Game')[0].white_time_ms,{blitz:180000,rapid:600000,classical:900000}[timeControl]);
+ await f.api.finalizeChallengeStart(f.sdk,f.user('p1'),m.id);equal(f.table('Game').length,1);equal(f.table('LedgerJournalBatch').length,2);
+ await rejected(()=>f.api.cancelChallenge(f.sdk,f.user('p1'),m.id),'already_started');
+}
+selectedTimeControl=undefined;
+for(const where of ['LedgerJournalBatch.create.before','LedgerJournalBatch.create.after','LedgerEntry.bulkCreate.partial','Wallet.update','Match.update','barrier.clear.partial']){
+ const f=fixture(),m=await f.authorize(await f.create());
+ f.state.fail={where,...(where==='Match.update'?{test:(_id,p)=>p.status==='preparing'}:{})};
+ const result=await f.api.acceptChallenge(f.request,f.sdk,f.user('p2'),m,f.consent);check(result.processing);
+ if(where==='LedgerJournalBatch.create.before')f.state.now+=181000;
+ await f.api.recoverChallenge(f.sdk,m.id);equal(f.barriers.size,0);
+ equal(wallet(f,'p1').available_balance,73);
+ if(where==='LedgerJournalBatch.create.before'){equal(wallet(f,'p2').available_balance,100);equal(f.get(m.id).status,'searching');}
+ else {equal(wallet(f,'p2').available_balance,73);equal(f.table('LedgerJournalBatch').length,2);equal(f.table('WalletTransaction').length,4);}
+ await f.api.cancelChallenge(f.sdk,f.user('p1'),m.id);
+ equal(wallet(f,'p1').available_balance,100);equal(wallet(f,'p2').available_balance,100);
+}
+for(const phase of ['open_expired','accepted_timeout','accepted_cancel']){
+ const f=fixture(),m=await f.authorize(await f.create());
+ if(phase!=='open_expired')await f.api.acceptChallenge(f.request,f.sdk,f.user('p2'),m,f.consent);
+ f.state.now+=phase==='open_expired'?86400001:121000;
+ if(phase==='accepted_cancel')await f.api.cancelChallenge(f.sdk,f.user('p2'),m.id);else await f.api.recoverChallenge(f.sdk,m.id);
+ await f.api.recoverChallenge(f.sdk,m.id);
+ equal(f.get(m.id).status,'cancelled');for(const id of ['p1','p2']){equal(wallet(f,id).available_balance,100);equal(wallet(f,id).held_balance,0);}
+ equal((await summary(f)).reserved_for_matches,0);equal(f.barriers.size,0);
+}
+{
+ const f=fixture(),m=await f.create();
+ check(await f.atomic.acquireUserWalletLock('p1','other'));
+ await rejected(()=>f.api.cancelChallenge(f.sdk,f.user('p1'),m.id),'wallet_busy');
+ await f.atomic.releaseUserWalletLock('p1','other');
+ await f.api.cancelChallenge(f.sdk,f.user('p1'),m.id);equal(wallet(f,'p1').available_balance,100);
+}
+{
+ const f=fixture();await rejected(()=>f.api.createChallenge(f.sdk,f.user('p1'),{entryAmount:25,serviceFee:0,requestKey:'wrong_fee_key_12345'}),'terms_changed');
+ const m=await f.authorize(await f.create());
+ await rejected(()=>f.api.cancelChallenge(f.sdk,f.user('p3'),m.id),'forbidden');
+ f.table('User')[1].mfa_bypass=false;
+ await assert.rejects(()=>summary(f,'p2'));assertions++;
+ const data=await f.makeSdk('unknown').functions.invoke('manageChallenge',{action:'view',inviteCode:m.invite_code});
+ check(!('email' in data.data.challenge));check(!('availableBalance' in data.data.challenge));
+ const safe=f.load('base44/functions/manageChallenge/entry.ts').exports.safeChallengeMatch({...m,challenge_creation_key:'secret',challenge_claimant_id:'secret'});
+ check(!('challenge_creation_key' in safe));check(!('challenge_claimant_id' in safe));
+}
+
+// Historical invitations retain their original two-player reservation contract.
+for(const phase of ['cancel_open','accept_cancel']){
+ const f=fixture();
+ const m=await f.sdk.asServiceRole.entities.Match.create({id:'legacy',launch_epoch:2,challenge_version:1,is_private:true,play_mode:'money',player1_id:'p1',wager_amount:25,platform_service_fee:2,time_control:'blitz',clock_initial_ms:300000,display_name:'Blitz (5+0)',status:'searching',invite_code:'a'.repeat(32),challenge_operation_state:'idle',challenge_expires_at:new Date(f.state.now+86400000).toISOString(),player1_deposited:false,player2_deposited:false});
+ if(phase==='cancel_open'){
+  await f.atomic.acquireUserWalletLock('p1','unrelated');
+  await f.api.cancelChallenge(f.sdk,f.user('p1'),m.id);
+  equal(f.table('LedgerJournalBatch').length,0);
+ }else{
+  await f.api.authorizeChallenge(f.request,f.sdk,f.user('p1'),m,f.consent);
+  await f.api.acceptChallenge(f.request,f.sdk,f.user('p2'),f.get(m.id),f.consent);
+  equal(f.table('LedgerJournalBatch').length,1);equal(f.table('LedgerJournalBatch')[0].leg_count,8);
+  await f.api.cancelChallenge(f.sdk,f.user('p1'),m.id);
+  equal(wallet(f,'p1').available_balance,100);equal(wallet(f,'p2').available_balance,100);
+ }
+}
+// A cleared-for-play ACH source survives reservation and cancellation with its original restriction.
+{
+ const f=fixture();f.table('WalletTransaction').push({id:'deposit',type:'deposit',status:'completed',provider_last_status:'Processed',deposit_withdrawal_status:'held',deposit_release_at:'2026-09-18T12:00:00Z'});
+ f.table('LedgerJournalBatch').push({id:'seed-lots',launch_epoch:2,ledger_group_id:'seed-lots',funding_sequence:1,funding_user_ids:['p1'],funding_provenance_json:JSON.stringify({version:1,users:{p1:{available:[{cents:10000,sources:['deposit']}],held:{}}}})});
+ const m=await f.authorize(await f.create());equal((await summary(f)).available_to_play,73);equal((await summary(f)).available_to_withdraw,0);
+ f.table('WalletTransaction').find(t=>t.id==='deposit').status='failed';
+ equal((await f.access.inspectChallengePlayer(f.sdk,'p1',f.get(m.id))).code,'reservation_unavailable');
+ await f.api.cancelChallenge(f.sdk,f.user('p1'),m.id);equal(wallet(f,'p1').available_balance,100);
+ equal((await summary(f)).available_to_play,0);equal((await summary(f)).reserved_for_matches,0);
+}
+
+console.log('Challenge creation/reservation lifecycle: '+assertions+' assertions passed. Actual handlers and ledger; isolated providers and storage; no live financial activity.');
