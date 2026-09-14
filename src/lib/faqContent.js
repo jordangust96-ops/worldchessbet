@@ -21,7 +21,8 @@ export const FAQ_SECTIONS = [
         list: [
           "Create an account and complete the required identity and location checks.",
           "Connect an eligible bank account and fund your wallet.",
-          "Host a challenge or accept one from another player.",
+          "Create and share a Challenge Someone link, or use Find an Opponent for the public marketplace. Creating a link does not require a funded wallet or reserve an opponent.",
+          "For a shared challenge, both players need sufficient Available Balance. The creator enables acceptance, the recipient reviews and accepts the entry plus separate fee, and both players then confirm readiness.",
           "Complete the match.",
           "After a decisive settlement, winnings remain pending for the standard 24-hour reporting window. Automatic release follows when the deadline has passed and no open dispute or blocking integrity or settlement-reconciliation flag remains.",
         ],
@@ -80,6 +81,20 @@ export const FAQ_SECTIONS = [
   {
     category: "Matches",
     items: [
+      {
+        question: "Can I challenge a friend or share a match link?",
+        paragraphs: [
+          "Yes. Use Challenge Someone to create a five-minute Blitz invitation and share its link. Ordinary links can be accepted by the first eligible, funded holder while the creator has enabled acceptance. A rematch link may be restricted to your previous opponent. Open links normally expire after 24 hours.",
+          "The creator enables a two-minute acceptance window after confirming the terms and current eligibility. This reserves nothing. Successful final acceptance reserves both players’ entry amounts and separate fees together, then both players explicitly ready up before play starts.",
+        ],
+      },
+      {
+        question: "Does starting a deposit reserve a challenge for me?",
+        paragraphs: [
+          "No. Opening a link, signing up, verifying your account or starting a deposit does not claim a challenge. Pending and Clearing funds cannot be used to accept it. The link stays open, the creator may play elsewhere, and another eligible player may accept first.",
+          "The wallet can remember the invitation you were viewing without reserving it. When your funds become available, revisit the link or create a new challenge. Deposits and pending winnings keep their existing clearance and release rules.",
+        ],
+      },
       {
         question: "How are matches protected?",
         list: [
