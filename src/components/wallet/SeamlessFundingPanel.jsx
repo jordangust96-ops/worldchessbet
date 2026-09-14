@@ -253,7 +253,7 @@ export default function SeamlessFundingPanel({
   const displayedBank = direction === "deposit" ? (providerPrimaryBank || verifiedBank) : verifiedBank;
   const displayedBankVerified = displayedBank?.status === "verified";
   const transferDirectionEnabled = direction === "deposit" ? depositsEnabled : withdrawalsEnabled;
-  const availableBalance = loadError ? 0 : (state?.funding?.available_to_withdraw || 0);
+  const availableBalance = loadError ? 0 : (state?.funding?.available_to_play || 0);
   const meetsMinimum = direction === "deposit" ? parsedAmount >= MIN_DEPOSIT_AMOUNT : parsedAmount > 0;
   const exceedsAvailableBalance = direction === "withdrawal" && parsedAmount > availableBalance + 0.005;
   const exceedsWithdrawalLimit = direction === "withdrawal" && parsedAmount > 1100;
