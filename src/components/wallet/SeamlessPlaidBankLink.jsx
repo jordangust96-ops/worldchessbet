@@ -156,7 +156,7 @@ export default function SeamlessPlaidBankLink({
         <div className="flex items-start gap-2 text-xs text-white/55">
           <ShieldCheck size={16} className="mt-0.5 shrink-0 text-[#C9A84C]" />
           <span>
-            SeamlessChex uses Plaid to verify your bank instantly. Your bank login and account numbers never pass through ChessBet.
+            SeamlessChex uses Plaid to connect and verify your bank. Verification timing depends on your bank and provider confirmation. You enter bank-login credentials and complete account numbers in the hosted flow.
           </span>
         </div>
 
