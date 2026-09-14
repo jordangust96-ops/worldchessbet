@@ -32,6 +32,7 @@ const OfficialRulesAdmin = lazy(() => import("@/pages/OfficialRulesAdmin"));
 const FairPlayIntegrity = lazy(() => import("@/pages/FairPlayIntegrity"));
 const Unsubscribe = lazy(() => import("@/pages/Unsubscribe"));
 const JoinMatch = lazy(() => import("@/pages/JoinMatch"));
+const ChallengePage = lazy(() => import("@/pages/ChallengePage"));
 const IntegrityReviewQueue = lazy(() => import("@/pages/IntegrityReviewQueue"));
 const AdminUserIntegrity = lazy(() => import("@/pages/AdminUserIntegrity"));
 const AdminGameSettings = lazy(() => import("@/pages/AdminGameSettings"));
@@ -114,6 +115,7 @@ function RoutedApplication() {
         <Route path="/fair-play-integrity" element={<FairPlayIntegrity />} />
         <Route path="/unsubscribe" element={<Unsubscribe />} />
         <Route path="/join/:inviteCode" element={<JoinMatch />} />
+        <Route path="/challenge/:inviteCode" element={<ChallengePage />} />
 
         <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/" replace />} />}>
             <Route path="/verify-mfa" element={<VerifyMfa />} />

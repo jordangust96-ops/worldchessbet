@@ -4,6 +4,8 @@ import { Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import PreparingMatchScreen from "@/components/play/matchview/PreparingMatchScreen";
+import ChallengeReadyScreen from "@/components/play/matchview/ChallengeReadyScreen";
+import { challengeRequest } from "@/lib/challengeApi";
 import MatchStartCountdown from "@/components/play/matchview/MatchStartCountdown";
 import GameHUD from "@/components/play/matchview/GameHUD";
 import FinalizingMatch from "@/components/play/matchview/FinalizingMatch";
@@ -57,7 +59,8 @@ export default function MatchView({
   // Wallet entity can no longer be written to directly from the client.
   const handleCancel = async (matchToCancel) => {
     selfCancelledRef.current = true;
-    await base44.functions.invoke("cancelMatch", { matchId: matchToCancel.id });
+    if (Number(matchToCancel.challenge_version) === 1) await challengeRequest("cancel", { matchId: matchToCancel.id });
+    else await base44.functions.invoke("cancelMatch", { matchId: matchToCancel.id });
   };
 
   const isActive = match && match.status !== "cancelled";
@@ -107,8 +110,9 @@ export default function MatchView({
       // Amount here — identical screen and identical actions for host and
       // joiner alike, for both public and private matches.
       stateKey = "preparing";
+      const PreparationScreen = Number(match.challenge_version) === 1 ? ChallengeReadyScreen : PreparingMatchScreen;
       content = (
-        <PreparingMatchScreen
+        <PreparationScreen
           match={match}
           userId={userId}
           opponentId={opponentId}

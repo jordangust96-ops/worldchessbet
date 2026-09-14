@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import Logo from "@/components/Logo";
@@ -18,6 +19,8 @@ import {
 } from "@/lib/gameSounds";
 
 export default function Home() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [wallet, setWallet] = useState(null);
   const settledWalletRefreshRef = useRef(null);
@@ -27,6 +30,19 @@ export default function Home() {
   // the one Match subscription below, and passed down to MatchView as a prop
   // instead of MatchView opening its own duplicate subscription.
   const [activeMatch, setActiveMatch] = useState(null);
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const code = params.get('resumeChallenge');
+    if (/^[a-f0-9]{32}$/.test(code || '')) { navigate('/challenge/' + code, { replace:true }); return; }
+    const id = params.get('match');
+    if (!user?.id || !/^[a-zA-Z0-9_-]{1,100}$/.test(id || '')) return;
+    base44.entities.Match.get(id).then(match => {
+      if (Number(match?.launch_epoch) === 2 && [match.player1_id,match.player2_id].includes(user.id) &&
+          ['preparing','both_ready','in_progress','settling','completed'].includes(match.status)) {
+        setMyMatchId(match.id); setActiveMatch(match);
+      }
+    }).catch(() => {});
+  }, [location.search,user?.id,navigate]);
   const myMatchIdRef = useRef(myMatchId);
   useEffect(() => {
     myMatchIdRef.current = myMatchId;
@@ -118,8 +134,8 @@ export default function Home() {
     };
 
     const checkActiveMatch = async () => {
-      const asP1 = await base44.entities.Match.filter({ launch_epoch: 2, player1_id: user.id }, "-created_date", 5);
-      const asP2 = await base44.entities.Match.filter({ launch_epoch: 2, player2_id: user.id }, "-created_date", 5);
+      const asP1 = await base44.entities.Match.filter({ launch_epoch: 2, player1_id: user.id, status: { $in: ["preparing","both_ready","in_progress"] } }, "-created_date", 10);
+      const asP2 = await base44.entities.Match.filter({ launch_epoch: 2, player2_id: user.id, status: { $in: ["preparing","both_ready","in_progress"] } }, "-created_date", 10);
       const candidates = [...asP1, ...asP2].filter(
         (m) => ["preparing", "both_ready", "in_progress"].includes(m.status) && m.id !== dismissedMatchIdRef.current
       );
@@ -176,8 +192,8 @@ export default function Home() {
       requestInFlight = true;
       try {
         const [asP1, asP2] = await Promise.all([
-          base44.entities.Match.filter({ launch_epoch: 2, player1_id: user.id }, "-created_date", 5),
-          base44.entities.Match.filter({ launch_epoch: 2, player2_id: user.id }, "-created_date", 5),
+          base44.entities.Match.filter({ launch_epoch: 2, player1_id: user.id, status: { $in: ["preparing","both_ready","in_progress"] } }, "-created_date", 10),
+          base44.entities.Match.filter({ launch_epoch: 2, player2_id: user.id, status: { $in: ["preparing","both_ready","in_progress"] } }, "-created_date", 10),
         ]);
         const candidate = [...asP1, ...asP2].find(
           (m) =>
@@ -229,11 +245,11 @@ export default function Home() {
     });
   }, [myMatchId, activeMatch?.id]);
 
-  const handleRefreshActiveMatch = async () => {
+  const handleRefreshActiveMatch = useCallback(async () => {
     if (!myMatchId) return;
     const m = await base44.entities.Match.get(myMatchId);
     setActiveMatch(m);
-  };
+  }, [myMatchId]);
 
   // Realtime remains the primary Match update path. While a completed Game is
   // waiting for its Match settlement record, briefly poll the one active Match
@@ -390,7 +406,7 @@ export default function Home() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           ref={boardAreaRef}
-          className="w-full min-w-0 min-h-0 lg:h-full lg:flex-[62_1_0%] lg:flex lg:flex-col lg:items-center lg:justify-center lg:overflow-hidden gap-3"
+          className={`${gameActive || boardState === "countdown" ? "w-full" : "hidden lg:flex"} min-w-0 min-h-0 lg:h-full lg:flex-[62_1_0%] lg:flex lg:flex-col lg:items-center lg:justify-center lg:overflow-hidden gap-3`}
           style={desktopBoardSize ? /** @type {any} */ ({ "--desktop-board-size": `${desktopBoardSize}px` }) : undefined}
         >
           <ChessboardPreview
