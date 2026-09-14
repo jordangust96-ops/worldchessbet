@@ -1,6 +1,7 @@
 {
   "name": "Match",
   "properties": {
+    "challenge_publicly_listed": { "type": "boolean", "default": false, "description": "Creator opt-in to Find an Opponent. Discovery only; shared challenge acceptance and participant-only record access remain unchanged.", "rls": { "write": false } },
     "challenge_version": {
       "type": "integer",
       "description": "1 identifies challenge-first invitation records. Unset on legacy/public matches."

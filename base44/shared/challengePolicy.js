@@ -84,6 +84,7 @@ export function publicChallenge(match, hostName = 'ChessBet player', now = Date.
       match.status === 'cancelled' ? 'cancelled' : match.status === 'completed' ? 'completed' : 'claimed',
     creatorReady: open && !processing && creatorAuthorized(match, now),
     creatorReadyUntil: open && !processing ? match.challenge_authorized_until || null : null,
+    publiclyListed: match.challenge_publicly_listed === true,
     isRematch: Boolean(match.challenge_rematch_of),
     // Never expose another player's balance, email, identity result, raw user ID, or location.
   };

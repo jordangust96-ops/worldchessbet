@@ -45,7 +45,7 @@ export async function readPublicMatchRatings(entities, matches) {
     match?.id &&
     match?.player1_id &&
     match?.status === 'searching' &&
-    match?.is_private !== true &&
+    (match?.is_private !== true || (match?.challenge_version === 1 && match?.challenge_publicly_listed === true)) &&
     VALID_POOLS.has(match?.time_control)
   );
   const unavailable = everyMatch(matches, 'unavailable');

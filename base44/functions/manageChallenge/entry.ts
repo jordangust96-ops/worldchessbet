@@ -2,7 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 import { ChallengeError, fail, requireChallengeSession, inspectChallengePlayer } from '../../shared/challengeAccess.ts';
 import { resolveChallenge, viewChallenge, createChallenge, listMyChallenges, authorizeChallenge,
   acceptChallenge, cancelChallenge, readyChallenge, finalizeChallengeStart, recoverChallenge,
-  pingChallengeCreator, challengeEvent } from '../../shared/challengeLifecycle.ts';
+  pingChallengeCreator, challengeEvent, setChallengeVisibility } from '../../shared/challengeLifecycle.ts';
 import { CHALLENGE_VERSION, isChallenge, publicChallenge, challengePath } from '../../shared/challengePolicy.js';
 import { takeChallengeRateLimit } from '../../shared/seamlessAtomicStore.ts';
 import { getOriginalClientIp } from '../../shared/jurisdictionGates.js';
@@ -114,6 +114,7 @@ Deno.serve(async (req) => {
       await challengeEvent(base44, match, 'funding_intent', user.id, 'context_only', String(Math.floor(Date.now()/3600000)));
       return response({ remembered:true, reserved:false });
     }
+    if (action === 'visibility') return response(await setChallengeVisibility(base44,user,match,body));
     if (action === 'authorize') return response(await authorizeChallenge(req,base44,user,match,body));
     if (action === 'accept') {
       const result = await acceptChallenge(req,base44,user,match,body);

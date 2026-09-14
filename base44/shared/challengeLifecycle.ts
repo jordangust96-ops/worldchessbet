@@ -89,6 +89,8 @@ export async function createChallenge(base44: any, user: any, body: any) {
   if (!VALID_REQUEST_KEY.test(String(body.requestKey || ''))) fail('invalid_request', 'Please refresh and try again.', 400);
   const timeControl = challengeTimeControl(body.timeControl);
   if (!timeControl) fail('invalid_time_control', 'Choose Blitz, Rapid, or Classical.', 400);
+  if (body.publiclyListed !== undefined && typeof body.publiclyListed !== 'boolean') fail('invalid_visibility', 'Choose whether to show the challenge in Find an Opponent.', 400);
+  if (body.publiclyListed === true && body.rematchOf) fail('private_rematch', 'A rematch for a specific opponent must remain link-only.', 400);
   await requireChallengePolicies(base44, user.id);
   return withChallengeCreationLock(user.id, async checkLease => {
     const existing = await base44.asServiceRole.entities.Match.filter({
@@ -117,7 +119,7 @@ export async function createChallenge(base44: any, user: any, body: any) {
       launch_epoch: 2, player1_id: user.id, wager_amount: Number(body.entryAmount),
       platform_service_fee: getPlatformServiceFee(Number(body.entryAmount)), platform_fee_schedule_version: PLATFORM_FEE_SCHEDULE_VERSION,
       time_control: timeControl.value, display_name: timeControl.displayName, clock_initial_ms: timeControl.clockMs,
-      status: 'searching', is_private: true, invite_code: code, challenge_version: CHALLENGE_VERSION,
+      status: 'searching', is_private: true, challenge_publicly_listed: body.publiclyListed === true, invite_code: code, challenge_version: CHALLENGE_VERSION,
       challenge_creation_key: body.requestKey, challenge_location_started_at: createdAt,
       challenge_rematch_of: rematchOf, challenge_target_id: targetId,
       challenge_expires_at: new Date(Date.now() + CHALLENGE_TTL_MS).toISOString(),
@@ -135,6 +137,21 @@ export async function listMyChallenges(base44: any, user: any) {
   return { challenges: rows.filter((m: any) => m.status !== 'searching' || !challengeExpired(m) || activeOperation(m)).map((m: any) => ({
     ...publicChallenge(m, publicName(user)), inviteCode: m.invite_code, path: challengePath(m.invite_code),
   })) };
+}
+
+export async function setChallengeVisibility(base44: any, user: any, match: any, body: any) {
+  if (match.player1_id !== user.id) fail('forbidden', 'Only the creator can change visibility.', 403);
+  if (typeof body.publiclyListed !== 'boolean') fail('invalid_visibility', 'Choose a visibility setting.', 400);
+  return underMatchLock(base44, match.id, async fresh => {
+    if (fresh.player1_id !== user.id) fail('forbidden', 'Only the creator can change visibility.', 403);
+    if (fresh.status !== 'searching' || challengeExpired(fresh) || activeOperation(fresh))
+      fail('unavailable', 'Visibility can only be changed for an open challenge.');
+    if (body.publiclyListed && fresh.challenge_target_id) fail('private_rematch', 'A rematch for a specific opponent must remain link-only.', 400);
+    if ((fresh.challenge_publicly_listed === true) === body.publiclyListed) return { challenge:publicChallenge(fresh) };
+    const updated = await base44.asServiceRole.entities.Match.update(fresh.id, { challenge_publicly_listed:body.publiclyListed });
+    await challengeEvent(base44,updated,'visibility_changed',user.id,body.publiclyListed ? 'public' : 'link_only',nowIso());
+    return { challenge:publicChallenge(updated) };
+  });
 }
 
 export async function authorizeChallenge(req: Request, base44: any, user: any, match: any, body: any) {
