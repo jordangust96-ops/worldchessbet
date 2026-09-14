@@ -93,6 +93,7 @@ export default function SeamlessFundingPanel({
   accountState,
   withdrawalHold,
   onRefresh,
+  onFundingState,
 }) {
   const [state, setState] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -117,6 +118,7 @@ export default function SeamlessFundingPanel({
       const { data } = await base44.functions.invoke("getSeamlessWalletState", {});
       if (data?.identity) data.identity.sync_unavailable = syncUnavailable;
       setState(data);
+      if (onFundingState) onFundingState(data?.funding || null);
       setLoadError(false);
       return data;
     } catch {
@@ -124,18 +126,18 @@ export default function SeamlessFundingPanel({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onFundingState]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, [load, wallet?.available_balance, wallet?.held_balance]);
 
   // Keep the open wallet current while a bank transfer is processing or a
   // processed deposit is in its clearing window. The backend remains the
   // authoritative 15-minute monitor even when this page is closed.
   useEffect(() => {
-    const hasPending = loadError ||
+    const hasPending = loadError || Number(state?.funding?.withdrawal_restricted_balance) > 0 ||
       ["pending", "incomplete", "review_required"].includes(state?.identity?.status) ||
       state?.banks?.some((b) => ["added", "pending_verification"].includes(b.status)) ||
-      state?.recent?.some((t) => t.status === "pending" || t.deposit_hold_status === "held");
+      state?.recent?.some((t) => t.status === "pending" || t.deposit_hold_status === "held" || t.deposit_withdrawal_status === "held");
     if (!hasPending) {
       pollAttempts.current = 0;
       return;
@@ -223,7 +225,7 @@ export default function SeamlessFundingPanel({
   // withdrawing the entire available balance skips the small-withdrawal fee,
   // so a balance under $10 (or even under the fee itself) is never stranded.
   const isFullBalanceWithdrawal =
-    !!wallet && parsedAmount > 0 && parsedAmount >= (wallet.available_balance || 0) - 0.005;
+    !!wallet && parsedAmount > 0 && parsedAmount >= (state?.funding?.available_to_withdraw || 0) - 0.005;
 
   const journey = walletJourneyCopy({wallet: wallet || {}, funding: state || {}, pendingDeposits});
   const location = state?.onboarding_location?.allowed ? state.onboarding_location : locationOverride || state?.onboarding_location;
@@ -251,7 +253,7 @@ export default function SeamlessFundingPanel({
   const displayedBank = direction === "deposit" ? (providerPrimaryBank || verifiedBank) : verifiedBank;
   const displayedBankVerified = displayedBank?.status === "verified";
   const transferDirectionEnabled = direction === "deposit" ? depositsEnabled : withdrawalsEnabled;
-  const availableBalance = wallet?.available_balance || 0;
+  const availableBalance = loadError ? 0 : (state?.funding?.available_to_withdraw || 0);
   const meetsMinimum = direction === "deposit" ? parsedAmount >= MIN_DEPOSIT_AMOUNT : parsedAmount > 0;
   const exceedsAvailableBalance = direction === "withdrawal" && parsedAmount > availableBalance + 0.005;
   const exceedsWithdrawalLimit = direction === "withdrawal" && parsedAmount > 1100;
@@ -298,6 +300,13 @@ export default function SeamlessFundingPanel({
       </section>
 
       {/* Provider webhooks are authoritative for account and bank status. */}
+      {Number(state?.funding?.withdrawal_restricted_balance) > 0 && (
+        <div className="rounded-xl border border-[#C9A84C]/20 bg-[#C9A84C]/5 p-3 text-xs text-white/70">
+          ${Number(state.funding.withdrawal_restricted_balance).toFixed(2)} is under a bank withdrawal hold.
+          {state.funding.next_withdrawal_review_at && <> Next review: {new Date(state.funding.next_withdrawal_review_at).toLocaleString()}.</>}
+          {" "}Deposits can be played after bank confirmation. Withdrawals require five business days from submission and a final bank check. Prizes and refunds may inherit the remaining hold.
+        </div>
+      )}
       {effectiveWithdrawalHold && (
         <p className="text-xs text-red-400/80 text-center">
           Withdrawals are temporarily on hold while we complete a routine account review.
@@ -575,7 +584,7 @@ export default function SeamlessFundingPanel({
                   disabled={ineligible || !withdrawalsEnabled || !!busy}
                   className="w-full text-center text-xs font-medium text-[#C9A84C] hover:underline disabled:opacity-40"
                 >
-                  {availableBalance > 1100 ? "Withdraw $1,100.00 — no fee" : `Withdraw full balance ($${availableBalance.toFixed(2)}) — no fee`}
+                  {availableBalance > 1100 ? "Withdraw $1,100.00 — no fee" : `Withdraw available funds ($${availableBalance.toFixed(2)}) — no fee`}
                 </button>
               )}
 
@@ -589,7 +598,7 @@ export default function SeamlessFundingPanel({
 
               {exceedsAvailableBalance && (
                 <p className="text-center text-xs text-red-400">
-                  Enter an amount no greater than your ${availableBalance.toFixed(2)} available balance.
+                  Enter an amount no greater than your ${availableBalance.toFixed(2)} available-to-withdraw balance.
                 </p>
               )}
 

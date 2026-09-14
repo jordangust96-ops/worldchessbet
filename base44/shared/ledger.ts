@@ -1,3 +1,4 @@
+import { prepareFundingCommit } from './fundingProvenance.ts';
 import { allLedgerRows } from './ledgerPagination.ts';
 import { recordIntegrationEvent } from './integrationEvents.ts';
 import { acquireLedgerLock, releaseLedgerLock, refreshLedgerLock, getUserWalletBarrier } from './seamlessAtomicStore.ts';
@@ -104,7 +105,7 @@ export async function rebuildLedgerBalances(base44, { userIds = [], systemAccoun
 // If a worker disappears after step 2, retrying the deterministic group (or
 // the scheduled materialization sweep) repairs every projection without
 // moving money twice.
-export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletTransactionId, actor, actorId, triggerEvent, externalRefType, externalRefId, legs, updateTransactions = true, beforePost = null, afterPost = null }) {
+export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletTransactionId, actor, actorId, triggerEvent, externalRefType, externalRefId, legs, updateTransactions = true, beforePost = null, afterPost = null, withdrawalFee = 0 }) {
   const correlationId = matchId || walletTransactionId || groupId;
   if (!groupId || !Array.isArray(legs) || legs.length < 1) {
     throw new Error('Invalid ledger posting request');
@@ -243,7 +244,10 @@ export async function postLedgerLegs(base44, { groupId, matchId, gameId, walletT
     if (batches.length > 1) throw new Error('duplicate_ledger_journal_batch');
     await assertLedgerLease();
     if (!batches[0]) {
+      const fundingCommit = existing.length ? {} : await prepareFundingCommit(base44, legs, { groupId, matchId, walletTransactionId, triggerEvent, withdrawalFee });
+      await assertLedgerLease();
       await base44.asServiceRole.entities.LedgerJournalBatch.create({
+        ...fundingCommit,
         ledger_group_id: groupId,
         correlation_id: correlationId,
         wallet_transaction_id: walletTransactionId || '',

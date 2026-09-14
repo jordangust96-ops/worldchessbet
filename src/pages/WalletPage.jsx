@@ -30,6 +30,7 @@ async function listCompletedMatchesForPlayer(field, userId) {
 
 export default function WalletPage() {
   const [wallet, setWallet] = useState(null);
+  const [funding, setFunding] = useState(null);
   const [pendingDeposits, setPendingDeposits] = useState(0);
   const [userId, setUserId] = useState(null);
   const [transactions, setTransactions] = useState([]);
@@ -238,20 +239,25 @@ export default function WalletPage() {
           <h1 className="text-4xl font-extrabold text-white mb-1">
             ${Number(wallet?.total_balance ?? wallet?.balance ?? 0).toFixed(2)}
           </h1>
-          <div className="mt-4 grid grid-cols-3 items-start gap-3 sm:gap-8">
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 items-start gap-3 sm:gap-8">
             <div>
-              <p className="text-[10px] uppercase text-white/30">Available</p>
+              <p className="text-[10px] uppercase text-white/30">Available to Play</p>
               <p className="text-sm font-bold text-emerald-400">
-                ${Number(wallet?.available_balance ?? wallet?.balance ?? 0).toFixed(2)}
+                ${Number(funding?.available_to_play ?? wallet?.available_balance ?? wallet?.balance ?? 0).toFixed(2)}
               </p>
-              <p className="mt-0.5 text-[10px] text-white/25">Ready to play or withdraw</p>
+              <p className="mt-0.5 text-[10px] text-white/25">Ready for contest entries</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase text-white/30">Available to Withdraw</p>
+              <p className="text-sm font-bold text-emerald-400">{funding ? '$' + Number(funding.available_to_withdraw).toFixed(2) : 'Checking…'}</p>
+              <p className="mt-0.5 text-[10px] text-white/25">Subject to account and bank checks</p>
             </div>
             <div className="border-x border-white/10 px-2 sm:px-8">
-              <p className="text-[10px] uppercase text-white/30">Clearing</p>
+              <p className="text-[10px] uppercase text-white/30">Reserved / Held</p>
               <p className="text-sm font-bold text-[#C9A84C]">
                 ${Number(wallet?.held_balance ?? 0).toFixed(2)}
               </p>
-              <p className="mt-0.5 text-[10px] text-white/25">Unavailable until settled</p>
+              <p className="mt-0.5 text-[10px] text-white/25">Contests, winnings review, or deposit checks</p>
             </div>
             <div>
               <p className="text-[10px] uppercase text-white/30">Pending</p>
@@ -269,6 +275,7 @@ export default function WalletPage() {
           accountState={accountState}
           withdrawalHold={withdrawalHold}
           onRefresh={loadData}
+          onFundingState={setFunding}
         />
 
         {/* Transactions */}

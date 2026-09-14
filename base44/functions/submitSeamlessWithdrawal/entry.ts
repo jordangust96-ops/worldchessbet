@@ -1,3 +1,4 @@
+import { walletFundingSummary } from '../../shared/fundingProvenance.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { seamlessWithdrawalsEnabled, seamlessRtpPayoutsEnabled } from '../../shared/seamlessFundingConfig.ts';
 import { extendComplianceEvidenceRetention } from '../../shared/complianceEvidence.ts';
@@ -28,13 +29,14 @@ async function upsertOperationAudit(base44, fields) {
   return base44.asServiceRole.entities.SeamlessOperation.create({ ...fields, operation_type: 'withdrawal', created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
 }
 
-async function reserveWithdrawal(base44, tx, amount) {
+async function reserveWithdrawal(base44, tx, amount, withdrawalFee = 0) {
   const groupId = `seamless:withdrawal:reserve:${tx.id}`;
   await postLedgerLegs(base44, {
       groupId,
       walletTransactionId: tx.id,
       actor: 'system',
       triggerEvent: 'withdrawal_reservation',
+      withdrawalFee,
       externalRefType: 'provider_payout',
       externalRefId: tx.id,
       legs: [
@@ -170,7 +172,8 @@ Deno.serve(async (req) => {
       : null;
     if (!tx) {
       const wallet = (await base44.asServiceRole.entities.Wallet.filter({ user_id: user.id }))[0];
-      const availableBalance = Number(wallet?.available_balance || 0);
+      const funding = await walletFundingSummary(base44, user.id);
+      const availableBalance = funding.available_to_withdraw;
       const baseFee = value < SMALL_WITHDRAWAL_THRESHOLD ? SMALL_WITHDRAWAL_FEE : 0;
       // A withdrawal of the user's entire available balance ("close out")
       // waives the small-withdrawal fee. Without this, a balance smaller than
@@ -210,7 +213,7 @@ Deno.serve(async (req) => {
     }
     const totalDebitAmount = value + withdrawalFee;
 
-    const reservationGroupId = await reserveWithdrawal(base44, tx, value);
+    const reservationGroupId = await reserveWithdrawal(base44, tx, value, withdrawalFee);
     operation = await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, wallet_transaction_id: tx.id, reservation_ledger_group_id: reservationGroupId, state: 'reserved' });
     await upsertOperationAudit(base44, {
       user_id: user.id, idempotency_key: idempotencyKey, wallet_transaction_id: tx.id, amount: value,

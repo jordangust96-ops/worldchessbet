@@ -111,7 +111,7 @@ export default function DepositReconciliationPanel() {
               I checked these actual amounts against the referenced Seamless evidence for this payment.
             </label>
             <Button type="submit" disabled={busy || !confirmed}>{busy ? 'Verifying…' : 'Verify and record evidence'}</Button>
-            <p className="text-xs text-white/50">An exact settlement match credits the requested wallet amount into clearing. The existing hold and final status check still apply.</p>
+            <p className="text-xs text-white/50">An exact settlement match makes the requested wallet amount eligible for play after provider verification. A separate withdrawal hold and final bank-status check still apply.</p>
           </>}
         </form>
       )}

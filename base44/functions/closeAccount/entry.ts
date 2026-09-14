@@ -1,3 +1,4 @@
+import { walletFundingSummary } from '../../shared/fundingProvenance.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { postLedgerLegs } from '../../shared/ledger.ts';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
@@ -129,7 +130,11 @@ Deno.serve(async (req) => {
       const wallets = await base44.asServiceRole.entities.Wallet.filter({ user_id: user.id });
       const wallet = wallets[0];
       if (wallet && wallet.available_balance > 0) {
-        payout = wallet.available_balance;
+        const funding = await walletFundingSummary(base44, user.id);
+        if (funding.withdrawal_restricted_balance > 0) {
+          return Response.json({ error: 'Some funds are available to play but remain under a bank withdrawal hold. Wait for the withdrawal review before closing your account, or contact support.', action: 'ach_withdrawal_hold', next_withdrawal_review_at: funding.next_withdrawal_review_at }, { status: 409 });
+        }
+        payout = funding.available_to_withdraw;
         if (payout > MAX_WITHDRAWAL_AMOUNT) {
           return Response.json({ error: 'After returning reserved contest funds, your balance exceeds the $1,100 bank transfer limit. Withdraw funds from your wallet before closing your account.', action: 'withdraw_balance_first', available_balance: payout }, { status: 409 });
         }

@@ -154,7 +154,7 @@ export async function sendDepositAvailableEmail(base44: any, transaction: any) {
       }
     } catch { /* Optional context never prevents a deposit notification. */ }
 
-    subject = `${amount} is now available in your ChessBet wallet`;
+    subject = `${amount} is now available to play in your ChessBet wallet`;
     const detailRow = (label: string, value: string, emphasize = false) => `
       <tr>
         <td style="padding:8px 0;color:#8f8f8f;font-size:13px;">${label}</td>
@@ -163,7 +163,7 @@ export async function sendDepositAvailableEmail(base44: any, transaction: any) {
 
     const bodyHtml = `
       <p>Hi ${firstName},</p>
-      <p>Your bank deposit has cleared and is now available in your ChessBet wallet. You can use these funds to enter an eligible head-to-head match.</p>
+      <p>Your bank deposit has been received and is now available to play in your ChessBet wallet. You can use these funds to enter an eligible head-to-head match.</p>
       <table role="presentation" style="width:100%;border-collapse:collapse;margin:20px 0;background:#111111;border:1px solid #242424;border-radius:12px;">
         <tbody>
           ${detailRow('Amount added', escapeHtml(amount), true)}
@@ -174,6 +174,7 @@ export async function sendDepositAvailableEmail(base44: any, transaction: any) {
           ${detailRow('Ready to play', escapeHtml(availableBalance), true)}
         </tbody>
       </table>
+      <p>Bank withdrawals have a separate five-business-day hold from deposit submission and require a final bank-status check. This deposit's withdrawal review is scheduled on or after ${escapeHtml(easternDate(fresh.deposit_release_at))}. Contest proceeds funded by this deposit inherit its remaining withdrawal hold; the standard contest reporting window also applies. Later bank returns remain possible.</p>
       ${challengeContextHtml}
       <p>Challenge someone you know or find an opponent. Review the entry and separate service fee before accepting. Both players need sufficient Available Balance; creating a link does not reserve funds.</p>
       <p style="color:#8f8f8f;font-size:12px;">You can review this deposit at any time from your <a href="${appUrl}/wallet" style="color:#C9A84C;text-decoration:none;">Transaction History</a>.</p>

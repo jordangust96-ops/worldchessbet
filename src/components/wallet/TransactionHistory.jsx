@@ -86,13 +86,11 @@ function getTransactionExplanation(tx, match) {
     return { heading: "Verifying deposit", text: "We are checking the bank charge, processor fee, and amount received with Seamless. This deposit is unavailable until verification and clearing are complete." };
   }
   if (tx.type === "deposit" && tx.deposit_hold_status === "held") {
-    const releaseText = tx.deposit_release_at
-      ? moment(tx.deposit_release_at).format("MMM D, YYYY")
-      : "the end of the bank clearing period";
-    return {
-      heading: "Clearing",
-      text: `${amount} was received by ChessBet and is being held safely while the ACH return-risk window closes. ChessBet will check Seamless again on or after ${releaseText}; it will become available to play or withdraw only if that check still confirms the deposit was processed.`,
-    };
+    return { heading: "Clearing", text: `${amount} is awaiting the final provider and settlement checks before it becomes available to play. A separate withdrawal hold applies.` };
+  }
+  if (tx.type === "deposit" && tx.deposit_hold_status === "released" && tx.deposit_withdrawal_status === "held") {
+    const review = tx.deposit_release_at ? moment(tx.deposit_release_at).format("MMM D, YYYY [at] h:mm A") : "the displayed withdrawal review date";
+    return { heading: "Available to play", text: `${amount} was made available for contest play. Withdrawal review is on or after ${review}, five business days from submission, and requires a successful final bank check. Prizes and refunds funded by this deposit inherit the remaining withdrawal hold. Later bank returns remain possible.` };
   }
   if (tx.type === "payout" && tx.payout_hold_status === "held") {
     const releaseText = tx.payout_release_at
@@ -100,7 +98,7 @@ function getTransactionExplanation(tx, match) {
       : "eligible for release after the 24-hour reporting window when no open dispute or blocking integrity or reconciliation flag remains";
     return {
       heading: "Pending release",
-      text: `You won this contest and ${amount} has been credited, but held pending the standard 24-hour contest reporting window — ${releaseText}. It does not count toward your available balance yet.`,
+      text: `You won this contest and ${amount} has been credited, but held pending the standard 24-hour contest reporting window — ${releaseText}. It does not count toward your available balance yet. Any inherited deposit withdrawal hold still applies after release.`,
     };
   }
   if (isSuppressedDuplicate(tx)) {

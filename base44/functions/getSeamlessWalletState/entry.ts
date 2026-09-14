@@ -1,3 +1,4 @@
+import { walletFundingSummary } from '../../shared/fundingProvenance.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import {
   seamlessProviderApproved,
@@ -45,6 +46,7 @@ Deno.serve(async (req) => {
 
     return Response.json({
       enabled: true,
+      funding: await walletFundingSummary(base44, user.id),
       provider_approved: seamlessProviderApproved(),
       paid_contests_enabled: paidContestsEnabled(),
       deposits_enabled: seamlessDepositsEnabled(),
@@ -79,6 +81,8 @@ Deno.serve(async (req) => {
         funding_source_id: tx.funding_source_id || '',
         deposit_hold_status: tx.deposit_hold_status || '',
         deposit_release_at: tx.deposit_release_at || '',
+        deposit_withdrawal_status: tx.deposit_withdrawal_status || '',
+        deposit_playable_at: tx.deposit_playable_at || '',
         provider_last_status: tx.provider_last_status || '',
         provider_last_checked_at: tx.provider_last_checked_at || '',
         created_date: tx.created_date,

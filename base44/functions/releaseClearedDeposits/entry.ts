@@ -1,168 +1,66 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
-import {
-  buildCheckLookupPath,
-  mapTransactionStatus,
-  seamlessConfig,
-  seamlessRequest,
-  SEAMLESS_PROVIDER_KEY,
-} from '../../shared/seamlessAch.ts';
-import {
-  releaseDepositAvailability,
-  reverseSeamlessSettlement,
-  recoverFeeDepositState,
-} from '../../shared/seamlessLedgerTransitions.ts';
-import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
-import { sendDepositAvailableEmail } from '../../shared/depositAvailableEmail.ts';
-import { isFeeDeposit } from '../../shared/depositReconciliationPure.js';
+import { buildCheckLookupPath, mapTransactionStatus, seamlessRequest, seamlessConfig } from '../../shared/seamlessAch.ts';
+import { depositProviderReference } from '../../shared/depositReconciliation.ts';
+import { allLedgerRows } from '../../shared/ledgerPagination.ts';
+import { releaseDepositAvailability, releaseDepositWithdrawal, reverseSeamlessSettlement, recoverFeeDepositState, PROCESSED_PLAY_ENABLED } from '../../shared/seamlessLedgerTransitions.ts';
 import { claimWebhookEvent, finishWebhookEvent } from '../../shared/seamlessAtomicStore.ts';
+import { sendDepositAvailableEmail } from '../../shared/depositAvailableEmail.ts';
 
-async function reverseClearingDeposit(base44, tx, checkId) {
-  if (!isFeeDeposit(tx)) return reverseSeamlessSettlement(base44, tx, Number(tx.amount), checkId, 'deposit_clearance_check_returned');
-  const key = 'deposit-clearing-return:' + tx.id;
-  const owner = crypto.randomUUID();
-  const claim = await claimWebhookEvent(key, checkId, owner);
-  if (claim?.claim === 'completed') return;
-  if (claim?.claim !== 'owned') throw new Error('deposit_transition_in_progress');
-  try {
-    const fresh = await recoverFeeDepositState(base44, await base44.asServiceRole.entities.WalletTransaction.get(tx.id));
-    if (fresh.status === 'completed') {
-      await reverseSeamlessSettlement(base44, fresh, Number(fresh.amount), checkId, 'deposit_clearance_check_returned');
-    }
-    await finishWebhookEvent(key, checkId, owner, 'completed');
-  } catch (error) {
-    try { await finishWebhookEvent(key, checkId, owner, 'retryable', 'deposit_return_failed'); } catch { /* lease expires */ }
-    throw error;
-  }
-}
-
-function clean(value, max = 255) {
-  return String(value || '').trim().replace(/\s+/g, ' ').slice(0, max);
-}
-
-function providerStatus(data) {
-  return clean(
-    data?.status || data?.check?.status ||
-    data?.data?.status || data?.data?.check?.status,
-    64
-  );
-}
-
-// A processed ACH debit is first held in the wallet's clearing balance. This
-// scheduled control performs a fresh provider lookup after the return-risk
-// window and only then releases it into spendable/withdrawable funds.
+// Existing schedule: playable release on verified Processed, then a separate
+// five-business-day withdrawal confirmation. Every page is read before mutation.
 Deno.serve(async (req) => {
-  const now = new Date();
-  const nowIso = now.toISOString();
   try {
     const base44 = createClientFromRequest(req);
     const caller = await base44.auth.me().catch(() => null);
-    if (!caller) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    if (caller.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 });
+    if (!caller) return Response.json({error:'Unauthorized'},{status:401});
+    if (caller.role !== 'admin') return Response.json({error:'Forbidden'},{status:403});
     seamlessConfig();
-
-    const held = await base44.asServiceRole.entities.WalletTransaction.filter(
-      { type: 'deposit', status: 'completed', deposit_hold_status: 'held' },
-      'deposit_release_at',
-      500
-    );
-    const due = held.filter((tx) => {
-      const releaseAt = Date.parse(tx.deposit_release_at || '');
-      return Number.isFinite(releaseAt) && releaseAt <= now.getTime();
-    }).slice(0, 50);
-
-    const summary = {
-      held: held.length,
-      due: due.length,
-      checked: 0,
-      released: 0,
-      returned: 0,
-      pending: 0,
-      errors: 0,
-      emails_sent: 0,
-      emails_already_sent: 0,
-      email_errors: 0,
-    };
-    for (const tx of due) {
+    const held = await allLedgerRows(base44.asServiceRole.entities.WalletTransaction,
+      {type:'deposit', status:'completed', deposit_hold_status:'held'}, 'deposit_release_at');
+    const restricted = await allLedgerRows(base44.asServiceRole.entities.WalletTransaction,
+      {type:'deposit', status:'completed', deposit_withdrawal_status:'held'}, 'deposit_release_at');
+    const now=Date.now();
+    const due=[...new Map([...held,...restricted].map(tx=>[tx.id,tx])).values()]
+      .filter(tx=>PROCESSED_PLAY_ENABLED && tx.deposit_hold_status==='held' || Date.parse(tx.deposit_release_at || '')<=now).slice(0,50);
+    const summary={held:held.length,due:due.length,checked:0,released:0,withdrawal_released:0,returned:0,pending:0,errors:0,emails_sent:0,email_errors:0};
+    for (let tx of due) {
       try {
-        const refs = await base44.asServiceRole.entities.IntegrationReference.filter({
-          provider_key: SEAMLESS_PROVIDER_KEY,
-          wallet_transaction_id: tx.id,
-        }, '-effective_at', 10);
-        const ref = refs.find((candidate) =>
-          candidate.external_reference_id &&
-          !String(candidate.external_reference_id).startsWith('chessbet-')
-        );
-        const checkId = clean(ref?.external_reference_id);
-        if (!checkId) throw new Error('missing_check_id');
-
-        const data = await seamlessRequest('GET', buildCheckLookupPath(checkId));
-        const rawStatus = providerStatus(data);
-        if (!rawStatus) throw new Error('missing_provider_status');
-        const normalized = mapTransactionStatus(rawStatus);
-        summary.checked += 1;
-
-        await base44.asServiceRole.entities.WalletTransaction.update(tx.id, {
-          provider_last_status: rawStatus,
-          provider_last_checked_at: nowIso,
-        });
-
-        if (normalized === 'completed') {
-          if (await releaseDepositAvailability(base44, tx)) {
-            summary.released += 1;
-            // Email is intentionally after the financial release and isolated
-            // from it. A provider/email outage cannot delay available funds;
-            // the five-minute notification recovery sweep retries failures.
+        const checkId=await depositProviderReference(base44,tx);
+        const data=await seamlessRequest('GET', buildCheckLookupPath(checkId));
+        const check=data?.check || data?.data?.check;
+        if(!check || data?.success===false || String(check.check_id || '')!==checkId ||
+          Number(check.amount)!==Number(tx.deposit_bank_debit ?? tx.amount)) throw new Error('provider_reference_mismatch');
+        const normalized=mapTransactionStatus(String(check.status || ''));
+        summary.checked++;
+        if(normalized==='completed'){
+          if(tx.deposit_hold_status==='held' && await releaseDepositAvailability(base44,tx)){
+            summary.released++;
+            const email=await sendDepositAvailableEmail(base44,tx).catch(()=>({failed:true}));
+            if(email.sent)summary.emails_sent++;
+            if(email.failed)summary.email_errors++;
+          }
+          tx=await base44.asServiceRole.entities.WalletTransaction.get(tx.id);
+          if(Date.parse(tx.deposit_release_at || '')<=Date.now() && await releaseDepositWithdrawal(base44,tx))summary.withdrawal_released++;
+        } else if(normalized==='failed'||normalized==='reversed'){
+          const key='deposit-clearing-return:'+tx.id,owner=crypto.randomUUID();
+          const claim=await claimWebhookEvent(key,checkId,owner);
+          if(claim?.claim==='owned'){
             try {
-              const notification = await sendDepositAvailableEmail(base44, tx);
-              if (notification.sent) summary.emails_sent += 1;
-              else if (notification.alreadySent) summary.emails_already_sent += 1;
-              else if (notification.failed) summary.email_errors += 1;
-            } catch (emailError) {
-              summary.email_errors += 1;
-              console.error(JSON.stringify({
-                event: 'deposit_available_email_inline_failed',
-                wallet_transaction_id: tx.id,
-                error: clean(emailError?.message || 'unknown_error', 128),
-              }));
+              tx=await recoverFeeDepositState(base44,await base44.asServiceRole.entities.WalletTransaction.get(tx.id));
+              if(tx.status==='completed')await reverseSeamlessSettlement(base44,tx,Number(tx.amount),checkId,'deposit_clearance_check_returned');
+              await finishWebhookEvent(key,checkId,owner,'completed');
+              summary.returned++;
+            }catch(error){
+              await finishWebhookEvent(key,checkId,owner,'retryable','deposit_return_failed').catch(()=>{});
+              throw error;
             }
           }
-        } else if (normalized === 'failed' || normalized === 'reversed') {
-          await reverseClearingDeposit(base44, tx, checkId);
-          summary.returned += 1;
-        } else {
-          summary.pending += 1;
-        }
-
-        await recordIntegrationEvent(base44, {
-          eventType: 'financial.deposit_clearance_check',
-          aggregateType: 'wallet_transaction',
-          aggregateId: tx.id,
-          correlationId: tx.id,
-          idempotencyKey: `deposit-clearance:${tx.id}:${rawStatus.toLowerCase()}:${now.toISOString().slice(0, 10)}`,
-          actorType: 'system',
-          userId: tx.user_id,
-          walletTransactionId: tx.id,
-          status: normalized,
-          amount: tx.amount,
-          result: rawStatus,
-          eventData: { provider: SEAMLESS_PROVIDER_KEY, provider_ref: checkId, release_due_at: tx.deposit_release_at },
-        });
-      } catch (error) {
-        summary.errors += 1;
-        console.error(JSON.stringify({
-          event: 'deposit_clearance_check_failed',
-          wallet_transaction_id: tx.id,
-          error: clean(error?.message || 'unknown_error', 128),
-        }));
+        } else summary.pending++;
+      }catch(error){
+        summary.errors++;
+        console.error(JSON.stringify({event:'deposit_clearance_check_failed',wallet_transaction_id:tx.id,error:String(error?.message||'unknown').slice(0,128)}));
       }
     }
-
     return Response.json(summary);
-  } catch (error) {
-    console.error(JSON.stringify({
-      event: 'deposit_clearance_sweep_failed',
-      error: clean(error?.message || 'unknown_error', 128),
-    }));
-    return Response.json({ error: 'deposit_clearance_sweep_failed' }, { status: 500 });
-  }
+  }catch(error){return Response.json({error:'deposit_clearance_sweep_failed'},{status:500});}
 });

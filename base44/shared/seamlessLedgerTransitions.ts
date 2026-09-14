@@ -1,3 +1,5 @@
+import { buildCheckLookupPath, seamlessRequest } from './seamlessAch.ts';
+import { bankWithdrawalAt } from './depositTiming.js';
 import { postLedgerLegs, applyBalanceHold } from './ledger.ts';
 import { requireVerifiedDeposit, postDepositFeePassThrough, flagDepositReview, depositProviderReference } from './depositReconciliation.ts';
 import { isFeeDeposit } from './depositReconciliationPure.js';
@@ -11,23 +13,26 @@ function money(value) {
   return Math.round(parsed * 100) / 100;
 }
 
-function holdBusinessDays() {
-  const configured = Number(Deno.env.get('ACH_DEPOSIT_HOLD_BUSINESS_DAYS') || DEFAULT_HOLD_BUSINESS_DAYS);
-  if (!Number.isInteger(configured) || configured < 1 || configured > 10) return DEFAULT_HOLD_BUSINESS_DAYS;
-  return configured;
-}
+// Enabled only after the shared provenance guard and payout routes pass validation.
+export const PROCESSED_PLAY_ENABLED = false;
 
 export function depositAvailabilityAt(transaction) {
-  const started = new Date(transaction.created_date || transaction.processed_at || Date.now());
-  if (!Number.isFinite(started.getTime())) throw new Error('invalid_deposit_timestamp');
-  let remaining = holdBusinessDays();
-  const cursor = new Date(started);
-  while (remaining > 0) {
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
-    const day = cursor.getUTCDay();
-    if (day !== 0 && day !== 6) remaining -= 1;
+  return bankWithdrawalAt(transaction.created_date);
+}
+
+async function verifyProcessedDeposit(base44, transaction) {
+  const ref = await depositProviderReference(base44, transaction);
+  const data = await seamlessRequest('GET', buildCheckLookupPath(ref));
+  const check = data?.check || data?.data?.check;
+  if (!check || data?.success === false || String(check.check_id || '') !== ref ||
+      String(check.status || '').toLowerCase() !== 'processed' ||
+      Number(check.amount) !== Number(transaction.deposit_bank_debit ?? transaction.amount) ||
+      (check.currency && check.currency !== 'USD') ||
+      (check.label && check.label !== 'chessbet-deposit-' + transaction.id)) {
+    throw new Error('deposit_provider_verification_failed');
   }
-  return cursor.toISOString();
+  await requireVerifiedDeposit(base44, transaction, ref);
+  return ref;
 }
 
 export async function refundWithdrawalFee(base44, withdrawal, providerRef, reason = 'withdrawal_failed') {
@@ -89,7 +94,7 @@ export async function refundWithdrawalFee(base44, withdrawal, providerRef, reaso
 // after journal commit must not make a later bank return look like an unfunded
 // failure or strand a successfully credited deposit.
 export async function recoverFeeDepositState(base44, transaction) {
-  if (!isFeeDeposit(transaction) || ['failed', 'reversed'].includes(transaction.status)) return transaction;
+  if (['failed', 'reversed'].includes(transaction.status)) return transaction;
   const groups = [
     'seamless:deposit:settle:' + transaction.id,
     'deposit_availability_release:' + transaction.id + ':release',
@@ -184,8 +189,17 @@ export async function postSeamlessSettlement(base44, transaction, rawAmount, pro
       deposit_release_at: releaseAt,
       provider_last_status: 'Processed',
       provider_last_checked_at: new Date().toISOString(),
-      description: `Deposit received and clearing — available after ${new Date(releaseAt).toLocaleDateString('en-US', { timeZone: 'UTC' })} following a final bank-status check`,
+      description: 'Deposit received — verifying availability for play',
+      deposit_withdrawal_status: transaction.deposit_withdrawal_status || 'held',
     });
+    if (PROCESSED_PLAY_ENABLED) {
+      try {
+        const fresh = await base44.asServiceRole.entities.WalletTransaction.get(transaction.id);
+        await releaseDepositAvailabilityUnlocked(base44, fresh);
+      } catch (error) {
+        console.error(JSON.stringify({ event: 'deposit_playable_release_retry', wallet_transaction_id: transaction.id, error: error?.message || 'release_failed' }));
+      }
+    }
   } else {
     await postLedgerLegs(base44, {
       groupId,
@@ -285,6 +299,7 @@ export async function reverseSeamlessSettlement(base44, transaction, rawAmount, 
 
   let shortfall = 0;
   if (transaction.type === 'deposit') {
+    await base44.asServiceRole.entities.WalletTransaction.update(transaction.id, { deposit_withdrawal_status: 'returned' });
     const wallet = (await base44.asServiceRole.entities.Wallet.filter({ user_id: transaction.user_id }))[0];
     const heldRecovery = transaction.deposit_hold_status === 'held'
       ? Math.min(amount, money(wallet?.held_balance))
@@ -321,7 +336,7 @@ export async function reverseSeamlessSettlement(base44, transaction, rawAmount, 
       credit: amount,
       transactionType: 'refund',
     });
-    if (isFeeDeposit(transaction)) {
+    if (transaction.type === 'deposit') {
       const saved = (await base44.asServiceRole.entities.LedgerJournalBatch.filter(
         { ledger_group_id: groupId }, '-created_at', 1
       ))[0];
@@ -351,13 +366,12 @@ export async function reverseSeamlessSettlement(base44, transaction, rawAmount, 
       const user = await base44.asServiceRole.entities.User.get(transaction.user_id);
       await base44.asServiceRole.entities.User.update(transaction.user_id, {
         withdrawal_hold: true,
-        ach_return_balance_due: isFeeDeposit(transaction)
-          ? await recordedReturnDebt(base44, transaction.user_id)
-          : money(Number(user.ach_return_balance_due || 0) + shortfall),
+        ach_return_balance_due: await recordedReturnDebt(base44, transaction.user_id),
       });
     }
     await base44.asServiceRole.entities.WalletTransaction.update(transaction.id, {
       deposit_hold_status: 'returned',
+      deposit_withdrawal_status: 'returned',
       description: shortfall > 0
         ? `Deposit returned after release — $${shortfall.toFixed(2)} requires account review`
         : 'Deposit returned by the bank — credited funds were removed safely',
@@ -386,6 +400,19 @@ export async function reverseSeamlessSettlement(base44, transaction, rawAmount, 
     source_event: sourceEvent,
     provider_last_checked_at: new Date().toISOString(),
   });
+  if (transaction.type === 'deposit') {
+    const findingKey = 'ach-return-review:' + transaction.id;
+    const existing = (await base44.asServiceRole.entities.OperationsFinding.filter({ finding_key: findingKey }, '-created_date', 1))[0];
+    if (!existing) await base44.asServiceRole.entities.OperationsFinding.create({
+      finding_key: findingKey, category: 'settlement_ledger', priority: shortfall > 0 ? 'critical' : 'high',
+      status: 'human_approval_required', authority_level: 'human_approval_required',
+      title: 'ACH deposit returned after settlement',
+      summary: 'Review the returned deposit, any balance due, inherited contest restrictions, and provider return fees. No additional customer fee was automatically charged.',
+      evidence: JSON.stringify({ wallet_transaction_id: transaction.id, shortfall }),
+      recommended_next_step: 'Reconcile the provider return and any related contest funds before resolving restrictions.',
+      is_approval_required: true, related_entity_type: 'wallet_transaction', related_entity_id: transaction.id,
+    });
+  }
   if (isFeeDeposit(transaction)) {
     await flagDepositReview(base44, transaction, 'returned_deposit_fee_evidence_required', 'return');
   }
@@ -395,7 +422,6 @@ export async function reverseSeamlessSettlement(base44, transaction, rawAmount, 
 // Use the same per-provider transaction lease as webhook and status recovery so
 // a return cannot race a clearing release. A failed verification stays retryable.
 export async function releaseDepositAvailability(base44, transaction) {
-  if (!isFeeDeposit(transaction)) return releaseDepositAvailabilityUnlocked(base44, transaction);
   const ref = await depositProviderReference(base44, transaction);
   const key = 'deposit-verified-release:' + transaction.id;
   const owner = crypto.randomUUID();
@@ -413,34 +439,59 @@ export async function releaseDepositAvailability(base44, transaction) {
 }
 
 async function releaseDepositAvailabilityUnlocked(base44, transaction) {
-  if (transaction.type !== 'deposit' || transaction.deposit_hold_status !== 'held') return false;
-  if (isFeeDeposit(transaction)) {
-    const fresh = await base44.asServiceRole.entities.WalletTransaction.get(transaction.id);
-    if (fresh.status !== 'completed' || fresh.deposit_hold_status !== 'held') return false;
-    if (!(Date.parse(fresh.deposit_release_at || '') <= Date.now())) return false;
-    await requireVerifiedDeposit(base44, fresh, await depositProviderReference(base44, fresh));
-  }
+  const fresh = await base44.asServiceRole.entities.WalletTransaction.get(transaction.id);
+  if (fresh.type !== 'deposit' || fresh.status !== 'completed' || fresh.deposit_hold_status !== 'held' || fresh.deposit_withdrawal_status === 'returned') return false;
+  if (!PROCESSED_PLAY_ENABLED && !(Date.parse(fresh.deposit_release_at || '') <= Date.now())) return false;
+  await verifyProcessedDeposit(base44, fresh);
+  // Financial release and its source restriction commit in the SAME journal batch.
   await applyBalanceHold(base44, {
-    userId: transaction.user_id,
-    amount: Number(transaction.amount),
+    userId: fresh.user_id,
+    amount: Number(fresh.amount),
     direction: 'release',
     actor: 'system',
     triggerEvent: 'deposit_availability_release',
-    updateTransactions: !isFeeDeposit(transaction),
-    walletTransactionId: transaction.id,
+    updateTransactions: false,
+    walletTransactionId: fresh.id,
   });
-  await base44.asServiceRole.entities.WalletTransaction.update(transaction.id, {
-    status: 'completed',
-    integration_status: 'settled',
+  await base44.asServiceRole.entities.WalletTransaction.update(fresh.id, {
+    status: 'completed', integration_status: 'settled',
     deposit_hold_status: 'released',
-    provider_last_status: 'Processed',
-    provider_last_checked_at: new Date().toISOString(),
+    deposit_withdrawal_status: fresh.deposit_withdrawal_status || 'held',
+    deposit_playable_at: fresh.deposit_playable_at || new Date().toISOString(),
+    provider_last_status: 'Processed', provider_last_checked_at: new Date().toISOString(),
     source_event: 'deposit_availability_release',
-    description: 'Deposit cleared and available to play or withdraw',
-    deposit_available_email_status: 'pending',
-    deposit_available_email_attempts: 0,
-    deposit_available_email_next_attempt_at: new Date().toISOString(),
-    deposit_available_email_last_error: '',
+    description: 'Deposit available to play; withdrawal eligibility is checked separately',
+    ...(fresh.deposit_available_email_status ? {} : {
+      deposit_available_email_status: 'pending', deposit_available_email_attempts: 0,
+      deposit_available_email_next_attempt_at: new Date().toISOString(), deposit_available_email_last_error: '',
+    }),
   });
   return true;
+}
+
+export async function releaseDepositWithdrawal(base44, transaction) {
+  const ref = await depositProviderReference(base44, transaction);
+  const key = 'deposit-withdrawal-release:' + transaction.id;
+  const owner = crypto.randomUUID();
+  const claim = await claimWebhookEvent(key, ref, owner);
+  if (claim?.claim === 'completed') return false;
+  if (claim?.claim !== 'owned') throw new Error('deposit_transition_in_progress');
+  try {
+    const fresh = await base44.asServiceRole.entities.WalletTransaction.get(transaction.id);
+    if (fresh.status !== 'completed' || fresh.deposit_hold_status !== 'released' ||
+        !(Date.parse(fresh.deposit_release_at || '') <= Date.now())) {
+      await finishWebhookEvent(key, ref, owner, 'retryable');
+      return false;
+    }
+    await verifyProcessedDeposit(base44, fresh);
+    await base44.asServiceRole.entities.WalletTransaction.update(fresh.id, {
+      deposit_withdrawal_status: 'released', provider_last_status: 'Processed',
+      provider_last_checked_at: new Date().toISOString(),
+    });
+    await finishWebhookEvent(key, ref, owner, 'completed');
+    return true;
+  } catch (error) {
+    try { await finishWebhookEvent(key, ref, owner, 'retryable', 'deposit_withdrawal_verification_failed'); } catch {}
+    throw error;
+  }
 }
