@@ -82,7 +82,10 @@ function RoutedApplication() {
     user &&
     APP_HEADER_PATHS.some((p) => location.pathname.startsWith(p));
 
-  if (authError) {
+  const publicInvitation = /^\/(challenge|join)\//.test(location.pathname);
+  // An expired optional session must not turn a public invitation preview
+  // into a signup wall. Protected actions still enforce auth/MFA server-side.
+  if (authError && !publicInvitation) {
     if (authError.type === "user_not_registered") {
       return <UserNotRegisteredError />;
     }
