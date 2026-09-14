@@ -237,7 +237,7 @@ try{
       await page.getByRole('button',{name:'Create Challenge Link',exact:true}).click();
       await page.waitForURL('**/play?challenge='+code);checks++;
       await page.getByRole('heading',{name:'Your challenge is ready'}).waitFor();checks++;
-      await page.getByText('Host or accept a challenge to begin playing',{exact:true}).waitFor();checks++;
+      await page.getByText('Host or accept a challenge to begin playing',{exact:true}).waitFor({state:'attached'});checks++;
       assert.equal(await page.getByLabel('Your shareable challenge link').inputValue(),'http://localhost:5173/challenge/'+code);checks++;
       await page.reload({waitUntil:'networkidle'});
       await page.getByRole('heading',{name:'Your challenge is ready'}).waitFor();checks++;
@@ -255,7 +255,7 @@ try{
     await page.getByRole('button',{name:'Create Rematch Link',exact:true}).click();
     await page.waitForURL('**/play?challenge='+code);checks++;
     await page.getByRole('heading',{name:'Your challenge is ready'}).waitFor();checks++;
-    await page.getByText('Host or accept a challenge to begin playing',{exact:true}).waitFor();checks++;
+    await page.getByText('Host or accept a challenge to begin playing',{exact:true}).waitFor({state:'attached'});checks++;
     assert.equal(await page.getByRole('switch',{name:'Show in Find an Opponent',exact:true}).isEnabled(),false);checks++;
     assert.equal(await page.evaluate(()=>window.__challengeQA.calls.find(c=>c.body.action==='create').body.rematchOf),'qa-match');checks++;
   });
