@@ -146,6 +146,23 @@ try{
       assert.equal(await page.evaluate(()=>window.__challengeQA.calls.find(c=>c.body.action==='create').body.timeControl),value);checks++;
     });
   }
+  for (const width of [390,1280]) {
+    await scenario('entry-presets-'+width,{who:'p1',path:'/play',width},async page=>{
+      await page.getByRole('button',{name:'Create Challenge',exact:true}).click();
+      const form=page.getByRole('form',{name:'Create shared challenge'});
+      assert.equal(await form.getByRole('spinbutton').count(),0);checks++;
+      assert.equal(await form.getByText('Custom entry amount').count(),0);checks++;
+      for (const [amount,fee] of [[5,1],[10,1],[25,2],[50,4],[100,6],[250,10],[500,15],[1000,20],[2500,30]]) {
+        const button=form.getByRole('button',{name:'$'+amount.toLocaleString('en-US'),exact:true});
+        await button.click();
+        assert.equal(await button.getAttribute('aria-pressed'),'true');checks++;
+        await form.locator('dl').getByText('$'+(amount+fee).toFixed(2),{exact:true}).waitFor();checks++;
+      }
+      await form.getByRole('button',{name:'Create Challenge Link',exact:true}).click();
+      await page.waitForURL('**/challenge/'+code);
+      assert.equal(await page.evaluate(()=>window.__challengeQA.calls.find(c=>c.body.action==='create').body.entryAmount),2500);checks++;
+    });
+  }
 }finally{await browser.close();}
-console.log(JSON.stringify({checks,scenarios:10,failed:failures,screenshots:'/tmp/chessbet-challenge-screenshots'},null,2));
+console.log(JSON.stringify({checks,scenarios:12,failed:failures,screenshots:'/tmp/chessbet-challenge-screenshots'},null,2));
 process.exitCode=failures.length?1:0;
