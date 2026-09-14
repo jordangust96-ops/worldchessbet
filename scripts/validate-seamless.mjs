@@ -142,7 +142,7 @@ assert.match(hostedLink, /Change or add a bank account/);
 assert.match(hostedLink, /Disconnect bank/);
 assert.match(hostedLink, /Choose a transfer type/);
 assert.match(hostedLink, /\[10, 25, 50, 100\]/);
-assert.match(hostedLink, /"Deposit \$" \+ formattedAmount \+ " · Pay \$"/);
+assert.match(hostedLink, /"Deposit \$" \+ \(quote\?\.bankDebit\.toFixed\(2\) \|\| ""\)/);
 assert.match(hostedLink, /Total bank charge/);
 assert.match(hostedLink, /showBankManager \? "Done" : "Manage"/);
 assert.doesNotMatch(hostedLink, /<Plus[^>]*\/> Deposit/);
