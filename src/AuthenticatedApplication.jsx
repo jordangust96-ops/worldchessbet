@@ -110,6 +110,7 @@ function RoutedApplication() {
         <Route path="/official-rules" element={<OfficialRules />} />
         <Route path="/faq" element={<FAQ />} />
         <Route path="/blog" element={<Blog />} />
+        <Route path="/blog/:articleSlug" element={<Blog />} />
         <Route path="/fair-play-integrity" element={<FairPlayIntegrity />} />
         <Route path="/unsubscribe" element={<Unsubscribe />} />
         <Route path="/join/:inviteCode" element={<JoinMatch />} />
