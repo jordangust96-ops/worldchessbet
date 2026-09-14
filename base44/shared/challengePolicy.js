@@ -33,7 +33,7 @@ export function challengeClockMs(match) {
     throw new Error('invalid_challenge_clock');
   return clock;
 }
-export const CHALLENGE_OPEN_LIMIT = 5;
+export const CHALLENGE_OPEN_LIMIT = 1;
 export const CHALLENGE_CONSENT_VERSION = 'challenge-dual-reservation-v1';
 export const CHALLENGE_TERMS = 'I agree to the Official Rules and Fair Play requirements. I authorize my displayed Entry Amount and separate Platform Service Fee to be reserved together with the first eligible, funded opponent while I am ready. Creating or sharing this link alone does not reserve funds.';
 export const VALID_INVITE = /^[a-f0-9]{32}$/;

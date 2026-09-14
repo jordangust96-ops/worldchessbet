@@ -50,11 +50,14 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
       else{await navigator.clipboard.writeText(url);setError('Link copied.');}
     }catch(err){if(err?.name!=='AbortError')setError('Open the challenge to copy its link.');}
   };
+  const existingChallenge = challenges.find(card => ['open','processing','claimed'].includes(card.status));
+  const creationBlocked = loading || Boolean(error) || Boolean(activePublic) || Boolean(existingChallenge);
   return <section className="space-y-5 rounded-3xl border border-white/5 bg-gradient-to-br from-[#1A1A1A] to-[#111] p-5 lg:h-full lg:overflow-y-auto lg:p-5">
-    {creating ? <CreateChallengeForm onCreated={()=>refresh()} onCancel={()=>setCreating(false)}/> : <div className="space-y-3">
+    {creating && !creationBlocked ? <CreateChallengeForm onCreated={()=>refresh()} onCancel={()=>setCreating(false)}/> : <div className="space-y-3">
       <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#C9A84C]/10 text-[#C9A84C]"><Swords size={21}/></div>
       <div><h1 className="text-2xl font-extrabold text-white">Challenge Someone</h1><p className="mt-2 text-sm leading-relaxed text-white/55">Your friend. Your rival. Your next opponent. Create a link and play chess for money.</p></div>
-      <Button onClick={()=>setCreating(true)} className="h-12 w-full rounded-2xl gold-gradient font-bold text-black"><Plus size={18} className="mr-2"/>Create Challenge</Button>
+      <Button disabled={creationBlocked} onClick={()=>setCreating(true)} className="h-12 w-full rounded-2xl gold-gradient font-bold text-black"><Plus size={18} className="mr-2"/>Create Challenge</Button>
+      {(existingChallenge || activePublic) && <p role="status" className="text-sm text-[#E5CA7A]">You already have a challenge. Open it below, or cancel it before creating another.</p>}
       <p className="text-xs leading-relaxed text-white/40">Links reserve no money or opponent. Both players need available funds when the challenge is accepted.</p>
     </div>}
     <div className="border-t border-white/10 pt-4">
@@ -64,7 +67,7 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
         <div className="mt-3 flex flex-wrap items-center gap-4 text-xs"><Link to={card.path} className="font-semibold text-[#C9A84C]">{card.status==='open'?'Open / Ready Up':'Open Match'}</Link>
           {card.status==='open' && <><button onClick={()=>share(card)} className="inline-flex items-center gap-1 text-white/55"><Share2 size={13}/>Share</button><button onClick={()=>cancel(card)} disabled={Boolean(busyId)} className="text-white/40">{busyId===card.id?'Cancelling…':'Cancel'}</button></>}
         </div>
-      </article>)}</div> : <p className="text-sm text-white/35">Your open links will appear here. You can share up to five at a time.</p>}
+      </article>)}</div> : <p className="text-sm text-white/35">Your challenge will appear here. You can have one open challenge at a time.</p>}
     </div>
     {error && <p role="status" className="text-xs text-[#E5CA7A]">{error}</p>}
     <div className="border-t border-white/10 pt-4">
@@ -72,7 +75,7 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
       {showPublic && <div className="mt-4 space-y-4">
         <AvailableMatchSection userId={userId} balance={balance} activeMatch={activePublic} onChallengeCancelled={()=>setActivePublic(null)} onAccepted={onMatchAccepted}/>
         <div className="h-px bg-white/10"/>
-        {activePublic ? <ActiveChallengeCard match={activePublic} onCancel={async()=>{await base44.functions.invoke('cancelMatch',{matchId:activePublic.id});await refresh();}}/> : <HostMatchSection userId={userId} balance={balance} onHosted={()=>refresh()}/>}
+        {activePublic ? <ActiveChallengeCard match={activePublic} onCancel={async()=>{await base44.functions.invoke('cancelMatch',{matchId:activePublic.id});await refresh();}}/> : <HostMatchSection userId={userId} balance={balance} disabled={creationBlocked} onHosted={()=>refresh()}/>}
       </div>}
     </div>
   </section>;

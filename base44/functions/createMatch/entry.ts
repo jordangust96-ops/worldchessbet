@@ -1,3 +1,5 @@
+import { withChallengeCreationLock, requireNoExistingChallenge } from '../../shared/challengeCreation.ts';
+import { ChallengeError } from '../../shared/challengeAccess.ts';
 import { validNewEntry } from '../../shared/challengePolicy.js';
 import { runContestEligibility } from '../../shared/runContestEligibility.ts';
 import { paidContestsEnabled } from '../../shared/seamlessFundingConfig.ts';
@@ -58,7 +60,10 @@ Deno.serve(async (req) => {
       return Response.json({ error: eligibilityRes.data?.reason || eligibilityRes.data?.error || 'You are not eligible to create this contest' }, { status: 403 });
     }
 
-    const match = await base44.asServiceRole.entities.Match.create({
+    const match = await withChallengeCreationLock(user.id, async checkLease => {
+      await requireNoExistingChallenge(base44, user.id);
+      await checkLease();
+      return base44.asServiceRole.entities.Match.create({
       launch_epoch: 2,
       player1_id: user.id,
       wager_amount: wager,
@@ -71,6 +76,7 @@ Deno.serve(async (req) => {
       player1_deposited: false,
       player1_certified: false,
       // Public marketplace only. Invitation tokens belong to challengeActions.
+      });
     });
 
     await recordIntegrationEvent(base44, {
@@ -98,6 +104,7 @@ Deno.serve(async (req) => {
 
     return Response.json({ match });
   } catch (error) {
+    if (error instanceof ChallengeError) return Response.json({ error: error.message, code: error.code, ...error.details }, { status: error.status });
     console.error(JSON.stringify({ event: 'backend_function_failed', error: error?.message || 'unknown_error' }));
     return Response.json({ error: 'internal_error' }, { status: 500 });
   }

@@ -1,3 +1,4 @@
+import { withChallengeCreationLock, requireNoExistingChallenge } from './challengeCreation.ts';
 import { postLedgerLegs } from './ledger.ts';
 import { sha256Hex } from './mfaCore.js';
 import { recordIntegrationEvent } from './integrationEvents.ts';
@@ -8,7 +9,7 @@ import { paidContestsEnabled } from './seamlessFundingConfig.ts';
 import { acquireMatchLock, releaseMatchLock, acquireUserWalletLock, releaseUserWalletLock,
   setChallengeWalletBarriers, clearChallengeWalletBarriers, takeChallengeRateLimit, refreshContestLocks } from './seamlessAtomicStore.ts';
 import { CHALLENGE_VERSION, CHALLENGE_TTL_MS, CHALLENGE_AUTHORIZATION_MS, challengeTimeControl,
-  CHALLENGE_OPEN_LIMIT, CHALLENGE_CONSENT_VERSION, VALID_INVITE, VALID_REQUEST_KEY,
+  CHALLENGE_CONSENT_VERSION, VALID_INVITE, VALID_REQUEST_KEY,
   validNewEntry, isChallenge, challengeExpired, creatorAuthorized, challengeStartExpired,
   bothChallengePlayersReady, publicChallenge, reservationGroup, refundGroup,
   challengeReservationLegs, challengeReleaseLegs, challengePath } from './challengePolicy.js';
@@ -89,10 +90,7 @@ export async function createChallenge(base44: any, user: any, body: any) {
   const timeControl = challengeTimeControl(body.timeControl);
   if (!timeControl) fail('invalid_time_control', 'Choose Blitz, Rapid, or Classical.', 400);
   await requireChallengePolicies(base44, user.id);
-  const owner = crypto.randomUUID();
-  const lockId = `challenge-creation:${user.id}`;
-  if (!await acquireMatchLock(lockId, owner)) fail('busy', 'A challenge is being created. Please try again.');
-  try {
+  return withChallengeCreationLock(user.id, async checkLease => {
     const existing = await base44.asServiceRole.entities.Match.filter({
       launch_epoch: 2, player1_id: user.id, challenge_creation_key: body.requestKey,
     }, '-created_date', 2);
@@ -101,10 +99,7 @@ export async function createChallenge(base44: any, user: any, body: any) {
         fail('request_conflict', 'This request already created a challenge with different terms. Start a new request.');
       return { match: existing[0], inviteCode: existing[0].invite_code, path: challengePath(existing[0].invite_code) };
     }
-    const open = await base44.asServiceRole.entities.Match.filter({ launch_epoch: 2, player1_id: user.id,
-      challenge_version: CHALLENGE_VERSION, status: 'searching' }, '-created_date', 100);
-    if (open.filter((m: any) => !challengeExpired(m) || activeOperation(m)).length >= CHALLENGE_OPEN_LIMIT)
-      fail('open_limit', `You can have up to ${CHALLENGE_OPEN_LIMIT} open challenge links. Cancel an old link first.`);
+    await requireNoExistingChallenge(base44, user.id);
     if (!await takeChallengeRateLimit(`create:${user.id}`, 20, 3600)) fail('rate_limited', 'Please wait before creating more challenges.', 429);
     let rematchOf = '';
     let targetId = '';
@@ -115,6 +110,7 @@ export async function createChallenge(base44: any, user: any, body: any) {
       rematchOf = previous.id;
       targetId = previous.player1_id === user.id ? previous.player2_id : previous.player1_id;
     }
+    await checkLease();
     const code = crypto.randomUUID().replaceAll('-', '');
     const createdAt = nowIso();
     const match = await base44.asServiceRole.entities.Match.create({
@@ -130,7 +126,7 @@ export async function createChallenge(base44: any, user: any, body: any) {
     });
     await challengeEvent(base44, match, 'created', user.id, 'invitation_only');
     return { match, inviteCode: code, path: challengePath(code) };
-  } finally { await releaseMatchLock(lockId, owner).catch(() => {}); }
+  });
 }
 
 export async function listMyChallenges(base44: any, user: any) {
