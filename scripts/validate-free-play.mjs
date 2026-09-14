@@ -176,6 +176,7 @@ for (const timeControl of ['blitz','rapid','classical']) {
    equal(screened.data.skipped,true);equal(screened.data.reason,'free_game');equal(f.table('FairPlayAnalysis').length,0);
  }
  await assert.rejects(()=>f.makeSdk('p3').functions.invoke('requestFairPlayAnalysis',{matchId:m.id,gameId:game.id}));
+ await assert.rejects(()=>f.makeSdk('missing').functions.invoke('requestFairPlayAnalysis',{matchId:m.id,gameId:game.id}),e=>e.response?.status===401);
  await f.makeSdk('p1').functions.invoke('runPostSettlementJobs',{matchId:m.id,gameId:game.id});
  equal(f.table('RatingEvent').length,2);check(f.table('PlayerRating').every(r=>r.games_rated===1));noMoney(f);
 }
