@@ -6,11 +6,7 @@ import { base44 } from "@/api/base44Client";
 import { computeContestFinancials, getPlatformServiceFee } from "@/lib/contestFinancials";
 import { trackPixelEvent } from "@/lib/metaPixel";
 
-const PRESET_GROUPS = [
-  { label: "Quick Play", amounts: [5, 10, 25] },
-  { label: "Popular", amounts: [50, 100, 250] },
-  { label: "High Value", amounts: [500, 1000, 2500] },
-];
+import { ENTRY_AMOUNT_GROUPS as PRESET_GROUPS } from '../../../base44/shared/challengePolicy.js';
 
 const DEFAULT_WAGER = 10;
 

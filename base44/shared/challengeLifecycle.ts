@@ -9,7 +9,7 @@ import { acquireMatchLock, releaseMatchLock, acquireUserWalletLock, releaseUserW
   setChallengeWalletBarriers, clearChallengeWalletBarriers, takeChallengeRateLimit, refreshContestLocks } from './seamlessAtomicStore.ts';
 import { CHALLENGE_VERSION, CHALLENGE_TTL_MS, CHALLENGE_AUTHORIZATION_MS, challengeTimeControl,
   CHALLENGE_OPEN_LIMIT, CHALLENGE_CONSENT_VERSION, VALID_INVITE, VALID_REQUEST_KEY,
-  validEntry, isChallenge, challengeExpired, creatorAuthorized, challengeStartExpired,
+  validNewEntry, isChallenge, challengeExpired, creatorAuthorized, challengeStartExpired,
   bothChallengePlayersReady, publicChallenge, reservationGroup, refundGroup,
   challengeReservationLegs, challengeReleaseLegs, challengePath } from './challengePolicy.js';
 import { fail, requireChallengePlayer, requireChallengePolicies, inspectChallengePlayer } from './challengeAccess.ts';
@@ -84,7 +84,7 @@ export async function viewChallenge(base44: any, match: any, user: any) {
 
 export async function createChallenge(base44: any, user: any, body: any) {
   if (!paidContestsEnabled()) fail('paid_contests_disabled', 'Money challenges are temporarily unavailable.');
-  if (!validEntry(body.entryAmount)) fail('invalid_entry', 'Choose an Entry Amount from $5 to $5,000, in whole cents.', 400);
+  if (!validNewEntry(body.entryAmount)) fail('invalid_entry', 'Choose one of the available Entry Amounts.', 400);
   if (!VALID_REQUEST_KEY.test(String(body.requestKey || ''))) fail('invalid_request', 'Please refresh and try again.', 400);
   const timeControl = challengeTimeControl(body.timeControl);
   if (!timeControl) fail('invalid_time_control', 'Choose Blitz, Rapid, or Classical.', 400);

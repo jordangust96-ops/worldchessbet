@@ -1,3 +1,4 @@
+import { validNewEntry } from '../../shared/challengePolicy.js';
 import { runContestEligibility } from '../../shared/runContestEligibility.ts';
 import { paidContestsEnabled } from '../../shared/seamlessFundingConfig.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
@@ -31,8 +32,8 @@ Deno.serve(async (req) => {
     // Shareable invitations must use the dual-funded challenge lifecycle.
     if (isPrivate) return Response.json({ error: 'Use Challenge Someone to create a shareable invitation.', action: 'challenge_link_required' }, { status: 409 });
     const wager = Number(wagerAmount);
-    if (!Number.isFinite(wager) || wager < 5) {
-      return Response.json({ error: 'The minimum Contest Entry Amount is $5.00.' }, { status: 400 });
+    if (!validNewEntry(wagerAmount)) {
+      return Response.json({ error: 'Choose one of the available Entry Amounts.' }, { status: 400 });
     }
     if (requiresManualFeeApproval(wager)) {
       return Response.json({ error: 'Contest Entry Amounts above $5,000 require manual approval and a separately disclosed Platform Service Fee before acceptance.' }, { status: 400 });

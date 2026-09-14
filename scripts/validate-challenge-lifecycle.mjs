@@ -142,6 +142,22 @@ function fixture() {
 }
 async function rejected(work,code){let failure;try{await work();}catch(error){failure=error;}check(failure,`Expected rejection ${code}`);if(code)equal(failure.code,code);}
 
+// Every published preset is creatable without funding; arbitrary amounts write nothing.
+for (const entryAmount of [5,10,25,50,100,250,500,1000,2500]) {
+  const f=fixture();f.balance('p1',0);
+  const result=await f.api.createChallenge(f.sdk,f.user('p1'),{entryAmount,requestKey:'preset_creation_12345'});
+  equal(result.match.wager_amount,entryAmount);
+  equal(f.table('LedgerJournalBatch').length,0);equal(f.table('WalletTransaction').length,0);
+}
+for (const entryAmount of [0,4,6,10.01,26,499,2501,5000,NaN,Infinity,null,true,[],[10],{}]) {
+  const f=fixture();
+  await rejected(()=>f.api.createChallenge(f.sdk,f.user('p1'),{entryAmount,requestKey:'invalid_creation_12345'}),'invalid_entry');
+  equal(f.table('Match').length,0);equal(f.table('LedgerJournalBatch').length,0);
+  const response=await f.load('base44/functions/createMatch/entry.ts').handler(new Request('https://example.invalid',{
+    method:'POST',body:JSON.stringify({wagerAmount:entryAmount,timeControl:'blitz'})}));
+  equal(response.status,400);equal(f.table('Match').length,0);
+}
+{ const f=fixture();check(f.policy.validEntry(26),'Historical terms still recognized');check(!f.policy.validNewEntry(26),'New custom entries prohibited'); }
 for (selectedTimeControl of [undefined, 'blitz', 'rapid', 'classical']) {
 const expectedClock = {blitz:180000,rapid:600000,classical:900000}[selectedTimeControl] || 300000;
 // Nonfinancial invitation creation works without a funded or verified wallet.
@@ -149,7 +165,7 @@ const expectedClock = {blitz:180000,rapid:600000,classical:900000}[selectedTimeC
   const f=fixture();f.balance('p1',0);f.table('User')[0].verified=false;
   const m=await f.create();equal(m.status,'searching');equal(m.player2_id,undefined);equal(f.table('WalletTransaction').length,0);equal(f.table('LedgerJournalBatch').length,0);
   const replay=await f.create();equal(replay.id,m.id);equal(f.table('Match').length,1);
-  await rejected(()=>f.api.createChallenge(f.sdk,f.user('p1'),{entryAmount:26,requestKey:'creation_key_123456'}),'request_conflict');
+  await rejected(()=>f.api.createChallenge(f.sdk,f.user('p1'),{entryAmount:50,requestKey:'creation_key_123456'}),'request_conflict');
   const serialized=f.policy.publicChallenge(m,'Player');check(!('player1_id' in serialized));check(!('challenge_claimant_id' in serialized));
 }
 for(const issue of ['unfunded','pending_only','identity','bank','hold','busy','fee_short','creator_unfunded','expired','self','location','consent']){

@@ -3,18 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { Loader2, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { computeContestFinancials } from '@/lib/contestFinancials';
-import { challengeRequest, challengeErrorMessage, handleChallengeGate, validEntry } from '@/lib/challengeApi';
+import { challengeRequest, challengeErrorMessage, handleChallengeGate } from '@/lib/challengeApi';
 
-import { CHALLENGE_TIME_CONTROLS } from '../../../base44/shared/challengePolicy.js';
+import { CHALLENGE_TIME_CONTROLS, ENTRY_AMOUNTS, validNewEntry } from '../../../base44/shared/challengePolicy.js';
 
 export default function CreateChallengeForm({ initialAmount = 10, initialTimeControl = 'blitz', rematchOf = '', onCreated, onCancel }) {
   const navigate = useNavigate();
-  const [amount, setAmount] = useState(String(initialAmount));
+  const [amount, setAmount] = useState(String(validNewEntry(initialAmount) ? Number(initialAmount) : 10));
   const [timeControl, setTimeControl] = useState(CHALLENGE_TIME_CONTROLS.some(tc => tc.value === initialTimeControl) ? initialTimeControl : 'blitz');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const request = useRef({ terms:'', key:'' });
-  const valid = validEntry(amount);
+  const valid = validNewEntry(amount);
   const financials = computeContestFinancials(Number(amount));
   const create = async (event) => {
     event.preventDefault();
@@ -44,15 +44,14 @@ export default function CreateChallengeForm({ initialAmount = 10, initialTimeCon
         </label>)}
       </div>
     </fieldset>
-    <div className="grid grid-cols-3 gap-2">
-      {[5,10,25,50,100,250].map(value => <button type="button" key={value} disabled={busy}
-        onClick={() => setAmount(String(value))} className={`h-11 rounded-xl font-semibold ${Number(amount) === value ? 'gold-gradient text-black' : 'border border-white/10 bg-white/5 text-white hover:border-[#C9A84C]/50'}`}>${value}</button>)}
-    </div>
-    <label className="block text-sm text-white/60">Custom entry amount
-      <input aria-label="Entry amount in USD" type="number" inputMode="decimal" min="5" max="5000" step="0.01" value={amount}
-        onChange={event => setAmount(event.target.value)} disabled={busy}
-        className="mt-2 h-11 w-full rounded-xl border border-white/15 bg-black/25 px-3 text-white focus:border-[#C9A84C] focus:outline-none" />
-    </label>
+    <fieldset disabled={busy}>
+      <legend className="mb-2 text-sm text-white/60">Entry Amount</legend>
+      <div className="grid grid-cols-3 gap-2">
+        {ENTRY_AMOUNTS.map(value => <button type="button" key={value} disabled={busy}
+          aria-pressed={Number(amount) === value} onClick={() => setAmount(String(value))}
+          className={`h-11 rounded-xl font-semibold ${Number(amount) === value ? 'gold-gradient text-black' : 'border border-white/10 bg-white/5 text-white hover:border-[#C9A84C]/50'}`}>${value.toLocaleString('en-US')}</button>)}
+      </div>
+    </fieldset>
     {valid && financials.serviceFee !== null && <dl className="space-y-2 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm">
       <div className="flex justify-between gap-4"><dt className="text-white/55">Entry Amount</dt><dd className="text-white">${financials.entryAmount.toFixed(2)}</dd></div>
       <div className="flex justify-between gap-4"><dt className="text-white/55">Platform Service Fee</dt><dd className="text-white">${financials.serviceFee.toFixed(2)}</dd></div>

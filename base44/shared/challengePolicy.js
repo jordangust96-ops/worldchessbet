@@ -1,4 +1,13 @@
 // Shared, pure challenge rules. No provider requests, entity writes, or wallet mutations.
+export const ENTRY_AMOUNT_GROUPS = [
+  { label: 'Quick Play', amounts: [5, 10, 25] },
+  { label: 'Popular', amounts: [50, 100, 250] },
+  { label: 'High Value', amounts: [500, 1000, 2500] },
+];
+export const ENTRY_AMOUNTS = Object.freeze(ENTRY_AMOUNT_GROUPS.flatMap(group => group.amounts));
+export function validNewEntry(value) {
+  return (typeof value === 'number' || typeof value === 'string') && ENTRY_AMOUNTS.includes(Number(value));
+}
 export const CHALLENGE_VERSION = 1;
 export const CHALLENGE_TTL_MS = 24 * 60 * 60 * 1000;
 export const CHALLENGE_AUTHORIZATION_MS = 2 * 60 * 1000;
