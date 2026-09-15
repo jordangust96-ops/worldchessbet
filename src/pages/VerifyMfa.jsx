@@ -174,8 +174,8 @@ export default function VerifyMfa() {
   if (loading) {
     return (
       <>
-        <SEO title="Verify Your Identity | ChessBet" description="Complete account verification for ChessBet." noindex />
-        <AuthLayout icon={ShieldCheck} title="Verify Your Identity" subtitle="Enter the 6-digit code we sent to your email">
+        <SEO title="Confirm your email | ChessBet" description="Confirm your email to continue to ChessBet." noindex />
+        <AuthLayout icon={ShieldCheck} title="Confirm your email" subtitle="Enter the 6-digit code we sent to your email">
           <div className="flex justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
@@ -186,8 +186,8 @@ export default function VerifyMfa() {
 
   return (
     <>
-      <SEO title="Verify Your Identity | ChessBet" description="Complete account verification for ChessBet." noindex />
-      <AuthLayout icon={ShieldCheck} title="Verify Your Identity" subtitle="Enter the 6-digit code we sent to your email">
+      <SEO title="Confirm your email | ChessBet" description="Confirm your email to continue to ChessBet." noindex />
+      <AuthLayout icon={ShieldCheck} title="Confirm your email" subtitle="Enter the 6-digit code we sent to your email">
         {error && (
           <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">{error}</div>
         )}
@@ -232,7 +232,7 @@ export default function VerifyMfa() {
           {action === "verifying" ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Verifying...
+              Confirming...
             </>
           ) : action === "sending" ? (
             <>
@@ -240,7 +240,7 @@ export default function VerifyMfa() {
               Sending...
             </>
           ) : (
-            "Verify"
+            "Confirm email"
           )}
         </Button>
 
