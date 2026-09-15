@@ -16,7 +16,8 @@
         "welcome",
         "founding_player",
         "deposit_available",
-        "withdrawal_requested"
+        "withdrawal_requested",
+        "match_accepted"
       ],
       "description": "Which automated email this log entry is for. New values are added here as more automated emails are built."
     },
@@ -27,7 +28,8 @@
       "type": "string",
       "enum": [
         "success",
-        "failed"
+        "failed",
+        "skipped"
       ]
     },
     "error_message": {
@@ -38,6 +40,14 @@
       "type": "string",
       "maxLength": 1000,
       "description": "Optional description"
+    },
+    "match_id": {
+      "type": "string",
+      "description": "Match associated with this transactional notification."
+    },
+    "reason": {
+      "type": "string",
+      "description": "Machine-readable send, skip, or failure reason. Success means provider acceptance, not inbox delivery."
     }
   },
   "required": [
