@@ -95,13 +95,14 @@ export default function SettlementState({ match, game, userId, onReturn, onRemat
           <p className="text-2xl font-extrabold text-[#C9A84C]">+${(match.wager_amount * 2).toFixed(2)}</p>
         </div>
       )}
-      <p className="text-xs text-white/40">{free ? "This game counts toward your rating." : won && !draw ? "Winner awards follow the standard report-window hold before becoming available. A rematch needs a separate available balance." : "Wallet updated"}</p>
+      {!free && <p className="text-xs text-white/40">{won && !draw ? "Winner awards follow the standard report-window hold before becoming available. A rematch needs a separate available balance." : "Wallet updated"}</p>}
       <div className="space-y-2">
         <RematchControls ref={rematchRef} match={match} opponentName={opponentName} onAccepted={onRematchAccepted} />
         <Button
           onClick={handleReturn}
           disabled={returning}
-          className="w-full h-12 rounded-2xl font-bold gold-gradient text-black hover:opacity-90 disabled:opacity-60"
+          variant="outline"
+          className="w-full h-12 rounded-2xl border-[#C9A84C]/60 bg-transparent font-bold text-[#E5CA7A] hover:bg-[#C9A84C]/10 hover:text-[#E5CA7A] disabled:opacity-60"
         >
           {returning ? <Loader2 size={16} className="animate-spin mr-2" /> : null}
           {returning ? "Returning..." : "Challenge Someone Else"}
