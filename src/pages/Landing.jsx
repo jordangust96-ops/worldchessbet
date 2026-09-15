@@ -185,9 +185,9 @@ export default function Landing() {
                 <Link to="/official-rules#eligibility" className="font-semibold text-[#C9A84C] hover:underline underline-offset-4">Official Rules</Link>.
               </p>
 
-              <p className="text-white/50 text-xs mt-4">
+              <p className="text-white/70 text-sm mt-5">
                 Already have an account?{" "}
-                <Link to="/login" className="text-[#C9A84C] hover:underline">
+                <Link to="/login" className="font-semibold text-[#C9A84C] hover:underline">
                   Sign in
                 </Link>
               </p>
