@@ -25,7 +25,7 @@
     "test:jurisdiction": "node scripts/validate-jurisdiction-gates.mjs && node scripts/validate-deposit-location-intent.mjs && node scripts/validate-match-location.mjs",
     "test:waitlist": "node scripts/validate-jurisdiction-waitlist.mjs",
     "test:bank-verification": "node scripts/validate-seamless.mjs",
-    "test:match-lifecycle": "node scripts/validate-match-start-race.mjs",
+    "test:match-lifecycle": "node scripts/validate-match-start-race.mjs && node scripts/validate-rematch-display.mjs",
     "test:gameplay": "node scripts/validate-game-end-race.mjs",
     "test:settlement": "node scripts/validate-settlement-transparency.mjs",
     "test:pending-winnings": "node scripts/validate-pending-winnings.mjs && node scripts/validate-pending-winnings-hardening.mjs",
