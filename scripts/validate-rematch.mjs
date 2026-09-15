@@ -7,6 +7,21 @@ function setup(free=false) {
  const enter=async()=>{await call('p1','enter');await call('p2','enter');};
  return {...f,call,enter};
 }
+for(const free of [true,false]) for(const elapsed of [29999,30000]) {
+ const f=setup(free);await f.enter();
+ const sent=await f.call('p1','request');
+ assert.equal(Date.parse(sent.offer.expiresAt)-f.state.now,30000);
+ f.state.now+=29000;await f.enter(); // Keep presence fresh; test the offer deadline itself.
+ f.state.now+=elapsed-29000;
+ if(elapsed<30000) assert.equal((await f.call('p2','accept',{offerId:sent.offer.id})).offer.status,'accepted');
+ else {
+  await assert.rejects(()=>f.call('p2','accept',{offerId:sent.offer.id}));
+  assert.equal((await f.call('p1','poll')).offer.status,'closed');
+  assert.equal(f.get(sent.offer.id).status,'cancelled');
+  assert.equal(f.table('Wallet')[0].available_balance,100);
+ }
+ console.log('PASS '+(free?'free':'money')+' 30-second offer boundary at '+elapsed+'ms');
+}
 for(const free of [true,false]) {
  const f=setup(free);await f.enter();
  if(free)f.state.noMoney=true;
@@ -30,7 +45,7 @@ for(const end of ['decline','cancel','leave','stale','expiry','new_screen']) {
  if(end==='cancel')await f.call('p1','cancel',{offerId:id});
  if(end==='leave')await f.call('p2','leave');
  if(end==='stale'){f.state.now+=31000;await f.call('p1','poll');}
- if(end==='expiry'){f.state.now+=120001;await f.api.recoverChallenge(f.sdk,id);}
+ if(end==='expiry'){f.state.now+=30001;await f.api.recoverChallenge(f.sdk,id);}
  if(end==='new_screen')await f.call('p2','enter',{screenId:'a_different_screen_session'});
  await f.call('p1','poll');
  assert.equal(f.get(id).status,'cancelled');
