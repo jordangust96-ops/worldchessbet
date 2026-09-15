@@ -326,21 +326,19 @@ export async function getRequestJurisdiction(req, context = null, policy = { fre
             // treated as Verification Failed, regardless of detected location.
             status = 'verification_failed';
             reason = getLocationDenialMessage(lookup);
-          } else if (getLocationDenialMessage(lookup)) {
-            status = 'verification_failed';
-            reason = getLocationDenialMessage(lookup);
+
           } else if (!country || !state) {
             status = 'unknown';
-            reason = UNKNOWN_MESSAGE;
+            reason = getLocationDenialMessage(lookup) || UNKNOWN_MESSAGE;
           } else if (!hasSufficientLocationConfidence(lookup)) {
             // A returned state is not enough for a real-money jurisdiction
             // decision when MaxMind itself reports low confidence. Fail closed
             // and require the user to try again from a more reliably located
             // connection rather than guessing across state lines.
             status = 'verification_failed';
-            reason = Number.isFinite(lookup.accuracyRadiusKm) && lookup.accuracyRadiusKm > 100
+            reason = getLocationDenialMessage(lookup) || (Number.isFinite(lookup.accuracyRadiusKm) && lookup.accuracyRadiusKm > 100
               ? 'Your network location estimate covers too large an area to verify your location. Try a different Wi-Fi or mobile connection, then check your location again.'
-              : 'Your network did not provide a sufficiently confident location estimate. Try a different Wi-Fi or mobile connection, then check your location again.';
+              : 'Your network did not provide a sufficiently confident location estimate. Try a different Wi-Fi or mobile connection, then check your location again.');
           } else if (isLocationApproved(country, state)) {
             status = 'approved';
           } else {
