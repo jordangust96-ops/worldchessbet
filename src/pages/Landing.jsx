@@ -13,7 +13,7 @@ import PlayerProtectionCallout from "@/components/landing/PlayerProtectionCallou
 const LANDING_URL = `${SITE_URL}/`;
 const SEO_TITLE = "Play Chess for Real Money — Head-to-Head Cash Contests | ChessBet";
 const SEO_DESCRIPTION =
-  "Play head-to-head blitz, rapid, or classical chess for real USD. Choose an entry amount, win a decisive match, and take the full cash prize—with fair-play protection built in.";
+  "Play head-to-head blitz, rapid, or classical chess for real USD. Choose an entry amount, win a decisive match, and take the full cash prize—with fair-play protection built in. Start free worldwide with no deposit, or compete for real money where eligible.";
 
 const HERO_FEATURES = [
   {
@@ -168,18 +168,32 @@ export default function Landing() {
             </div>
 
             <div>
-              <Link to="/register">
+              <Link to="/register?mode=free">
                 <Button
                   size="lg"
                   className="w-full gold-gradient text-black font-bold text-lg h-14 rounded-2xl hover:opacity-90 transition-opacity"
                 >
-                  Create account
+                  Start playing free
                 </Button>
               </Link>
-              <p className="mt-3 text-xs leading-relaxed text-white/60">
+              <p className="mt-2.5 text-xs leading-relaxed text-white/55">
+                Play worldwide in minutes. No deposit, no verification — just create an account.
+              </p>
+
+              <Link to="/register?mode=money" className="mt-4 block">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="w-full h-12 rounded-2xl border border-[#C9A84C]/40 bg-transparent text-[#C9A84C] font-bold text-base hover:bg-[#C9A84C]/10 hover:text-[#C9A84C]"
+                >
+                  Play for real money
+                </Button>
+              </Link>
+              <p className="mt-2.5 text-xs leading-relaxed text-white/55">
                 Cash-prize contests require verified age 21+ and eligibility in supported U.S. locations — check eligibility before funding your account in the{" "}
                 <Link to="/official-rules#eligibility" className="font-semibold text-[#C9A84C] hover:underline underline-offset-4">Official Rules</Link>.
               </p>
+
               <p className="text-white/50 text-xs mt-4">
                 Already have an account?{" "}
                 <Link to="/login" className="text-[#C9A84C] hover:underline">
