@@ -25,19 +25,42 @@ const RematchControls=forwardRef(function RematchControls({match,opponentName,on
   };
   useImperativeHandle(ref,()=>({leave}));
   useEffect(()=>{
-    active.current=true;accepted.current=false;
-    const update=async(name='rematch_poll')=>{
-      if(!active.current || polling.current || document.visibilityState!=='visible')return;
-      polling.current=true;
-      try{const data=await call(name);if(!action.current)apply(data);}
-      catch(err){if(active.current && !lastSuccess.current && err?.response?.data?.code!=='busy')setError(challengeErrorMessage(err));}
-      finally{polling.current=false;}
+    // Each mounted results screen owns a distinct token. Cleanup from an old
+    // mount cannot withdraw the new screen's presence.
+    const token=crypto.randomUUID();
+    screen.current=token;active.current=true;accepted.current=false;lastSuccess.current=0;
+    setView(null);setError('');
+    let stopped=false,registered=false,running=false;
+    const sessionCall=name=>challengeRequest(name,{matchId:match.id,screenId:token});
+    const update=async()=>{
+      if(stopped || !active.current || running || document.visibilityState!=='visible')return;
+      running=true;
+      try{
+        const data=await sessionCall(registered?'rematch_poll':'rematch_enter');
+        if(stopped || !active.current || screen.current!==token)return;
+        // Retry registration until the server confirms this screen. A failed
+        // Enter must not leave us polling an unregistered token forever.
+        registered=Boolean(data.selfPresent);
+        lastSuccess.current=Date.now();
+        if(!action.current){apply(data);setError('');}
+      }catch(err){
+        if(!stopped && active.current && !lastSuccess.current)
+          setError('Reconnecting to the rematch…');
+      }finally{running=false;}
     };
-    update('rematch_enter');
-    const poll=setInterval(()=>update(),4000),clock=setInterval(()=>setNow(Date.now()),1000);
-    const exit=()=>{active.current=false;void call('rematch_leave').catch(()=>{});};
+    update();
+    const poll=setInterval(update,4000),clock=setInterval(()=>setNow(Date.now()),1000);
+    const exit=()=>{active.current=false;void sessionCall('rematch_leave').catch(()=>{});};
     window.addEventListener('pagehide',exit);
-    return()=>{active.current=false;clearInterval(poll);clearInterval(clock);window.removeEventListener('pagehide',exit);void call('rematch_leave').catch(()=>{});};
+    window.addEventListener('online',update);
+    const visible=()=>{if(document.visibilityState==='visible')update();};
+    document.addEventListener('visibilitychange',visible);
+    return()=>{
+      stopped=true;active.current=false;clearInterval(poll);clearInterval(clock);
+      window.removeEventListener('pagehide',exit);window.removeEventListener('online',update);
+      document.removeEventListener('visibilitychange',visible);
+      void sessionCall('rematch_leave').catch(()=>{});
+    };
   },[match.id]);
   useEffect(()=>{
     if(view?.terms?.playMode!=='money')return;
@@ -78,9 +101,9 @@ const RematchControls=forwardRef(function RematchControls({match,opponentName,on
     {view && <p className="text-xs text-white/55">{free?'Free play':`Entry Amount $${money(view.terms.entryAmount)} · Platform Service Fee $${money(view.terms.serviceFee)}`} · Same time control</p>}
     {view && !free && <p className="text-xs text-white/55">${money(Number(view.terms.entryAmount)+Number(view.terms.serviceFee))} reserved when you request or accept.</p>}
     <div role="status" aria-live="polite" className="text-sm text-white/65">
-      {!view?'Checking if your opponent is still here…':offer?.status==='processing'?'Confirming rematch…':
+      {!view?'Connecting to the rematch…':!fresh || !view.selfPresent?'Reconnecting to the rematch…':busy || offer?.status==='processing'?'Confirming rematch…':
        offer?.status==='accepted'?'Rematch accepted. Opening match…':
-       !present?'Your opponent is no longer available for a rematch.':
+       !view.opponentPresent?'Waiting for your opponent to connect on the result screen…':
        open?(offer.incoming?`${opponentName} wants a rematch.`:'Rematch requested. Waiting for your opponent…'):
        offer?.status==='closed'?'Rematch offer closed.':'Your opponent is here.'}
     </div>
