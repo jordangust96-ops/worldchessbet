@@ -135,7 +135,7 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
           <div><p className="text-xs text-white/50">Entry Amount</p><p className="mt-1 text-2xl font-bold text-white">${Number(card.entryAmount).toFixed(2)}</p></div>
           <div><p className="text-xs text-white/50">Winner award</p><p className="mt-1 text-2xl font-bold text-[#E5CA7A]">${Number(card.winnerAward).toFixed(2)}</p></div>
         </div></>}
-        <p className="text-sm leading-relaxed text-white/65">{card.status==='processing' ? 'Share your challenge link while it gets ready.' : card.publiclyListed ? 'Your challenge is listed publicly. Share the link with a friend, or wait for someone new to accept your challenge.' : 'Your challenge is link-only. Share it with the person you want to play.'}</p>
+        <p className="text-sm leading-relaxed text-white/65">{card.status==='processing' ? 'Share your challenge link while it gets ready.' : card.publiclyListed ? 'Your challenge is listed publicly. Share the link with a friend, or wait for someone new to accept.' : 'Your challenge is link-only. Share it with the person you want to play.'}</p>
         {['open','processing'].includes(card.status) && <>
           <div className="grid grid-cols-2 gap-2">
             <Button onClick={()=>share(card)} className="h-11 rounded-xl gold-gradient font-bold text-black"><Share2 size={15} className="mr-2"/>Share</Button>
