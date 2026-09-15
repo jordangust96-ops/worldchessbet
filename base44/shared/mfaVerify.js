@@ -121,7 +121,12 @@ export async function processVerify({ code, user, store, userAgent = '', now, cl
     return { status: 409, body: { error: 'already_used', message: 'This code has already been used or is no longer valid.' } };
   }
 
-  // --- Create session ---
+  return issueVerifiedEmailSession({ user, store, userAgent, now: casNow });
+}
+
+// Call only after server-side verification of an email OTP.
+export async function issueVerifiedEmailSession({ user, store, userAgent = '', now = new Date() }) {
+  const casNow = now;
   const tokenBytes = new Uint8Array(32);
   crypto.getRandomValues(tokenBytes);
   const sessionToken = btoa(String.fromCharCode(...tokenBytes))
