@@ -14,7 +14,7 @@ function numberOrNull(value: unknown) {
 
 function normalizedSide(value: Record<string, unknown> | undefined) {
   const side = value || {};
-  return {
+  const normalized = {
     eligible_moves: numberOrNull(side.eligible_moves) ?? numberOrNull(side.analyzed_moves) ?? 0,
     average_centipawn_loss: numberOrNull(side.average_centipawn_loss),
     median_centipawn_loss: numberOrNull(side.median_centipawn_loss),
@@ -31,6 +31,26 @@ function normalizedSide(value: Record<string, unknown> | undefined) {
     risk_band: VALID_BANDS.includes(String(side.risk_band)) ? side.risk_band : 'insufficient_data',
     reasons: Array.isArray(side.reasons) ? side.reasons.filter((reason) => typeof reason === 'string').slice(0, 10) : [],
   };
+
+  // A "cleared" result must have meaningful engine-comparison coverage. Older
+  // analyzer responses sometimes reported many eligible moves while producing
+  // almost no CPL/ranked samples, which is not enough evidence to support an
+  // automated clearance. Preserve monitor/review signals, but downgrade only
+  // an under-supported clearance to insufficient_data for human-safe handling.
+  const usableEngineSamples = Math.max(
+    normalized.centipawn_loss_sample_count ?? 0,
+    normalized.ranked_engine_move_sample_count ?? 0,
+  );
+  const minimumCoverage = Math.min(8, Math.max(3, Math.floor(normalized.eligible_moves * 0.25)));
+  if (normalized.risk_band === 'cleared' && normalized.eligible_moves >= 8 && usableEngineSamples < minimumCoverage) {
+    normalized.risk_band = 'insufficient_data';
+    normalized.reasons = [
+      ...normalized.reasons,
+      `Coverage guard: only ${usableEngineSamples} usable engine-comparison samples across ${normalized.eligible_moves} eligible moves.`,
+    ].slice(0, 10);
+  }
+
+  return normalized;
 }
 
 Deno.serve(async (req) => {
