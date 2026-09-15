@@ -50,6 +50,6 @@ export async function walletOnboardingLocation(base44, userId) {
   const last = recent[0];
   if (last?.user_id === userId && last.verification_result === 'approved')
     return {allowed:false,status:'verification_failed',verifiedAt:null,promptEligible:false,
-      reason:'Your previous location check did not meet our verification requirements. Try a different Wi-Fi or mobile connection.'};
+      reason:getLocationDenialMessage(last) || 'Your previous location check did not meet our verification requirements. Try a different Wi-Fi or mobile connection.'};
   return publicStatus(last && last.user_id === userId ? last : null);
 }

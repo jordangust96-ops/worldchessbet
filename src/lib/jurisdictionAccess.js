@@ -27,8 +27,6 @@ const ANONYMIZER_SIGNALS = [
 
 // Safe, non-diagnostic user-facing reasons. Never expose IP/provider/lookup
 // details; these mirror the existing public messaging in jurisdictionConfig.
-const REASON_UNAVAILABLE =
-  "ChessBet is not currently available in your location. Paid contests are offered only in approved U.S. jurisdictions.";
 const REASON_UNVERIFIED =
   "We could not verify your current location reliably enough for real-money play. Try another connection, such as switching between Wi-Fi and mobile data, then check your location again.";
 const REASON_ANONYMIZER =
