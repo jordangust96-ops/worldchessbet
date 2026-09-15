@@ -1,3 +1,4 @@
+import { clearPostAuthRedirect, getPostAuthRedirect } from '@/lib/postAuthRedirect';
 import NotifyOnAcceptToggle from '@/components/play/NotifyOnAcceptToggle';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -17,7 +18,14 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
   const navigate = useNavigate();
   const requestedCode = new URLSearchParams(location.search).get("challenge");
   const selectedCode = /^[a-f0-9]{32}$/.test(requestedCode || "") ? requestedCode : "";
-  const [creating,setCreating] = useState(false);
+  const requestedMode = new URLSearchParams(location.search).get("mode");
+  const acquisitionMode = requestedMode === "free" || requestedMode === "money" ? requestedMode : "";
+  const [creating,setCreating] = useState(Boolean(acquisitionMode));
+  useEffect(() => {
+    if (!acquisitionMode) return;
+    setCreating(true);
+    if (getPostAuthRedirect() === "/play?mode=" + acquisitionMode) clearPostAuthRedirect();
+  }, [acquisitionMode]);
   const [challenges,setChallenges] = useState([]);
   const [activePublic,setActivePublic] = useState(null);
   const [loading,setLoading] = useState(true);
@@ -114,7 +122,7 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
 
   return <section className="space-y-5 rounded-3xl border border-white/5 bg-gradient-to-br from-[#1A1A1A] to-[#111] p-5 lg:h-full lg:overflow-y-auto lg:p-5">
     {userId && <LiveStatsBar />}
-    {selectedCode ? <ChallengePanel key={selectedCode} inviteCode={selectedCode} embedded onClose={()=>navigate("/play")} onChanged={refresh}/> : loading ? <Loader2 aria-label="Loading your challenge" size={20} className="animate-spin text-white/40"/> : creating && !creationBlocked ? <CreateChallengeForm onCreated={async()=>{ await refresh(); setCreating(false); navigate('/play', { replace:true }); }} onCancel={()=>setCreating(false)}/> : !creationBlocked ? <div className="space-y-3">
+    {selectedCode ? <ChallengePanel key={selectedCode} inviteCode={selectedCode} embedded onClose={()=>navigate("/play")} onChanged={refresh}/> : loading ? <Loader2 aria-label="Loading your challenge" size={20} className="animate-spin text-white/40"/> : creating && !creationBlocked ? <CreateChallengeForm initialMode={acquisitionMode || 'free'} onCreated={async()=>{ await refresh(); setCreating(false); navigate('/play', { replace:true }); }} onCancel={()=>setCreating(false)}/> : !creationBlocked ? <div className="space-y-3">
       <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#C9A84C]/10 text-[#C9A84C]"><Swords size={21}/></div>
       <div><h1 className="text-2xl font-extrabold text-white">Challenge Someone</h1><p className="mt-2 text-sm leading-relaxed text-white/55">Your friend. Your rival. Your next opponent. Create a link and play chess for free or for money.</p></div>
       <Button disabled={creationBlocked} onClick={()=>setCreating(true)} className="h-12 w-full rounded-2xl gold-gradient font-bold text-black"><Plus size={18} className="mr-2"/>Create Challenge</Button>
