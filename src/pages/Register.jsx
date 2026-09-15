@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import useAcquisitionMode from "@/lib/useAcquisitionMode";
+import { getPostAuthRedirect } from "@/lib/postAuthRedirect";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -21,7 +23,7 @@ function RegisterSEO() {
   return (
     <SEO
       title="Create an Account | ChessBet"
-      description="Create your free ChessBet account to start competing in skill-based, real-money chess matches. Sign up in seconds and challenge real opponents right now."
+      description="Create your ChessBet account to play free chess worldwide or compete for real USD where eligible. Challenge friends and find opponents."
       canonicalUrl={`${SITE_URL}/register`}
       noindex
       structuredData={{
@@ -35,6 +37,7 @@ function RegisterSEO() {
 }
 
 export default function Register() {
+  const acquisitionMode = useAcquisitionMode();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -134,17 +137,17 @@ export default function Register() {
 
   const handleGoogle = () => {
     rememberOAuthLogin("google");
-    base44.auth.loginWithProvider("google", "/play");
+    base44.auth.loginWithProvider("google", getPostAuthRedirect() || "/play");
   };
 
   const handleApple = () => {
     rememberOAuthLogin("apple");
-    base44.auth.loginWithProvider("apple", "/play");
+    base44.auth.loginWithProvider("apple", getPostAuthRedirect() || "/play");
   };
 
   const handleFacebook = () => {
     rememberOAuthLogin("facebook");
-    base44.auth.loginWithProvider("facebook", "/play");
+    base44.auth.loginWithProvider("facebook", getPostAuthRedirect() || "/play");
   };
 
   if (showOtp) {
@@ -210,11 +213,11 @@ export default function Register() {
       <AuthLayout
         icon={UserPlus}
         title="Create your account"
-        subtitle="Sign up to get started"
+        subtitle={acquisitionMode === "free" ? "Start free worldwide. No deposit or bank connection needed." : acquisitionMode === "money" ? "Play for real USD where eligible. Check eligibility before funding." : "Start free, or play for real USD where eligible."}
         footer={
           <>
             Already have an account?{" "}
-            <Link to="/login" className="text-primary font-medium hover:underline">
+            <Link to={acquisitionMode ? "/login?mode=" + acquisitionMode : "/login"} className="text-primary font-medium hover:underline">
               Log in
             </Link>
           </>
