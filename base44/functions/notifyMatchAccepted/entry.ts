@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
 
     const hostUser = await base44.asServiceRole.entities.User.get(match.player1_id);
     const record = async (status, reason, error = '') => {
-      console.info('match_acceptance_email', { matchId: match.id, status, reason });
+      console.log('match_acceptance_email', { matchId: match.id, status, reason });
       if (!hostUser?.email) return;
       await base44.asServiceRole.entities.EmailLog.create({
         user_id: match.player1_id, recipient_email: hostUser.email,
