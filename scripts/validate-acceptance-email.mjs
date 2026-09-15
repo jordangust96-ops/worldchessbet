@@ -29,3 +29,11 @@ for(const free of [true,false]){
  if(free)assert.doesNotMatch(html,/Entry Amount|\$25|money/i);else {assert.match(html,/\$25.00/);assert.doesNotMatch(html,/Free play/);}
 }
 console.log('PASS branded free/money email, logo, escaped content, deadline and direct link');
+
+{
+ const f=await setup();f.state.fail={where:'SendEmail'};
+ assert.equal((await f.send()).data.status,'failed');assert.equal(f.state.emails.length,0);
+ assert.notEqual(f.get(f.m.id).accept_notification_sent,true);assert.equal(f.table('EmailLog')[0].reason,'provider_error');
+ assert.equal((await f.send()).data.status,'sent');assert.equal(f.state.emails.length,1);
+ console.log('PASS provider failure records error and retries without premature sent marker');
+}

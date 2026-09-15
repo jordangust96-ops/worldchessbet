@@ -36,7 +36,8 @@
     "test:challenges": "node scripts/validate-challenge-lifecycle.mjs && node scripts/validate-challenge-creation-settlement.mjs",
     "test:free-play": "node scripts/validate-free-play.mjs",
     "test:funding": "node scripts/validate-funding-provenance.mjs && node scripts/validate-funding-journal.mjs",
-    "test:withdrawal-queue": "node scripts/validate-queued-withdrawals.mjs && node scripts/validate-withdrawal-request-email.mjs"
+    "test:withdrawal-queue": "node scripts/validate-queued-withdrawals.mjs && node scripts/validate-withdrawal-request-email.mjs",
+    "test:acceptance-email": "node scripts/validate-acceptance-email.mjs && node scripts/validate-accept-email-preference.mjs"
   },
   "dependencies": {
     "@base44/sdk": "^0.8.48",

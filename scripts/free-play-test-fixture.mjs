@@ -120,7 +120,7 @@ function fixture() {
     result.exports=module.exports;return result;
   }
   makeSdk=id=>({auth:{me:async()=>clone(table('User').find(u=>u.id===id)||null)},
-    asServiceRole:{entities,functions:{invoke:async(name,body)=>makeSdk('p1').functions.invoke(name,body)},integrations:{Core:{SendEmail:async data=>{state.emails.push(clone(data));return {sent:true};}}}},
+    asServiceRole:{entities,functions:{invoke:async(name,body)=>makeSdk('p1').functions.invoke(name,body)},integrations:{Core:{SendEmail:async data=>{if(state.fail?.where==='SendEmail'){state.fail=null;throw Error('provider_unavailable');}state.emails.push(clone(data));return {sent:true};}}}},
     functions:{invoke:async(name,payload)=>{
       state.invocations.push({name,payload:clone(payload)});
       const response=await load(`base44/functions/${name}/entry.ts`).handler(new Request('https://example.invalid',{method:'POST',headers:{'x-test-user':id,'user-agent':'test-browser'},body:JSON.stringify(payload)}));
