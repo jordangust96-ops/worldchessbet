@@ -10,6 +10,7 @@ import MatchStartCountdown from "@/components/play/matchview/MatchStartCountdown
 import GameHUD from "@/components/play/matchview/GameHUD";
 import FinalizingMatch from "@/components/play/matchview/FinalizingMatch";
 import SettlementState from "@/components/play/matchview/SettlementState";
+import { isMatchFinalizing } from "@/lib/matchDisplayState";
 
 // Match data is sourced entirely from the parent (Home), which owns the single
 // authoritative Match subscription for the active match — this component no
@@ -20,7 +21,7 @@ export default function MatchView({
   onExit,
   onRematchAccepted,
   onStateChange,
-  game,
+  game: receivedGame,
   match,
   onRefresh,
   movementMode,
@@ -29,6 +30,8 @@ export default function MatchView({
   soundEnabled,
   onSoundEnabledChange,
 }) {
+  // A previous game can remain in the hook while a rematch is loading.
+  const game = receivedGame?.match_id === matchId ? receivedGame : null;
   const { toast } = useToast();
   // Tracks whether this client is the one who initiated the cancellation, so the
   // "opponent cancelled" notification only surfaces for the other player.
@@ -84,7 +87,7 @@ export default function MatchView({
     if (match.status === "completed") {
       stateKey = "settlement";
       content = <SettlementState match={match} game={game} userId={userId} onReturn={onExit} onRematchAccepted={onRematchAccepted} />;
-    } else if (game?.status === "completed") {
+    } else if (isMatchFinalizing(match, game)) {
       stateKey = "finalizing";
       content = <FinalizingMatch free={match.play_mode==='free'} />;
     } else if (match.status === "in_progress") {
