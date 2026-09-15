@@ -180,16 +180,7 @@ export default function Landing() {
                 Play worldwide in minutes. No deposit, no verification — just create an account.
               </p>
 
-              <Link to="/register?mode=money" className="mt-4 block">
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="w-full h-12 rounded-2xl border border-[#C9A84C]/40 bg-transparent text-[#C9A84C] font-bold text-base hover:bg-[#C9A84C]/10 hover:text-[#C9A84C]"
-                >
-                  Play for real money
-                </Button>
-              </Link>
-              <p className="mt-2.5 text-xs leading-relaxed text-white/55">
+              <p className="mt-3 text-xs leading-relaxed text-white/55">
                 Cash-prize contests require verified age 21+ and eligibility in supported U.S. locations — check eligibility before funding your account in the{" "}
                 <Link to="/official-rules#eligibility" className="font-semibold text-[#C9A84C] hover:underline underline-offset-4">Official Rules</Link>.
               </p>
@@ -254,10 +245,6 @@ export default function Landing() {
               </div>
             </div>
           )}
-
-          <p className="text-white/55 text-xs mt-8 max-w-sm">
-            The fixed Platform Service Fee is separate from the Contest Prize. Winnings remain pending for the 24-hour reporting window and any unresolved review.
-          </p>
         </section>
 
         <PlayerProtectionCallout />
