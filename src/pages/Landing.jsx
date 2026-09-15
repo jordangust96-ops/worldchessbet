@@ -11,9 +11,9 @@ import HowItWorksSection from "@/components/landing/HowItWorksSection";
 import PlayerProtectionCallout from "@/components/landing/PlayerProtectionCallout";
 
 const LANDING_URL = `${SITE_URL}/`;
-const SEO_TITLE = "Play Chess for Real Money — Head-to-Head Cash Contests | ChessBet";
+const SEO_TITLE = "Play Chess for Real Money — Or Start Free | ChessBet";
 const SEO_DESCRIPTION =
-  "Play head-to-head blitz, rapid, or classical chess for real USD. Choose an entry amount, win a decisive match, and take the full cash prize—with fair-play protection built in.";
+  "Play head-to-head chess for real USD where eligible, or start free worldwide. Create an account, challenge a friend, and play blitz, rapid, or classical chess.";
 
 const HERO_FEATURES = [
   {
@@ -163,19 +163,23 @@ export default function Landing() {
                 One-on-one chess for real USD. Choose an entry amount, win a decisive match, and take the full cash prize.
               </p>
               <p className="text-white/55 text-sm leading-relaxed max-w-sm mx-auto">
-                No crypto. No tokens. Your chess decides it.
+                Start free. Find your rival. Bring your best game.
               </p>
             </div>
 
             <div>
-              <Link to="/register">
+              <Link to="/register?mode=free">
                 <Button
                   size="lg"
                   className="w-full gold-gradient text-black font-bold text-lg h-14 rounded-2xl hover:opacity-90 transition-opacity"
                 >
-                  Create account
+                  Play Free
                 </Button>
               </Link>
+              <p className="mt-2 text-sm text-white/65">Free worldwide. Create an account. No deposit required.</p>
+              <Button asChild variant="outline" size="lg" className="mt-3 h-14 w-full rounded-2xl border-[#C9A84C]/60 bg-[#C9A84C]/5 text-lg font-bold text-[#E5CA7A] hover:bg-[#C9A84C]/15">
+                <Link to="/register?mode=money">Play for Money</Link>
+              </Button>
               <p className="mt-3 text-xs leading-relaxed text-white/60">
                 Cash-prize contests require verified age 21+ and eligibility in supported U.S. locations — check eligibility before funding your account in the{" "}
                 <Link to="/official-rules#eligibility" className="font-semibold text-[#C9A84C] hover:underline underline-offset-4">Official Rules</Link>.
@@ -246,6 +250,36 @@ export default function Landing() {
           </p>
         </section>
 
+        <section aria-labelledby="choose-your-game" className="px-6 py-16">
+          <div className="mx-auto max-w-4xl">
+            <h2 id="choose-your-game" className="text-center text-2xl font-extrabold text-white sm:text-3xl">Your game. Your choice.</h2>
+            <p className="mx-auto mt-3 max-w-xl text-center text-sm text-white/60">Start with a free rivalry. Play for real USD when you’re ready and eligible.</p>
+            <div className="mt-8 grid gap-4 sm:grid-cols-2">
+              <article className="flex flex-col rounded-3xl border border-white/10 bg-white/[0.03] p-6">
+                <h3 className="text-xl font-bold text-white">Start free. Make your move.</h3>
+                <p className="mt-3 text-sm leading-relaxed text-white/65">Play worldwide, challenge a friend, or find an opponent. No entry amount, service fee, or cash prize.</p>
+                <ol className="my-6 list-decimal space-y-2 pl-5 text-sm text-white/70">
+                  <li>Create your account and complete account security.</li>
+                  <li>Choose blitz, rapid, or classical.</li>
+                  <li>Share your challenge link or list it publicly.</li>
+                </ol>
+                <p className="mb-5 text-xs text-white/55">No location check, identity verification, bank connection, or deposit needed for free play.</p>
+                <Button asChild className="mt-auto h-12 rounded-xl gold-gradient font-bold text-black"><Link to="/register?mode=free">Play Free</Link></Button>
+              </article>
+              <article className="flex flex-col rounded-3xl border border-[#C9A84C]/30 bg-gradient-to-br from-[#C9A84C]/10 to-transparent p-6">
+                <h3 className="text-xl font-bold text-[#E5CA7A]">Put your skill on the line.</h3>
+                <p className="mt-3 text-sm leading-relaxed text-white/65">One opponent. Real USD. The confirmed winner of a decisive match earns the combined entry amounts.</p>
+                <ol className="my-6 list-decimal space-y-2 pl-5 text-sm text-white/70">
+                  <li>Create your account and check money-play eligibility.</li>
+                  <li>Verify your identity, connect your bank, and add funds.</li>
+                  <li>Choose your entry amount and challenge an opponent.</li>
+                </ol>
+                <p className="mb-5 text-xs text-white/55">Verified age 21+ in supported U.S. locations. Cleared funds required. Separate Platform Service Fee; winnings are subject to the reporting window and review.</p>
+                <Button asChild variant="outline" className="mt-auto h-12 rounded-xl border-[#C9A84C]/50 font-bold text-[#E5CA7A]"><Link to="/register?mode=money">Play for Money</Link></Button>
+              </article>
+            </div>
+          </div>
+        </section>
         <PlayerProtectionCallout />
         <HowItWorksSection />
       </main>
