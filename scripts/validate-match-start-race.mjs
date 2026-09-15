@@ -206,7 +206,7 @@ const [finalizeSrc, sweepSrc, cancelSrc, gameSrc, matchSchemaSrc] = await Promis
   readFile(new URL('../base44/functions/finalizeMatchStart/entry.ts', import.meta.url), 'utf8'),
   readFile(new URL('../base44/functions/checkPreparationTimeout/entry.ts', import.meta.url), 'utf8'),
   readFile(new URL('../base44/functions/cancelMatch/entry.ts', import.meta.url), 'utf8'),
-  readFile(new URL('../base44/functions/getOrCreateGame/entry.ts', import.meta.url), 'utf8'),
+  readFile(new URL('../base44/shared/getOrCreateMatchGame.ts', import.meta.url), 'utf8'),
   readFile(new URL('../base44/entities/Match.jsonc', import.meta.url), 'utf8'),
 ]);
 
