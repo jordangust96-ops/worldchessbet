@@ -180,11 +180,6 @@ export default function Landing() {
                 Play worldwide in minutes. No deposit, no verification — just create an account.
               </p>
 
-              <p className="mt-3 text-xs leading-relaxed text-white/55">
-                Cash-prize contests require verified age 21+ and eligibility in supported U.S. locations — check eligibility before funding your account in the{" "}
-                <Link to="/official-rules#eligibility" className="font-semibold text-[#C9A84C] hover:underline underline-offset-4">Official Rules</Link>.
-              </p>
-
               <p className="text-white/70 text-sm mt-5">
                 Already have an account?{" "}
                 <Link to="/login" className="font-semibold text-[#C9A84C] hover:underline">
@@ -262,6 +257,10 @@ export default function Landing() {
           <Link to="/privacy-policy" className="text-white/55 hover:text-[#C9A84C]">Privacy</Link>
           <button onClick={openCookieSettings} className="text-white/55 hover:text-[#C9A84C]">Cookie settings</button>
         </nav>
+        <p className="mx-auto mb-4 max-w-2xl text-white/45 text-xs leading-relaxed">
+          Cash-prize contests require verified age 21+ and eligibility in supported U.S. locations — check eligibility before funding your account in the{" "}
+          <Link to="/official-rules#eligibility" className="font-semibold text-[#C9A84C] hover:underline underline-offset-4">Official Rules</Link>.
+        </p>
         <p className="text-white/45 text-xs">© 2026 ChessBet. All rights reserved.</p>
       </footer>
 
