@@ -1,16 +1,54 @@
 import React, { useEffect, useState } from "react";
 import { openCookieSettings } from "@/lib/privacy";
 import { Link } from "react-router-dom";
+import { Banknote, Crown, Zap, CircleCheck, WalletCards } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Logo from "@/components/Logo";
 import SEO from "@/components/seo/SEO";
 import { SITE_URL } from "@/lib/seoConfig";
 
+import HowItWorksSection from "@/components/landing/HowItWorksSection";
+import PlayerProtectionCallout from "@/components/landing/PlayerProtectionCallout";
 
 const LANDING_URL = `${SITE_URL}/`;
-const SEO_TITLE = "Play Chess for Real Money — Or Start Free | ChessBet";
+const SEO_TITLE = "Play Chess for Real Money — Head-to-Head Cash Contests | ChessBet";
 const SEO_DESCRIPTION =
-  "Play head-to-head chess for real USD where eligible, or start free worldwide. Create an account, challenge a friend, and play blitz, rapid, or classical chess.";
+  "Play head-to-head blitz, rapid, or classical chess for real USD. Choose an entry amount, win a decisive match, and take the full cash prize—with fair-play protection built in.";
+
+const HERO_FEATURES = [
+  {
+    id: "choose-your-entry",
+    icon: WalletCards,
+    label: "Choose your\nentry",
+    heading: "Put your confidence on the board",
+    description: "Pick an entry amount that makes the match matter.",
+    points: ["Entry amounts in USD", "Clear terms before play", "You choose the amount"],
+  },
+  {
+    id: "create-your-challenge",
+    icon: Zap,
+    label: "Create your\nchallenge",
+    heading: "Set the matchup",
+    description: "Create a challenge or accept another player’s terms.",
+    points: ["Head-to-head", "Blitz, Rapid, or Classical", "Your choice of time control"],
+  },
+  {
+    id: "play-to-win",
+    icon: Crown,
+    label: "Play to\nwin",
+    heading: "Let your chess decide",
+    description: "Win a decisive match. Win the cash prize.",
+    points: ["One player against another", "Every move matters", "Skill decides the result"],
+  },
+  {
+    id: "win-real-usd",
+    icon: Banknote,
+    label: "Win real\nUSD",
+    heading: "Real dollars—not tokens",
+    description: "A confirmed winner earns 100% of the combined entry amounts.",
+    points: ["No tokens", "No crypto", "Platform Service Fee shown separately"],
+  },
+];
 
 const STRUCTURED_DATA = [
   {
@@ -83,6 +121,9 @@ function LandingAmbientGlow() {
 }
 
 export default function Landing() {
+  const [expandedFeature, setExpandedFeature] = useState(null);
+  const activeFeature = HERO_FEATURES.find(({ id }) => id === expandedFeature);
+  const ActiveFeatureIcon = activeFeature?.icon;
 
   return (
     <div
@@ -101,59 +142,116 @@ export default function Landing() {
       <header className="relative z-10 flex items-center justify-between px-6 py-5">
         <Logo size="md" />
         <Link to="/login">
-          <Button variant="ghost" className="text-white/70 hover:text-white text-base">
+          <Button variant="ghost" className="text-white/70 hover:text-white text-sm">
             Sign In
           </Button>
         </Link>
       </header>
 
       <main className="relative z-10 flex flex-1 flex-col">
-        <section className="mx-auto flex w-full max-w-5xl flex-col items-center px-6 pb-16 pt-12 text-center sm:pb-24 sm:pt-20">
-          <p className="text-base font-semibold text-[#C9A84C]">One-on-one. Real USD.</p>
-          <h1 className="mt-5 text-5xl font-extrabold leading-[1.05] tracking-tight text-white sm:text-7xl">
-            Play chess.<br /><span className="text-[#E5CA7A]">Win cash.</span>
-          </h1>
-          <p className="mx-auto mt-6 max-w-lg text-xl leading-relaxed text-white/75">
-            Bring your best game. Play for money where eligible, or start free.
-          </p>
-          <div className="mt-9 grid w-full max-w-lg gap-3 sm:grid-cols-2">
-            <Button asChild size="lg" className="h-14 rounded-2xl gold-gradient text-lg font-bold text-black hover:opacity-90">
-              <Link to="/register?mode=free">Play Free</Link>
-            </Button>
-            <Button asChild variant="outline" size="lg" className="h-14 rounded-2xl border-[#C9A84C]/60 bg-transparent text-lg font-bold text-[#E5CA7A] hover:bg-[#C9A84C]/10">
-              <Link to="/register?mode=money">Play for Money</Link>
-            </Button>
+        <section className="flex flex-1 flex-col items-center justify-center px-6 text-center">
+          <div className="space-y-8 max-w-lg">
+            <div className="space-y-4">
+              <Logo size="lg" className="justify-center" />
+              <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#C9A84C]">
+                Chess for real money
+              </p>
+              <h1 className="text-white text-3xl sm:text-4xl font-extrabold leading-tight max-w-md mx-auto">
+                Play chess. Win cash.
+              </h1>
+              <p className="text-white/75 text-lg font-semibold leading-snug max-w-lg mx-auto">
+                One-on-one chess for real USD. Choose an entry amount, win a decisive match, and take the full cash prize.
+              </p>
+              <p className="text-white/55 text-sm leading-relaxed max-w-sm mx-auto">
+                No crypto. No tokens. Your chess decides it.
+              </p>
+            </div>
+
+            <div>
+              <Link to="/register">
+                <Button
+                  size="lg"
+                  className="w-full gold-gradient text-black font-bold text-lg h-14 rounded-2xl hover:opacity-90 transition-opacity"
+                >
+                  Create account
+                </Button>
+              </Link>
+              <p className="mt-3 text-xs leading-relaxed text-white/60">
+                Cash-prize contests require verified age 21+ and eligibility in supported U.S. locations — check eligibility before funding your account in the{" "}
+                <Link to="/official-rules#eligibility" className="font-semibold text-[#C9A84C] hover:underline underline-offset-4">Official Rules</Link>.
+              </p>
+              <p className="text-white/50 text-xs mt-4">
+                Already have an account?{" "}
+                <Link to="/login" className="text-[#C9A84C] hover:underline">
+                  Sign in
+                </Link>
+              </p>
+            </div>
           </div>
-          <p className="mt-5 text-base leading-relaxed text-white/65">Free worldwide. Just an account. No deposit.</p>
-          <p className="mt-3 text-base leading-relaxed text-white/65">
-            Money play: 21+ in supported U.S. locations.{" "}
-            <Link to="/official-rules#eligibility" className="text-[#E5CA7A] underline underline-offset-4">Check eligibility</Link>
+
+          <div className="grid grid-cols-4 gap-3 mt-16 max-w-md w-full">
+            {HERO_FEATURES.map(({ id, icon: Icon, label }) => {
+              const isExpanded = expandedFeature === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setExpandedFeature(isExpanded ? null : id)}
+                  aria-expanded={isExpanded}
+                  aria-controls={`hero-feature-details-${id}`}
+                  className="relative flex min-w-0 flex-col items-center gap-2 rounded-2xl border border-white/5 bg-white/[0.03] px-2 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0A] sm:px-3"
+                >
+                  <Icon size={20} className="text-[#C9A84C]" aria-hidden="true" />
+                  <span className="text-[10px] text-white/60 font-medium text-center whitespace-pre-line leading-tight sm:text-[11px]">
+                    {label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {activeFeature && ActiveFeatureIcon && (
+            <div
+              id={`hero-feature-details-${activeFeature.id}`}
+              className="landing-feature-details max-w-md w-full overflow-hidden text-left"
+              role="region"
+              aria-live="polite"
+            >
+              <div className="mt-3 rounded-2xl border border-[#C9A84C]/20 bg-gradient-to-br from-[#C9A84C]/[0.08] to-white/[0.02] p-5">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#C9A84C]/20 bg-[#C9A84C]/10">
+                    <ActiveFeatureIcon size={18} className="text-[#C9A84C]" aria-hidden="true" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-semibold text-white">{activeFeature.heading}</h2>
+                    <p className="mt-1.5 text-xs leading-relaxed text-white/60">
+                      {activeFeature.description}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-2 border-t border-white/[0.06] pt-4">
+                  {activeFeature.points.map((point) => (
+                    <div key={point} className="flex items-center gap-2 text-[11px] text-white/60">
+                      <CircleCheck size={13} className="shrink-0 text-[#C9A84C]/80" aria-hidden="true" />
+                      <span>{point}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <p className="text-white/55 text-xs mt-8 max-w-sm">
+            The fixed Platform Service Fee is separate from the Contest Prize. Winnings remain pending for the 24-hour reporting window and any unresolved review.
           </p>
         </section>
 
-        <section aria-labelledby="make-it-a-match" className="border-t border-white/10 px-6 py-12 sm:py-16">
-          <div className="mx-auto max-w-3xl">
-            <h2 id="make-it-a-match" className="text-3xl font-bold tracking-tight text-white sm:text-4xl">Your friend. Your rival.<br />Your next opponent.</h2>
-            <p className="mt-5 max-w-2xl text-lg leading-relaxed text-white/70">Choose your time control, share a challenge, and settle it on the board.</p>
-            <div className="mt-8 flex flex-wrap gap-x-8 gap-y-3 text-lg font-semibold text-[#E5CA7A]">
-              <span>Blitz</span><span>Rapid</span><span>Classical</span>
-            </div>
-            <details className="mt-10 border-t border-white/10 pt-6">
-              <summary className="cursor-pointer text-lg font-semibold text-white marker:text-[#C9A84C]">How money play works</summary>
-              <div className="mt-5 space-y-4 text-base leading-relaxed text-white/70">
-                <p>Verify your eligibility and identity, connect your bank, and add funds. Choose an entry amount and review the separate Platform Service Fee before you play.</p>
-                <p>The confirmed winner of a decisive match earns the combined entry amounts. Winnings remain pending for the 24-hour reporting window and any unresolved review.</p>
-                <p>Free games need no identity verification, bank connection, location check, or deposit.</p>
-                <Link to="/official-rules" className="inline-block text-[#E5CA7A] underline underline-offset-4">Read the Official Rules</Link>
-              </div>
-            </details>
-            <Link to="/fair-play-integrity" className="mt-6 inline-block text-base font-medium text-[#E5CA7A] underline underline-offset-4">Fair play &amp; player protection</Link>
-          </div>
-        </section>
+        <PlayerProtectionCallout />
+        <HowItWorksSection />
       </main>
 
       <footer className="relative z-10 px-6 py-8 text-center border-t border-white/5">
-        <nav aria-label="ChessBet information" className="mb-4 flex flex-wrap justify-center gap-x-5 gap-y-3 text-base">
+        <nav aria-label="ChessBet information" className="mb-4 flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs">
           <Link to="/about" className="text-white/55 hover:text-[#C9A84C]">About</Link>
           <Link to="/blog" className="text-white/55 hover:text-[#C9A84C]">Blog</Link>
           <Link to="/fair-play-integrity" className="text-white/55 hover:text-[#C9A84C]">Fair Play & Integrity</Link>
@@ -163,7 +261,7 @@ export default function Landing() {
           <Link to="/privacy-policy" className="text-white/55 hover:text-[#C9A84C]">Privacy</Link>
           <button onClick={openCookieSettings} className="text-white/55 hover:text-[#C9A84C]">Cookie settings</button>
         </nav>
-        <p className="text-white/55 text-sm">© 2026 ChessBet. All rights reserved.</p>
+        <p className="text-white/45 text-xs">© 2026 ChessBet. All rights reserved.</p>
       </footer>
 
     </div>
