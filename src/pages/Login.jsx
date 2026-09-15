@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import useAcquisitionMode from "@/lib/useAcquisitionMode";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ import { SITE_URL } from "@/lib/seoConfig";
 import { clearPendingOAuthLogin, rememberOAuthLogin, trackGoogleAnalyticsEvent } from "@/lib/googleAnalytics";
 
 export default function Login() {
+  const acquisitionMode = useAcquisitionMode();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -39,17 +41,17 @@ export default function Login() {
 
   const handleGoogle = () => {
     rememberOAuthLogin("google");
-    base44.auth.loginWithProvider("google", "/play");
+    base44.auth.loginWithProvider("google", getPostAuthRedirect() || "/play");
   };
 
   const handleApple = () => {
     rememberOAuthLogin("apple");
-    base44.auth.loginWithProvider("apple", "/play");
+    base44.auth.loginWithProvider("apple", getPostAuthRedirect() || "/play");
   };
 
   const handleFacebook = () => {
     rememberOAuthLogin("facebook");
-    base44.auth.loginWithProvider("facebook", "/play");
+    base44.auth.loginWithProvider("facebook", getPostAuthRedirect() || "/play");
   };
 
   return (
@@ -73,7 +75,7 @@ export default function Login() {
         footer={
           <>
             Don't have an account?{" "}
-            <Link to="/register" className="text-primary font-medium hover:underline">
+            <Link to={acquisitionMode ? "/register?mode=" + acquisitionMode : "/register"} className="text-primary font-medium hover:underline">
               Create one
             </Link>
           </>
