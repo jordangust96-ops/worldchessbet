@@ -389,7 +389,7 @@ Deno.serve(async (req) => {
     let deferred = 0;
     let permanentSkips = 0;
     const errors: string[] = [];
-    const blockedPlayers = new Set<string>();
+    const blockedRatings = new Set<string>();
     // Free results are eligible at completion; money results retain their
     // reporting window. Order by eligibility so a recent money game cannot
     // hide a ready free game later in the durable backlog. Rebuilds use the
@@ -407,6 +407,8 @@ Deno.serve(async (req) => {
     );
 
     for (const contestRecord of backlog) {
+      const player1Chain = JSON.stringify([contestRecord.white_player_id, contestRecord.time_control]);
+      const player2Chain = JSON.stringify([contestRecord.black_player_id, contestRecord.time_control]);
       if (applied >= MAX_APPLY_PER_RUN) break;
       scanned += 1;
       if (scanned % 100 === 0 && !(await renewRatingProcessingLock(owner))) throw new Error('rating_processing_lock_lost');
@@ -421,21 +423,21 @@ Deno.serve(async (req) => {
       });
       if (existingOps.length > 1) {
         errors.push(`duplicate_operation:${contestRecord.id}`);
-        blockedPlayers.add(contestRecord.white_player_id);
-        blockedPlayers.add(contestRecord.black_player_id);
+        blockedRatings.add(player1Chain);
+        blockedRatings.add(player2Chain);
         continue;
       }
       const existingOperation = existingOps[0] || null;
       if (existingOperation?.status === 'completed') continue;
       if (existingOperation?.status === 'invalidated' && existingOperation.invalidated_reason !== 'superseded_by_rebuild') continue;
 
-      // If an earlier unresolved contest prevents either player's canonical
-      // state from being known, this contest must wait too. Propagate the
-      // block to the opponent, but keep processing unrelated player chains.
-      if (blockedPlayers.has(contestRecord.white_player_id) || blockedPlayers.has(contestRecord.black_player_id)) {
+      // Preserve result order within each player's time-control pool. An
+      // unresolved Blitz result must not block an independent Rapid or
+      // Classical rating. Propagate only within the affected pool.
+      if (blockedRatings.has(player1Chain) || blockedRatings.has(player2Chain)) {
         deferred += 1;
-        blockedPlayers.add(contestRecord.white_player_id);
-        blockedPlayers.add(contestRecord.black_player_id);
+        blockedRatings.add(player1Chain);
+        blockedRatings.add(player2Chain);
         continue;
       }
 
@@ -444,8 +446,8 @@ Deno.serve(async (req) => {
         if (eligibility.permanent) permanentSkips += 1;
         else {
           deferred += 1;
-          blockedPlayers.add(contestRecord.white_player_id);
-          blockedPlayers.add(contestRecord.black_player_id);
+          blockedRatings.add(player1Chain);
+          blockedRatings.add(player2Chain);
         }
         continue;
       }
@@ -466,8 +468,8 @@ Deno.serve(async (req) => {
         errors.push(`${contestRecord.id}:${message}`.slice(0, 500));
         // Never leapfrog a failed earlier contest for either participant.
         // Unrelated player chains may continue safely in the same sweep.
-        blockedPlayers.add(contestRecord.white_player_id);
-        blockedPlayers.add(contestRecord.black_player_id);
+        blockedRatings.add(player1Chain);
+        blockedRatings.add(player2Chain);
         continue;
       }
     }

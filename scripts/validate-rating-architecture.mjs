@@ -85,3 +85,4 @@ assert.equal(pkg.scripts['test:ratings'], 'node scripts/validate-ratings.mjs && 
 
 console.log('Rating architecture hardening/isolation/finality/recovery validation passed.');
 await import('./validate-my-rating.mjs');
+await import('./validate-rating-pool-isolation.mjs');
