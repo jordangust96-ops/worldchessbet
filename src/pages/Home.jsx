@@ -162,14 +162,6 @@ export default function Home() {
       if (event.data?.player1_id !== user.id && event.data?.player2_id !== user.id) return;
       if (event.type !== "update" && event.type !== "create") return;
 
-      // This is the single authoritative Match subscription for whichever
-      // match is currently active — keep it in sync for every status
-      // (including cancelled/completed), not just the ones that trigger
-      // switching into MatchView below.
-      if (event.data.id === myMatchIdRef.current) {
-        setActiveMatch(event.data);
-      }
-
       // Never restore a match the player already dismissed via Find New Match.
       if (event.data.id === dismissedMatchIdRef.current) return;
       if (!["preparing", "both_ready", "in_progress"].includes(event.data.status)) return;
