@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import useAcquisitionMode from "@/lib/useAcquisitionMode";
+import { setMfaVerified } from "@/lib/mfaSession";
 import { getPostAuthRedirect } from "@/lib/postAuthRedirect";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
@@ -74,7 +75,7 @@ export default function Register() {
     setError("");
     setLoading(true);
     try {
-      const result = await base44.auth.verifyOtp({ email, otpCode });
+      const { data: result } = await base44.functions.invoke("confirmSignupEmail", { email, otpCode });
       if (result?.access_token) {
         base44.auth.setToken(result.access_token);
       }
@@ -104,9 +105,10 @@ export default function Register() {
       trackGoogleAnalyticsEvent("sign_up", { method: "email" });
       trackGoogleAnalyticsEvent("login", { method: "email" });
       base44.analytics.track({ eventName: "user_login", properties: { method: "email", user_type: "new" } });
-      window.location.href = "/verify-mfa";
+      if (result.session_token) setMfaVerified(result.session_token);
+      window.location.href = result.session_token ? (getPostAuthRedirect() || "/play") : "/verify-mfa";
     } catch (err) {
-      setError(err.message || "Invalid verification code");
+      setError(err?.response?.data?.message || err.message || "Invalid confirmation code");
     } finally {
       setLoading(false);
     }
@@ -146,7 +148,7 @@ export default function Register() {
         <RegisterSEO />
         <AuthLayout
           icon={Mail}
-          title="Verify your email"
+          title="Confirm your email"
           subtitle={`We sent a code to ${email}`}
         >
           {error && (
@@ -180,10 +182,10 @@ export default function Register() {
             {loading ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Verifying...
+                Confirming...
               </>
             ) : (
-              "Verify"
+              "Confirm email"
             )}
           </Button>
           <p className="text-center text-sm text-muted-foreground mt-4">
