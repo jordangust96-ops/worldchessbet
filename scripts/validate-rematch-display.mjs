@@ -7,7 +7,7 @@ import {fixture} from './free-play-test-fixture.mjs';
 // Execute the real MatchView render with inert hooks and leaf components.
 const React={createElement:(type,props,...children)=>({type,props,children}),useState:v=>[v,()=>{}],useEffect:()=>{},useRef:v=>({current:v})};
 const mod={exports:{}};
-const require=name=>name==='react'?React:name.endsWith('matchDisplayState')?display:name.endsWith('use-toast')?{useToast:()=>({toast:()=>{}})}:new Proxy({}, {get:(_,key)=>key==='__esModule'?true:key==='default'?name.split('/').at(-1):key});
+const require=name=>name==='react'?{...React,default:React}:name.endsWith('matchDisplayState')?display:name.endsWith('use-toast')?{useToast:()=>({toast:()=>{}})}:new Proxy({}, {get:(_,key)=>key==='__esModule'?true:key==='default'?name.split('/').at(-1):key});
 vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/components/play/MatchView.jsx','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.React}}).outputText,{module:mod,exports:mod.exports,require});
 const view=(match,game)=>mod.exports.default({matchId:match.id,match,game,userId:'p1'});
 const contains=(tree,type)=>tree && (tree.type===type || tree.children?.flat().some(child=>contains(child,type)));
