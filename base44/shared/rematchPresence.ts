@@ -1,6 +1,6 @@
 import { fail } from './challengeAccess.ts';
 export const REMATCH_PRESENCE_MS = 30000;
-export const REMATCH_OFFER_MS = 120000;
+export const REMATCH_OFFER_MS = 30000;
 export function rematchRole(match: any, userId: string) {
   return match.player1_id===userId?'player1':match.player2_id===userId?'player2':'';
 }
