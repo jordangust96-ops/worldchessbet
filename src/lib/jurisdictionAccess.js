@@ -77,14 +77,14 @@ export function evaluateJurisdictionAccess(response) {
   }
 
   if (response.enforcementEnabled !== true) {
-    return { allowed: false, reason: REASON_UNAVAILABLE, promptEligible: false };
+    return { allowed: false, reason: "Location verification is temporarily unavailable. Please try again shortly.", promptEligible: false };
   }
 
   // Anonymizer/proxy/VPN signals are never allowed and never prompt, even if a
   // real location was detected.
   for (const key of ANONYMIZER_SIGNALS) {
     if (response[key] === true) {
-      return { allowed: false, reason: REASON_ANONYMIZER, promptEligible: false };
+      return { allowed: false, reason: response.reason || REASON_ANONYMIZER, promptEligible: false };
     }
   }
 
@@ -103,7 +103,7 @@ export function evaluateJurisdictionAccess(response) {
   }
 
   // An unresolved check is not evidence that the location is unsupported.
-  return { allowed: false, reason: REASON_UNVERIFIED, promptEligible: false };
+  return { allowed: false, reason: response.reason || REASON_UNVERIFIED, promptEligible: false };
 }
 
 // Module-scoped Map of in-flight jurisdiction-check promises, keyed by the

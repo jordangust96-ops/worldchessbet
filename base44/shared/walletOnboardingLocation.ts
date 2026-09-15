@@ -1,4 +1,4 @@
-import { hasReliableLocationEvidence, isLocationTestAccountId, isLocationTestAccount } from './jurisdictionGates.js';
+import { getLocationDenialMessage, hasReliableLocationEvidence, isLocationTestAccountId, isLocationTestAccount } from './jurisdictionGates.js';
 import { isLocationApproved } from './jurisdictionRegions.js';
 // Wallet onboarding evidence must continue to satisfy the current quality policy.
 // Reuse genuine approvals recorded before this policy change, never User fields
@@ -24,11 +24,10 @@ function publicStatus(row) {
     country: row?.detected_country || '', state: row?.detected_state || '',
     reason: approved || !row ? '' : blocked
       ? 'Wallet setup is not available from your location. Identity verification cannot continue.'
-      : row.vpn_or_proxy_detected === true
-        ? 'A VPN, proxy, or anonymous network was detected. Turn it off and check your location again.'
-        : row.geo_mismatch_flag === true
-          ? 'Your location signals disagree. Try a different Wi-Fi or mobile connection.'
-          : 'Your network did not provide a reliable location. Try a different Wi-Fi or mobile connection.',
+      : getLocationDenialMessage(row) ||
+        (row.pre_bypass_reason && !row.pre_bypass_reason.includes('VPN, proxy, or location-masking software')
+          ? row.pre_bypass_reason
+          : 'Your network did not provide a reliable location. Try a different Wi-Fi or mobile connection.'),
   };
 }
 export async function walletOnboardingLocation(base44, userId) {

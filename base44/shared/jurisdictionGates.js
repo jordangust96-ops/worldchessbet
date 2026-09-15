@@ -91,3 +91,22 @@ export function isLocationTestAccountId(id) { return Object.hasOwn(LOCATION_TEST
 export function isLocationTestAccount(user) {
   return isLocationTestAccountId(user?.id) && LOCATION_TEST_ACCOUNTS[user.id] === String(user.email || '').toLowerCase();
 }
+
+// Public explanations only: describe provider classifications, not installed
+// software or intent. Multiple specific signals are preserved; a generic
+// anonymous-network flag must not turn a proxy/hosting classification into VPN.
+export function getLocationDenialMessage(row = {}) {
+  const has = (snake, camel) => row[snake] === true || row[camel] === true;
+  const messages = [];
+  if (has('is_anonymous_vpn', 'isAnonymousVpn')) messages.push('Your connection was identified as a VPN. Turn off your VPN and check your location again.');
+  if (has('is_tor_exit_node', 'isTorExitNode')) messages.push('Your connection was identified as a Tor exit node. Disconnect from Tor and use a direct Wi-Fi or mobile connection, then check your location again.');
+  if (has('is_residential_proxy', 'isResidentialProxy')) messages.push('Your connection was identified as a residential proxy. Disable the proxy service or use a direct Wi-Fi or mobile connection, then check your location again.');
+  if (has('is_public_proxy', 'isPublicProxy')) messages.push('Your connection was identified as a public proxy. Disable the proxy or use a direct Wi-Fi or mobile connection, then check your location again.');
+  if (has('is_anonymous_proxy', 'isAnonymousProxy')) messages.push('Your connection was identified as an anonymous proxy. Disable the proxy or use a direct Wi-Fi or mobile connection, then check your location again.');
+  if (has('is_hosting_provider', 'isHostingProvider')) messages.push('Your connection was identified as a hosting or data-center network. Use a direct home Wi-Fi or mobile connection, then check your location again.');
+  if (!messages.length && (has('is_anonymous', 'isAnonymous') || has('vpn_or_proxy_detected', 'vpnDetected'))) messages.push('Your connection was identified as an anonymous or location-masking network. Use a direct Wi-Fi or mobile connection without a privacy relay or proxy, then check your location again.');
+  if (has('is_satellite_provider', 'isSatelliteProvider')) messages.push('Your connection was identified as a satellite network. ChessBet cannot verify your location reliably on this connection. Try a non-satellite Wi-Fi or mobile connection.');
+  if (has('is_anycast', 'isAnycast')) messages.push('Your connection uses an anycast IP address shared across network locations. ChessBet cannot verify your location reliably on this connection. Try a different Wi-Fi or mobile connection.');
+  if (has('geo_mismatch_flag', 'geoMismatchFlag')) messages.push('Your device location and network location disagree. Try a different Wi-Fi or mobile connection, then check your location again.');
+  return messages.join(' ');
+}

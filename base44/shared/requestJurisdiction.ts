@@ -6,6 +6,7 @@ import {
   hasReliableLocationEvidence,
   getOriginalClientIp,
   isLocationTestAccount,
+  getLocationDenialMessage,
 } from './jurisdictionGates.js';
 import { isLocationApproved } from './jurisdictionRegions.js';
 
@@ -51,7 +52,7 @@ const ENABLE_GEOLOCATION_ENFORCEMENT = isGeoipEnforcementEnabled(MAXMIND_GEOIP_E
 const PROVIDER = 'MaxMind';
 
 const UNKNOWN_MESSAGE =
-  'We could not verify your current location. Please disable any VPN, proxy, or location-masking software and try again.';
+  'Your connection did not provide enough location information. Try another Wi-Fi or mobile connection, then check your location again.';
 const BLOCKED_MESSAGE =
   "Paid contests are not currently available in your jurisdiction.\n\nChessBet currently offers paid gameplay only in approved jurisdictions.\n\nYour account remains active for informational purposes, but paid contests are unavailable from your current location.";
 
@@ -324,7 +325,10 @@ export async function getRequestJurisdiction(req, context = null, policy = { fre
             // VPN / proxy / hosting provider / anonymous network — always
             // treated as Verification Failed, regardless of detected location.
             status = 'verification_failed';
-            reason = UNKNOWN_MESSAGE;
+            reason = getLocationDenialMessage(lookup);
+          } else if (getLocationDenialMessage(lookup)) {
+            status = 'verification_failed';
+            reason = getLocationDenialMessage(lookup);
           } else if (!country || !state) {
             status = 'unknown';
             reason = UNKNOWN_MESSAGE;
@@ -334,7 +338,9 @@ export async function getRequestJurisdiction(req, context = null, policy = { fre
             // and require the user to try again from a more reliably located
             // connection rather than guessing across state lines.
             status = 'verification_failed';
-            reason = UNKNOWN_MESSAGE;
+            reason = Number.isFinite(lookup.accuracyRadiusKm) && lookup.accuracyRadiusKm > 100
+              ? 'Your network location estimate covers too large an area to verify your location. Try a different Wi-Fi or mobile connection, then check your location again.'
+              : 'Your network did not provide a sufficiently confident location estimate. Try a different Wi-Fi or mobile connection, then check your location again.';
           } else if (isLocationApproved(country, state)) {
             status = 'approved';
           } else {
@@ -367,7 +373,7 @@ export async function getRequestJurisdiction(req, context = null, policy = { fre
 
     if (geoMismatchFlag && status === 'approved') {
       status = 'verification_failed';
-      reason = 'Your location signals disagree. Please try another connection.';
+      reason = getLocationDenialMessage({geo_mismatch_flag:true});
     }
 
     // Disabled/missing MaxMind configuration is a failure, never an approval.
