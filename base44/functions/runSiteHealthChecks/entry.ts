@@ -254,6 +254,24 @@ async function collect(svc: any, config: any, previous: any, now: number) {
     }),
     async () => read('analyzer_failed', 'Recent analyzer failures', () => svc.FairPlayAnalysis.filter({ status: 'failed', updated_date: { $gte: since } }, '-updated_date', 501), rows =>
       check('analyzer_failed', 'Recent analyzer failures', rows.length ? 'warning' : 'healthy', rows.length + ' failed analyses updated in the last 24 hours. No re-analysis is triggered.', rows.length, 'failures')),
+    async () => read('analyzer_coverage', 'Fair-play evidence coverage', () => svc.FairPlayAnalysis.filter({ status: { $in: ['completed', 'manual_review'] }, analyzed_at: { $gte: since } }, '-analyzed_at', 501), rows => {
+      const sparseSides = rows.reduce((count, analysis) => {
+        for (const side of ['white', 'black']) {
+          const eligible = Number(analysis[`${side}_eligible_moves`] || 0);
+          if (eligible < 8) continue;
+          const cpl = Number(analysis[`${side}_centipawn_loss_sample_count`] || 0);
+          const ranked = Number(analysis[`${side}_ranked_engine_move_sample_count`] || 0);
+          const usable = Math.max(cpl, ranked);
+          const minimum = Math.min(8, Math.max(3, Math.floor(eligible * 0.25)));
+          if (usable < minimum) count += 1;
+        }
+        return count;
+      }, 0);
+      return check('analyzer_coverage', 'Fair-play evidence coverage', sparseSides || rows.length >= 501 ? 'warning' : 'healthy',
+        sparseSides + ' analyzed player-side(s) in the last 24 hours had too little CPL/ranked engine evidence for the eligible-move count. ' +
+        'Sparse coverage must not be treated as an automated clearance. ' +
+        (rows.length >= 501 ? 'Scan limit reached; count is a lower bound.' : ''), sparseSides, 'player sides');
+    }),
     async () => read('challenge_recovery', 'Challenge reservation recovery', () => svc.Match.filter({
       launch_epoch: 2, challenge_version: 1,
       challenge_operation_state: { $in: ['reserving', 'releasing'] },
