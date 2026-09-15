@@ -5,7 +5,7 @@ import {challengeRequest, challengeErrorMessage, challengeLocationContext} from 
 const RematchControls=forwardRef(function RematchControls({match,opponentName,onAccepted},ref) {
   const [view,setView]=useState(null),[busy,setBusy]=useState(''),[error,setError]=useState(''),[now,setNow]=useState(Date.now());
   const [playable,setPlayable]=useState(null);
-  const screen=useRef(crypto.randomUUID()),active=useRef(false),action=useRef(false),polling=useRef(false);
+  const screen=useRef(crypto.randomUUID()),active=useRef(false),action=useRef(false),revision=useRef(0);
   const accepted=useRef(false),onAcceptedRef=useRef(onAccepted),lastSuccess=useRef(0),pending=useRef(null);
   onAcceptedRef.current=onAccepted;
   const call=(name,body={})=>challengeRequest(name,{matchId:match.id,screenId:screen.current,...body});
@@ -35,6 +35,7 @@ const RematchControls=forwardRef(function RematchControls({match,opponentName,on
     const update=async()=>{
       if(stopped || !active.current || running || document.visibilityState!=='visible')return;
       running=true;
+      const requestRevision=revision.current;
       try{
         const data=await sessionCall(registered?'rematch_poll':'rematch_enter');
         if(stopped || !active.current || screen.current!==token)return;
@@ -42,7 +43,7 @@ const RematchControls=forwardRef(function RematchControls({match,opponentName,on
         // Enter must not leave us polling an unregistered token forever.
         registered=Boolean(data.selfPresent);
         lastSuccess.current=Date.now();
-        if(!action.current){apply(data);setError('');}
+        if(!action.current && requestRevision===revision.current){apply(data);setError('');}
       }catch(err){
         if(!stopped && active.current && !lastSuccess.current)
           setError('Reconnecting to the rematch…');
@@ -73,7 +74,7 @@ const RematchControls=forwardRef(function RematchControls({match,opponentName,on
   },[view?.terms?.playMode,view?.offer?.status]);
   const run=async name=>{
     if(action.current || !active.current)return;
-    action.current=true;setBusy(name);setError('');
+    action.current=true;revision.current++;setBusy(name);setError('');
     const work=(async()=>{
       try{
         const terms=view?.terms || {};
