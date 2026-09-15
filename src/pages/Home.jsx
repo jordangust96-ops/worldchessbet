@@ -8,6 +8,7 @@ import MatchView from "@/components/play/MatchView";
 import { useChessGame } from "@/hooks/useChessGame";
 import { useSize } from "@/hooks/use-size";
 import { useTouchOnlyInput } from "@/hooks/use-touch-only-input";
+import { mergeMatchDisplay, isMatchFinalizing } from "@/lib/matchDisplayState";
 import {
   getMoveSoundCue,
   getStoredSoundPreference,
@@ -27,7 +28,10 @@ export default function Home() {
   // The single authoritative Match record for the active match — sourced from
   // the one Match subscription below, and passed down to MatchView as a prop
   // instead of MatchView opening its own duplicate subscription.
-  const [activeMatch, setActiveMatch] = useState(null);
+  const [activeMatch, setActiveMatchRecord] = useState(null);
+  const setActiveMatch = useCallback((incoming) => {
+    setActiveMatchRecord(current => mergeMatchDisplay(current, incoming));
+  }, []);
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const code = params.get('resumeChallenge');
@@ -150,6 +154,10 @@ export default function Home() {
     checkActiveMatch().catch(() => {});
 
     const unsubscribe = base44.entities.Match.subscribe((event) => {
+      // Presence updates may be patches; merge them into the known match.
+      if ((event.type === "update" || event.type === "create") && event.data?.id === myMatchIdRef.current) {
+        setActiveMatch(event.data);
+      }
       if (event.data?.launch_epoch !== 2) return;
       if (event.data?.player1_id !== user.id && event.data?.player2_id !== user.id) return;
       if (event.type !== "update" && event.type !== "create") return;
@@ -257,7 +265,7 @@ export default function Home() {
   useEffect(() => {
     if (
       !myMatchId ||
-      game?.status !== "completed" ||
+      !isMatchFinalizing(activeMatch, game) ||
       activeMatch?.status === "completed" ||
       activeMatch?.status === "cancelled"
     ) {
