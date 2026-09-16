@@ -6,14 +6,22 @@ export function installGameHealthTelemetry(client) {
   let samples = new Map();
   let sending = false;
   let lastSentAt = Date.now();
-  async function flush() {
-    if (sending || !samples.size || Date.now() - lastSentAt < 120000) return;
+  let firstFlushTimer = null;
+  async function flush(force = false) {
+    if (sending || !samples.size || (!force && Date.now() - lastSentAt < 120000)) return;
     sending = true;
     lastSentAt = Date.now();
     const batch = [...samples.values()];
     samples = new Map();
     try { await invoke("recordGameHealth", { samples: batch }); } catch { /* Drop this batch; never amplify an outage with retries. */ }
     finally { sending = false; }
+  }
+  function scheduleFirstFlush() {
+    if (firstFlushTimer || !samples.size) return;
+    firstFlushTimer = window.setTimeout(() => {
+      firstFlushTimer = null;
+      void flush(true);
+    }, 15000);
   }
   client.functions.invoke = function(name, ...args) {
     if (!names.has(name)) return invoke(name, ...args);
@@ -29,6 +37,7 @@ export function installGameHealthTelemetry(client) {
         else if (error && !status) s.network_errors++;
         if (performance.now() - started > 2000) s.slow_count++;
         samples.set(name, s);
+        scheduleFirstFlush();
         void flush();
       } catch { /* Instrumentation must not affect the request result. */ }
     }
