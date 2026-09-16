@@ -221,7 +221,7 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
             {walletCodes.includes(readiness?.code) ? <Button onClick={fund} disabled={Boolean(busy)} className="h-12 w-full rounded-xl gold-gradient text-black font-bold">{setupCopy.action}</Button> : <Link to="/play" className="block text-center font-semibold text-[#C9A84C]">Return to Play</Link>}
             <p className="text-center text-xs leading-relaxed text-white/45">The challenge stays open, and another eligible player may accept first.</p>
             <button onClick={begin} className="w-full py-1 text-sm font-medium text-[#E5CA7A]">I’ve completed this — check again</button>
-          </div>
+          </div>}
           {!free && open && !creator && stage === 'confirm' && <div className="space-y-3">
             {!creator && !creatorReady && <div className="rounded-xl bg-white/5 p-3 text-sm text-white/60">{free?'Waiting for the creator to return to the Play screen.':'Waiting for the creator to return to the Play screen with enough available funds. No opponent or funds are reserved.'}
               <button disabled={Boolean(busy)} onClick={()=>withAction('ping',async()=>{ const data=await challengeRequest('ping',{inviteCode}); setMessage(data.notified ? 'The creator was notified. The challenge is still open.' : 'A notification could not be sent. Share the link with the creator.'); })} className="mt-2 block font-semibold text-[#C9A84C]">Notify Creator</button></div>}
