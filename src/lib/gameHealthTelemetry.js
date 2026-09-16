@@ -7,6 +7,7 @@ export function installGameHealthTelemetry(client) {
   let sending = false;
   let lastSentAt = Date.now();
   let firstFlushTimer = null;
+  let firstFlushDone = false;
 
   async function flush(force = false) {
     if (sending || !samples.size || (!force && Date.now() - lastSentAt < 120000)) return;
@@ -19,9 +20,10 @@ export function installGameHealthTelemetry(client) {
   }
 
   function scheduleFirstFlush() {
-    if (firstFlushTimer || !samples.size) return;
+    if (firstFlushDone || firstFlushTimer || !samples.size) return;
     firstFlushTimer = window.setTimeout(() => {
       firstFlushTimer = null;
+      firstFlushDone = true;
       void flush(true);
     }, 15000);
   }
