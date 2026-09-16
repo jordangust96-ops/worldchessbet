@@ -57,21 +57,27 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
   const connectionError = err => transient(err)
     ? 'Connection interrupted. Please try confirming readiness again.'
     : challengeErrorMessage(err);
-  const acknowledge = (data,startedAt) => {
+  const syncServerClock = (data,startedAt) => {
     const receivedAt=Date.now();
+    const serverNow=Date.parse(data?.serverNow || '');
+    if(Number.isFinite(serverNow)){
+      // Estimate server time at the request midpoint. This keeps the countdown
+      // accurate even when the device's wall clock is fast or slow.
+      setServerClockOffset(serverNow-(startedAt+(receivedAt-startedAt)/2));
+      setNow(receivedAt);
+      return serverNow;
+    }
+    return receivedAt+(serverClockOffset ?? 0);
+  };
+  const acknowledge = (data) => {
     const serverNow=Date.parse(data?.serverNow || '');
     const effectiveServerNow=Number.isFinite(serverNow)
       ? serverNow
-      : receivedAt+(serverClockOffset ?? 0);
-    if(Number.isFinite(serverNow)){
-      // Estimate server time at the request midpoint. This keeps the countdown
-      // accurate even when the phone's wall clock is fast or slow.
-      setServerClockOffset(serverNow-(startedAt+(receivedAt-startedAt)/2));
-    }
+      : Date.now()+(serverClockOffset ?? 0);
     if(data?.ready && present.current){
-      // Count only the remaining portion of the server lease, never extend it
-      // by response latency. The server still authorizes every game start.
-      setAcknowledgedUntil(startedAt+CHALLENGE_READY_MS);
+      // The backend owns readiness. Keep the optimistic UI through the same
+      // lease interval while heartbeats renew the server timestamp.
+      setAcknowledgedUntil(Date.now()+CHALLENGE_READY_MS);
       setConnectionMessage('');setError('');
     }
     return effectiveServerNow;
@@ -79,8 +85,17 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
   const requestReady = async (action,body) => {
     for(let attempt=0;;attempt++){
       if(!present.current || document.visibilityState!=='visible')return null;
-      try{return await challengeRequest(action,body);}
+      const startedAt=Date.now();
+      try{
+        const data=await challengeRequest(action,body);
+        syncServerClock(data,startedAt);
+        return data;
+      }
       catch(err){
+        // Error responses carry the same server clock as successes. Applying it
+        // before rendering the error prevents an expired message beside a
+        // still-positive countdown.
+        syncServerClock(err?.response?.data,startedAt);
         if(!transient(err) || attempt>=2)throw err;
         setConnectionMessage('Reconnecting…');
         await new Promise(resolve=>setTimeout(resolve,350+Math.random()*350+attempt*400));
@@ -99,22 +114,28 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
         if(state.remaining===0) {
           await challengeRequest('recover',{matchId:match.id});
         } else if(armedRef.current && present.current) {
-          const startedAt=Date.now();
-          const heartbeat=await requestReady('heartbeat',{matchId:match.id,visible:true,presenceId:presenceId.current});
+          let heartbeat=await requestReady('heartbeat',{matchId:match.id,visible:true,presenceId:presenceId.current});
           if(!active)return;
-          if(heartbeat?.needsReady){armedRef.current=false;setArmed(false);setAcknowledgedUntil(0);setConnectionMessage('Please confirm readiness again.');}
-          else {
-            const snapshotNow=acknowledge(heartbeat,startedAt);
-            if(!present.current || document.visibilityState!=='visible'){await challengeRequest('unready',{matchId:match.id,presenceId:presenceId.current});return;}
-            // Use this heartbeat's server snapshot and server time, not the
-            // device wall clock or stale props from before a slow refresh.
-            const snapshot=heartbeat?.match;
-            const both=snapshot && ['player1','player2'].every(role=>{
-              const at=Date.parse(snapshot['challenge_'+role+'_ready_at'] || '');
-              return Number.isFinite(at) && Math.abs(snapshotNow-at)<CHALLENGE_READY_MS;
-            });
-            if(armedRef.current && both)await requestReady('finalize',{matchId:match.id});
+          if(heartbeat?.needsReady){
+            // A delayed heartbeat must not make a player click Ready again
+            // while this same screen is still visible. The original explicit
+            // attestation remains armed; re-establish the server lease through
+            // the full Ready path (including a fresh paid-match location check).
+            const context=free?{}:await challengeLocationContext();
+            if(!present.current || document.visibilityState!=='visible')return;
+            heartbeat=await requestReady('ready',{matchId:match.id,presenceId:presenceId.current,agree:true,attestationVersion:FAIR_PLAY_ATTESTATION_VERSION,...context});
+            if(!heartbeat)return;
           }
+          const snapshotNow=acknowledge(heartbeat);
+          if(!present.current || document.visibilityState!=='visible'){await challengeRequest('unready',{matchId:match.id,presenceId:presenceId.current});return;}
+          // Use this heartbeat's server snapshot and server time, not the
+          // device wall clock or stale props from before a slow refresh.
+          const snapshot=heartbeat?.match;
+          const both=snapshot && ['player1','player2'].every(role=>{
+            const at=Date.parse(snapshot['challenge_'+role+'_ready_at'] || '');
+            return Number.isFinite(at) && Math.abs(snapshotNow-at)<CHALLENGE_READY_MS;
+          });
+          if(armedRef.current && both)await requestReady('finalize',{matchId:match.id});
         }
         await latest.current.onRefresh?.();
         if(active)setConnectionMessage(current=>current==='Reconnecting…'?'':current);
@@ -142,10 +163,9 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
       await maintenanceDone.current;
       const context=free?{}:await challengeLocationContext();
       if(!present.current || document.visibilityState!=='visible')return;
-      const startedAt=Date.now();
       const data=await requestReady('ready',{matchId:match.id,presenceId:presenceId.current,agree,attestationVersion:FAIR_PLAY_ATTESTATION_VERSION,...context});
       if(!data)return;
-      acknowledge(data,startedAt);
+      acknowledge(data);
       if(!present.current || document.visibilityState!=='visible'){await challengeRequest('unready',{matchId:match.id,presenceId:presenceId.current});return;}
       armedRef.current=true;setArmed(true);await onRefresh?.();
       if(!present.current || document.visibilityState!=='visible')return;
