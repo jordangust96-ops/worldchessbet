@@ -13,7 +13,7 @@ import { acquireMatchLock, releaseMatchLock, acquireUserWalletLock, releaseUserW
 import { CHALLENGE_CREATION_VERSION, FAIR_PLAY_ATTESTATION_VERSION, reservesOnCreation, creatorReservationGroup, creatorReleaseGroup, creatorReservationLegs, creatorReleaseLegs,
   CHALLENGE_RETURN_WINDOW_MS,
   CHALLENGE_VERSION, CHALLENGE_TTL_MS, CHALLENGE_AUTHORIZATION_MS, challengeTimeControl,
-  CHALLENGE_CONSENT_VERSION, CHALLENGE_HUD_CONSENT_VERSION, CHALLENGE_READY_MS, VALID_INVITE, VALID_REQUEST_KEY,
+  CHALLENGE_CONSENT_VERSION, CHALLENGE_HUD_CONSENT_VERSION, CHALLENGE_CREATOR_PRESENCE_MS, CHALLENGE_READY_MS, VALID_INVITE, VALID_REQUEST_KEY,
   validEntry, validNewEntry, isChallenge, isFreeMatch, assertFreeMatch, challengeExpired, creatorAuthorized, challengeStartExpired,
   bothChallengePlayersReady, publicChallenge, reservationGroup, refundGroup,
   challengeReservationLegs, challengeReleaseLegs, challengePath } from './challengePolicy.js';
@@ -279,7 +279,7 @@ export async function maintainCreatorPresence(req: Request, base44: any, user: a
     const updated=await base44.asServiceRole.entities.Match.update(fresh.id,{
       challenge_creator_presence_id:hash,
       challenge_authorized_at:fresh.challenge_creator_presence_id!==hash || !Number.isFinite(checked) || Date.now()-checked>=90000 ? nowIso() : fresh.challenge_authorized_at,
-      challenge_authorized_until:new Date(Date.now()+CHALLENGE_READY_MS).toISOString(),
+      challenge_authorized_until:new Date(Date.now()+CHALLENGE_CREATOR_PRESENCE_MS).toISOString(),
     });
     return {available:true,challenge:publicChallenge(updated)};
   });
