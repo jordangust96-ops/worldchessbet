@@ -1,7 +1,7 @@
 import NotifyOnAcceptToggle from '@/components/play/NotifyOnAcceptToggle';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
-import { Copy, Share2, Loader2, ArrowLeft, Clock, Check } from 'lucide-react';
+import { Copy, Share2, Loader2, ArrowLeft, Clock, Check, CircleAlert } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import ChallengeAvailability from '@/components/play/ChallengeAvailability';
 import ChallengeVisibilityToggle from '@/components/play/ChallengeVisibilityToggle';
@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/AuthContext';
 import { setPostAuthRedirect } from '@/lib/postAuthRedirect';
 import { challengeRequest, challengeLocationContext, challengeErrorMessage, handleChallengeGate,
-  saveChallengeContext, CHALLENGE_TERMS, CHALLENGE_NOT_RESERVED, VALID_INVITE } from '@/lib/challengeApi';
+  saveChallengeContext, CHALLENGE_TERMS, VALID_INVITE } from '@/lib/challengeApi';
 
 const usd = value => `$${Number(value || 0).toFixed(2)}`;
 const walletCodes = ['identity_required','bank_required','funds_required'];
@@ -43,6 +43,13 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
   const open = card?.status === 'open';
   const creatorReady = card?.creatorPresenceRequired === false || (card?.creatorReady && Date.parse(card.creatorReadyUntil || '') > now);
   const shareUrl = `${window.location.origin}${path}`;
+  const setupCopy = readiness?.code === 'identity_required'
+    ? { title:'Verify your identity to accept', detail:'Complete identity verification before playing a money challenge.', action:'Verify Identity in Wallet' }
+    : readiness?.code === 'bank_required'
+      ? { title:'Connect a bank to accept', detail:'Connect and verify a bank account before playing a money challenge.', action:'Connect Bank in Wallet' }
+      : readiness?.code === 'funds_required'
+        ? { title:'Add funds to accept', detail:`You need ${usd(card?.totalRequired)} in available funds for this challenge.`, action:'Add Funds in Wallet' }
+        : { title:'Money play setup required', detail:readiness?.reason || 'Complete your wallet setup before accepting this challenge.', action:'Open Wallet Setup' };
 
   const refresh = useCallback(async () => {
     if (!VALID_INVITE.test(inviteCode || '')) { setError('This challenge link is not valid.'); setLoading(false); return; }
@@ -181,7 +188,7 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
             <div className="flex justify-between gap-3"><dt className="text-white/55">Your Platform Service Fee</dt><dd>{usd(card.serviceFee)}</dd></div>
             <div className="flex justify-between gap-3 border-t border-white/10 pt-2 font-semibold"><dt>Total required per player</dt><dd>{usd(card.totalRequired)}</dd></div>
           </dl>
-          <p className="text-xs leading-relaxed text-white/45">The winner award includes both players’ entry amounts. The fee is separate and returned if there is no decisive result. Standard settlement and winnings-release rules apply.</p></>}
+          {stage !== 'setup' && <p className="text-xs leading-relaxed text-white/45">The winner award includes both players’ entry amounts. The fee is separate and returned if there is no decisive result. Standard settlement and winnings-release rules apply.</p>}</>}
 
           {open && creator && <div className="space-y-3">
             <Button onClick={share} className="h-11 w-full rounded-xl gold-gradient font-bold text-black"><Share2 size={16} className="mr-2" />Share</Button>
@@ -201,14 +208,20 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
             {busy && <Loader2 size={16} className="mr-2 animate-spin" />}{busy === 'accept' ? 'Joining…' : 'Accept Challenge'}
           </Button>}
           {!free && open && (creatorChecking || busy === 'check') && <p role="status" className="flex items-center gap-2 text-sm text-white/55"><Loader2 size={16} className="animate-spin" />Checking your eligibility…</p>}
-          {!free && open && stage === 'setup' && <div className="space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4">
-            <h2 className="font-bold">{readiness?.code === 'funds_required' ? 'Available funds required' : 'Complete your setup'}</h2>
-            <p className="text-sm text-white/60">{readiness?.reason}</p>
-            {readiness?.availableBalance != null && <p className="text-sm text-white/60">Available: {usd(readiness.availableBalance)} · Required: {usd(card.totalRequired)}</p>}
-            <p className="text-xs leading-relaxed text-white/45">{CHALLENGE_NOT_RESERVED}</p>
-            {walletCodes.includes(readiness?.code) ? <Button onClick={fund} disabled={Boolean(busy)} className="h-11 w-full rounded-xl gold-gradient text-black font-semibold">Open Wallet Setup</Button> : <Link to="/play" className="text-[#C9A84C]">Return to Play</Link>}
-            <button onClick={begin} className="w-full py-1 text-sm text-white/50">Check again</button>
-          </div>}
+          {!free && open && stage === 'setup' && <div role="alert" className="space-y-4 rounded-2xl border border-[#C9A84C]/30 bg-[#C9A84C]/[0.06] p-4">
+            <div className="flex items-start gap-3">
+              <CircleAlert size={20} className="mt-0.5 shrink-0 text-[#E5CA7A]" />
+              <div className="space-y-1">
+                <p className="text-xs font-semibold uppercase tracking-widest text-[#C9A84C]">Can’t accept yet</p>
+                <h2 className="text-lg font-bold">{setupCopy.title}</h2>
+                <p className="text-sm leading-relaxed text-white/65">{setupCopy.detail}</p>
+              </div>
+            </div>
+            {readiness?.code === 'funds_required' && readiness?.availableBalance != null && <div className="flex justify-between rounded-xl bg-black/20 px-3 py-2 text-sm"><span className="text-white/55">Available now</span><span className="font-semibold">{usd(readiness.availableBalance)} of {usd(card.totalRequired)}</span></div>}
+            {walletCodes.includes(readiness?.code) ? <Button onClick={fund} disabled={Boolean(busy)} className="h-12 w-full rounded-xl gold-gradient text-black font-bold">{setupCopy.action}</Button> : <Link to="/play" className="block text-center font-semibold text-[#C9A84C]">Return to Play</Link>}
+            <p className="text-center text-xs leading-relaxed text-white/45">The challenge stays open, and another eligible player may accept first.</p>
+            <button onClick={begin} className="w-full py-1 text-sm font-medium text-[#E5CA7A]">I’ve completed this — check again</button>
+          </div>
           {!free && open && !creator && stage === 'confirm' && <div className="space-y-3">
             {!creator && !creatorReady && <div className="rounded-xl bg-white/5 p-3 text-sm text-white/60">{free?'Waiting for the creator to return to the Play screen.':'Waiting for the creator to return to the Play screen with enough available funds. No opponent or funds are reserved.'}
               <button disabled={Boolean(busy)} onClick={()=>withAction('ping',async()=>{ const data=await challengeRequest('ping',{inviteCode}); setMessage(data.notified ? 'The creator was notified. The challenge is still open.' : 'A notification could not be sent. Share the link with the creator.'); })} className="mt-2 block font-semibold text-[#C9A84C]">Notify Creator</button></div>}
@@ -225,7 +238,7 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
           {open && creator && <button disabled={Boolean(busy)} onClick={()=>withAction('cancel',async()=>{ await challengeRequest('cancel',{inviteCode}); await refresh(); await onChanged?.(); })} className="w-full py-2 text-sm text-white/45 hover:text-red-300">Cancel Open Challenge</button>}
           {open && <p className="text-center text-xs text-white/35">Expires {new Date(card.expiresAt).toLocaleString()}</p>}
         </section>
-        {!free && <p className="text-center text-xs leading-relaxed text-white/40">Money play requires account, identity and location eligibility, a verified bank connection, and sufficient available funds. Pending deposits cannot be used to accept a challenge.</p>}
+        {!free && stage !== 'setup' && <p className="text-center text-xs leading-relaxed text-white/40">Money play requires account, identity and location eligibility, a verified bank connection, and sufficient available funds. Pending deposits cannot be used to accept a challenge.</p>
       </> : <div className="rounded-2xl border border-white/10 p-6"><h1 className="text-xl font-bold">Challenge unavailable</h1><Link to="/play" className="mt-4 inline-block text-[#C9A84C]">Create your own challenge</Link></div>}
       {error && <p role="alert" className="rounded-xl border border-red-500/20 bg-red-500/5 p-3 text-sm text-red-300">{error}</p>}
       {message && <p role="status" className="flex items-start gap-2 rounded-xl bg-white/5 p-3 text-sm text-[#E5CA7A]"><Check size={16} className="mt-0.5 shrink-0" />{message}</p>}
