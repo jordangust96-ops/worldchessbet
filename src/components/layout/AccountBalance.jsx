@@ -1,4 +1,3 @@
-import { challengeRequest } from '@/lib/challengeApi';
 import React, { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -14,7 +13,13 @@ export default function AccountBalance() {
     queryKey, enabled: !!user?.id, staleTime: 10000,
     refetchInterval: 30000, refetchIntervalInBackground: false, refetchOnWindowFocus: true,
     queryFn: async () => {
-      const funding = await challengeRequest('wallet_summary');
+      // Wallet is the materialized ledger source of truth. Read it directly so
+      // a backend-function routing incident can never make an intact balance
+      // disappear from the global header.
+      const wallets = await base44.entities.Wallet.filter({ user_id: user.id });
+      const wallet = wallets[0];
+      if (!wallet) throw new Error('Wallet unavailable');
+
       let pendingCents = 0;
       for (let skip = 0; ; skip += 500) {
         const rows = await base44.entities.WalletTransaction.filter(
@@ -23,7 +28,11 @@ export default function AccountBalance() {
         pendingCents += rows.reduce((sum, row) => sum + Math.round(Number(row.amount || 0) * 100), 0);
         if (rows.length < 500) break;
       }
-      return { balance: Number(funding.available_to_play || 0), reserved: Number(funding.reserved_for_matches || 0), pending: pendingCents / 100 };
+      return {
+        balance: Number(wallet.available_balance ?? wallet.balance ?? 0),
+        reserved: Number(wallet.held_balance ?? 0),
+        pending: pendingCents / 100,
+      };
     },
   });
   useEffect(() => {
