@@ -314,8 +314,8 @@ async function collect(svc: any, config: any, previous: any, now: number) {
     if (records.length >= 501) checks.push(check('telemetry_coverage', 'Gameplay telemetry coverage', 'warning', 'Telemetry scan reached 501 reporting players; displayed metrics cover a bounded sample.'));
   } catch { checks.push(check('gameplay_telemetry', 'Gameplay responsiveness', 'unknown', 'Browser telemetry is unavailable.')); }
   checks.push(creditCheck(config, now));
-  checks.push(check('digitalocean_metrics', 'DigitalOcean resource alerts', 'unknown',
-    config.digitalocean_alert_status === 'configured' ? 'Native resource alerts are configured separately. Live CPU and memory readings are not imported into this dashboard.' : 'Native CPU/memory alerts still need the requested mailbox verified. Live infrastructure metrics are not connected.'));
+  checks.push(check('digitalocean_metrics', 'DigitalOcean resource alerts', config.digitalocean_alert_status === 'configured' ? 'healthy' : 'unknown',
+    config.digitalocean_alert_status === 'configured' ? 'Native DigitalOcean resource alerts are configured. Live CPU and memory readings remain external and are not imported into this dashboard.' : 'Native CPU/memory alerts still need the requested mailbox verified. Live infrastructure metrics are not connected.'));
   checks.push(check('external_monitor', 'Independent uptime monitoring', config.external_monitor_status === 'configured' ? 'healthy' : 'unknown',
     config.external_monitor_status === 'configured' ? 'Independent monitoring was configured. This records setup, not its latest probe result; check DigitalOcean for current external observations.' : 'Independent alert delivery is not yet verified. Check the DigitalOcean website monitor; a Base44 outage can also stop this collector. No independent collector-heartbeat alert is configured.'));
   return checks.sort((a, b) => a.key.localeCompare(b.key));
@@ -385,8 +385,23 @@ Deno.serve(async (req) => {
           activity = { unavailable: true, reason: 'Daily activity totals could not be fully verified. Open Site Activity to investigate.' };
         }
       }
+      let emailChecks = checks;
+      if (digest || previewDaily) {
+        try {
+          const dailyTelemetry = await deadline(svc.GameHealthTelemetry.filter({ recorded_at: { $gte: new Date(now - DAY_MS).toISOString() } }, '-recorded_at', 501));
+          const dailyGameplay = telemetryChecks(dailyTelemetry, null, now, DAY_MS,
+            'Latest per-player samples from the prior 24 hours');
+          const gameplayKeys = new Set(dailyGameplay.map((c: any) => c.key));
+          emailChecks = [...checks.filter((c: any) => !gameplayKeys.has(c.key)), ...dailyGameplay]
+            .sort((a: any, b: any) => a.key.localeCompare(b.key));
+          if (dailyTelemetry.length >= 501 && !emailChecks.some((c: any) => c.key === 'telemetry_coverage'))
+            emailChecks.push(check('telemetry_coverage', 'Gameplay telemetry coverage', 'warning', 'Daily telemetry scan reached 501 reporting players; displayed metrics cover a bounded sample.'));
+        } catch {
+          // Keep the strict current-health checks if the daily telemetry read fails.
+        }
+      }
       stage = 'format_email';
-      const email = formatHealthEmail(checks, checkedAt, digest || previewDaily, notification.recovered, activity);
+      const email = formatHealthEmail(emailChecks, checkedAt, digest || previewDaily, notification.recovered, activity);
       try {
         await base44.asServiceRole.integrations.Core.SendEmail({
           to: 'hello@worldchessbet.com',
