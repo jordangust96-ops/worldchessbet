@@ -3,7 +3,7 @@ import { Check, Clock, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
-import { CHALLENGE_READY_MS, FAIR_PLAY_ATTESTATION_VERSION, challengeStartDeadline } from '../../../../base44/shared/challengePolicy.js';
+import { CHALLENGE_READY_MS, FAIR_PLAY_ATTESTATION_VERSION, challengeStartRemainingMs } from '../../../../base44/shared/challengePolicy.js';
 import { challengeRequest, challengeLocationContext, challengeErrorMessage, handleChallengeGate } from '@/lib/challengeApi';
 
 export default function ChallengeReadyScreen({ match, userId, opponentId, onCancel, onRefresh }) {
@@ -19,6 +19,7 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
   const [connectionMessage,setConnectionMessage] = useState('');
   const latest = useRef(null);
   const [now,setNow] = useState(Date.now());
+  const [serverClockOffset,setServerClockOffset] = useState(null);
   const inFlight = useRef(false);
   const actionBusy = useRef(false);
   const maintenanceDone = useRef(Promise.resolve());
@@ -29,11 +30,12 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
   const myAt = Date.parse(match[isP1 ? 'challenge_player1_ready_at' : 'challenge_player2_ready_at'] || '');
   const otherAt = Date.parse(match[isP1 ? 'challenge_player2_ready_at' : 'challenge_player1_ready_at'] || '');
   // The one-second countdown snapshot can predate a just-arrived heartbeat.
-  const currentTime = Date.now();
-  const myReady = armed && present.current && (acknowledgedUntil > currentTime || (myAt <= currentTime && currentTime-myAt < CHALLENGE_READY_MS));
+  const localTime = Date.now();
+  const currentTime = localTime + (serverClockOffset ?? 0);
+  const myReady = armed && present.current && (acknowledgedUntil > localTime || (myAt <= currentTime && currentTime-myAt < CHALLENGE_READY_MS));
   const otherReady = otherAt <= currentTime && currentTime-otherAt < CHALLENGE_READY_MS;
-  latest.current={match,onRefresh,remaining:Math.max(0,challengeStartDeadline(match)-currentTime),myReady,otherReady};
-  const remaining = Math.max(0,Math.ceil((challengeStartDeadline(match)-now)/1000));
+  latest.current={match,onRefresh,remaining:challengeStartRemainingMs(match,currentTime),myReady,otherReady};
+  const remaining = Math.ceil(challengeStartRemainingMs(match,now+(serverClockOffset ?? 0))/1000);
   const total = Math.round((Number(match.wager_amount)+Number(match.platform_service_fee))*100)/100;
   useEffect(()=>{
     base44.functions.invoke('getUserDisplayNames',{userIds:[opponentId]}).then(({data})=>setName(data?.names?.[opponentId] || 'Opponent')).catch(()=>{});
@@ -56,12 +58,23 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
     ? 'Connection interrupted. Please try confirming readiness again.'
     : challengeErrorMessage(err);
   const acknowledge = (data,startedAt) => {
+    const receivedAt=Date.now();
+    const serverNow=Date.parse(data?.serverNow || '');
+    const effectiveServerNow=Number.isFinite(serverNow)
+      ? serverNow
+      : receivedAt+(serverClockOffset ?? 0);
+    if(Number.isFinite(serverNow)){
+      // Estimate server time at the request midpoint. This keeps the countdown
+      // accurate even when the phone's wall clock is fast or slow.
+      setServerClockOffset(serverNow-(startedAt+(receivedAt-startedAt)/2));
+    }
     if(data?.ready && present.current){
       // Count only the remaining portion of the server lease, never extend it
       // by response latency. The server still authorizes every game start.
       setAcknowledgedUntil(startedAt+CHALLENGE_READY_MS);
       setConnectionMessage('');setError('');
     }
+    return effectiveServerNow;
   };
   const requestReady = async (action,body) => {
     for(let attempt=0;;attempt++){
@@ -90,16 +103,18 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
           const heartbeat=await requestReady('heartbeat',{matchId:match.id,visible:true,presenceId:presenceId.current});
           if(!active)return;
           if(heartbeat?.needsReady){armedRef.current=false;setArmed(false);setAcknowledgedUntil(0);setConnectionMessage('Please confirm readiness again.');}
-          else acknowledge(heartbeat,startedAt);
-          if(!present.current || document.visibilityState!=='visible'){await challengeRequest('unready',{matchId:match.id,presenceId:presenceId.current});return;}
-          // Use this heartbeat's server snapshot, not stale props from before
-          // a slow refresh. Finalize itself enforces both fresh ready leases.
-          const snapshot=heartbeat?.match;
-          const both=snapshot && ['player1','player2'].every(role=>{
-            const at=Date.parse(snapshot['challenge_'+role+'_ready_at'] || '');
-            return Number.isFinite(at) && Math.abs(Date.now()-at)<CHALLENGE_READY_MS;
-          });
-          if(armedRef.current && both)await requestReady('finalize',{matchId:match.id});
+          else {
+            const snapshotNow=acknowledge(heartbeat,startedAt);
+            if(!present.current || document.visibilityState!=='visible'){await challengeRequest('unready',{matchId:match.id,presenceId:presenceId.current});return;}
+            // Use this heartbeat's server snapshot and server time, not the
+            // device wall clock or stale props from before a slow refresh.
+            const snapshot=heartbeat?.match;
+            const both=snapshot && ['player1','player2'].every(role=>{
+              const at=Date.parse(snapshot['challenge_'+role+'_ready_at'] || '');
+              return Number.isFinite(at) && Math.abs(snapshotNow-at)<CHALLENGE_READY_MS;
+            });
+            if(armedRef.current && both)await requestReady('finalize',{matchId:match.id});
+          }
         }
         await latest.current.onRefresh?.();
         if(active)setConnectionMessage(current=>current==='Reconnecting…'?'':current);
