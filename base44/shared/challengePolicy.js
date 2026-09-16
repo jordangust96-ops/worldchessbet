@@ -30,6 +30,7 @@ export function challengeStartRemainingMs(match, now = Date.now()) {
   // five-minute return window recorded by the backend.
   return Math.max(0, Math.min(CHALLENGE_RETURN_WINDOW_MS, remaining));
 }
+export const CHALLENGE_CREATOR_PRESENCE_MS = 10 * 1000;
 export const CHALLENGE_READY_MS = 30 * 1000;
 export const CHALLENGE_HUD_CONSENT_VERSION = 'challenge-visible-hud-v2';
 export const CHALLENGE_HUD_TERMS = 'I agree to the Official Rules and Fair Play requirements. While I keep this challenge open on the Play screen, I authorize my displayed Entry Amount and separate Platform Service Fee to be reserved if an eligible, funded opponent accepts. Creating the link reserves no money. Both players must confirm readiness before the game starts.';
@@ -79,7 +80,7 @@ export function creatorAuthorized(match, now = Date.now()) {
     const consent = Date.parse(match.challenge_hud_consent_at || '');
     const until = Date.parse(match.challenge_authorized_until || '');
     return Boolean((reservesOnCreation(match) || match.player1_certified) && match.challenge_creator_presence_id &&
-      Number.isFinite(consent) && consent <= now && Number.isFinite(until) && until > now && until - now <= CHALLENGE_READY_MS);
+      Number.isFinite(consent) && consent <= now && Number.isFinite(until) && until > now && until - now <= CHALLENGE_CREATOR_PRESENCE_MS);
   }
   const at = Date.parse(match?.challenge_authorized_at || '');
   const until = Date.parse(match?.challenge_authorized_until || '');
