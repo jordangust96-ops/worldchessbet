@@ -45,6 +45,7 @@ for(const end of ['decline','cancel','leave','stale','expiry','new_screen']) {
   const declined=await f.call('p2','decline',{offerId:id});
   assert.equal(declined.offer.status,'declined');assert.equal(declined.offer.incoming,true);
   const offerer=await f.call('p1','poll');assert.equal(offerer.offer.status,'declined');assert.equal(offerer.offer.incoming,false);
+  await f.call('p2','leave');
   const replay=await f.call('p1','request');assert.equal(replay.offer.id,id);assert.equal(replay.offer.status,'declined');
   assert.equal(f.table('Match').length,2);
  }
