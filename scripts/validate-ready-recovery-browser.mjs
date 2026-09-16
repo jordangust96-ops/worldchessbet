@@ -30,10 +30,11 @@ for(const free of [true,false]){
       if(name==='getUserDisplayNames')return {data:{names:{p2:'Other player'}}};
       const action=body.action, key=action==='ready'?'failReady':action==='heartbeat'?'failHeartbeat':action==='finalize'?'failFinalize':'';
       if(q[key]>0){q[key]--;throw Object.assign(new Error('This challenge could not be updated. Please retry; do not start another payment.'),{response:{status:503,data:{action:'retry'}}});}
-      if(action==='unready'){q.match.challenge_player1_ready_at='';return {data:{needsReady:true}};}
-      if(action==='heartbeat' && q.needsReady)return {data:{needsReady:true,match:{...q.match}}};
-      if(action==='ready' || action==='heartbeat'){q.match.challenge_player1_ready_at=new Date().toISOString();return {data:{ready:true,match:{...q.match}}};}
-      return {data:{match:{...q.match}}};
+      const serverNow=new Date().toISOString();
+      if(action==='unready'){q.match.challenge_player1_ready_at='';return {data:{needsReady:true,serverNow}};}
+      if(action==='heartbeat' && q.needsReady)return {data:{needsReady:true,match:{...q.match},serverNow}};
+      if(action==='ready' || action==='heartbeat'){q.match.challenge_player1_ready_at=serverNow;return {data:{ready:true,match:{...q.match},serverNow}};}
+      return {data:{match:{...q.match},serverNow}};
     }}};
   `});
   if(u.pathname==='/src/lib/deviceContext.js')return route.fulfill({contentType:'text/javascript',body:"export const getBrowserGeolocation=async()=>{window.qa.location=(window.qa.location||0)+1;return {permission:'granted'};};export const getDeviceFingerprintHash=async()=> 'fixture';"});
@@ -52,10 +53,11 @@ for(const free of [true,false]){
  assert.equal(q.calls.filter(x=>x.action==='finalize').length,2);
  assert.equal(q.location||0,free?0:1);
  assert.doesNotMatch(await page.locator('body').innerText(),/do not start another payment/);
+ const readyCalls=await page.evaluate(()=>window.qa.calls.filter(x=>x.action==='ready').length);
  await page.evaluate(()=>{window.qa.needsReady=true;});
- await page.getByRole('button',{name:'I’m Ready',exact:true}).waitFor();
- await page.getByRole('button',{name:'I’m Ready',exact:true}).click();
+ await page.waitForFunction(count=>window.qa.calls.filter(x=>x.action==='ready').length>count,readyCalls);
  await page.getByRole('button',{name:'Waiting for opponent…',exact:true}).waitFor();
+ await page.evaluate(()=>{window.qa.needsReady=false;});
  await page.evaluate(()=>{Object.defineProperty(document,'visibilityState',{configurable:true,value:'hidden'});document.dispatchEvent(new Event('visibilitychange'));});
  await page.getByRole('button',{name:'I’m Ready',exact:true}).waitFor();
  const before=await page.evaluate(()=>window.qa.calls.filter(x=>x.action==='heartbeat').length);
