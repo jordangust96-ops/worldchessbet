@@ -52,7 +52,9 @@ if(scenario==='waiting'){
  await accept.click();await page.getByRole('heading',{name:'Ready screen reached'}).waitFor();
  assert.equal(await page.evaluate(()=>window.qa.calls.filter(x=>x.body.action==='accept').length),1);
 }else if(scenario==='paid'){
- await page.getByRole('button',{name:'Open Wallet Setup'}).waitFor();
+ await page.getByRole('heading',{name:'Connect a bank to accept',exact:true}).waitFor();
+ await page.getByRole('button',{name:'Connect Bank in Wallet',exact:true}).waitFor();
+ assert.equal(await page.getByText(/Money play requires account/).count(),0);
  assert.equal(await page.evaluate(()=>window.qa.calls.filter(x=>x.body.action==='readiness').length),1);
 }else{
  const accept=page.getByRole('button',{name:'Accept Challenge',exact:true});await accept.waitFor();
