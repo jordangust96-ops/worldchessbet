@@ -20,7 +20,7 @@ export function installGameHealthTelemetry(client) {
   }
 
   function scheduleFirstFlush() {
-    if (firstFlushDone || firstFlushTimer || !samples.size) return;
+    if (typeof window === "undefined" || firstFlushDone || firstFlushTimer || !samples.size) return;
     firstFlushTimer = window.setTimeout(() => {
       firstFlushTimer = null;
       firstFlushDone = true;
