@@ -24,6 +24,12 @@ export function challengeStartDeadline(match) {
   const explicit = Date.parse(match?.challenge_start_deadline_at || '');
   return Number.isFinite(explicit) ? explicit : Date.parse(match?.preparation_started_at || '') + CHALLENGE_START_WINDOW_MS;
 }
+export function challengeStartRemainingMs(match, now = Date.now()) {
+  const remaining = challengeStartDeadline(match) - now;
+  // A client clock behind the server must never display more than the
+  // five-minute return window recorded by the backend.
+  return Math.max(0, Math.min(CHALLENGE_RETURN_WINDOW_MS, remaining));
+}
 export const CHALLENGE_READY_MS = 10 * 1000;
 export const CHALLENGE_HUD_CONSENT_VERSION = 'challenge-visible-hud-v2';
 export const CHALLENGE_HUD_TERMS = 'I agree to the Official Rules and Fair Play requirements. While I keep this challenge open on the Play screen, I authorize my displayed Entry Amount and separate Platform Service Fee to be reserved if an eligible, funded opponent accepts. Creating the link reserves no money. Both players must confirm readiness before the game starts.';
