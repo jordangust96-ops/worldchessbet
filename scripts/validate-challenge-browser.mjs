@@ -166,9 +166,11 @@ try{
   });
   await scenario('pending-funds-no-claim',{who:'p2'},async page=>{
     await page.getByRole('button',{name:'Accept Challenge',exact:true}).click();
-    await page.getByRole('heading',{name:'Available funds required'}).waitFor();checks++;
+    await page.getByRole('heading',{name:'Add funds to accept'}).waitFor();checks++;
     assert.equal(await page.evaluate(()=>window.__challengeQA.calls.filter(c=>c.body.action==='accept').length),0);checks++;
-    await page.getByText('another eligible player may accept first.',{exact:false}).waitFor();checks++;
+    await page.getByText('The challenge stays open, and another eligible player may accept first.',{exact:true}).waitFor();checks++;
+    await page.getByRole('button',{name:'Add Funds in Wallet',exact:true}).waitFor();checks++;
+    assert.equal(await page.getByText(/Money play requires account/).count(),0);checks++;
   });
   await scenario('unfunded-create',{who:'p1',funded:false,hasChallenge:false,path:'/play'},async page=>{
     await page.getByRole('button',{name:'Create Challenge',exact:true}).click();
@@ -300,7 +302,7 @@ try{
         await page.waitForURL('**/play?match=qa-match');checks++;
         assert.equal(await page.evaluate(()=>window.__challengeQA.calls.filter(c=>c.body.action==='accept').length),1);checks++;
       }else{
-        await page.getByRole('heading',{name:'Available funds required'}).waitFor();checks++;
+        await page.getByRole('heading',{name:'Add funds to accept'}).waitFor();checks++;
         assert.equal(await page.evaluate(()=>window.__challengeQA.calls.filter(c=>c.body.action==='accept').length),0);checks++;
       }
       assert.equal(await page.evaluate(()=>window.__challengeQA.calls.filter(c=>['acceptMatch','createMatch','cancelMatch'].includes(c.name)).length),0);checks++;
