@@ -577,14 +577,14 @@ async function closeFreeChallenge(base44: any, match: any, reason: string) {
   return {match:updated};
 }
 
-export async function cancelChallenge(base44: any, user: any, matchId: string) {
+export async function cancelChallenge(base44: any, user: any, matchId: string, reason = 'cancelled') {
   const attempt = () => underMatchLock(base44, matchId, async (match, owner) => {
     if (!roleFor(match, user.id)) fail('forbidden', 'Only a participant can cancel this challenge.', 403);
     if (match.status === 'cancelled' && !activeOperation(match)) return { match, replay: true };
     if (match.start_operation_id || ['in_progress', 'settling', 'completed', 'disputed'].includes(match.status))
       fail('already_started', 'This match has entered its start transition and can no longer be cancelled manually.');
 
-    if (isFreeMatch(match)) return closeFreeChallenge(base44,match,'cancelled');
+    if (isFreeMatch(match)) return closeFreeChallenge(base44,match,reason);
 
     // An unclaimed OPEN invitation is explicitly nonfinancial. Cancelling it
     // must not depend on the creator's wallet mutex — a concurrent deposit,
@@ -595,10 +595,10 @@ export async function cancelChallenge(base44: any, user: any, matchId: string) {
       const committed = await batchFor(base44, reservationGroup(match));
       if (!committed && !await batchFor(base44,creatorReservationGroup(match))) {
         const updated = await base44.asServiceRole.entities.Match.update(match.id, {
-          status: 'cancelled', result: 'cancelled', challenge_close_reason: 'cancelled',
+          status: 'cancelled', result: 'cancelled', challenge_close_reason: reason,
           challenge_authorized_until: nowIso(), challenge_operation_state: 'idle',
         });
-        await challengeEvent(base44, updated, 'closed', user.id, 'cancelled');
+        await challengeEvent(base44, updated, 'closed', user.id, reason);
         return { match: updated };
       }
     }
@@ -606,7 +606,7 @@ export async function cancelChallenge(base44: any, user: any, matchId: string) {
     // Once a reservation exists or is being recovered, wallet locks are still
     // mandatory so release of entries and fees cannot race another spend.
     const ids = [match.player1_id, match.player2_id || match.challenge_claimant_id].filter(Boolean);
-    return underWalletLocks(ids, owner, match.id, () => releaseChallengeLocked(base44, match, owner, 'cancelled'));
+    return underWalletLocks(ids, owner, match.id, () => releaseChallengeLocked(base44, match, owner, reason));
   });
 
   try {
