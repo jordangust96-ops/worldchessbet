@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { appParams } from '@/lib/app-params';
 import { createAxiosClient } from '@base44/sdk/dist/utils/axios-client';
@@ -20,9 +20,13 @@ export const AuthProvider = ({ children }) => {
   // contest-participation boundaries, never during ordinary login/navigation.
   const [jurisdictionStatus, setJurisdictionStatus] = useState(null);
   const [jurisdictionReason, setJurisdictionReason] = useState('');
+  const authRetryTimerRef = useRef(null);
 
   useEffect(() => {
     checkAppState();
+    return () => {
+      if (authRetryTimerRef.current) window.clearTimeout(authRetryTimerRef.current);
+    };
   }, []);
 
   const checkAppState = async () => {
@@ -96,13 +100,20 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const checkUserAuth = async () => {
+  const checkUserAuth = async (retryAttempt = 0) => {
+    if (authRetryTimerRef.current) {
+      window.clearTimeout(authRetryTimerRef.current);
+      authRetryTimerRef.current = null;
+    }
     try {
-      // Now check if the user is authenticated
+      // A transient network failure must not turn an active game session into
+      // a false logout. Keep the protected app in its reconnecting state until
+      // auth succeeds or the server explicitly rejects the session.
       setIsLoadingAuth(true);
       const currentUser = await base44.auth.me();
       setUser(currentUser);
       setIsAuthenticated(true);
+      setAuthError(null);
       setIsLoadingAuth(false);
       setAuthChecked(true);
       trackCompletedOAuthLogin();
@@ -122,17 +133,30 @@ export const AuthProvider = ({ children }) => {
       setJurisdictionReason('');
     } catch (error) {
       console.error('User auth check failed:', error);
-      setIsLoadingAuth(false);
-      setIsAuthenticated(false);
-      setAuthChecked(true);
-      
-      // If user auth fails, it might be an expired token
-      if (error.status === 401 || error.status === 403) {
+      const status = error?.status ?? error?.response?.status;
+      if (status === 401 || status === 403) {
+        setUser(null);
+        setIsLoadingAuth(false);
+        setIsAuthenticated(false);
+        setAuthChecked(true);
         setAuthError({
           type: 'auth_required',
           message: 'Authentication required'
         });
+        return;
       }
+
+      // Network/5xx failures are not evidence that the token is invalid.
+      // Retry with bounded backoff while the global loading screen keeps the
+      // live route mounted as reconnecting rather than redirecting to login.
+      setAuthError(null);
+      setIsLoadingAuth(true);
+      setAuthChecked(false);
+      const delay = Math.min(1000 * (2 ** Math.min(retryAttempt, 3)), 8000);
+      authRetryTimerRef.current = window.setTimeout(() => {
+        authRetryTimerRef.current = null;
+        void checkUserAuth(retryAttempt + 1);
+      }, delay);
     }
   };
 
