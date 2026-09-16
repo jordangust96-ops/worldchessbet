@@ -41,7 +41,13 @@ for(const free of [true,false]) {
 }
 for(const end of ['decline','cancel','leave','stale','expiry','new_screen']) {
  const f=setup();await f.enter();const sent=await f.call('p1','request'),id=sent.offer.id;
- if(end==='decline')await f.call('p2','decline',{offerId:id});
+ if(end==='decline'){
+  const declined=await f.call('p2','decline',{offerId:id});
+  assert.equal(declined.offer.status,'declined');assert.equal(declined.offer.incoming,true);
+  const offerer=await f.call('p1','poll');assert.equal(offerer.offer.status,'declined');assert.equal(offerer.offer.incoming,false);
+  const replay=await f.call('p1','request');assert.equal(replay.offer.id,id);assert.equal(replay.offer.status,'declined');
+  assert.equal(f.table('Match').length,2);
+ }
  if(end==='cancel')await f.call('p1','cancel',{offerId:id});
  if(end==='leave')await f.call('p2','leave');
  if(end==='stale'){f.state.now+=31000;await f.call('p1','poll');}
@@ -49,6 +55,7 @@ for(const end of ['decline','cancel','leave','stale','expiry','new_screen']) {
  if(end==='new_screen')await f.call('p2','enter',{screenId:'a_different_screen_session'});
  await f.call('p1','poll');
  assert.equal(f.get(id).status,'cancelled');
+ if(end==='decline')assert.equal(f.get(id).challenge_close_reason,'declined');
  assert.equal(f.table('Wallet').find(w=>w.user_id==='p1').available_balance,100);
  assert.equal(f.table('Wallet').find(w=>w.user_id==='p1').held_balance,0);
  const batches=f.table('LedgerJournalBatch').length;await f.call('p1','poll');assert.equal(f.table('LedgerJournalBatch').length,batches);
