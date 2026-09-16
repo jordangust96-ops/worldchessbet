@@ -72,10 +72,11 @@ export async function rematchControl(req: Request, base44: any, user: any, body:
       if(action==='rematch_cancel' && child.player1_id!==user.id)fail('different_opponent','Decline the opponent’s offer instead.',400);
       await close(action==='rematch_decline'?'declined':'cancelled');return snapshot();
     }
+    if(action==='rematch_request' && child?.status==='cancelled' && child.challenge_close_reason==='declined')return snapshot();
     if(!rematchPresent(parent,opponentId))fail('opponent_left','Your opponent has left the result screen.',409);
     if(action==='rematch_request') {
       // Crossing requests show the existing incoming offer, never reserve twice.
-      if(child && (accepted() || child.status!=='cancelled' || child.challenge_close_reason==='declined'))return snapshot();
+      if(child && (accepted() || child.status!=='cancelled'))return snapshot();
       if(Number(body.entryAmount)!==terms.entryAmount || Number(body.serviceFee)!==terms.serviceFee)
         fail('terms_changed','Review the rematch entry and fee again.',409);
       const presence={creator:body.screenId,opponent:parent['post_match_'+rematchRole(parent,opponentId)+'_presence'].token};
