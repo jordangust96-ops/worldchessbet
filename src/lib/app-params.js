@@ -49,11 +49,22 @@ const getAppParams = () => {
 		storage.removeItem('base44_access_token');
 		storage.removeItem('token');
 	}
+
+	// Function versions are deployment-scoped, not a user preference. Persisting
+	// one in localStorage can strand a returning/mobile browser on a retired
+	// backend deployment: entity reads still work, while every function invoke
+	// starts returning `not-found`. Honor an explicit Base44 preview URL for the
+	// current page, otherwise use the version baked into this frontend build (or
+	// no pin at all, which lets the SDK use the current production functions).
+	const urlParams = isNode ? null : new URLSearchParams(window.location.search);
+	const explicitFunctionsVersion = urlParams?.get("functions_version") || null;
+	if (!isNode) storage.removeItem('base44_functions_version');
+
 	return {
 		appId: getAppParamValue("app_id", { defaultValue: viteEnv.VITE_BASE44_APP_ID || FALLBACK_BASE44_APP_ID }),
 		token: getAppParamValue("access_token", { removeFromUrl: true }),
 		fromUrl: getAppParamValue("from_url", { defaultValue: window.location.href }),
-		functionsVersion: getAppParamValue("functions_version", { defaultValue: viteEnv.VITE_BASE44_FUNCTIONS_VERSION }),
+		functionsVersion: explicitFunctionsVersion || viteEnv.VITE_BASE44_FUNCTIONS_VERSION || null,
 		appBaseUrl: getAppParamValue("app_base_url", { defaultValue: viteEnv.VITE_BASE44_APP_BASE_URL }),
 	}
 }
