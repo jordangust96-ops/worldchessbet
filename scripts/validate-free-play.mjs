@@ -58,7 +58,7 @@ for(const phase of ['create','accept','ready','finalize']){
 {
  const f=freeFixture(),m=await made(f);await available(f,m);await accepted(f,m);
  await call(f,'p1','ready',{matchId:m.id,presenceId:'free_ready_session_123456',agree:true,attestationVersion:f.policy.FAIR_PLAY_ATTESTATION_VERSION});await call(f,'p1','finalize',{matchId:m.id});equal(f.table('Game').length,0);
- await call(f,'p2','ready',{matchId:m.id,presenceId:'free_ready_session_123456',agree:true,attestationVersion:f.policy.FAIR_PLAY_ATTESTATION_VERSION});f.state.now+=10001;await call(f,'p1','finalize',{matchId:m.id});equal(f.table('Game').length,0);noMoney(f);
+ await call(f,'p2','ready',{matchId:m.id,presenceId:'free_ready_session_123456',agree:true,attestationVersion:f.policy.FAIR_PLAY_ATTESTATION_VERSION});f.state.now+=f.policy.CHALLENGE_READY_MS+1;await call(f,'p1','finalize',{matchId:m.id});equal(f.table('Game').length,0);noMoney(f);
 }
 // Current money location is checked explicitly using original request evidence; it never creates a match.
 for(const approved of [false,true]){
