@@ -56,16 +56,19 @@ for(const width of [390,1280])for(const free of [true,false]) {
  assert.doesNotMatch(await b.locator('body').innerText(),/Create Rematch Link|Share it|Copy Link/);
  if(!free)assert.match(await b.locator('body').innerText(),/\$27.00 reserved/);
  await b.getByRole('button',{name:'Decline',exact:true}).click();
- await a.getByText('Rematch offer closed.',{exact:true}).waitFor({timeout:20000});
+ await b.getByText('You declined the rematch.',{exact:true}).waitFor({timeout:20000});
+ await a.getByText('Opponent declined the rematch.',{exact:true}).waitFor({timeout:20000});
+ for(const page of [a,b]) {
+  const terminal=page.getByRole('button',{name:'Rematch Declined',exact:true});
+  await terminal.waitFor({timeout:20000});assert.equal(await terminal.isEnabled(),false);
+  assert.doesNotMatch(await page.locator('body').innerText(),/Waiting for your opponent to connect on the result screen/);
+ }
  assert.equal(f.table('Wallet')[0].available_balance,100);
- await b.getByRole('button',{name:'Request Rematch',exact:true}).click();
- await a.getByRole('button',{name:'Accept Rematch',exact:true}).click({timeout:20000});
- await a.getByRole('heading',{name:'Match ready'}).waitFor({timeout:20000});
- await b.getByRole('heading',{name:'Match ready'}).waitFor({timeout:20000});
+ assert.equal(f.table('Match').length,2);
  assert.deepEqual(errors,[]);
- assert.equal(f.table('Match').filter(m=>m.status==='preparing').length,1);
+ assert.equal(f.table('Match').filter(m=>m.status==='preparing').length,0);
  if(free){assert.equal(f.state.lookups,0);assert.equal(f.state.creationLookups||0,0);assert.equal(f.table('LedgerJournalBatch').length,0);}
- console.log('PASS two-player '+(free?'free':'paid')+' request, decline, reverse offer, accept and navigation at '+width+'px');
+ console.log('PASS two-player '+(free?'free':'paid')+' terminal decline state at '+width+'px');
  await context.close();
 }
 } finally {await browser.close();}
