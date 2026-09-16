@@ -1,0 +1,40 @@
+{
+  "name": "Free Play Campaign 2026-09-16",
+  "description": "One-time ChessBet free-play marketing campaign. Triggered only when the matching admin CampaignRun record is created.",
+  "trigger": {
+    "config": {
+      "trigger_type": "entity",
+      "entity_name": "CampaignRun",
+      "events": [
+        "create"
+      ]
+    },
+    "condition": "${ .trigger.data.campaign_key == \"free-play-2026-09-16\" and .trigger.data.status == \"running\" }"
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "free_play_campaign_20260916",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "send_campaign": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "send-free-play-campaign-20260916",
+            "args": {
+              "runId": "${ .trigger.entity_id }"
+            }
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Send Play For Free campaign",
+            "description": "Send the branded free-play campaign to current users who have not opted out."
+          }
+        }
+      }
+    ]
+  }
+}
