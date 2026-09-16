@@ -181,8 +181,8 @@ export function percentile(values: number[], fraction = 0.95) {
   const ordered = [...values].sort((a, b) => a - b);
   return ordered[Math.min(ordered.length - 1, Math.ceil(ordered.length * fraction) - 1)];
 }
-export function telemetryChecks(records: any[], activeGames: number | null, now: number) {
-  const samples: any[] = records.filter(r => now - timeMs(r.recorded_at) <= 15 * 60_000)
+export function telemetryChecks(records: any[], activeGames: number | null, now: number, maxAgeMs = 15 * 60_000, windowLabel = 'Latest per-player samples reported within 15 minutes') {
+  const samples: any[] = records.filter(r => now - timeMs(r.recorded_at) <= maxAgeMs)
     .flatMap(r => parseJson(r.samples_json, []));
   return ['submitMove', 'getGameClock', 'gameHeartbeat'].map(name => {
     const relevant = samples.filter(s => s.name === name);
@@ -198,7 +198,7 @@ export function telemetryChecks(records: any[], activeGames: number | null, now:
     const status = ratio >= 0.1 && count >= 20 ? 'critical' : throttled >= 3 || (failures >= 3 && ratio >= 0.02) || (count >= 20 && slow / count >= 0.05) ? 'warning' : 'healthy';
     return check(key, name + ' responsiveness', status,
       count + ' browser-reported calls; ' + failures + ' network/server failures, ' + throttled +
-      ' rate limits, ' + slow + ' responses over 2 seconds. Latest per-player samples reported within 15 minutes; client-reported and potentially incomplete.',
+      ' rate limits, ' + slow + ' responses over 2 seconds. ' + windowLabel + '; client-reported and potentially incomplete.',
       count, 'sampled calls');
   });
 }
