@@ -87,7 +87,7 @@ export default function LiveStatsBar() {
     {
       icon: ListChecks,
       value: stats?.availableMatches,
-      label: "Challenges",
+      label: "Public Challenges",
       help: "Public challenges available for you to accept",
     },
   ];
