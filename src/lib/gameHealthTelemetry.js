@@ -7,6 +7,7 @@ export function installGameHealthTelemetry(client) {
   let sending = false;
   let lastSentAt = Date.now();
   let firstFlushTimer = null;
+
   async function flush(force = false) {
     if (sending || !samples.size || (!force && Date.now() - lastSentAt < 120000)) return;
     sending = true;
@@ -16,6 +17,7 @@ export function installGameHealthTelemetry(client) {
     try { await invoke("recordGameHealth", { samples: batch }); } catch { /* Drop this batch; never amplify an outage with retries. */ }
     finally { sending = false; }
   }
+
   function scheduleFirstFlush() {
     if (firstFlushTimer || !samples.size) return;
     firstFlushTimer = window.setTimeout(() => {
@@ -23,6 +25,7 @@ export function installGameHealthTelemetry(client) {
       void flush(true);
     }, 15000);
   }
+
   client.functions.invoke = function(name, ...args) {
     if (!names.has(name)) return invoke(name, ...args);
     const started = performance.now();
