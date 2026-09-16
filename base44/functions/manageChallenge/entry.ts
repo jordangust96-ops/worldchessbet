@@ -24,7 +24,11 @@ export function safeChallengeMatch(match: any) {
   return Object.fromEntries(fields.filter(key => match[key] !== undefined).map(key => [key, match[key]]));
 }
 function response(value: any, status = 200) {
-  return Response.json(value?.match ? { ...value, match: safeChallengeMatch(value.match) } : value, {
+  const safeValue = value?.match ? { ...value, match: safeChallengeMatch(value.match) } : value;
+  const payload = safeValue && typeof safeValue === 'object' && !Array.isArray(safeValue)
+    ? { ...safeValue, serverNow: new Date().toISOString() }
+    : safeValue;
+  return Response.json(payload, {
     status, headers: { 'Cache-Control':'no-store', 'Referrer-Policy':'no-referrer' },
   });
 }
