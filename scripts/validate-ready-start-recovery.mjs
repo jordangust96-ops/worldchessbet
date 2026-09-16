@@ -25,7 +25,7 @@ for(const failure of ['Game.create.before','Game.create.after']){
  f.table('User').find(u=>u.id==='p1').account_state='suspended';
  await assert.rejects(()=>f.api.finalizeChallengeStart(f.sdk,f.user('p1'),m.id),e=>e.code==='account_restricted');
  assert.equal(f.table('Game').length,0);
- f.state.now+=11000;
+ f.state.now+=f.policy.CHALLENGE_READY_MS+1000;
  const beat=await f.api.readyChallenge(f.request,f.sdk,f.user('p1'),m.id,{action:'heartbeat',visible:true,presenceId:'ready_session_123456'});
  assert.equal(beat.needsReady,true);
  console.log('PASS heartbeat optimization preserves final account restrictions and ready expiry');
