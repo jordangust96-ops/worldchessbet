@@ -97,7 +97,42 @@ export function useChessGame(matchId, userId, active) {
       clearSelection();
       return;
     }
-    loadGame();
+
+    // A refresh during a network interruption previously made one bootstrap
+    // attempt and then stayed blank forever. Retry until the authoritative
+    // Match/Game can be loaded, with online/focus events prompting an immediate
+    // recovery instead of requiring the player to refresh again.
+    let stopped = false;
+    let inFlight = false;
+    let loaded = false;
+    let retryTimer = null;
+    const recover = async () => {
+      if (stopped || inFlight || loaded) return;
+      inFlight = true;
+      try {
+        await loadGame();
+        if (!stopped) loaded = true;
+      } catch {
+        if (!stopped) retryTimer = window.setTimeout(recover, 3000);
+      } finally {
+        inFlight = false;
+      }
+    };
+    const recoverNow = () => {
+      if (stopped || loaded) return;
+      if (retryTimer) window.clearTimeout(retryTimer);
+      retryTimer = null;
+      void recover();
+    };
+    void recover();
+    window.addEventListener("online", recoverNow);
+    window.addEventListener("focus", recoverNow);
+    return () => {
+      stopped = true;
+      if (retryTimer) window.clearTimeout(retryTimer);
+      window.removeEventListener("online", recoverNow);
+      window.removeEventListener("focus", recoverNow);
+    };
   }, [active, loadGame, clearSelection]);
 
   // Server-authoritative presence heartbeat, for disconnect/reconnect
