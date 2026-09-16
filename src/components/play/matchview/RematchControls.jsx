@@ -103,9 +103,9 @@ const RematchControls=forwardRef(function RematchControls({match,opponentName,on
     {view && <p className="text-xs text-white/55">{free?'Free play':`Entry Amount $${money(view.terms.entryAmount)} · Platform Service Fee $${money(view.terms.serviceFee)}`} · Same time control</p>}
     {view && !free && <p className="text-xs text-white/55">${money(Number(view.terms.entryAmount)+Number(view.terms.serviceFee))} reserved when you request or accept.</p>}
     <div role="status" aria-live="polite" className="text-sm text-white/65">
-      {!view?'Connecting to the rematch…':!fresh || !view.selfPresent?'Reconnecting to the rematch…':busy || offer?.status==='processing'?'Confirming rematch…':
+      {!view?'Connecting to the rematch…':declined?(offer.incoming?'You declined the rematch.':`${opponentName} declined the rematch.`):
+       !fresh || !view.selfPresent?'Reconnecting to the rematch…':busy || offer?.status==='processing'?'Confirming rematch…':
        offer?.status==='accepted'?'Rematch accepted. Opening match…':
-       declined?(offer.incoming?'You declined the rematch.':`${opponentName} declined the rematch.`):
        !view.opponentPresent?'Waiting for your opponent to connect on the result screen…':
        open?(offer.incoming?`${opponentName} wants a rematch.`:'Rematch requested. Waiting for your opponent…'):
        offer?.status==='closed'?'Rematch offer closed.':'Your opponent is here.'}
@@ -116,7 +116,7 @@ const RematchControls=forwardRef(function RematchControls({match,opponentName,on
       <Button disabled={!!busy} onClick={()=>run('rematch_decline')} variant="outline" className="flex-1 rounded-xl">Decline</Button>
     </div>:open ? <Button disabled={!!busy} onClick={()=>run('rematch_cancel')} variant="outline" className="w-full rounded-xl">Cancel Rematch Request</Button>:
     <Button disabled={!!busy || declined || !present || !canAfford || ['accepted','processing'].includes(offer?.status)} onClick={()=>run('rematch_request')} className="w-full h-12 rounded-2xl font-bold gold-gradient text-black">{declined?'Rematch Declined':busy==='rematch_request'?'Requesting…':'Request Rematch'}</Button>}
-    {view && !free && !canAfford && (!open || offer.incoming) && <p className="text-xs text-white/55">{playable===null?'Checking playable balance…':`You need $${money(total)} in playable funds to rematch.`}</p>}
+    {view && !free && !declined && !canAfford && (!open || offer.incoming) && <p className="text-xs text-white/55">{playable===null?'Checking playable balance…':`You need $${money(total)} in playable funds to rematch.`}</p>}
     {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
   </section>;
 });
