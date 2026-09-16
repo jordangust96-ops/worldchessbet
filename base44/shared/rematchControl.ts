@@ -40,9 +40,9 @@ export async function rematchControl(req: Request, base44: any, user: any, body:
       serviceFee:free?0:Number(parent.platform_service_fee),timeControl:parent.time_control};
     let child=(await entities.Match.filter({challenge_rematch_of:parent.id,challenge_in_screen_rematch:true},'-created_date',1))[0];
     const accepted=()=>child && ['preparing','both_ready','in_progress','completed'].includes(child.status);
-    const close=async()=>{
+    const close=async(reason='cancelled')=>{
       await check();
-      await cancelChallenge(base44,{id:child.player1_id},child.id);
+      await cancelChallenge(base44,{id:child.player1_id},child.id,reason);
       child=await entities.Match.get(child.id);
     };
     if(child && ['reserving','releasing'].includes(child.challenge_operation_state)) {
@@ -58,7 +58,7 @@ export async function rematchControl(req: Request, base44: any, user: any, body:
       opponentPresent:rematchPresent(parent,opponentId),selfPresent:rematchPresent(parent,user.id,body.screenId),
       terms, offer:child?{id:child.id,status:accepted()?'accepted':child.status==='searching'?
         (['reserving','releasing'].includes(child.challenge_operation_state)?'processing':'pending'):
-        child.status==='cancelled'?'closed':'processing',
+        child.status==='cancelled'?(child.challenge_close_reason==='declined'?'declined':'closed'):'processing',
         incoming:child.player1_id!==user.id,expiresAt:child.challenge_expires_at,
         entryAmount:child.wager_amount,serviceFee:child.platform_service_fee,
         ...(accepted()?{matchId:child.id}:{})}:null
@@ -70,12 +70,12 @@ export async function rematchControl(req: Request, base44: any, user: any, body:
       if(accepted())return snapshot();
       if(action==='rematch_decline' && child.player1_id===user.id)fail('own_offer','Cancel your own rematch offer.',400);
       if(action==='rematch_cancel' && child.player1_id!==user.id)fail('different_opponent','Decline the opponent’s offer instead.',400);
-      await close();return snapshot();
+      await close(action==='rematch_decline'?'declined':'cancelled');return snapshot();
     }
     if(!rematchPresent(parent,opponentId))fail('opponent_left','Your opponent has left the result screen.',409);
     if(action==='rematch_request') {
       // Crossing requests show the existing incoming offer, never reserve twice.
-      if(child && (accepted() || child.status!=='cancelled'))return snapshot();
+      if(child && (accepted() || child.status!=='cancelled' || child.challenge_close_reason==='declined'))return snapshot();
       if(Number(body.entryAmount)!==terms.entryAmount || Number(body.serviceFee)!==terms.serviceFee)
         fail('terms_changed','Review the rematch entry and fee again.',409);
       const presence={creator:body.screenId,opponent:parent['post_match_'+rematchRole(parent,opponentId)+'_presence'].token};
