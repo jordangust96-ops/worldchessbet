@@ -141,7 +141,8 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
         if(active)setConnectionMessage(current=>current==='Reconnecting…'?'':current);
       } catch(err) {
         const action=err?.response?.data?.action;
-        if(active && action==='location_required') {armedRef.current=false;setArmed(false);setAcknowledgedUntil(0);setError('Please confirm readiness again to refresh your location.');}
+        if(active && action==='ready_expired') setError('');
+        else if(active && action==='location_required') {armedRef.current=false;setArmed(false);setAcknowledgedUntil(0);setError('Please confirm readiness again to refresh your location.');}
         else if(active && action==='recovery_pending') {
           setConnectionMessage('Confirming your match…');
           try { await challengeRequest('recover',{matchId:match.id}); await latest.current.onRefresh?.(); } catch {}
@@ -171,7 +172,8 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
       if(!present.current || document.visibilityState!=='visible')return;
       await requestReady('finalize',{matchId:match.id});await onRefresh?.();
     } catch(err) {
-      if(!handleChallengeGate(err,navigate,`/play?match=${match.id}`))setError(connectionError(err));
+      if(err?.response?.data?.action==='ready_expired') setError('');
+      else if(!handleChallengeGate(err,navigate,`/play?match=${match.id}`))setError(connectionError(err));
     } finally{actionBusy.current=false;setBusy(false);}
   };
   const cancel=async()=>{
