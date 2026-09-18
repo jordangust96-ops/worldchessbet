@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
+import { challengeRequest } from '@/lib/challengeApi';
 
 export default function AccountBalance() {
   const { user } = useAuth();
@@ -31,8 +32,7 @@ export default function AccountBalance() {
       // Held balance also includes withdrawals, deposits and other holds.
       // Only the match-specific summary can label funds as match reservations.
       // Keep the available balance visible if that optional summary is unavailable.
-      const summary = await base44.functions.invoke('manageChallenge', { action: 'wallet_summary' })
-        .then(response => response.data).catch(() => null);
+      const summary = await challengeRequest('wallet_summary').catch(() => null);
       return {
         balance: Number(wallet.available_balance ?? wallet.balance ?? 0),
         reserved: Number(summary?.reserved_for_matches ?? 0),
