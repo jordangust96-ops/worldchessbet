@@ -24,12 +24,12 @@ Deno.serve(async req=>{
     let checked=0, total=null, complete=false;
     for(let page=1;page<=20;page++){
       const result=await seamlessRequest('GET','/check?limit=100&page='+page+'&date_start='+dateStart+'&date_end='+dateEnd);
-      const list=result?.list;
-      if(result?.success!==true || !Array.isArray(list?.data))return Response.json({inspect_only:true,error:'unexpected_payment_list',success:result?.success,keys:Object.keys(result||{}),list_type:Array.isArray(list)?'array':typeof list,list_keys:list&&typeof list==='object'?Object.keys(list).slice(0,20):[],first_keys:Array.isArray(list)&&list[0]?Object.keys(list[0]):[]},{status:502});
-      total=Number(list.total);
-      checked+=list.data.length;
-      for(const payment of list.data)if(payment.label===label)matches.push({check_id:payment.check_id,status:payment.status,amount:payment.amount,direction:payment.direction});
-      if(page>=Number(list.last_page)||Number.isFinite(total)&&checked>=total){complete=true;break;}
+      const list=result?.list, payments=Array.isArray(list)?list:list?.data;
+      if(result?.success!==true || !Array.isArray(payments))return Response.json({inspect_only:true,error:'unexpected_payment_list'},{status:502});
+      total=Array.isArray(list)?null:Number(list.total);
+      checked+=payments.length;
+      for(const payment of payments)if(payment.label===label)matches.push({check_id:payment.check_id,status:payment.status,amount:payment.amount,direction:payment.direction});
+      if(Array.isArray(list)?payments.length<100:page>=Number(list.last_page)||Number.isFinite(total)&&checked>=total){complete=true;break;}
     }
     return Response.json({inspect_only:true,provider_submission:false,transaction_id:tx.id,checked,total,complete,matches});
   }
