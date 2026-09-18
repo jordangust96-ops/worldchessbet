@@ -1,0 +1,53 @@
+{
+  "name": "SeamlessPaymentObservation",
+  "type": "object",
+  "properties": {
+    "provider_reference_id": {
+      "type": "string"
+    },
+    "dashboard_number": {
+      "type": "string"
+    },
+    "provider_amount": {
+      "type": "number"
+    },
+    "provider_status": {
+      "type": "string"
+    },
+    "provider_label": {
+      "type": "string"
+    },
+    "provider_description": {
+      "type": "string"
+    },
+    "checked_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "seamless_check_api"
+      ]
+    },
+    "checked_by": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "provider_reference_id",
+    "provider_amount",
+    "checked_at",
+    "source"
+  ],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": false,
+    "update": false,
+    "delete": false
+  }
+}
