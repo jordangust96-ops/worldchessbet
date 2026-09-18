@@ -207,7 +207,7 @@ Deno.serve(async (req) => {
 
     const body = buildDepositBody({
       providerUserId: profile.provider_user_id, name: accountHolderName.fullName, amount: quote.bankDebit,
-      description: 'Fund wallet', label,
+      description: `ChessBet deposit ${pending.id}`, label,
     });
 
     let data;
