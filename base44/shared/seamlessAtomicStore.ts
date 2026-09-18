@@ -13,7 +13,7 @@ export async function claimPayoutCapacity(transactionId: string, cents: number, 
   const env = (Deno.env.get('SEAMLESS_ACH_ENV') || '').trim();
   if (!['sandbox', 'production'].includes(env)) throw new Error('Invalid Seamless environment');
   return parse(await evalAtomic(CLAIM_PAYOUT_CAPACITY, [key('payout-capacity', env)],
-    [transactionId, String(cents), JSON.stringify(history)]));
+    [transactionId, String(cents), JSON.stringify(history), String(Date.now())]));
 }
 
 const OP_TTL_SECONDS = 60 * 60 * 24 * 90;
@@ -151,26 +151,19 @@ export async function checkAtomicStoreHealth() {
   return true;
 }
 
-// Admin diagnostics only: exercise TIME inside EVAL without changing any keys.
+// Admin-only caller uses the actual capacity script in read-only inspection mode.
 export async function inspectPayoutCapacityStore() {
+  const { CLAIM_PAYOUT_CAPACITY } = await import('./withdrawalLimits.js');
   const env = (Deno.env.get('SEAMLESS_ACH_ENV') || '').trim();
   if (!['sandbox', 'production'].includes(env)) return { error: 'invalid_environment' };
-  const result: Record<string, unknown> = { environment: env };
   try {
-    const records = parse(await command(['GET', key('payout-capacity', env)])) || {};
-    result.capacity_records = Object.keys(records).length;
+    const result = parse(await evalAtomic(CLAIM_PAYOUT_CAPACITY, [key('payout-capacity', env)],
+      ['capacity-inspection', '1', '[]', String(Date.now()), 'inspect']));
+    return { environment: env, check_available: true, ...result };
   } catch (error) {
-    result.read_error = error.coordinationReason || 'unavailable';
+    return { environment: env, check_available: false,
+      reason: error.coordinationReason || 'unavailable', commands: error.coordinationCommands || [] };
   }
-  try {
-    await command(['EVAL', "return redis.call('TIME')", '0']);
-    result.time_available = true;
-  } catch (error) {
-    result.time_available = false;
-    result.reason = error.coordinationReason || 'unavailable';
-    result.commands = error.coordinationCommands || [];
-  }
-  return result;
 }
 
 // Durable financial barriers outlive a worker's lease. Only recovery of the

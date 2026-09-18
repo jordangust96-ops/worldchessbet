@@ -29,10 +29,14 @@ export async function sendLimitedWithdrawal(base44, transactionId, body) {
     if (rows.length < 500) break;
   }
   capacity = await claimPayoutCapacity(transactionId, cents, history);
-  } catch {
+  } catch (cause) {
     const error = new Error('Bank transfers are temporarily unavailable. Your withdrawal was returned to your wallet and no withdrawal fee was charged. Please try again later.');
     error.status = 429;
     error.payoutCapacity = true;
+    error.capacityReason = 'capacity_check_unavailable';
+    console.error(JSON.stringify({ event: 'withdrawal_capacity_check_failed',
+      wallet_transaction_id: transactionId, reason: cause?.coordinationReason || 'validation_or_store_error',
+      commands: cause?.coordinationCommands || [] }));
     throw error;
   }
   if (!capacity?.allowed) {
@@ -41,6 +45,7 @@ export async function sendLimitedWithdrawal(base44, transactionId, body) {
       : 'Bank transfer capacity is currently full. Your money remains in your wallet. Please try again later; no withdrawal fee was charged.');
     // A duplicate election is ambiguous, never authorize a repeat or release its funds.
     error.status = capacity?.duplicate ? 503 : 429;
+    error.capacityReason = capacity?.duplicate ? 'capacity_duplicate' : 'capacity_limit';
     error.payoutCapacity = true;
     throw error;
   }

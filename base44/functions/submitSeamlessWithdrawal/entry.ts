@@ -298,8 +298,9 @@ Deno.serve(async (req) => {
       const status = Number(error?.status || 0);
       if(tx.withdrawal_requested_at && error.payoutCapacity && status===429){
         await saveWithdrawalOperation(user.id,idempotencyKey,{...operation,state:'reserved'});
-        await base44.asServiceRole.entities.WalletTransaction.update(tx.id,{integration_status:'reserved',withdrawal_request_status:'queued'});
-        return Response.json({enabled:true,transaction_id:tx.id,status:'queued',estimated_arrival:tx.withdrawal_estimated_arrival});
+        await base44.asServiceRole.entities.WalletTransaction.update(tx.id,{integration_status:'reserved',withdrawal_request_status:'queued',source_event:'seamless_withdrawal_queued'});
+        await upsertOperationAudit(base44, {user_id:user.id,idempotency_key:idempotencyKey,wallet_transaction_id:tx.id,amount:value,status:'reserved',reservation_ledger_group_id:reservationGroupId,attempts:1,last_error_code:error.capacityReason || 'capacity_limit'});
+        return Response.json({enabled:true,transaction_id:tx.id,status:'queued',reason:error.capacityReason || 'capacity_limit',estimated_arrival:tx.withdrawal_estimated_arrival});
       }
       if (status >= 400 && status < 500) {
         const releaseGroupId = await releaseWithdrawalReservation(base44, tx, value, 'provider_rejected');
@@ -330,6 +331,7 @@ Deno.serve(async (req) => {
     });
     await base44.asServiceRole.entities.WalletTransaction.update(tx.id, {
       integration_status: 'submitted', direction: 'reserve', source_event: 'seamless_withdrawal_submitted',
+      ...(tx.withdrawal_requested_at ? {withdrawal_request_status:'processing'} : {}),
       ...(withdrawalFee > 0 ? { description: `Seamless ACH withdrawal (a $${withdrawalFee.toFixed(2)} small-withdrawal fee was separately charged)` } : {}),
     });
     await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, state: 'submitted', provider_reference_id: providerRef });
@@ -379,7 +381,7 @@ Deno.serve(async (req) => {
         console.error(JSON.stringify({ event: 'withdrawal_fee_charge_failed', wallet_transaction_id: tx.id, error: feeError?.message || String(feeError) }));
       }
     }
-    await upsertOperationAudit(base44, { user_id: user.id, idempotency_key: idempotencyKey, provider_reference_id: providerRef, wallet_transaction_id: tx.id, amount: value, status: 'submitted', reservation_ledger_group_id: reservationGroupId, attempts: 1 });
+    await upsertOperationAudit(base44, { user_id: user.id, idempotency_key: idempotencyKey, provider_reference_id: providerRef, wallet_transaction_id: tx.id, amount: value, status: 'submitted', reservation_ledger_group_id: reservationGroupId, attempts: 1, last_error_code: '' });
     await recordIntegrationEvent(base44, {
       eventType: 'financial.seamless_withdrawal_submitted', aggregateType: 'wallet_transaction', aggregateId: tx.id,
       correlationId: tx.id, idempotencyKey: `seamless:withdrawal:submitted:${tx.id}`, actorType: 'user', actorId: user.id,

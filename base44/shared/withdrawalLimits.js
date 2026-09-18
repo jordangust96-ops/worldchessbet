@@ -26,8 +26,12 @@ export function payoutCapacity(entries, cents, now) {
 // Redis executes this entire capacity election atomically across all users and workers.
 // Entries survive unknown provider outcomes; an id may never authorize a second send.
 export const CLAIM_PAYOUT_CAPACITY = `
-local time = redis.call('TIME')
-local now = tonumber(time[1]) * 1000 + math.floor(tonumber(time[2]) / 1000)
+-- Timestamp comes only from trusted backend code, never a request field.
+-- TIME is not authorized by the production Redis command policy.
+local now = tonumber(ARGV[4])
+if not now or now <= 0 or now ~= math.floor(now) then
+  return redis.error_reply('Invalid payout clock')
+end
 local dayWindow = 86400000
 local monthWindow = 2678400000
 local records = cjson.decode(redis.call('GET', KEYS[1]) or '{}')
@@ -49,9 +53,10 @@ local cents = tonumber(ARGV[2])
 if records[ARGV[1]] then return cjson.encode({allowed=false, duplicate=true}) end
 local available = math.max(0, math.min(110000-day, 2200000-month))
 if cents > available then
-  redis.call('SET', KEYS[1], cjson.encode(records))
+  if ARGV[5] ~= 'inspect' then redis.call('SET', KEYS[1], cjson.encode(records)) end
   return cjson.encode({allowed=false, availableCents=available})
 end
+if ARGV[5] == 'inspect' then return cjson.encode({allowed=true, availableCents=available, inspect_only=true}) end
 records[ARGV[1]] = {at=now, cents=cents}
 redis.call('SET', KEYS[1], cjson.encode(records))
 return cjson.encode({allowed=true})
