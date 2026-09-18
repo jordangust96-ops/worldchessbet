@@ -6,6 +6,7 @@ import { allLedgerRows } from '../../shared/ledgerPagination.ts';
 import { inspectPayoutCapacityStore } from '../../shared/seamlessAtomicStore.ts';
 import { buildVerifiedWithdrawalBody } from '../../shared/verifiedWithdrawalBody.ts';
 import { legalNameFromUser } from '../../shared/legalName.ts';
+import { seamlessRequest } from '../../shared/seamlessAch.ts';
 Deno.serve(async req=>{
  try{
   const base44=createClientFromRequest(req),caller=await base44.auth.me().catch(()=>null);
@@ -14,6 +15,24 @@ Deno.serve(async req=>{
   const input=await req.json().catch(()=>({}));
   const rows=await allLedgerRows(base44.asServiceRole.entities.WalletTransaction,{launch_epoch:2,type:'withdrawal',withdrawal_requested_at:{$exists:true}},'created_date');
   const candidates=rows.filter(tx=>['preparing','queued'].includes(tx.withdrawal_request_status)&&['pending','processing'].includes(tx.status));
+  if(input.inspectOnly===true && input.inspectPayments===true){
+    const tx=rows.find(tx=>tx.id===input.transactionId);
+    if(!tx)return Response.json({error:'not_found'},{status:404});
+    const dateStart=new Date(Date.parse(tx.withdrawal_requested_at)-86400000).toISOString().slice(0,10);
+    const dateEnd=new Date(Date.now()+86400000).toISOString().slice(0,10);
+    const label='chessbet-withdrawal-'+tx.id, matches=[];
+    let checked=0, total=null, complete=false;
+    for(let page=1;page<=20;page++){
+      const result=await seamlessRequest('GET','/check?limit=100&page='+page+'&date_start='+dateStart+'&date_end='+dateEnd);
+      const list=result?.list;
+      if(result?.success!==true || !Array.isArray(list?.data))return Response.json({inspect_only:true,error:'unexpected_payment_list'},{status:502});
+      total=Number(list.total);
+      checked+=list.data.length;
+      for(const payment of list.data)if(payment.label===label)matches.push({check_id:payment.check_id,status:payment.status,amount:payment.amount,direction:payment.direction});
+      if(page>=Number(list.last_page)||Number.isFinite(total)&&checked>=total){complete=true;break;}
+    }
+    return Response.json({inspect_only:true,provider_submission:false,transaction_id:tx.id,checked,total,complete,matches});
+  }
   if(input.inspectOnly===true && input.inspectFunding===true){
    const tx=rows.find(tx=>tx.id===input.transactionId);
    if(!tx)return Response.json({error:'not_found'},{status:404});
