@@ -78,6 +78,9 @@ function isSuppressedDuplicate(tx) {
 function getTransactionExplanation(tx, match) {
   const amount = `$${formatMoney(tx.amount)}`;
   if(tx.type==='admin_reversal'&&tx.source_event==='legacy_deposit_fee_adjustment')return {heading:'Deposit fee',text:`Deposit fee: ${amount}.`};
+  if(tx.type==='withdrawal'&&(tx.status==='review_required'||tx.integration_status==='uncertain')){
+    return {heading:'Withdrawal needs review',text:`We could not confirm whether your ${amount} withdrawal was accepted. Your funds remain reserved while ChessBet checks the payment outcome. Do not submit another withdrawal for this amount. Contact hello@worldchessbet.com for an update.`};
+  }
   if(tx.type==='withdrawal'&&tx.withdrawal_requested_at&&!['failed','reversed','completed'].includes(tx.status)){
     const date=tx.withdrawal_estimated_arrival?new Date(tx.withdrawal_estimated_arrival).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric',timeZone:'America/New_York'}):null;
     return {heading:'Withdrawal requested',text:`Your ${amount} withdrawal request is being processed.${date?' Estimated arrival: '+date+'.':''} Bank processing or additional verification may change the date.`};
