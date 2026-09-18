@@ -1,3 +1,4 @@
+import { buildVerifiedWithdrawalBody } from '../../shared/verifiedWithdrawalBody.ts';
 import { walletFundingSummary } from '../../shared/fundingProvenance.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { postLedgerLegs } from '../../shared/ledger.ts';
@@ -7,7 +8,7 @@ import { extendComplianceEvidenceRetention } from '../../shared/complianceEviden
 import { hasVerifiedIdentity } from '../../shared/identityEligibility.js';
 import { legalNameFromUser } from '../../shared/legalName.ts';
 import {
-  seamlessConfig, seamlessRequest, buildWithdrawalBody,
+  seamlessConfig, seamlessRequest,
   PATH_CHECK_SEND, SEAMLESS_PROVIDER_KEY,
 } from '../../shared/seamlessAch.ts';
 import { acquireUserWalletLock, releaseUserWalletLock } from '../../shared/seamlessAtomicStore.ts';
@@ -244,7 +245,7 @@ Deno.serve(async (req) => {
 
         let data;
         try {
-          data = await sendLimitedWithdrawal(base44, walletTransaction.id, buildWithdrawalBody({
+          data = await sendLimitedWithdrawal(base44, walletTransaction.id, await buildVerifiedWithdrawalBody({
             providerUserId: profile.provider_user_id, name: accountHolderName.fullName, amount: payout,
             description: 'Account closure disbursement', label, sourceId: bank.source_id,
           }));

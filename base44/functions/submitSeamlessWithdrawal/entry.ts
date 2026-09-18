@@ -1,3 +1,4 @@
+import { buildVerifiedWithdrawalBody } from '../../shared/verifiedWithdrawalBody.ts';
 import { estimateQueuedWithdrawal, queuedWithdrawalReady } from '../../shared/withdrawalQueue.ts';
 import { settleQueuedWithdrawalFee } from '../../shared/queuedWithdrawalFee.ts';
 import { sendWithdrawalRequestedEmail } from '../../shared/withdrawalRequestedEmail.ts';
@@ -290,7 +291,7 @@ Deno.serve(async (req) => {
 
     let data;
     try {
-      data = await sendLimitedWithdrawal(base44, tx.id, buildWithdrawalBody({
+      data = await sendLimitedWithdrawal(base44, tx.id, await buildVerifiedWithdrawalBody({
         providerUserId: profile.provider_user_id, name: accountHolderName.fullName, amount: value,
         description: 'Withdrawal', label, sourceId: bank.source_id, transferSpeed,
       }));
