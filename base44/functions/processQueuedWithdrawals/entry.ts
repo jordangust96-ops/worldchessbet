@@ -25,7 +25,7 @@ Deno.serve(async req=>{
     for(let page=1;page<=20;page++){
       const result=await seamlessRequest('GET','/check?limit=100&page='+page+'&date_start='+dateStart+'&date_end='+dateEnd);
       const list=result?.list;
-      if(result?.success!==true || !Array.isArray(list?.data))return Response.json({inspect_only:true,error:'unexpected_payment_list'},{status:502});
+      if(result?.success!==true || !Array.isArray(list?.data))return Response.json({inspect_only:true,error:'unexpected_payment_list',success:result?.success,keys:Object.keys(result||{}),list_type:Array.isArray(list)?'array':typeof list,list_keys:list&&typeof list==='object'?Object.keys(list).slice(0,20):[],first_keys:Array.isArray(list)&&list[0]?Object.keys(list[0]):[]},{status:502});
       total=Number(list.total);
       checked+=list.data.length;
       for(const payment of list.data)if(payment.label===label)matches.push({check_id:payment.check_id,status:payment.status,amount:payment.amount,direction:payment.direction});
