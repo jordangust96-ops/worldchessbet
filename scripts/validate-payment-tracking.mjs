@@ -40,7 +40,7 @@ const handlerSource = readFileSync(new URL('../base44/functions/getSeamlessPayme
 const mfaSource = readFileSync(new URL('../base44/shared/mfa.ts',import.meta.url),'utf8').replace('export async function','async function');
 let data = {}, writes = [], reads = 0, providerCalls = [], user = {id:'admin',role:'admin',mfa_bypass:true};
 const entities = new Proxy({}, {get:(_,name)=>({
-  filter:async(q,sort,limit,skip=0)=>{reads++;return (data[name]||[]).slice(skip,skip+limit);},
+  filter:async(q,sort,limit,skip=0)=>{reads++;return (data[name]||[]).map((row,i)=>({id:name+':'+i,...row})).slice(skip,skip+limit);},
   create:async(fields)=>{writes.push({entity:name,fields});return fields;}
 })});
 const client = {auth:{me:async()=>user},asServiceRole:{entities}};
