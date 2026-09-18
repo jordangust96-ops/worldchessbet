@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { invokeAdminFunction } from "@/lib/adminApi";
+import SeamlessPaymentReport from "@/components/admin/SeamlessPaymentReport";
 
 const PAGE_SIZE = 50;
 
@@ -522,6 +523,8 @@ export default function AdminTransactionLedger() {
             </button>
           </div>
         </div>
+
+        <SeamlessPaymentReport />
 
         {sourceLimited && (
           <div className="mb-4 flex gap-2 rounded-xl border border-amber-300/20 bg-amber-300/[0.07] p-3 text-xs leading-5 text-amber-100/70">
