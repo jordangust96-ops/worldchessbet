@@ -293,7 +293,7 @@ Deno.serve(async (req) => {
     try {
       data = await sendLimitedWithdrawal(base44, tx.id, await buildVerifiedWithdrawalBody({
         providerUserId: profile.provider_user_id, name: accountHolderName.fullName, amount: value,
-        description: 'Withdrawal', label, sourceId: bank.source_id, transferSpeed,
+        description: `ChessBet withdrawal ${tx.id}`, label, sourceId: bank.source_id, transferSpeed,
       }));
     } catch (error) {
       const status = Number(error?.status || 0);
