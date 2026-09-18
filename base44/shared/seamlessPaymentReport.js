@@ -29,7 +29,7 @@ export function buildPaymentReport({transactions = [], references = [], banks = 
     const profile = profiles.find(p => p.user_id === t.user_id);
     const proof = evidence.filter(e => e.wallet_transaction_id === t.id);
     const flags = [];
-    if (!labels.length) flags.push('missing_payment_label');
+    if (!labels.length && !['pending','reserved'].includes(t.integration_status)) flags.push('missing_payment_label');
     if (labels.some(l => l !== 'chessbet-' + t.type + '-' + t.id)) flags.push('label_mismatch');
     if (providerIds.length > 1) flags.push('multiple_provider_ids');
     if (providerIds.some(id => (byProvider.get(id) || []).length > 1)) flags.push('provider_id_reused');
