@@ -46,7 +46,24 @@ Deno.serve(async req=>{
     provider_submission:false});
   }
   if(input.inspectOnly===true)return Response.json({queued:candidates.length,inspect_only:true,diagnostic_version:3,capacity:await inspectPayoutCapacityStore()});
-  const summary={queued:candidates.length,checked:0,submitted:0,pending:0,errors:0,emails_sent:0};
+  const summary={queued:candidates.length,checked:0,submitted:0,pending:0,errors:0,emails_sent:0,review_required:0};
+  // An interrupted submission must never look like ordinary bank processing.
+  // Only classify the state; keep funds reserved and never retry the payout.
+  for(const tx of rows.filter(tx=>tx.integration_status==='submitting' &&
+    tx.withdrawal_request_status==='processing' &&
+    Number.isFinite(Date.parse(tx.withdrawal_provider_attempt_at)) &&
+    Date.parse(tx.withdrawal_provider_attempt_at)<Date.now()-5*60*1000).slice(0,50)){
+    try{
+      await base44.asServiceRole.entities.WalletTransaction.update(tx.id,{
+        status:'review_required',integration_status:'uncertain',withdrawal_request_status:'review_required',
+        description:'Withdrawal submission requires reconciliation. Funds remain reserved until the payment outcome is confirmed.',
+        source_event:'seamless_withdrawal_reconciliation_required'});
+      const audits=await base44.asServiceRole.entities.SeamlessOperation.filter({wallet_transaction_id:tx.id},'-created_date',2);
+      for(const audit of audits)await base44.asServiceRole.entities.SeamlessOperation.update(audit.id,{
+        status:'uncertain',last_error_code:audit.last_error_code||'submission_interrupted',updated_at:new Date().toISOString()});
+      summary.review_required++;
+    }catch{summary.errors++;}
+  }
   // Oldest requests first. Each request uses the same user lock, operation
   // identity and provider capacity election as interactive submission.
   for(const tx of candidates.slice(0,50)){
