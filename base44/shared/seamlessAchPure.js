@@ -53,7 +53,7 @@ export function userSafeTransferFailureReason(raw, direction = 'deposit') {
   const lower = text.toLowerCase();
   const fallback = transfer === 'deposit'
     ? 'Your bank declined this deposit. Check your available balance or use a different connected bank.'
-    : 'Your bank declined this withdrawal. Confirm the account is open and able to receive ACH transfers.';
+    : 'This withdrawal could not be completed. Contact ChessBet support if the issue continues.';
 
   if (!text) return fallback;
   if (/insufficient|not sufficient|nsf|available funds|sufficient funds/.test(lower)) {
