@@ -28,9 +28,14 @@ export default function AccountBalance() {
         pendingCents += rows.reduce((sum, row) => sum + Math.round(Number(row.amount || 0) * 100), 0);
         if (rows.length < 500) break;
       }
+      // Held balance also includes withdrawals, deposits and other holds.
+      // Only the match-specific summary can label funds as match reservations.
+      // Keep the available balance visible if that optional summary is unavailable.
+      const summary = await base44.functions.invoke('manageChallenge', { action: 'wallet_summary' })
+        .then(response => response.data).catch(() => null);
       return {
         balance: Number(wallet.available_balance ?? wallet.balance ?? 0),
-        reserved: Number(wallet.held_balance ?? 0),
+        reserved: Number(summary?.reserved_for_matches ?? 0),
         pending: pendingCents / 100,
       };
     },
