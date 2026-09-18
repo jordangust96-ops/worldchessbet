@@ -4,6 +4,7 @@ import { settleQueuedWithdrawalFee } from '../../shared/queuedWithdrawalFee.ts';
 import { refundWithdrawalFee } from '../../shared/seamlessLedgerTransitions.ts';
 import { allLedgerRows } from '../../shared/ledgerPagination.ts';
 import { inspectPayoutCapacityStore } from '../../shared/seamlessAtomicStore.ts';
+import { seamlessRequest, PATH_ACCOUNT } from '../../shared/seamlessAch.ts';
 Deno.serve(async req=>{
  try{
   const base44=createClientFromRequest(req),caller=await base44.auth.me().catch(()=>null);
@@ -12,6 +13,26 @@ Deno.serve(async req=>{
   const input=await req.json().catch(()=>({}));
   const rows=await allLedgerRows(base44.asServiceRole.entities.WalletTransaction,{launch_epoch:2,type:'withdrawal',withdrawal_requested_at:{$exists:true}},'created_date');
   const candidates=rows.filter(tx=>['preparing','queued'].includes(tx.withdrawal_request_status)&&['pending','processing'].includes(tx.status));
+  if(input.inspectOnly===true && input.inspectFunding===true){
+   const tx=rows.find(tx=>tx.id===input.transactionId);
+   if(!tx)return Response.json({error:'not_found'},{status:404});
+   const profile=(await base44.asServiceRole.entities.SeamlessPaymentProfile.filter({user_id:tx.user_id}))[0];
+   const account=await seamlessRequest('GET',PATH_ACCOUNT);
+   const merchant=account?.user_id||account?.account?.user_id||account?.data?.user_id||account?.data?.account?.user_id||account?.user?.user_id||account?.id;
+   const inspect=async(id)=>{
+    const data=await seamlessRequest('GET','/funding-source/user/:'+encodeURIComponent(id));
+    const redact=(value)=>{
+     if(Array.isArray(value))return value.map(redact);
+     if(!value||typeof value!=='object')return undefined;
+     return Object.fromEntries(Object.entries(value).map(([key,val])=>[
+      key, /^(source_id|funding_source_id|id|user_id|is_primary|primary|status|type|name|bank|account_type|account_name|balance|available_balance)$/i.test(key)?val:
+       val&&typeof val==='object'?redact(val):'[omitted]'
+     ]));
+    };
+    return redact(data);
+   };
+   return Response.json({inspect_only:true,requested_source:tx.funding_source_id,merchant:await inspect(merchant),recipient:await inspect(profile.provider_user_id)});
+  }
   if(input.inspectOnly===true)return Response.json({queued:candidates.length,inspect_only:true,diagnostic_version:2,capacity:await inspectPayoutCapacityStore()});
   const summary={queued:candidates.length,checked:0,submitted:0,pending:0,errors:0,emails_sent:0};
   // Oldest requests first. Each request uses the same user lock, operation
