@@ -32,6 +32,8 @@ ok(providerObservation({check:{...response.check,amount:50}},row).flags.includes
 ok(providerObservation({check:{...response.check,label:'wrong'}},row).flags.includes('provider_label_mismatch'));
 const csv = reportCsv([{id:'=1+1',description:' \t@evil',bank:'"quoted"'}]);
 ok(csv.includes("'=1+1"));ok(csv.includes("' \t@evil"));ok(csv.includes('""quoted""'));
+const queued = buildPaymentReport({...inputs,transactions:[{...tx,type:'withdrawal',status:'pending',integration_status:'reserved'}],references:[]})[0];
+ok(!queued.flags.includes('missing_payment_label'));
 const original = JSON.stringify(inputs);buildPaymentReport(inputs);eq(JSON.stringify(inputs),original);
 
 // Exercise deployed handler shape with fake entities and the real MFA guard.
@@ -62,6 +64,6 @@ data.SeamlessPaymentObservation=[{id:'o1',...writes[0].fields}];
 result=await call({action:'list'});eq((await result.json()).rows[0].dashboard_number,'10006');
 data.WalletTransaction=Array.from({length:501},(_,i)=>({...tx,id:'tx'+i}));result=await call({action:'list'});eq(result.status,200);
 data.WalletTransaction=[tx,tx];result=await call({action:'list'});eq(result.status,503);
-const schema=JSON.parse(readFileSync(new URL('../base44/entities/seamless-payment-observation.jsonc',import.meta.url),'utf8'));
+const schema=JSON.parse(readFileSync(new URL('../base44/entities/SeamlessPaymentObservation.jsonc',import.meta.url),'utf8'));
 eq(schema.rls,{read:{user_condition:{role:'admin'}},create:false,update:false,delete:false});
 console.log('Payment tracking: '+checks+' assertions passed');
