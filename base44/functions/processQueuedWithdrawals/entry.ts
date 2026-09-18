@@ -3,6 +3,7 @@ import { sendWithdrawalRequestedEmail } from '../../shared/withdrawalRequestedEm
 import { settleQueuedWithdrawalFee } from '../../shared/queuedWithdrawalFee.ts';
 import { refundWithdrawalFee } from '../../shared/seamlessLedgerTransitions.ts';
 import { allLedgerRows } from '../../shared/ledgerPagination.ts';
+import { inspectPayoutCapacityStore } from '../../shared/seamlessAtomicStore.ts';
 Deno.serve(async req=>{
  try{
   const base44=createClientFromRequest(req),caller=await base44.auth.me().catch(()=>null);
@@ -11,7 +12,7 @@ Deno.serve(async req=>{
   const input=await req.json().catch(()=>({}));
   const rows=await allLedgerRows(base44.asServiceRole.entities.WalletTransaction,{launch_epoch:2,type:'withdrawal',withdrawal_requested_at:{$exists:true}},'created_date');
   const candidates=rows.filter(tx=>['preparing','queued'].includes(tx.withdrawal_request_status)&&['pending','processing'].includes(tx.status));
-  if(input.inspectOnly===true)return Response.json({queued:candidates.length,inspect_only:true});
+  if(input.inspectOnly===true)return Response.json({queued:candidates.length,inspect_only:true,capacity:await inspectPayoutCapacityStore()});
   const summary={queued:candidates.length,checked:0,submitted:0,pending:0,errors:0,emails_sent:0};
   // Oldest requests first. Each request uses the same user lock, operation
   // identity and provider capacity election as interactive submission.
