@@ -48,7 +48,7 @@ async function command(parts: unknown[]) {
       : 'provider_error';
     throw Object.assign(new Error('Seamless atomic store unavailable'), {
       coordinationHttpStatus: response.status, coordinationReason: reason,
-      coordinationCommands: ['EVAL','INCR','EXPIRE','GET','SET'].filter(name => new RegExp('\\b' + name + '\\b','i').test(message)),
+      coordinationCommands: ['EVAL','INCR','EXPIRE','GET','SET','TIME'].filter(name => new RegExp('\\b' + name + '\\b','i').test(message)),
       coordinationReadOnly: /READONLY|read.only/i.test(message),
     });
   }
@@ -149,6 +149,28 @@ export async function checkAtomicStoreHealth() {
     throw new Error('Seamless atomic store health check failed');
   }
   return true;
+}
+
+// Admin diagnostics only: exercise TIME inside EVAL without changing any keys.
+export async function inspectPayoutCapacityStore() {
+  const env = (Deno.env.get('SEAMLESS_ACH_ENV') || '').trim();
+  if (!['sandbox', 'production'].includes(env)) return { error: 'invalid_environment' };
+  const result: Record<string, unknown> = { environment: env };
+  try {
+    const records = parse(await command(['GET', key('payout-capacity', env)])) || {};
+    result.capacity_records = Object.keys(records).length;
+  } catch (error) {
+    result.read_error = error.coordinationReason || 'unavailable';
+  }
+  try {
+    await command(['EVAL', "return redis.call('TIME')", '0']);
+    result.time_available = true;
+  } catch (error) {
+    result.time_available = false;
+    result.reason = error.coordinationReason || 'unavailable';
+    result.commands = error.coordinationCommands || [];
+  }
+  return result;
 }
 
 // Durable financial barriers outlive a worker's lease. Only recovery of the
