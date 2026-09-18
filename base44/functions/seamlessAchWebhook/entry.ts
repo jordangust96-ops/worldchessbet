@@ -100,12 +100,19 @@ Deno.serve(async (req) => {
         eventType: 'seamless.merchant_balance.transaction_status',
         aggregateType: 'ledger_group', aggregateId: providerRef || idemKey,
         correlationId: providerRef || idemKey, idempotencyKey: `audit:${idemKey}`,
-        actorType: 'system', status: providerStatus || 'received', amount: pickAmount(body),
+        actorType: 'system', status: providerStatus || 'received',
+        // Merchant audit amounts were historically divided by 100 without a
+        // verified unit contract. Preserve the reported value as evidence;
+        // the payment report obtains authoritative dollars via GET /check.
         result: 'merchant_balance_ignored',
         eventData: {
           provider_ref: providerRef, provider_status: providerStatus,
           direction: body?.check?.direction || body?.direction || '',
           description: body?.check?.description || body?.description || '',
+          dashboard_number: String(body?.check?.number ?? body?.number ?? '').slice(0, 64),
+          provider_amount_reported: String(body?.check?.amount ?? body?.amount ?? '').slice(0, 32),
+          amount_unit: 'unverified',
+          provider_occurred_at: normalizeProviderEventTime(body?.timestamp || body?.occurred_at || '') || '',
         },
       });
     } catch (e) {
