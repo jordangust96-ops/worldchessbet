@@ -87,6 +87,8 @@ async function releaseWithdrawalReservation(base44, tx, amount, reason) {
 Deno.serve(async (req) => {
   let lockOwner = '';
   let userId = '';
+  let failureStage = 'validation';
+  let diagnosticTransactionId = '';
   try {
     const base44 = createClientFromRequest(req);
     const caller = await base44.auth.me().catch(() => null);
@@ -289,6 +291,8 @@ Deno.serve(async (req) => {
     await base44.asServiceRole.entities.WalletTransaction.update(tx.id, { integration_status: 'submitting', source_event: 'seamless_withdrawal_submitting', ...(tx.withdrawal_requested_at ? {withdrawal_request_status:'processing',withdrawal_provider_attempt_at:new Date().toISOString()}: {}) });
     await upsertOperationAudit(base44, { user_id: user.id, idempotency_key: idempotencyKey, wallet_transaction_id: tx.id, amount: value, status: 'submitting', reservation_ledger_group_id: reservationGroupId, attempts: 1 });
 
+    diagnosticTransactionId = tx.id;
+    failureStage = 'provider_submission';
     let data;
     try {
       data = await sendLimitedWithdrawal(base44, tx.id, await buildVerifiedWithdrawalBody({
@@ -297,6 +301,8 @@ Deno.serve(async (req) => {
       }));
     } catch (error) {
       const status = Number(error?.status || 0);
+      failureStage = 'provider_error_handling';
+      console.error(JSON.stringify({event:'withdrawal_submission_error',wallet_transaction_id:tx.id,http_status:status,error_name:error?.name||'Error',reason:error.withdrawalReason||error.capacityReason||'provider_error'}));
       if(tx.withdrawal_requested_at && error.payoutCapacity && status===429){
         await saveWithdrawalOperation(user.id,idempotencyKey,{...operation,state:'reserved'});
         await base44.asServiceRole.entities.WalletTransaction.update(tx.id,{integration_status:'reserved',withdrawal_request_status:'queued',source_event:'seamless_withdrawal_queued'});
@@ -304,6 +310,8 @@ Deno.serve(async (req) => {
         return Response.json({enabled:true,transaction_id:tx.id,status:'queued',reason:error.capacityReason || 'capacity_limit',estimated_arrival:tx.withdrawal_estimated_arrival});
       }
       if (status >= 400 && status < 500) {
+        failureStage = 'release_rejected_reservation';
+        await upsertOperationAudit(base44, {user_id:user.id,idempotency_key:idempotencyKey,wallet_transaction_id:tx.id,amount:value,status:'uncertain',last_error_code:error.withdrawalReason||`provider_rejected_http_${status}`});
         const releaseGroupId = await releaseWithdrawalReservation(base44, tx, value, 'provider_rejected');
         await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, state: 'failed', release_ledger_group_id: releaseGroupId });
         await upsertOperationAudit(base44, { user_id: user.id, idempotency_key: idempotencyKey, wallet_transaction_id: tx.id, amount: value, status: 'released', reservation_ledger_group_id: reservationGroupId, attempts: 1, last_error_code: error.withdrawalReason || `provider_rejected_http_${status}` });
@@ -315,6 +323,7 @@ Deno.serve(async (req) => {
       return Response.json({ enabled: true, transaction_id: tx.id, status: 'uncertain', reconciliation_required: true }, { status: 202 });
     }
 
+    failureStage = 'persist_provider_result';
     const providerRef = data?.check_id || data?.check?.id || data?.id || data?.check?.check_id || '';
     if (!providerRef) {
       await base44.asServiceRole.entities.WalletTransaction.update(tx.id, { integration_status: 'uncertain', source_event: 'seamless_withdrawal_uncertain' });
@@ -397,8 +406,9 @@ Deno.serve(async (req) => {
       response.fee_transaction_id = feeTransactionId;
     }
     return Response.json(response);
-  } catch {
-    return Response.json({ error: 'Unable to submit withdrawal' }, { status: 503 });
+  } catch (error) {
+    console.error(JSON.stringify({event:'withdrawal_internal_failure',wallet_transaction_id:diagnosticTransactionId,stage:failureStage,error_name:error?.name||'Error',http_status:Number(error?.status||error?.response?.status||0),stack:String(error?.stack||'').split('\n').slice(1,4).join('\n')}));
+    return Response.json({ error: 'Unable to submit withdrawal', reconciliation_required: failureStage !== 'validation' }, { status: 503 });
   } finally {
     if (userId && lockOwner) {
       try { await releaseUserWalletLock(userId, lockOwner); } catch { /* TTL safely releases an unavailable store lock. */ }
