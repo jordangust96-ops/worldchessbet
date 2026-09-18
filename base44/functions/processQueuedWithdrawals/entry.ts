@@ -26,7 +26,7 @@ Deno.serve(async req=>{
     sender_account:body.account,recipient:body.recipient,recipient_source:tx.funding_source_id,
     provider_submission:false});
   }
-  if(input.inspectOnly===true)return Response.json({queued:candidates.length,inspect_only:true,diagnostic_version:2,capacity:await inspectPayoutCapacityStore()});
+  if(input.inspectOnly===true)return Response.json({queued:candidates.length,inspect_only:true,diagnostic_version:3,capacity:await inspectPayoutCapacityStore()});
   const summary={queued:candidates.length,checked:0,submitted:0,pending:0,errors:0,emails_sent:0};
   // Oldest requests first. Each request uses the same user lock, operation
   // identity and provider capacity election as interactive submission.
