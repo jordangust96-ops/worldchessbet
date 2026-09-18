@@ -21,5 +21,5 @@ export function getTransferFailureMessage(tx) {
   }
   return direction === "deposit"
     ? "Your bank declined this deposit. Check your available balance or use a different connected bank."
-    : "Your bank declined this withdrawal. Confirm the account is open and able to receive ACH transfers.";
+    : "This withdrawal could not be completed. Contact ChessBet support if the issue continues.";
 }
