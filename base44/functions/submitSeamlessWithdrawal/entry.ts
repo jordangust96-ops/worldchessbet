@@ -306,7 +306,7 @@ Deno.serve(async (req) => {
       if (status >= 400 && status < 500) {
         const releaseGroupId = await releaseWithdrawalReservation(base44, tx, value, 'provider_rejected');
         await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, state: 'failed', release_ledger_group_id: releaseGroupId });
-        await upsertOperationAudit(base44, { user_id: user.id, idempotency_key: idempotencyKey, wallet_transaction_id: tx.id, amount: value, status: 'released', reservation_ledger_group_id: reservationGroupId, attempts: 1, last_error_code: 'provider_rejected' });
+        await upsertOperationAudit(base44, { user_id: user.id, idempotency_key: idempotencyKey, wallet_transaction_id: tx.id, amount: value, status: 'released', reservation_ledger_group_id: reservationGroupId, attempts: 1, last_error_code: error.withdrawalReason || `provider_rejected_http_${status}` });
         return Response.json({ error: error.payoutCapacity ? error.message : 'The bank transfer could not be submitted. Your withdrawal was returned to your wallet and no withdrawal fee was charged.', transaction_id: tx.id, request_terminal: true }, { status: error.payoutCapacity ? 429 : 400 });
       }
       await base44.asServiceRole.entities.WalletTransaction.update(tx.id, { integration_status: 'uncertain', source_event: 'seamless_withdrawal_uncertain' });
