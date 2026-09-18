@@ -16,6 +16,7 @@ import { acquireUserWalletLock, releaseUserWalletLock } from '../../shared/seaml
 import { sendLimitedWithdrawal } from '../../shared/limitedWithdrawal.ts';
 import { MAX_WITHDRAWAL_AMOUNT } from '../../shared/withdrawalLimits.js';
 
+// Account closure uses the same verified merchant-to-recipient routing as withdrawals.
 // Self-service account closure. Runs server-side with the service role so
 // contest cancellations, refunds, and the closure payout are always computed
 // via the Internal Ledger — never trusted from the client.
