@@ -80,7 +80,7 @@ async function releaseWithdrawalReservation(base44, tx, amount, reason) {
   return groupId;
 }
 
-// Reserves available funds before the provider call. The Upstash atomic lock is
+// Reserves available funds before the provider call; capacity uses the server clock. The Upstash atomic lock is
 // keyed by user, so concurrent Base44 function instances cannot both create a
 // withdrawal reservation. The request idempotency key is durable for 90 days.
 Deno.serve(async (req) => {
