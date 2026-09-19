@@ -162,7 +162,7 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
     // immediately trigger another heartbeat against the shared match lock.
     const timer=setInterval(maintain,3000);
     return()=>{active=false;clearInterval(timer);};
-  },[match.id]);
+  },[match.id,userId]);
   const ready=async()=>{
     if(actionBusy.current || armedRef.current || remaining===0 || !agree)return;
     actionBusy.current=true;
@@ -199,7 +199,7 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
       <p className="mt-2 text-sm text-white/60">{free?'Both players must be ready before the game starts.':`Both entries and both service fees are reserved. Your total reservation is $${total.toFixed(2)}.`}</p>
       <p className="mt-2 text-xs leading-relaxed text-white/45">The creator has five minutes from acceptance to return. Both players must confirm readiness before the game starts.</p>
     </div>
-    {[['You',myReady], [name,otherReady]].map(([label,readyState])=><div key={String(label)} className="flex items-center justify-between rounded-xl bg-white/5 p-3 text-sm"><span className="text-white/75">{label}</span><span className={readyState?'text-[#C9A84C]':'text-white/40'}>{readyState ? <><Check className="mr-1 inline" size={14}/>Ready</> : 'Not ready yet'}</span></div>)}
+    {[['You',myReady], [name,otherReady]].map(([label,readyState])=><div key={String(label)} className="flex items-center justify-between rounded-xl bg-white/5 p-3 text-sm"><span className="text-white/75">{label}</span><span className={readyState?'text-[#C9A84C]':'text-white/40'}>{readyState ? <><Check className="mr-1 inline" size={14}/>Ready</> : label==='You' && armed ? 'Reconnecting…' : 'Not ready yet'}</span></div>)}
     {remaining>0 ? <>
       <label className="flex items-start gap-3 rounded-xl border border-white/10 p-3 text-xs leading-relaxed text-white/65"><input type="checkbox" checked={agree} disabled={busy || armed} onChange={e=>setAgree(e.target.checked)} className="mt-0.5"/><span>I will play fairly, without chess engines, AI, or outside assistance.</span></label>
       <Button onClick={ready} disabled={busy || !agree || armed} className="h-12 w-full rounded-2xl gold-gradient font-bold text-black disabled:opacity-60">{busy && <Loader2 size={16} className="mr-2 animate-spin"/>}{armed?(myReady?'Waiting for opponent…':'Reconnecting…'):'I’m Ready'}</Button>
