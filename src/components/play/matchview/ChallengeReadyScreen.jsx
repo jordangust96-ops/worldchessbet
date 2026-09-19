@@ -9,7 +9,11 @@ import { challengeRequest, challengeLocationContext, challengeErrorMessage, hand
 export default function ChallengeReadyScreen({ match, userId, opponentId, onCancel, onRefresh }) {
   const navigate = useNavigate();
   const free=match.play_mode==='free';
-  useEffect(()=>{setAgree(false);},[match.id]);
+  const intentKey = `challenge-ready:${userId}:${match.id}`;
+  const saveIntent = value => {
+    try { if(value) sessionStorage.setItem(intentKey,match.challenge_start_deadline_at || 'ready'); else sessionStorage.removeItem(intentKey); } catch {}
+  };
+  const clearIntent = () => {saveIntent(false);armedRef.current=false;setArmed(false);setAcknowledgedUntil(0);};
   const [name,setName] = useState('Opponent');
   const [agree,setAgree] = useState(false);
   const [busy,setBusy] = useState(false);
@@ -42,20 +46,22 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
   },[opponentId]);
   useEffect(()=>{
     present.current=document.visibilityState==='visible';
-    armedRef.current=false;setArmed(false);setAcknowledgedUntil(0);
+    let remembered=false;
+    try { remembered=sessionStorage.getItem(intentKey)===(match.challenge_start_deadline_at || 'ready'); } catch {}
+    armedRef.current=remembered;setArmed(remembered);setAgree(remembered);setAcknowledgedUntil(0);
     const timer=setInterval(()=>setNow(Date.now()),1000);
-    const withdraw=()=>{setAcknowledgedUntil(0);present.current=false;armedRef.current=false;setArmed(false);challengeRequest('unready',{matchId:match.id,presenceId:presenceId.current}).catch(()=>{});};
+    const withdraw=()=>{setAcknowledgedUntil(0);present.current=false;challengeRequest('unready',{matchId:match.id,presenceId:presenceId.current}).catch(()=>{});};
     const hide=()=>{if(document.visibilityState!=='visible')withdraw();else present.current=true;};
     window.addEventListener('pagehide',withdraw);
     document.addEventListener('visibilitychange',hide);
     return()=>{clearInterval(timer);document.removeEventListener('visibilitychange',hide);window.removeEventListener('pagehide',withdraw);withdraw();};
-  },[match.id]);
+  },[match.id,userId]);
   const transient = err => {
     const status=err?.response?.status, code=err?.response?.data?.action;
     return (!status || status===429 || status>=500 || ['busy','wallet_busy','retry','start_retry'].includes(code));
   };
   const connectionError = err => transient(err)
-    ? 'Connection interrupted. Please try confirming readiness again.'
+    ? 'Connection interrupted. Reconnecting automatically…'
     : challengeErrorMessage(err);
   const syncServerClock = (data,startedAt) => {
     const receivedAt=Date.now();
@@ -112,6 +118,7 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
       try {
         const state=latest.current;
         if(state.remaining===0) {
+          clearIntent();
           await challengeRequest('recover',{matchId:match.id});
         } else if(armedRef.current && present.current) {
           let heartbeat=await requestReady('heartbeat',{matchId:match.id,visible:true,presenceId:presenceId.current});
@@ -142,13 +149,13 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
       } catch(err) {
         const action=err?.response?.data?.action;
         if(active && action==='ready_expired') setError('');
-        else if(active && action==='location_required') {armedRef.current=false;setArmed(false);setAcknowledgedUntil(0);setError('Please confirm readiness again to refresh your location.');}
+        else if(active && action==='location_required') {clearIntent();setError('Your location needs to be checked before play. Please confirm readiness after resolving it.');}
         else if(active && action==='recovery_pending') {
           setConnectionMessage('Confirming your match…');
           try { await challengeRequest('recover',{matchId:match.id}); await latest.current.onRefresh?.(); } catch {}
         }
         else if(active && transient(err))setConnectionMessage('Reconnecting…');
-        else if(active)setError(connectionError(err));
+        else if(active){clearIntent();setError(connectionError(err));}
       } finally{inFlight.current=false;finishMaintenance();}
     };
     // Keep a stable cadence: parent refreshes and timestamp updates must not
@@ -157,9 +164,12 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
     return()=>{active=false;clearInterval(timer);};
   },[match.id]);
   const ready=async()=>{
-    if(actionBusy.current || remaining===0 || !agree)return;
+    if(actionBusy.current || armedRef.current || remaining===0 || !agree)return;
     actionBusy.current=true;
     setBusy(true);setError('');
+    // Remember the explicit click before sending: a lost response must not
+    // require another click. The server still validates every Ready request.
+    armedRef.current=true;setArmed(true);saveIntent(true);
     try {
       await maintenanceDone.current;
       const context=free?{}:await challengeLocationContext();
@@ -173,12 +183,13 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
       await requestReady('finalize',{matchId:match.id});await onRefresh?.();
     } catch(err) {
       if(err?.response?.data?.action==='ready_expired') setError('');
-      else if(!handleChallengeGate(err,navigate,`/play?match=${match.id}`))setError(connectionError(err));
+      else if(transient(err))setConnectionMessage('Reconnecting…');
+      else {clearIntent();if(!handleChallengeGate(err,navigate,`/play?match=${match.id}`))setError(connectionError(err));}
     } finally{actionBusy.current=false;setBusy(false);}
   };
   const cancel=async()=>{
     if(actionBusy.current)return;actionBusy.current=true;setBusy(true);setError('');
-    try{await maintenanceDone.current;await onCancel();await onRefresh?.();}catch(err){setError(challengeErrorMessage(err));}finally{actionBusy.current=false;setBusy(false);}
+    try{await maintenanceDone.current;await onCancel();clearIntent();await onRefresh?.();}catch(err){setError(challengeErrorMessage(err));}finally{actionBusy.current=false;setBusy(false);}
   };
   return <section className="space-y-4">
     <div className="flex items-start justify-between gap-3"><div><p className="text-xs uppercase tracking-widest text-[#C9A84C]">Challenge accepted</p><h2 className="mt-1 text-xl font-bold text-white">Ready to play?</h2></div>
@@ -190,9 +201,9 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
     </div>
     {[['You',myReady], [name,otherReady]].map(([label,readyState])=><div key={String(label)} className="flex items-center justify-between rounded-xl bg-white/5 p-3 text-sm"><span className="text-white/75">{label}</span><span className={readyState?'text-[#C9A84C]':'text-white/40'}>{readyState ? <><Check className="mr-1 inline" size={14}/>Ready</> : 'Not ready yet'}</span></div>)}
     {remaining>0 ? <>
-      <label className="flex items-start gap-3 rounded-xl border border-white/10 p-3 text-xs leading-relaxed text-white/65"><input type="checkbox" checked={agree} disabled={busy || (armed && myReady)} onChange={e=>setAgree(e.target.checked)} className="mt-0.5"/><span>I will play fairly, without chess engines, AI, or outside assistance.</span></label>
-      <Button onClick={ready} disabled={busy || !agree || (armed && myReady)} className="h-12 w-full rounded-2xl gold-gradient font-bold text-black disabled:opacity-60">{busy && <Loader2 size={16} className="mr-2 animate-spin"/>}{armed && myReady?'Waiting for opponent…':'I’m Ready'}</Button>
-      <p className="text-center text-xs text-white/45">Stay on this screen after confirming. Leaving withdraws your readiness; both players must be present to start.</p>
+      <label className="flex items-start gap-3 rounded-xl border border-white/10 p-3 text-xs leading-relaxed text-white/65"><input type="checkbox" checked={agree} disabled={busy || armed} onChange={e=>setAgree(e.target.checked)} className="mt-0.5"/><span>I will play fairly, without chess engines, AI, or outside assistance.</span></label>
+      <Button onClick={ready} disabled={busy || !agree || armed} className="h-12 w-full rounded-2xl gold-gradient font-bold text-black disabled:opacity-60">{busy && <Loader2 size={16} className="mr-2 animate-spin"/>}{armed?(myReady?'Waiting for opponent…':'Reconnecting…'):'I’m Ready'}</Button>
+      <p className="text-center text-xs text-white/45">Your confirmation is saved for this match. If you switch tabs or reconnect, readiness resumes automatically when you return. Both players must be present to start.</p>
     </> : <p className="rounded-xl bg-white/5 p-3 text-sm text-white/60">{free?'The start window ended. This unstarted free game is closing.':'The start window ended. The system is closing this unstarted match and releasing both entries and fees.'}</p>}
     {connectionMessage && <p role="status" className="text-sm text-white/60">{connectionMessage}</p>}
     {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
