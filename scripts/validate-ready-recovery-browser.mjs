@@ -10,8 +10,9 @@ try{
 for(const free of [true,false]){
  const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.addInitScript(({free})=>{
+  const deadline=sessionStorage.getItem('qa-deadline') || new Date(Date.now()+300000).toISOString();sessionStorage.setItem('qa-deadline',deadline);
   window.qa={free,calls:[],failReady:1,failHeartbeat:1,failFinalize:1,needsReady:false,
-   match:{id:'mock',play_mode:free?'free':'money',player1_id:'p1',player2_id:'p2',wager_amount:free?0:5,platform_service_fee:free?0:1,status:'preparing',display_name:'Blitz (3+0)',challenge_start_deadline_at:new Date(Date.now()+300000).toISOString()}};
+   match:{id:'mock',play_mode:free?'free':'money',player1_id:'p1',player2_id:'p2',wager_amount:free?0:5,platform_service_fee:free?0:1,status:'preparing',display_name:'Blitz (3+0)',challenge_start_deadline_at:deadline}};
  },{free});
  await page.route('**/*',route=>{
   const u=new URL(route.request().url());if(u.origin!==origin)return route.abort();
