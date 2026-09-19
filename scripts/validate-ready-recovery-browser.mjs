@@ -32,7 +32,7 @@ for(const free of [true,false]){
       if(q[key]>0){q[key]--;throw Object.assign(new Error('This challenge could not be updated. Please retry; do not start another payment.'),{response:{status:503,data:{action:'retry'}}});}
       const serverNow=new Date().toISOString();
       if(action==='unready'){q.match.challenge_player1_ready_at='';return {data:{needsReady:true,serverNow}};}
-      if(action==='heartbeat' && q.needsReady)return {data:{needsReady:true,match:{...q.match},serverNow}};
+      if(action==='heartbeat' && (q.needsReady || !q.match.challenge_player1_ready_at))return {data:{needsReady:true,match:{...q.match},serverNow}};
       if(action==='ready' || action==='heartbeat'){q.match.challenge_player1_ready_at=serverNow;return {data:{ready:true,match:{...q.match},serverNow}};}
       return {data:{match:{...q.match},serverNow}};
     }}};
@@ -59,13 +59,30 @@ for(const free of [true,false]){
  await page.getByRole('button',{name:'Waiting for opponent…',exact:true}).waitFor();
  await page.evaluate(()=>{window.qa.needsReady=false;});
  await page.evaluate(()=>{Object.defineProperty(document,'visibilityState',{configurable:true,value:'hidden'});document.dispatchEvent(new Event('visibilitychange'));});
- await page.getByRole('button',{name:'I’m Ready',exact:true}).waitFor();
+ await page.getByRole('button',{name:'Reconnecting…',exact:true}).waitFor();
+ assert.equal(await page.getByRole('button',{name:'I’m Ready',exact:true}).count(),0);
  const before=await page.evaluate(()=>window.qa.calls.filter(x=>x.action==='heartbeat').length);
  await page.waitForTimeout(3300);
  assert.equal(await page.evaluate(()=>window.qa.calls.filter(x=>x.action==='heartbeat').length),before);
  assert.ok(await page.evaluate(()=>window.qa.calls.some(x=>x.action==='unready')));
+ await page.evaluate(()=>{Object.defineProperty(document,'visibilityState',{configurable:true,value:'visible'});document.dispatchEvent(new Event('visibilitychange'));});
+ await page.getByRole('button',{name:'Waiting for opponent…',exact:true}).waitFor();
+ // A long outage must not offer a second Ready click after the presence lease expires.
+ await page.evaluate(()=>{window.qa.failHeartbeat=100;});
+ await page.waitForTimeout(12000);
+ assert.equal(await page.getByRole('button',{name:'I’m Ready',exact:true}).count(),0);
+ assert.equal(await page.getByRole('checkbox').isChecked(),true);
+ await page.evaluate(()=>{window.qa.failHeartbeat=0;});
+ await page.getByRole('button',{name:'Waiting for opponent…',exact:true}).waitFor();
+ // Reload restores this player's explicit intent without a second click.
+ await page.reload();
+ await page.getByRole('button',{name:'Waiting for opponent…',exact:true}).waitFor();
+ assert.equal(await page.getByRole('checkbox').isChecked(),true);
+ await page.getByRole('button',{name:'Cancel Before Start',exact:true}).click();
+ await page.getByRole('button',{name:'I’m Ready',exact:true}).waitFor();
+ assert.equal(await page.evaluate(()=>sessionStorage.getItem('challenge-ready:p1:mock')),null);
  assert.deepEqual(errors,[]);
- console.log('PASS '+(free?'free':'paid')+': transient ready/heartbeat/finalize retries, stable readiness, bounded cadence, expiry, visibility withdrawal');
+ console.log('PASS '+(free?'free':'paid')+': transient ready/heartbeat/finalize retries, stable readiness, bounded cadence, expiry, visibility return, long outage, reload recovery and cancellation');
  await page.close();
 }
 }finally{await browser.close();}
