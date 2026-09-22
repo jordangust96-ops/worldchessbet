@@ -245,7 +245,7 @@ assert.equal(depositQuote(10,'same-day-ach-v3').bankDebit,11.16);
 
 // v3 keeps the player's full principal and earmarks $0.50 of retained proceeds
 // for the future standard same-day ACH payout instead of recognizing it as revenue.
-for(const actualFee of [0.56,0.66]) {
+for(const actualFee of [1.01,1.11]) {
  const v3=await harness('same-day-ach-v3');
  v3.provider.check.amount=101.61;
  const payload={...v3.settlement,bankDebit:'101.61',processingFee:actualFee.toFixed(2),netReceived:(101.61-actualFee).toFixed(2)};
