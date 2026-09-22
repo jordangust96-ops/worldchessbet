@@ -61,6 +61,7 @@ async function harness(version = 'same-day-ach-v1') {
     './seamlessAch.ts': providerApi, './depositTiming.js': timing,
     './ledger.ts': ledger, './depositReconciliation.ts': reconciliation,
     './depositReconciliationPure.js': pure, './seamlessAtomicStore.ts': atomic,
+    './queuedWithdrawalFee.ts': { settleQueuedWithdrawalFee: async () => null },
   }, { ACH_PROCESSED_PLAY_DISABLED: 'true' });
   const { handler } = await loadBackend('base44/functions/reconcileDepositSettlement/entry.ts', {
     'npm:@base44/sdk@0.8.48': { createClientFromRequest: () => base44 },
