@@ -86,15 +86,35 @@ export function seamlessConfig() {
 export async function seamlessRequest(method, path, payload) {
   const { secret, baseUrl } = seamlessConfig();
   const url = `${baseUrl}${path}`;
-  const response = await fetch(url, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${secret}`,
-    },
-    body: payload ? JSON.stringify(payload) : undefined,
-    signal: AbortSignal.timeout(12_000),
-  });
+  const requestedAt = new Date().toISOString();
+  const keyFingerprint = secret.length >= 8 ? `${secret.slice(0, 3)}…${secret.slice(-4)}` : 'configured';
+  let response;
+  try {
+    response = await fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${secret}`,
+      },
+      body: payload ? JSON.stringify(payload) : undefined,
+      signal: AbortSignal.timeout(12_000),
+    });
+  } catch (cause) {
+    const err = new Error(cause?.message || 'Seamless ACH network request failed');
+    err.status = 0;
+    err.providerError = null;
+    err.seamlessMeta = {
+      requested_at: requestedAt,
+      method,
+      url,
+      http_status: 0,
+      response_body: null,
+      response_ids: {},
+      secret_key_fingerprint: keyFingerprint,
+      transport_error: cause?.name || 'Error',
+    };
+    throw err;
+  }
   const text = await response.text();
   let data;
   try {
@@ -102,12 +122,31 @@ export async function seamlessRequest(method, path, payload) {
   } catch {
     data = { raw: text };
   }
+  const responseIds = {};
+  for (const name of ['x-request-id', 'request-id', 'x-correlation-id', 'cf-ray']) {
+    const value = response.headers.get(name);
+    if (value) responseIds[name] = value;
+  }
+  const meta = {
+    requested_at: requestedAt,
+    responded_at: new Date().toISOString(),
+    method,
+    url,
+    http_status: response.status,
+    response_body: data,
+    response_ids: responseIds,
+    secret_key_fingerprint: keyFingerprint,
+  };
   if (!response.ok) {
     const msg = data?.message || data?.error || `Seamless ACH request failed (${response.status})`;
     const err = new Error(msg);
     err.status = response.status;
     err.providerError = data;
+    err.seamlessMeta = meta;
     throw err;
+  }
+  if (data && typeof data === 'object') {
+    Object.defineProperty(data, '__seamlessMeta', { value: meta, enumerable: false, configurable: true });
   }
   return data;
 }
