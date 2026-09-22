@@ -4,7 +4,7 @@ import { seamlessRequest, PATH_CHECK_SEND } from './seamlessAch.ts';
 
 // Historical accepted/ambiguous payouts seed the budget after an upgrade or store recovery.
 // Pagination is bounded and fails closed rather than silently undercounting.
-export async function sendLimitedWithdrawal(base44, transactionId, body) {
+export async function sendLimitedWithdrawal(base44, transactionId, body, options = {}) {
   let capacity;
   try {
   const cents = withdrawalCents(body.amount);
@@ -28,7 +28,8 @@ export async function sendLimitedWithdrawal(base44, transactionId, body) {
     }
     if (rows.length < 500) break;
   }
-  capacity = await claimPayoutCapacity(transactionId, cents, history);
+  const capacityKey = options.capacityKey || transactionId;
+  capacity = await claimPayoutCapacity(capacityKey, cents, history);
   } catch (cause) {
     const error = new Error('Bank transfers are temporarily unavailable. Your withdrawal was returned to your wallet and no withdrawal fee was charged. Please try again later.');
     error.status = 429;
