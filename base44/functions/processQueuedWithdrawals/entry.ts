@@ -14,6 +14,12 @@ Deno.serve(async req=>{
   if(caller.role!=='admin')return Response.json({error:'Forbidden'},{status:403});
   const input=await req.json().catch(()=>({}));
   const rows=await allLedgerRows(base44.asServiceRole.entities.WalletTransaction,{launch_epoch:2,type:'withdrawal',withdrawal_requested_at:{$exists:true}},'created_date');
+  const authorizedRetries=rows.filter(tx=>
+    tx.source_event==='seamless_provider_retry_authorized' &&
+    tx.status==='review_required' &&
+    tx.integration_status==='uncertain' &&
+    tx.withdrawal_request_status==='review_required'
+  );
   const candidates=rows.filter(tx=>['preparing','queued'].includes(tx.withdrawal_request_status)&&['pending','processing'].includes(tx.status));
   if(input.inspectOnly===true && input.inspectPayments===true){
     const tx=rows.find(tx=>tx.id===input.transactionId);
@@ -46,7 +52,7 @@ Deno.serve(async req=>{
     provider_submission:false});
   }
   if(input.inspectOnly===true)return Response.json({queued:candidates.length,inspect_only:true,diagnostic_version:3,capacity:await inspectPayoutCapacityStore()});
-  const summary={queued:candidates.length,checked:0,submitted:0,pending:0,errors:0,emails_sent:0,review_required:0};
+  const summary={queued:candidates.length,authorized_retries:authorizedRetries.length,checked:0,submitted:0,pending:0,errors:0,emails_sent:0,review_required:0};
   // An interrupted submission must never look like ordinary bank processing.
   // Only classify the state; keep funds reserved and never retry the payout.
   for(const tx of rows.filter(tx=>tx.integration_status==='submitting' &&
@@ -64,6 +70,22 @@ Deno.serve(async req=>{
       summary.review_required++;
     }catch{summary.errors++;}
   }
+  // A retry is permitted only after an administrator has recorded explicit
+  // provider confirmation that the prior uncertain submission never reached
+  // Seamless and no payment exists. This preserves the original reservation
+  // and transaction identity while allowing exactly one controlled resubmit.
+  for(const tx of authorizedRetries.slice(0,10)){
+    try{
+      const result=await base44.functions.invoke('submitSeamlessWithdrawal',{
+        queuedTransactionId:tx.id,
+        providerNoPaymentConfirmed:true,
+      });
+      summary.checked++;
+      if(result.data?.provider_reference_id)summary.submitted++;
+      else summary.pending++;
+    }catch{summary.errors++;}
+  }
+
   // Oldest requests first. Each request uses the same user lock, operation
   // identity and provider capacity election as interactive submission.
   for(const tx of candidates.slice(0,50)){
