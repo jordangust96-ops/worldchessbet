@@ -531,7 +531,7 @@ export default function SeamlessFundingPanel({
                   type="number"
                   inputMode="decimal"
                   min="0"
-                  max={direction === "deposit" ? 1093.8 : Math.min(1100, availableBalance)}
+                  max={direction === "deposit" ? 1093.4 : Math.min(1100, availableBalance)}
                   step="0.01"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
@@ -616,7 +616,7 @@ export default function SeamlessFundingPanel({
                   <div className="flex justify-between gap-3 text-white/75"><span>Added to your wallet</span><span>${quote.walletAmount.toFixed(2)}</span></div>
                   <div className="flex justify-between gap-3 text-white/60"><span>Deposit fee</span><span>${quote.fee.toFixed(2)}</span></div>
                   <div className="flex justify-between gap-3 border-t border-white/10 pt-3 font-semibold text-white"><span>Total bank charge</span><span>${quote.bankDebit.toFixed(2)}</span></div>
-                  <p className="pt-1 text-[11px] leading-relaxed text-white/45">The deposit fee helps ChessBet cover payment processing and verification expenses. Your wallet receives the full ${quote.walletAmount.toFixed(2)} for play after Seamless reports Processed and the final checks pass.</p>
+                  <p className="pt-1 text-[11px] leading-relaxed text-white/45">The deposit fee covers bank processing, verification, and the standard bank-transfer cost of eventually returning these funds. Your wallet receives the full ${quote.walletAmount.toFixed(2)} for play after Seamless reports Processed and the final checks pass.</p>
                   <p className="text-[11px] leading-relaxed text-white/60">By clicking Deposit, you authorize a one-time debit of ${quote.bankDebit.toFixed(2)} from the connected bank shown above, including the ${quote.fee.toFixed(2)} deposit fee.</p>
                 </div>
               )}
@@ -640,7 +640,7 @@ export default function SeamlessFundingPanel({
                     ? (!locationApproved ? "Verify your location first" : "Deposits are temporarily unavailable")
                     : !depositSourceReady
                       ? "Choose a connected bank"
-                    : parsedAmount > 1093.8
+                    : parsedAmount > 1093.4
                       ? "Maximum deposit is $1,093.80 plus fee"
                     : amount && !/^\d+(?:\.\d{1,2})?$/.test(amount)
                       ? "Enter an amount with up to 2 decimals"
