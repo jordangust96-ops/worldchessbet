@@ -95,7 +95,9 @@ Deno.serve(async (req) => {
     if (!caller) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     const input=await req.json();
     const processingQueue=!!input.queuedTransactionId;
+    const providerNoPaymentConfirmed = input.providerNoPaymentConfirmed === true;
     if(processingQueue&&caller.role!=='admin')return Response.json({error:'Forbidden'},{status:403});
+    if(providerNoPaymentConfirmed&&caller.role!=='admin')return Response.json({error:'Forbidden'},{status:403});
     const queuedTx=processingQueue?await base44.asServiceRole.entities.WalletTransaction.get(input.queuedTransactionId):null;
     if(processingQueue&&(!queuedTx||queuedTx.type!=='withdrawal'||!queuedTx.withdrawal_requested_at))return Response.json({error:'invalid_queued_request'},{status:400});
     const user=processingQueue?await base44.asServiceRole.entities.User.get(queuedTx.user_id):caller;
@@ -165,7 +167,25 @@ Deno.serve(async (req) => {
       return Response.json({ enabled: true, transaction_id: operation.wallet_transaction_id, provider_reference_id: operation.provider_reference_id || '', status: 'pending', deduplicated: true });
     }
     if (operation.state === 'submitting' || operation.state === 'uncertain') {
-      return Response.json({ enabled: true, transaction_id: operation.wallet_transaction_id || '', status: 'uncertain', deduplicated: true, reconciliation_required: true });
+      if (providerNoPaymentConfirmed && processingQueue && prior &&
+          prior.status === 'review_required' && prior.integration_status === 'uncertain' &&
+          !operation.provider_reference_id) {
+        operation = await saveWithdrawalOperation(user.id, idempotencyKey, {
+          ...operation,
+          state: 'reserved',
+          reconciliation_required: false,
+          provider_confirmed_no_payment_at: new Date().toISOString(),
+        });
+        await base44.asServiceRole.entities.WalletTransaction.update(prior.id, {
+          status: 'pending',
+          integration_status: 'reserved',
+          withdrawal_request_status: 'queued',
+          source_event: 'seamless_provider_retry_authorized',
+          description: 'Seamless confirmed the prior submission never reached their infrastructure; one controlled retry is authorized.',
+        });
+      } else {
+        return Response.json({ enabled: true, transaction_id: operation.wallet_transaction_id || '', status: 'uncertain', deduplicated: true, reconciliation_required: true });
+      }
     }
     if (operation.state === 'failed' || operation.state === 'released') {
       return Response.json({ error: 'This withdrawal request was rejected. Start a new request with a new idempotency key.' }, { status: 409 });
@@ -295,10 +315,13 @@ Deno.serve(async (req) => {
     failureStage = 'provider_submission';
     let data;
     try {
+      const capacityKey = providerNoPaymentConfirmed
+        ? `${tx.id}:provider-confirmed-retry:1`
+        : tx.id;
       data = await sendLimitedWithdrawal(base44, tx.id, await buildVerifiedWithdrawalBody({
         providerUserId: profile.provider_user_id, name: accountHolderName.fullName, amount: value,
         description: `ChessBet withdrawal ${tx.id}`, label, sourceId: bank.source_id, transferSpeed,
-      }));
+      }), { capacityKey });
     } catch (error) {
       const status = Number(error?.status || 0);
       failureStage = 'provider_error_handling';
