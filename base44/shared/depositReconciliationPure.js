@@ -25,7 +25,12 @@ export function expectedDeposit(tx) {
       !Number.isFinite(Date.parse(tx.deposit_fee_accepted_at || ''))) {
     throw new Error('invalid_saved_deposit_quote');
   }
-  return { gross: moneyCents(quote.bankDebit), fee: moneyCents(quote.fee), net: moneyCents(quote.walletAmount) };
+  return {
+    gross: moneyCents(quote.bankDebit),
+    fee: moneyCents(quote.fee),
+    net: moneyCents(quote.walletAmount),
+    payoutReserve: moneyCents(quote.payoutReserve || 0),
+  };
 }
 
 // Only the documented check object is accepted. check.fee is deliberately NOT
@@ -63,13 +68,14 @@ export function settlementMatches(tx, values) {
   const expected = expectedDeposit(tx);
   const gross = moneyCents(values.bank_debit), fee = moneyCents(values.processing_fee);
   const net = moneyCents(values.net_received);
-  if (tx.deposit_pricing_version === 'same-day-ach-v2') {
-    // The dashboard may include the separately billed balance check in Fee.
+  if (['same-day-ach-v2', 'same-day-ach-v3'].includes(tx.deposit_pricing_version)) {
+    // The dashboard may include the separately billed Plaid Balance call in Fee.
     // Accept only the contracted ACH deduction, with or without that $0.10,
     // and require sourced evidence of the exact corresponding cash proceeds.
     const achFee = Math.floor((expected.gross + 100) / 200) + 50;
+    const requiredNet = expected.net + expected.payoutReserve;
     return gross === expected.gross && [achFee, achFee + 10].includes(fee) &&
-      gross - fee === net && net >= expected.net;
+      gross - fee === net && net >= requiredNet;
   }
   return gross === expected.gross && fee === expected.fee && net === expected.net && gross - fee === net;
 }
