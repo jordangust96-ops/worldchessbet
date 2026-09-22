@@ -641,7 +641,7 @@ export default function SeamlessFundingPanel({
                     : !depositSourceReady
                       ? "Choose a connected bank"
                     : parsedAmount > 1093.4
-                      ? "Maximum deposit is $1,093.80 plus fee"
+                      ? "Maximum deposit is $1,093.40 plus fee"
                     : amount && !/^\d+(?:\.\d{1,2})?$/.test(amount)
                       ? "Enter an amount with up to 2 decimals"
                     : !formattedAmount
