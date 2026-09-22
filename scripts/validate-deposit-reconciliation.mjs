@@ -240,4 +240,20 @@ for(const actualFee of [1.01,1.11]) {
 }
 assert.equal(depositQuote(10,'same-day-ach-v1').bankDebit,10.55);
 assert.equal(depositQuote(10,'same-day-ach-v2').bankDebit,10.75);
-console.log('v2 passed: actual processor deductions separated from retained revenue, principal unchanged, repeats idempotent, v1 pricing preserved.');
+assert.equal(depositQuote(10,'same-day-ach-v3').bankDebit,11.16);
+
+// v3 keeps the player's full principal and earmarks $0.50 of retained proceeds
+// for the future standard same-day ACH payout instead of recognizing it as revenue.
+for(const actualFee of [0.56,0.66]) {
+ const v3=await harness('same-day-ach-v3');
+ v3.provider.check.amount=101.61;
+ const payload={...v3.settlement,bankDebit:'101.61',processingFee:actualFee.toFixed(2),netReceived:(101.61-actualFee).toFixed(2)};
+ assert.equal((await v3.send(payload)).status,200);
+ assert.equal(v3.db.Wallet[0].held_balance,100);
+ assert.equal(v3.db.SystemLedgerAccount.find(r=>r.account_name==='processor_fee_clearing').balance,0.50);
+ const expectedRevenue=Math.round((1.61-actualFee-0.50)*100)/100;
+ const revenue=v3.db.SystemLedgerAccount.find(r=>r.account_name==='deposit_fee_revenue');
+ assert.equal(revenue?.balance || 0,expectedRevenue);
+ balanced(v3.db);
+}
+console.log('v3 passed: incoming costs plus future $0.50 standard payout are self-funded, principal unchanged, payout reserve is not revenue, and v1/v2 remain valid.');
