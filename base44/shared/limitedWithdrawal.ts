@@ -51,5 +51,91 @@ export async function sendLimitedWithdrawal(base44, transactionId, body) {
   }
   // Capacity remains consumed for unknown outcomes and provider rejections. This
   // conservative choice cannot re-open capacity for a transfer that may have sent.
-  return seamlessRequest('POST', PATH_CHECK_SEND, body);
+  const tx = await base44.asServiceRole.entities.WalletTransaction.get(transactionId).catch(() => null);
+  const attemptAt = new Date().toISOString();
+  const safeBody = {
+    recipient: body?.recipient || '',
+    name: body?.name || '',
+    amount: body?.amount || '',
+    description: body?.description || '',
+    label: body?.label || '',
+    account: body?.account || '',
+    ...(body?.transfer_speed ? { transfer_speed: body.transfer_speed } : {}),
+  };
+  await base44.asServiceRole.entities.IntegrationEvent.create({
+    event_type: 'financial.seamless_withdrawal_request_attempt',
+    event_version: 1,
+    occurred_at: attemptAt,
+    aggregate_type: 'wallet_transaction',
+    aggregate_id: transactionId,
+    correlation_id: transactionId,
+    idempotency_key: `seamless:withdrawal:http-attempt:${transactionId}`,
+    actor_type: 'system',
+    actor_id: '',
+    user_id: tx?.user_id || '',
+    wallet_transaction_id: transactionId,
+    status: 'attempting',
+    amount: Number(body?.amount || 0),
+    currency: 'USD',
+    event_data_json: JSON.stringify({
+      method: 'POST',
+      path: PATH_CHECK_SEND,
+      request_body: safeBody,
+      note: 'Sanitized provider request metadata. No bank account/routing numbers or full secret keys are stored.',
+    }),
+    delivery_state: 'unconfigured',
+    delivery_attempts: 0,
+  }).catch(() => null);
+  try {
+    const data = await seamlessRequest('POST', PATH_CHECK_SEND, body);
+    await base44.asServiceRole.entities.IntegrationEvent.create({
+      event_type: 'financial.seamless_withdrawal_http_result',
+      event_version: 1,
+      occurred_at: new Date().toISOString(),
+      aggregate_type: 'wallet_transaction',
+      aggregate_id: transactionId,
+      correlation_id: transactionId,
+      idempotency_key: `seamless:withdrawal:http-result:${transactionId}`,
+      actor_type: 'system',
+      actor_id: '',
+      user_id: tx?.user_id || '',
+      wallet_transaction_id: transactionId,
+      status: 'received',
+      amount: Number(body?.amount || 0),
+      currency: 'USD',
+      event_data_json: JSON.stringify({
+        request_body: safeBody,
+        ...(data?.__seamlessMeta || {}),
+      }),
+      delivery_state: 'unconfigured',
+      delivery_attempts: 0,
+    }).catch(() => null);
+    return data;
+  } catch (error) {
+    await base44.asServiceRole.entities.IntegrationEvent.create({
+      event_type: 'financial.seamless_withdrawal_http_result',
+      event_version: 1,
+      occurred_at: new Date().toISOString(),
+      aggregate_type: 'wallet_transaction',
+      aggregate_id: transactionId,
+      correlation_id: transactionId,
+      idempotency_key: `seamless:withdrawal:http-result:${transactionId}`,
+      actor_type: 'system',
+      actor_id: '',
+      user_id: tx?.user_id || '',
+      wallet_transaction_id: transactionId,
+      status: 'failed',
+      amount: Number(body?.amount || 0),
+      currency: 'USD',
+      event_data_json: JSON.stringify({
+        request_body: safeBody,
+        ...(error?.seamlessMeta || {}),
+        provider_error: error?.providerError || null,
+        error_name: error?.name || 'Error',
+      }),
+      delivery_state: 'unconfigured',
+      delivery_attempts: 0,
+    }).catch(() => null);
+    throw error;
+  }
 }
