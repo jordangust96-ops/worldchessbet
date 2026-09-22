@@ -3,17 +3,17 @@ import { depositQuote } from '../base44/shared/depositPricing.js';
 import { buildDepositBody } from '../base44/shared/seamlessAchPure.js';
 import { loadBackend } from './helpers/load-backend.mjs';
 
-for (let cents = 1000; cents <= 109380; cents++) {
+for (let cents = 1000; cents <= 109340; cents++) {
   const q = depositQuote(cents / 100);
   assert.ok(q);
   const gross = Math.round(q.bankDebit * 100);
-  const fee = Math.round(gross * 0.005 + 70);
+  const fee = Math.round(gross * 0.005 + 110);
   assert.equal(gross - fee, cents, 'exact net wallet credit at every supported cent');
 }
-assert.equal(depositQuote(10).bankDebit, 10.75);
-assert.equal(depositQuote(100).bankDebit, 101.21);
-assert.equal(depositQuote(1093.80).bankDebit, 1100);
-for (const invalid of [0, 9.99, 1093.81, 10000, NaN, Infinity, 10.001]) assert.equal(depositQuote(invalid), null);
+assert.equal(depositQuote(10).bankDebit, 11.16);
+assert.equal(depositQuote(100).bankDebit, 101.61);
+assert.equal(depositQuote(1093.40).bankDebit, 1100);
+for (const invalid of [0, 9.99, 1093.41, 10000, NaN, Infinity, 10.001]) assert.equal(depositQuote(invalid), null);
 
 let operation = null, pending = null, calls = 0, submittedBody;
 const user = { id: 'user-test', withdrawal_hold: false };
@@ -59,14 +59,14 @@ assert.equal(calls,0);
 assert.equal((await send({...payload,depositPricingVersion:undefined})).status,409);
 assert.equal(calls,0);
 assert.equal((await send(payload)).status,200);
-assert.equal(Number(submittedBody.amount),101.21);
+assert.equal(Number(submittedBody.amount),101.61);
 assert.equal(submittedBody.sender,'provider-test');
 assert.equal(pending.amount,100);
-assert.equal(pending.deposit_processing_fee,1.21);
-assert.equal(pending.deposit_bank_debit,101.21);
+assert.equal(pending.deposit_processing_fee,1.61);
+assert.equal(pending.deposit_bank_debit,101.61);
 assert.equal(pending.status,'pending');
 assert.equal((await send(payload)).status,200);
 assert.equal(calls,1,'retries must not create a second debit');
 
 // Settlement, fee journals, release, and returns execute the real ledger in validate-deposit-reconciliation.mjs.
-console.log('PASS: 108,381 cent values, exact net quote, authorized bank debit, fee consent/tampering, and retry deduplication.');
+console.log('PASS: 108,341 cent values, self-funding quote, authorized bank debit, fee consent/tampering, and retry deduplication.');
