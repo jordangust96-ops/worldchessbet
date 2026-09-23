@@ -617,7 +617,7 @@ export default function SeamlessFundingPanel({
                   <div className="flex justify-between gap-3 text-white/60"><span>Deposit fee</span><span>${quote.fee.toFixed(2)}</span></div>
                   <div className="flex justify-between gap-3 border-t border-white/10 pt-3 font-semibold text-white"><span>Total bank charge</span><span>${quote.bankDebit.toFixed(2)}</span></div>
                   <p className="pt-1 text-[11px] leading-relaxed text-white/45">The deposit fee covers bank processing, verification, and the standard bank-transfer cost of eventually returning these funds. Your wallet receives the full ${quote.walletAmount.toFixed(2)} for play after Seamless reports Processed and the final checks pass.</p>
-                  <p className="text-[11px] leading-relaxed text-white/60">By clicking Deposit, you authorize a one-time debit of ${quote.bankDebit.toFixed(2)} from the connected bank shown above, including the ${quote.fee.toFixed(2)} deposit fee.</p>
+                  <p className="text-[11px] leading-relaxed text-white/60">By clicking Deposit, you authorize a one-time debit of ${quote.bankDebit.toFixed(2)} from the connected bank shown above.</p>
                 </div>
               )}
 
