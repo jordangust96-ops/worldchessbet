@@ -616,15 +616,14 @@ export default function SeamlessFundingPanel({
                   <div className="flex justify-between gap-3 text-white/75"><span>Added to your wallet</span><span>${quote.walletAmount.toFixed(2)}</span></div>
                   <div className="flex justify-between gap-3 text-white/60"><span>Deposit fee</span><span>${quote.fee.toFixed(2)}</span></div>
                   <div className="flex justify-between gap-3 border-t border-white/10 pt-3 font-semibold text-white"><span>Total bank charge</span><span>${quote.bankDebit.toFixed(2)}</span></div>
-                  <p className="pt-1 text-[11px] leading-relaxed text-white/45">The deposit fee covers bank processing, verification, and the standard bank-transfer cost of eventually returning these funds. Your wallet receives the full ${quote.walletAmount.toFixed(2)} for play after Seamless reports Processed and the final checks pass.</p>
-                  <p className="text-[11px] leading-relaxed text-white/60">By clicking Deposit, you authorize a one-time debit of ${quote.bankDebit.toFixed(2)} from the connected bank shown above.</p>
+                  <p className="pt-1 text-[11px] leading-relaxed text-white/45">The deposit fee covers bank processing, verification, and the standard bank-transfer cost of eventually returning these funds. Your wallet receives the full ${quote.walletAmount.toFixed(2)} for play after final checks pass.</p>
+                  <p className="text-[11px] leading-relaxed text-white/60">By clicking Deposit, you authorize a one-time debit of ${quote.bankDebit.toFixed(2)} from the connected bank shown above, including the ${quote.fee.toFixed(2)} deposit fee.</p>
                 </div>
               )}
 
               {direction === "deposit" && (
                 <p className="text-center text-xs leading-relaxed text-white/50">
-                  Deposits become available to play after the bank reports Processed and the final checks pass.
-                  We’ll notify you when they are ready to play.
+                  We’ll notify you when funds land and you're ready to play.
                 </p>
               )}
 
@@ -663,7 +662,7 @@ export default function SeamlessFundingPanel({
               </Button>
 
               <p className="text-center text-[11px] leading-relaxed text-white/25">
-                Secure bank transfer via Seamless. Your bank login is never shared with ChessBet.
+                Your bank login is never shared with ChessBet.
               </p>
             </div>
           </div>
