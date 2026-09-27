@@ -4,9 +4,7 @@ import { FAQ_SECTIONS, getFaqJsonLdEntities } from "../src/lib/faqContent.js";
 import { PUBLIC_LEGAL_DOCUMENTS } from "./public-legal-snapshot.mjs";
 
 const SITE_URL = "https://worldchessbet.com";
-const SORO_EMBED_URL = "https://app.trysoro.com/api/embed/1ff2aa86-7de2-4a37-b949-e27846ab155b";
-const SORO_TOKEN = "1ff2aa86-7de2-4a37-b949-e27846ab155b";
-const SORO_API_BASE = "https://app.trysoro.com";
+const BLOG_API = `${SITE_URL}/api/apps/6a4ed72536c51cb3280d2bc6/functions/getPublishedBlog`;
 const ROOT = process.cwd();
 const DIST = path.join(ROOT, "dist");
 const BASE_HTML = await fs.readFile(path.join(DIST, "index.html"), "utf8");
@@ -218,22 +216,6 @@ function renderLegal(doc) {
   });
 }
 
-function extractSoroArticles(source) {
-  const match = source.match(/var SORO_ARTICLES = (\[[\s\S]*?\]);\s*var SORO_TOKEN/);
-  if (!match) throw new Error("Soro article metadata not found");
-  const parsed = JSON.parse(match[1]);
-  return Array.isArray(parsed) ? parsed.filter((article) => article?.slug && article?.id) : [];
-}
-
-async function fetchText(url) {
-  const response = await fetch(url, {
-    headers: { Accept: "application/javascript,text/plain,*/*" },
-    signal: AbortSignal.timeout(15000),
-  });
-  if (!response.ok) throw new Error(`${url} returned HTTP ${response.status}`);
-  return response.text();
-}
-
 async function fetchJson(url) {
   const response = await fetch(url, {
     headers: { Accept: "application/json" },
@@ -248,7 +230,7 @@ function renderBlogIndex(articles) {
     <article style="margin:28px 0;padding-bottom:24px;border-bottom:1px solid #222">
       <h2 style="margin-bottom:6px"><a href="/blog/${escapeAttr(article.slug)}" style="color:#f5f5f5;text-decoration:none">${escapeHtml(article.title)}</a></h2>
       <p style="color:#ccc">${escapeHtml(article.excerpt || "")}</p>
-      <time datetime="${escapeAttr(article.isoDate || "")}" style="color:#888">${escapeHtml(article.date || "")}</time>
+      <time datetime="${escapeAttr(article.published_at || "")}" style="color:#888">${escapeHtml(article.published_at ? new Date(article.published_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "America/Detroit" }) : "")}</time>
     </article>`).join("");
   return renderPage({
     title: "Cash Chess Strategy & Fair-Play Insights | ChessBet Blog",
@@ -272,25 +254,25 @@ function renderBlogArticle(article, content) {
       <p><a href="/blog" style="color:#C9A84C">← ChessBet Blog</a></p>
       <h1 itemprop="headline" style="font-size:36px;line-height:1.15;margin:18px 0 10px">${escapeHtml(article.title)}</h1>
       <p style="color:#aaa">${escapeHtml(article.excerpt || "")}</p>
-      <time itemprop="datePublished" datetime="${escapeAttr(article.isoDate || "")}" style="color:#888">${escapeHtml(article.date || "")}</time>
-      ${article.image ? `<p><img itemprop="image" src="${escapeAttr(article.image)}" alt="${escapeAttr(article.title)}" style="max-width:100%;height:auto;border-radius:12px"></p>` : ""}
+      <time itemprop="datePublished" datetime="${escapeAttr(article.published_at || "")}" style="color:#888">${escapeHtml(article.published_at ? new Date(article.published_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "America/Detroit" }) : "")}</time>
+      ${article.featured_image_url ? `<p><img itemprop="image" src="${escapeAttr(article.featured_image_url)}" alt="${escapeAttr(article.featured_image_alt || article.title)}" style="max-width:100%;height:auto;border-radius:12px"></p>` : ""}
       <div itemprop="articleBody" style="color:#ddd">${content || `<p>${escapeHtml(article.excerpt || "")}</p>`}</div>
     </article>`;
   return renderPage({
-    title: `${article.title} | ChessBet`,
-    description: article.excerpt || "ChessBet cash-prize chess guide.",
+    title: `${article.seo_title || article.title} | ChessBet`,
+    description: article.meta_description || article.excerpt || "ChessBet cash-prize chess guide.",
     canonical,
     body: articleBody,
-    image: article.image,
+    image: article.featured_image_url,
     type: "article",
     structuredData: {
       "@context": "https://schema.org",
       "@type": "BlogPosting",
       headline: article.title,
-      description: article.excerpt || undefined,
-      datePublished: article.isoDate || undefined,
-      dateModified: article.isoDate || undefined,
-      image: article.image || undefined,
+      description: article.meta_description || article.excerpt || undefined,
+      datePublished: article.published_at || undefined,
+      dateModified: article.updated_at || article.published_at || undefined,
+      image: article.featured_image_url || undefined,
       mainEntityOfPage: `${SITE_URL}${canonical}`,
       author: { "@type": "Organization", name: "ChessBet", url: SITE_URL },
       publisher: { "@type": "Organization", name: "ChessBet", url: SITE_URL },
@@ -300,32 +282,26 @@ function renderBlogArticle(article, content) {
 
 async function prerenderBlog() {
   try {
-    // Use a fresh cache key so publication includes recently corrected article copy.
-    const publicationRevision = Date.now();
-    const source = await fetchText(`${SORO_EMBED_URL}?v=${publicationRevision}`);
-    const articles = extractSoroArticles(source);
+    const revision = Date.now();
+    const listPayload = await fetchJson(`${BLOG_API}?limit=100&v=${revision}`);
+    const articles = Array.isArray(listPayload?.posts) ? listPayload.posts : [];
     await writeRoute("/blog", renderBlogIndex(articles));
 
     const results = await Promise.allSettled(
       articles.map(async (article) => {
-        let content = "";
-        try {
-          const payload = await fetchJson(`${SORO_API_BASE}/api/embed/${SORO_TOKEN}/article/${article.id}?v=${publicationRevision}`);
-          content = typeof payload?.content === "string" ? payload.content : "";
-        } catch (error) {
-          console.warn(`[prerender] Soro body fallback for ${article.slug}: ${error.message}`);
-        }
-        await writeRoute(`/blog/${article.slug}`, renderBlogArticle(article, content));
+        const payload = await fetchJson(`${BLOG_API}?slug=${encodeURIComponent(article.slug)}&v=${revision}`);
+        const fullArticle = payload?.post || article;
+        await writeRoute(`/blog/${article.slug}`, renderBlogArticle(fullArticle, fullArticle.content_html || ""));
       })
     );
 
     const failed = results.filter((result) => result.status === "rejected");
     if (failed.length) console.warn(`[prerender] ${failed.length} blog article route(s) could not be written`);
-    console.log(`[prerender] Blog index + ${articles.length - failed.length} article route(s)`);
+    console.log(`[prerender] Blog index + ${articles.length - failed.length} native article route(s)`);
     return articles;
   } catch (error) {
-    // Blog refresh should never prevent a ChessBet application deployment.
-    console.warn(`[prerender] Soro unavailable; emitted static blog shell without article refresh: ${error.message}`);
+    // A temporary blog read failure must not block the rest of the application build.
+    console.warn(`[prerender] ChessBet blog unavailable; emitted static blog shell without article refresh: ${error.message}`);
     await writeRoute("/blog", renderBlogIndex([]));
     return [];
   }
@@ -339,4 +315,4 @@ for (const doc of Object.values(PUBLIC_LEGAL_DOCUMENTS)) {
 }
 const articles = await prerenderBlog();
 
-console.log(`[prerender] Public crawler HTML complete: FAQ, About, Fair Play, 3 legal pages, Blog, ${articles.length} Soro articles`);
+console.log(`[prerender] Public crawler HTML complete: FAQ, About, Fair Play, 3 legal pages, Blog, ${articles.length} native articles`);
