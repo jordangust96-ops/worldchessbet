@@ -1,0 +1,117 @@
+{
+  "name": "BlogPost",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "maxLength": 160,
+      "description": "Public article headline"
+    },
+    "slug": {
+      "type": "string",
+      "maxLength": 180,
+      "description": "Stable URL slug"
+    },
+    "excerpt": {
+      "type": "string",
+      "maxLength": 400,
+      "description": "Card summary and fallback description"
+    },
+    "meta_description": {
+      "type": "string",
+      "maxLength": 180,
+      "description": "Search description"
+    },
+    "seo_title": {
+      "type": "string",
+      "maxLength": 160,
+      "description": "Optional search title"
+    },
+    "primary_keyword": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "Editorial target keyword"
+    },
+    "content_html": {
+      "type": "string",
+      "maxLength": 200000,
+      "description": "Sanitized article body HTML"
+    },
+    "featured_image_url": {
+      "type": "string",
+      "maxLength": 2000,
+      "description": "Public featured image URL"
+    },
+    "featured_image_alt": {
+      "type": "string",
+      "maxLength": 300,
+      "description": "Descriptive image alternative text"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "published",
+        "archived"
+      ],
+      "default": "draft"
+    },
+    "published_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "soro",
+        "cb_marketer",
+        "manual"
+      ]
+    },
+    "author": {
+      "type": "string",
+      "maxLength": 100
+    },
+    "canonical_url": {
+      "type": "string",
+      "maxLength": 2000
+    }
+  },
+  "required": [
+    "title",
+    "slug",
+    "excerpt",
+    "meta_description",
+    "content_html",
+    "featured_image_url",
+    "featured_image_alt",
+    "status",
+    "published_at"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
