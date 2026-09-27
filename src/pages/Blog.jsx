@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { ChevronLeft } from "lucide-react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -8,146 +8,191 @@ import { SITE_URL } from "@/lib/seoConfig";
 
 const BLOG_TITLE = "Cash Chess Strategy & Fair-Play Insights | ChessBet Blog";
 const BLOG_DESCRIPTION = "Read ChessBet guides on head-to-head blitz, rapid, and classical chess, fair-play protection, contest rules, match strategy, and cash-prize competition.";
-const SORO_SCRIPT_ID = "soro-blog-widget";
-const SORO_EMBED_URL = "https://app.trysoro.com/api/embed/1ff2aa86-7de2-4a37-b949-e27846ab155b";
+const BLOG_API = "/api/apps/6a4ed72536c51cb3280d2bc6/functions/getPublishedBlog";
+
+function formatDate(value) {
+  if (!value) return "";
+  return new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "America/Detroit",
+  }).format(new Date(value));
+}
+
+async function fetchBlog(slug, signal) {
+  const url = slug
+    ? `${BLOG_API}?slug=${encodeURIComponent(slug)}`
+    : `${BLOG_API}?limit=100`;
+  const response = await fetch(url, { signal, headers: { Accept: "application/json" } });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.error || "Unable to load the ChessBet blog.");
+  }
+  return response.json();
+}
+
+function ArticleMetadata({ post }) {
+  const canonical = post.canonical_url || `${SITE_URL}/blog/${post.slug}`;
+  const title = post.seo_title || post.title;
+  const description = post.meta_description || post.excerpt;
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: post.title,
+    description,
+    datePublished: post.published_at,
+    dateModified: post.updated_at || post.published_at,
+    image: post.featured_image_url,
+    mainEntityOfPage: canonical,
+    author: { "@type": "Organization", name: "ChessBet", url: SITE_URL },
+    publisher: { "@type": "Organization", name: "ChessBet", url: SITE_URL },
+  };
+
+  return (
+    <Helmet>
+      <title>{title} | ChessBet</title>
+      <meta name="description" content={description} />
+      <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+      <link rel="canonical" href={canonical} />
+      <meta property="og:type" content="article" />
+      <meta property="og:site_name" content="ChessBet" />
+      <meta property="og:title" content={title} />
+      <meta property="og:description" content={description} />
+      <meta property="og:url" content={canonical} />
+      <meta property="og:image" content={post.featured_image_url} />
+      <meta property="og:image:alt" content={post.featured_image_alt || post.title} />
+      <meta name="twitter:card" content="summary_large_image" />
+      <meta name="twitter:site" content="@worldchessbet" />
+      <meta name="twitter:title" content={title} />
+      <meta name="twitter:description" content={description} />
+      <meta name="twitter:image" content={post.featured_image_url} />
+      <script type="application/ld+json">{JSON.stringify(structuredData)}</script>
+    </Helmet>
+  );
+}
 
 export default function Blog() {
   const navigate = useNavigate();
   const { articleSlug: routeArticleSlug } = useParams();
   const [searchParams] = useSearchParams();
-  const queryArticleSlug = searchParams.get("post")?.trim();
-  const articleSlug = routeArticleSlug?.trim() || queryArticleSlug;
-  const isSoroArticle = Boolean(articleSlug);
+  const articleSlug = routeArticleSlug?.trim() || searchParams.get("post")?.trim() || "";
+  const [posts, setPosts] = useState([]);
+  const [post, setPost] = useState(null);
+  const [status, setStatus] = useState("loading");
+  const [error, setError] = useState("");
 
-  // Clean /blog/:slug URLs are emitted for crawlers and external links. Soro's
-  // widget currently expects ?post=slug, so normalize only in the browser
-  // before its script loads. The canonical URL remains the clean path form.
   useEffect(() => {
-    if (!routeArticleSlug) return;
-    const url = new URL(window.location.href);
-    url.pathname = "/blog";
-    url.searchParams.set("post", routeArticleSlug);
-    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
-  }, [routeArticleSlug]);
-  // Soro navigates with pushState outside React Router. Keep one canonical
-  // owner for both article/list views and strip tracking parameters.
-  useEffect(() => {
-    const canonical = document.createElement("link");
-    canonical.rel = "canonical";
-    canonical.dataset.chessbetBlog = "true";
-    const ogUrl = document.createElement("meta");
-    ogUrl.setAttribute("property", "og:url");
-    ogUrl.dataset.chessbetBlog = "true";
-
-    const syncCanonical = () => {
-      if (window.location.pathname.replace(/\/$/, "").toLowerCase() !== "/blog") return;
-      const slug = new URLSearchParams(window.location.search).get("post")?.trim();
-      const url = slug
-        ? `${SITE_URL}/blog/${encodeURIComponent(slug)}`
-        : `${SITE_URL}/blog`;
-      if (canonical.getAttribute("href") !== url) canonical.setAttribute("href", url);
-      if (ogUrl.getAttribute("content") !== url) ogUrl.setAttribute("content", url);
-      document.head.querySelectorAll('link[rel="canonical"], meta[property="og:url"]').forEach((tag) => {
-        if (tag !== canonical && tag !== ogUrl) tag.remove();
+    const controller = new AbortController();
+    setStatus("loading");
+    setError("");
+    fetchBlog(articleSlug, controller.signal)
+      .then((payload) => {
+        if (articleSlug) setPost(payload.post || null);
+        else setPosts(Array.isArray(payload.posts) ? payload.posts : []);
+        setStatus("ready");
+      })
+      .catch((reason) => {
+        if (reason?.name === "AbortError") return;
+        setError(reason?.message || "Unable to load the ChessBet blog.");
+        setStatus("error");
       });
-      if (!canonical.isConnected) document.head.appendChild(canonical);
-      if (!ogUrl.isConnected) document.head.appendChild(ogUrl);
-      // Soro restores the pre-embed title when returning from a deep link.
-      // That can be the SPA's homepage fallback rather than the blog title.
-      if (!slug) {
-        if (document.title !== BLOG_TITLE) document.title = BLOG_TITLE;
-        let description = document.head.querySelector('meta[name="description"]');
-        if (!description) {
-          description = document.createElement("meta");
-          description.setAttribute("name", "description");
-          description.setAttribute("data-rh", "true");
-          document.head.appendChild(description);
-        }
-        if (description.getAttribute("content") !== BLOG_DESCRIPTION) description.setAttribute("content", BLOG_DESCRIPTION);
-      }
-    };
+    return () => controller.abort();
+  }, [articleSlug]);
 
-    syncCanonical();
-    const observer = new MutationObserver(syncCanonical);
-    observer.observe(document.head, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ["href", "content"],
-    });
-    window.addEventListener("popstate", syncCanonical);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("popstate", syncCanonical);
-      canonical.remove();
-      ogUrl.remove();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (document.getElementById(SORO_SCRIPT_ID)) return undefined;
-
-    const script = document.createElement("script");
-    script.id = SORO_SCRIPT_ID;
-    // Soro caches each embed URL for up to an hour. Rotate the query key every
-    // five minutes so a recently published article is picked up promptly.
-    const embedCacheWindow = Math.floor(Date.now() / (5 * 60 * 1000));
-    // The widget fetches article bodies separately; refresh those with the same
-    // window so corrected eligibility/legal copy cannot lag behind the list.
-    // Compose with the existing fetch (including privacy controls), and leave
-    // all requests outside this public article endpoint untouched.
-    const previousFetch = window.fetch;
-    const articlePrefix = `${SORO_EMBED_URL}/article/`;
-    const articleFetch = (input, init) => {
-      if (typeof input === "string" && input.startsWith(articlePrefix)) {
-        const url = new URL(input);
-        url.searchParams.set("v", String(embedCacheWindow));
-        return previousFetch.call(window, url.href, init);
-      }
-      return previousFetch.call(window, input, init);
-    };
-    window.fetch = articleFetch;
-    script.src = `${SORO_EMBED_URL}?v=${embedCacheWindow}`;
-    script.defer = true;
-    document.body.appendChild(script);
-
-    return () => {
-      script.remove();
-      if (window.fetch === articleFetch) window.fetch = previousFetch;
-    };
-  }, []);
+  const canonical = useMemo(
+    () => (articleSlug ? `${SITE_URL}/blog/${encodeURIComponent(articleSlug)}` : `${SITE_URL}/blog`),
+    [articleSlug]
+  );
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] px-5 py-10">
-      {isSoroArticle ? (
-        <Helmet>
-          <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
-        </Helmet>
+    <div className="min-h-screen bg-[#0A0A0A] px-5 py-10 text-white">
+      {articleSlug && post ? (
+        <ArticleMetadata post={post} />
       ) : (
-        <SEO
-          title={BLOG_TITLE}
-          description={BLOG_DESCRIPTION}
-        />
+        <SEO title={BLOG_TITLE} description={BLOG_DESCRIPTION} canonical={canonical} />
       )}
+
       <div className="max-w-5xl mx-auto space-y-6">
-        <Link to="/" className="inline-block">
-          <Logo size="sm" />
-        </Link>
+        <Link to="/" className="inline-block"><Logo size="sm" /></Link>
 
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => (articleSlug ? navigate("/blog") : navigate(-1))}
           className="flex items-center gap-1.5 text-sm text-white/50 hover:text-white transition-colors"
         >
           <ChevronLeft size={16} />
-          Back
+          {articleSlug ? "All articles" : "Back"}
         </button>
 
-        <header className="text-center space-y-2">
-          <h1 className="text-3xl font-bold text-white">ChessBet Blog</h1>
-          <p className="text-sm text-white/50">News, guides, and insights from ChessBet.</p>
-        </header>
+        {status === "loading" && (
+          <div className="py-24 text-center text-white/50">Loading ChessBet insights…</div>
+        )}
 
-        <div id="soro-blog" />
+        {status === "error" && (
+          <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-5 py-6 text-red-100">
+            <h1 className="text-xl font-semibold">The blog is temporarily unavailable.</h1>
+            <p className="mt-2 text-sm text-red-100/75">{error}</p>
+          </div>
+        )}
+
+        {status === "ready" && !articleSlug && (
+          <>
+            <header className="text-center space-y-2 pb-4">
+              <h1 className="text-3xl font-bold">ChessBet Blog</h1>
+              <p className="text-sm text-white/50">News, guides, and insights from ChessBet.</p>
+            </header>
+            <div className="grid gap-6 md:grid-cols-2" aria-label="Blog articles">
+              {posts.map((item) => (
+                <article key={item.id || item.slug} className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.035]">
+                  <Link to={`/blog/${item.slug}`} className="block">
+                    <img
+                      src={item.featured_image_url}
+                      alt={item.featured_image_alt || item.title}
+                      className="aspect-[16/9] w-full object-cover"
+                      loading="lazy"
+                    />
+                    <div className="space-y-3 p-5">
+                      <time className="text-xs font-semibold uppercase tracking-[0.14em] text-[#C9A84C]" dateTime={item.published_at}>
+                        {formatDate(item.published_at)}
+                      </time>
+                      <h2 className="text-xl font-semibold leading-tight text-white">{item.title}</h2>
+                      <p className="text-sm leading-6 text-white/65">{item.excerpt}</p>
+                      <span className="inline-block text-sm font-semibold text-[#C9A84C]">Read article →</span>
+                    </div>
+                  </Link>
+                </article>
+              ))}
+            </div>
+          </>
+        )}
+
+        {status === "ready" && articleSlug && !post && (
+          <div className="py-24 text-center">
+            <h1 className="text-2xl font-semibold">Article not found</h1>
+            <Link to="/blog" className="mt-4 inline-block text-[#C9A84C]">Return to the ChessBet Blog</Link>
+          </div>
+        )}
+
+        {status === "ready" && post && (
+          <article className="mx-auto max-w-3xl">
+            <header className="space-y-5 pb-8 text-center">
+              <time className="text-xs font-semibold uppercase tracking-[0.14em] text-[#C9A84C]" dateTime={post.published_at}>
+                {formatDate(post.published_at)}
+              </time>
+              <h1 className="text-3xl font-bold leading-tight sm:text-5xl">{post.title}</h1>
+              <p className="mx-auto max-w-2xl text-base leading-7 text-white/65">{post.excerpt}</p>
+            </header>
+            <img
+              src={post.featured_image_url}
+              alt={post.featured_image_alt || post.title}
+              className="mb-10 aspect-[16/9] w-full rounded-2xl border border-white/10 object-cover"
+            />
+            <div
+              className="space-y-5 text-[17px] leading-8 text-white/80 [&_a]:font-medium [&_a]:text-[#C9A84C] [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:border-[#C9A84C] [&_blockquote]:pl-5 [&_h2]:pt-7 [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:text-white [&_h3]:pt-4 [&_h3]:text-xl [&_h3]:font-semibold [&_h3]:text-white [&_li]:ml-6 [&_ol]:list-decimal [&_strong]:text-white [&_ul]:list-disc"
+              dangerouslySetInnerHTML={{ __html: post.content_html }}
+            />
+          </article>
+        )}
       </div>
     </div>
   );
