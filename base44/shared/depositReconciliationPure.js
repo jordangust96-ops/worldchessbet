@@ -49,6 +49,21 @@ export function verifyProviderDeposit(tx, providerRef, data, requireProcessed = 
   return { ...expected, status };
 }
 
+export function contractSettlementAmounts(tx) {
+  const expected = expectedDeposit(tx);
+  if (!['same-day-ach-v2', 'same-day-ach-v3'].includes(tx.deposit_pricing_version)) {
+    throw new Error('automatic_settlement_evidence_unsupported');
+  }
+  // Seamless's contracted incoming ACH deduction is 0.50% + $0.50, with
+  // the percentage rounded down after applying the provider's gross-up rule.
+  // This is only used after a fresh Processed lookup has verified the exact
+  // payment ID, bank debit, currency and immutable ChessBet label.
+  const fee = Math.floor((expected.gross + 100) / 200) + 50;
+  const values = { bank_debit: expected.gross / 100, processing_fee: fee / 100, net_received: (expected.gross - fee) / 100 };
+  if (!settlementMatches(tx, values)) throw new Error('automatic_settlement_evidence_mismatch');
+  return values;
+}
+
 export function verifySettlementEvidence(tx, evidence, providerRef) {
   const expected = expectedDeposit(tx);
   if (!evidence || evidence.kind !== 'settlement' || evidence.result !== 'matched' ||
@@ -57,7 +72,7 @@ export function verifySettlementEvidence(tx, evidence, providerRef) {
       moneyCents(evidence.bank_debit) !== expected.gross ||
       !settlementMatches(tx, evidence) ||
       !evidence.evidence_reference || !evidence.recorded_by ||
-      !['seamless_statement', 'seamless_support'].includes(evidence.source)) {
+      !['seamless_statement', 'seamless_support', 'seamless_api_contract'].includes(evidence.source)) {
     throw new Error('settlement_evidence_required');
   }
   const actualFee = moneyCents(evidence.processing_fee);
