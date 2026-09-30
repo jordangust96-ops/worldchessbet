@@ -5,7 +5,7 @@ a fresh Seamless Processed payment lookup, and the immutable contracted incoming
 ACH deduction. Legacy pricing, returned deposits, and every mismatch still require
 a Seamless settlement statement or written support confirmation.
 
-## Operator workflow
+## Manual fallback workflow
 
 1. Open Profile > Player & Financial Review > Deposit reconciliation.
 2. Select the deposit and use its Seamless payment ID to locate the exact transfer.
