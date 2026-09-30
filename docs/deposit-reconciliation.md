@@ -50,13 +50,15 @@ manual because retained processing and return fees are transaction-specific.
 
 ## Accounting
 
-For wallet principal P and customer-paid processor fee F:
+For wallet principal P and customer-paid deposit fee F:
 - Principal settlement: debit settlement P; credit user held P.
-- Processor pass-through: debit settlement F, credit processor_fee_clearing F;
-  debit processor_fee_clearing F, credit settlement F.
-- Across both groups, gross incoming debits are P+F, settlement cash is net P,
-  user liability is P, and processor_fee_clearing returns to zero. No platform
-  revenue entry is created.
+- The evidenced provider deduction is represented by balanced processor-fee
+  clearing legs and never reduces the player's principal.
+- For v3, $0.50 of retained proceeds remains in processor_fee_clearing for the
+  future standard payout. Only the remainder is deposit_fee_revenue.
+- The first live v3 case fixes the expected $10 economics: $11.16 bank debit,
+  $0.56 incoming ACH deduction, $10.60 net cash, $10.00 user liability,
+  $0.50 payout reserve, and $0.10 deposit-fee revenue.
 - Availability release changes held/available only.
 - A return reverses principal and separately records actual retained processor
   and return costs with matching settlement credits after evidence review.
