@@ -29,7 +29,7 @@ async function verifyProcessedDeposit(base44, transaction) {
       String(check.status || '').toLowerCase() !== 'processed' ||
       Number(check.amount) !== Number(transaction.deposit_bank_debit ?? transaction.amount) ||
       (check.currency && check.currency !== 'USD') ||
-      (check.label && check.label !== 'chessbet-deposit-' + transaction.id)) {
+      String(check.label || '') !== 'chessbet-deposit-' + transaction.id) {
     throw new Error('deposit_provider_verification_failed');
   }
   await requireVerifiedDeposit(base44, transaction, ref);
