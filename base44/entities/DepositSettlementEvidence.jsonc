@@ -47,7 +47,8 @@
       "type": "string",
       "enum": [
         "seamless_statement",
-        "seamless_support"
+        "seamless_support",
+        "seamless_api_contract"
       ]
     },
     "evidence_reference": {
