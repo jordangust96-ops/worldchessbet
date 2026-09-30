@@ -17,7 +17,7 @@ import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 import { flagDepositReview } from '../../shared/depositReconciliation.ts';
 import { claimWebhookEvent, finishWebhookEvent } from '../../shared/seamlessAtomicStore.ts';
 
-// Read-only provider lookups feed the same exactly-once ledger transitions and automatic v2/v3 contract evidence as webhooks.
+// Read-only provider lookups feed the same exactly-once ledger transitions and require the immutable v2/v3 deposit label before contract evidence as webhooks.
 const INITIAL_DELAY_MS = 15 * 60 * 1000;
 const MAX_LOOKUP_AGE_MS = 90 * 24 * 60 * 60 * 1000;
 const POST_SETTLEMENT_INTERVAL_MS = 24 * 60 * 60 * 1000;
