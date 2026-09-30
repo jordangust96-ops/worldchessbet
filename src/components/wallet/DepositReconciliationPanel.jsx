@@ -48,8 +48,8 @@ export default function DepositReconciliationPanel() {
     <section className="mt-8 rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-white">
       <h2 className="text-lg font-semibold">Deposit reconciliation</h2>
       <p className="mt-2 text-sm text-white/60">
-        Verify new deposits against a Seamless settlement statement or written support confirmation.
-        A payment marked Processed is also checked before wallet credit and release.
+        New v2/v3 deposits reconcile automatically after an exact Seamless Processed lookup and contracted-fee check.
+        Use this review only for legacy deposits, exceptions, or returned-payment fees.
         A transaction-level fee of $0.00 is not proof that Seamless charged no processing fee.
       </p>
       <div className="mt-4 flex gap-2 items-center">
