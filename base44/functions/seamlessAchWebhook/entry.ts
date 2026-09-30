@@ -14,7 +14,7 @@ import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 import { flagDepositReview } from '../../shared/depositReconciliation.ts';
 import { claimWebhookEvent, finishWebhookEvent } from '../../shared/seamlessAtomicStore.ts';
 
-// Processed deposit callbacks share the provider lock and automatic v2/v3 contract-evidence gate with scheduled recovery.
+// Processed deposit callbacks share the provider lock and require the immutable v2/v3 deposit label before contract evidence with scheduled recovery.
 function pickCheckId(body) { return body?.check?.id || body?.check?.check_id || body?.check_id || body?.id || ''; }
 function pickSourceId(body) { return body?.source?.id || body?.source_id || body?.funding_source?.id || body?.funding_source_id || body?.fundingSourceId || ''; }
 function pickCustomerId(body) { return body?.customer_id || body?.user_id || body?.user?.user_id || body?.user?.customer_id || body?.user?.id || body?.customer?.user_id || body?.customer?.id || ''; }
