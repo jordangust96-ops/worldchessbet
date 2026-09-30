@@ -258,3 +258,32 @@ for(const actualFee of [1.01,1.11]) {
  balanced(v3.db);
 }
 console.log('v3 passed: incoming costs plus future $0.50 standard payout are self-funded, principal unchanged, payout reserve is not revenue, and v1/v2 remain valid.');
+
+// v2/v3 Processed lookups automatically persist contract-derived settlement
+// evidence under the provider lock; replay cannot duplicate evidence or money.
+const automatic = await harness('same-day-ach-v3');
+automatic.provider.check.amount = 101.61;
+assert.deepEqual(pure.contractSettlementAmounts(automatic.tx()), {
+  bank_debit: 101.61, processing_fee: 1.01, net_received: 100.60,
+});
+await automatic.transitions.postSeamlessSettlement(automatic.base44, automatic.tx(), 100, 'provider-1', 'automatic_test');
+assert.equal(automatic.db.DepositSettlementEvidence.length, 1);
+assert.equal(automatic.db.DepositSettlementEvidence[0].source, 'seamless_api_contract');
+assert.equal(automatic.db.DepositSettlementEvidence[0].processing_fee, 1.01);
+assert.equal(automatic.db.DepositSettlementEvidence[0].net_received, 100.60);
+assert.equal(automatic.db.Wallet[0].held_balance, 100);
+const automaticLedgerCount = automatic.db.LedgerEntry.length;
+await automatic.transitions.postSeamlessSettlement(automatic.base44, automatic.tx(), 100, 'provider-1', 'automatic_test_replay');
+assert.equal(automatic.db.DepositSettlementEvidence.length, 1);
+assert.equal(automatic.db.LedgerEntry.length, automaticLedgerCount);
+balanced(automatic.db);
+
+const automaticMismatch = await harness('same-day-ach-v3');
+automaticMismatch.provider.check.amount = 101.60;
+await assert.rejects(
+  automaticMismatch.transitions.postSeamlessSettlement(automaticMismatch.base44, automaticMismatch.tx(), 100, 'provider-1', 'automatic_mismatch_test'),
+  /deposit_reconciliation_required/
+);
+assert.equal(automaticMismatch.db.DepositSettlementEvidence.length, 0);
+assert.equal(automaticMismatch.db.LedgerEntry.length, 0);
+console.log('automatic v2/v3 settlement evidence passed: fresh provider identity and amount checks, immutable contract evidence, replay idempotency, and mismatch fail-closed behavior.');
