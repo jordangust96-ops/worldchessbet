@@ -7,7 +7,7 @@ import * as ach from '../base44/shared/seamlessAchPure.js';
 import { depositQuote } from '../base44/shared/depositPricing.js';
 
 const clone = value => structuredClone(value);
-async function harness(version = 'same-day-ach-v1') {
+async function harness(version = 'same-day-ach-v1', amount = 100) {
   const db = Object.fromEntries(['WalletTransaction','Wallet','LedgerEntry','LedgerJournalBatch','SystemLedgerAccount',
     'OperationsFinding','DepositSettlementEvidence','IntegrationReference','User'].map(name => [name, []]));
   let serial = 0, caller = { id: 'admin', role: 'admin' }, fail = null, occupied = false;
@@ -72,8 +72,9 @@ async function harness(version = 'same-day-ach-v1') {
     '../../shared/seamlessLedgerTransitions.ts': transitions,
     '../../shared/ledger.ts': ledger,
   });
-  const quote = depositQuote(100, version);
-  db.WalletTransaction.push({ id:'tx-1', user_id:'player', type:'deposit', amount:100,
+  const quote = depositQuote(amount, version);
+  provider.check.amount = quote.bankDebit;
+  db.WalletTransaction.push({ id:'tx-1', user_id:'player', type:'deposit', amount,
     deposit_pricing_version:quote.version, deposit_processing_fee:quote.fee, deposit_bank_debit:quote.bankDebit,
     deposit_fee_accepted_at:'2026-01-01T00:00:00Z', created_date:'2026-01-01T00:00:00Z',
     status:'pending', integration_status:'submitted', launch_epoch:2 });
@@ -208,7 +209,7 @@ assert.equal(interrupted.db.Wallet[0].available_balance,0);
 balanced(interrupted.db);
 
 const identity = await harness();
-for (const patch of [{check_id:'wrong'}, {currency:'EUR'}, {label:'chessbet-deposit-other'}, {amount:null}]) {
+for (const patch of [{check_id:'wrong'}, {currency:'EUR'}, {label:'chessbet-deposit-other'}, {label:null}, {amount:null}]) {
   const original = clone(identity.provider.check);
   Object.assign(identity.provider.check,patch);
   assert.equal((await identity.send(identity.settlement)).status,409);
@@ -258,6 +259,26 @@ for(const actualFee of [1.01,1.11]) {
  balanced(v3.db);
 }
 console.log('v3 passed: incoming costs plus future $0.50 standard payout are self-funded, principal unchanged, payout reserve is not revenue, and v1/v2 remain valid.');
+
+// Lock the first live v3 settlement economics into the regression suite. The
+// production statement showed $11.16 gross, $0.56 ACH deduction, and $10.60 net
+// for $10.00 of player principal; $0.50 remains reserved for the future payout
+// and $0.10 is deposit-fee revenue.
+const observed = await harness('same-day-ach-v3', 10);
+assert.deepEqual(depositQuote(10, 'same-day-ach-v3'), {
+  version: 'same-day-ach-v3', walletAmount: 10, fee: 1.16, bankDebit: 11.16, payoutReserve: 0.50,
+});
+assert.deepEqual(pure.contractSettlementAmounts(observed.tx()), {
+  bank_debit: 11.16, processing_fee: 0.56, net_received: 10.60,
+});
+await observed.transitions.postSeamlessSettlement(observed.base44, observed.tx(), 10, 'provider-1', 'observed_v3_fixture');
+assert.equal(observed.db.DepositSettlementEvidence.length, 1);
+assert.equal(observed.db.DepositSettlementEvidence[0].source, 'seamless_api_contract');
+assert.equal(observed.db.Wallet[0].held_balance, 10);
+assert.equal(observed.db.SystemLedgerAccount.find(row => row.account_name === 'processor_fee_clearing').balance, 0.50);
+assert.equal(observed.db.SystemLedgerAccount.find(row => row.account_name === 'deposit_fee_revenue').balance, 0.10);
+assert.equal(observed.db.SystemLedgerAccount.find(row => row.account_name === 'settlement').balance, -10.60);
+balanced(observed.db);
 
 // v2/v3 Processed lookups automatically persist contract-derived settlement
 // evidence under the provider lock; replay cannot duplicate evidence or money.
