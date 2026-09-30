@@ -1,8 +1,9 @@
 # Deposit fee reconciliation
 
-New fee-priced deposits require a three-way match between the saved consent,
-a fresh Seamless payment lookup, and a Seamless settlement statement or written
-support confirmation of the actual merchant fee and net proceeds.
+Fee-priced v2/v3 deposits are reconciled automatically from the saved consent,
+a fresh Seamless Processed payment lookup, and the immutable contracted incoming
+ACH deduction. Legacy pricing, returned deposits, and every mismatch still require
+a Seamless settlement statement or written support confirmation.
 
 ## Operator workflow
 
@@ -27,19 +28,25 @@ checking the processor evidence. The transaction-level Fee: 0.00 display is
 not sufficient evidence. Pending deposits and merchant pooled balances are
 not substitutes for a transaction-specific settlement record.
 
-## Why statement verification is currently required
+## Automatic v2/v3 settlement path
 
 The documented payment webhook contains status and check ID only:
 https://developers-ach.seamlesschex.com/reference/payment-webhooks
 
-The documented single-payment response provides check.amount and check.fee,
-but does not establish that check.fee includes merchant/account-level processing
-deductions or expose an unambiguous final net-settlement amount:
-https://developers-ach.seamlesschex.com/reference/retrieve-single-payment
+The single-payment API is therefore re-read before settlement. Automation requires
+an exact provider payment ID, Processed status, gross amount, USD currency when
+present, and the immutable `chessbet-deposit-{transactionId}` label. It deliberately
+does not interpret `check.fee`, because that field is not the merchant statement
+fee. For accepted v2/v3 pricing only, the server applies the contracted incoming
+ACH deduction (0.50% + $0.50 using the provider gross-up rule), verifies gross,
+fee, net proceeds and payout reserve, then persists immutable evidence with source
+`seamless_api_contract`. The provider-level Redis lock serializes webhook and
+scheduled-recovery attempts; deterministic ledger group IDs prevent duplicate
+money movement.
 
-Therefore automatic approval from those fields is deliberately unavailable.
-An automatic statement feed can replace administrator evidence only after the
-provider supplies and confirms the relevant schema and meanings.
+Any provider, amount, currency, label, pricing, or evidence conflict fails closed
+and routes to the existing manual statement/support workflow. Returns always remain
+manual because retained processing and return fees are transaction-specific.
 
 ## Accounting
 
@@ -73,4 +80,7 @@ The reconciliation tests execute the real review handler, settlement helpers,
 and ledger against in-memory data and a mocked processor; no live payments or
 financial records are created. They cover missing/incorrect amounts, permission
 and evidence checks, retries, release/return races, fees, and crash recovery.
-A real newly priced deposit has not yet been verified through settlement.
+The first live v3 deposit was reconciled on 2026-09-30 against Seamless transaction
+10018: $11.16 gross, $0.56 processor deduction, and $10.60 net proceeds. The
+provider API/contract automation is covered by mocked no-payment regression tests;
+those tests never submit a provider payment.
