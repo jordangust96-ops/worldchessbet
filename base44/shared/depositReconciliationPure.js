@@ -43,7 +43,7 @@ export function verifyProviderDeposit(tx, providerRef, data, requireProcessed = 
       !providerRef || providerRef.startsWith('chessbet-')) throw new Error('provider_reference_mismatch');
   if (moneyCents(check.amount) !== expected.gross) throw new Error('provider_bank_debit_mismatch');
   if (check.currency != null && check.currency !== 'USD') throw new Error('provider_currency_mismatch');
-  if (check.label && check.label !== 'chessbet-deposit-' + tx.id) throw new Error('provider_label_mismatch');
+  if (String(check.label || '') !== 'chessbet-deposit-' + tx.id) throw new Error('provider_label_mismatch');
   const status = String(check.status || '').toLowerCase();
   if (requireProcessed && status !== 'processed') throw new Error('provider_not_processed');
   return { ...expected, status };
