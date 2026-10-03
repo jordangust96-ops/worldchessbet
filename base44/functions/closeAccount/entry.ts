@@ -249,6 +249,8 @@ Deno.serve(async (req) => {
           data = await sendLimitedWithdrawal(base44, walletTransaction.id, await buildVerifiedWithdrawalBody({
             providerUserId: profile.provider_user_id, name: accountHolderName.fullName, amount: payout,
             description: 'Account closure disbursement', label, sourceId: bank.source_id,
+            base44, userId: user.id,
+            senderSourceId: (Deno.env.get('SEAMLESS_MERCHANT_SENDER_ACCOUNT') || '').trim() || undefined,
           }));
         } catch (error) {
           const status = Number(error?.status || 0);
