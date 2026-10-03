@@ -185,7 +185,7 @@ await assert.rejects(()=>verified.buildVerifiedWithdrawalBody(input),error=>erro
 
 // Audit identity is owner-scoped: another user's reused key is untouched.
 await reset();db.SeamlessOperation.push({...audit(),id:'other-user',user_id:'other-user',status:'submitted',provider_reference_id:'other-payment'});
-mode='local-deleted';assert.equal((await call({queuedTransactionId:TX})).status,400);assert.equal(db.SeamlessOperation.find(row=>row.id==='other-user').status,'submitted');assert.equal(posts,0);
+mode='local-deleted';db.SeamlessBankAccount[0].status='deleted';assert.equal((await call({queuedTransactionId:TX})).status,400);assert.equal(db.SeamlessOperation.find(row=>row.id==='other-user').status,'submitted');assert.equal(posts,0);
 const schema=JSON.parse(await readFile(new URL('../base44/entities/SeamlessOperation.jsonc',import.meta.url),'utf8'));
 for(const field of ['release_ledger_group_id','last_error_message','completed_at'])assert.ok(schema.properties[field]);
 assert.equal(schema.rls.create,false);assert.equal(schema.rls.update,false);assert.equal(schema.rls.delete,false);
