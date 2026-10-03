@@ -166,6 +166,13 @@ for (const reason of DEFINITE) {
   const tx = result.client._store.WalletTransaction[0];
   assert.equal(tx.status, 'failed');
   assert.match(tx.description, new RegExp(reason));
+  const audit = result.client._store.SeamlessOperation[0];
+  assert.equal(audit.status, 'released', 'every definitive preflight releases its audit');
+  assert.equal(audit.last_error_code, reason);
+  assert.equal(audit.last_error_message, result.data.error);
+  assert.equal(audit.completed_at, tx.processed_at);
+  assert.equal(result.ops[tx.idempotency_key].state, 'released');
+  assert.equal(audit.release_ledger_group_id, 'seamless:withdrawal:release:' + tx.id);
   const before = providerPosts;
   await result.repeat();
   assert.equal(providerPosts - before, 0, 'failed request duplicate never POSTs');

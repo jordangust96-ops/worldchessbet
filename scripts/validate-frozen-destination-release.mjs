@@ -171,6 +171,14 @@ await assert.rejects(()=>releaseWithdrawalReservation(client,structuredClone(tx(
 await reset();tx().status='review_required';tx().integration_status='uncertain';
 await assert.rejects(()=>releaseWithdrawalReservation(client,structuredClone(tx()),10,REASON,'Safe message',ops[KEY]),/withdrawal_release_evidence_conflict/);assert.equal(db.Wallet[0].held_balance,10);assert.equal(posts,0);
 
+// A same-ID conflicting owner is never ignored beside a matching source.
+await reset();
+const {exports:{buildVerifiedWithdrawalBody:conflictingOwner}}=await loadBackend('base44/shared/verifiedWithdrawalBody.ts',{'./seamlessAch.ts':{PATH_ACCOUNT:'/account',buildWithdrawalBody,seamlessRequest:async(method,path)=>{
+  assert.equal(method,'GET');if(path==='/account')return {user_id:'merchant'};
+  return {success:true,list:path.endsWith(':merchant')?[{source_id:'merchant-balance',user_id:'merchant',bank:'Balance',status:'verified'}]:[{id:SOURCE,user_id:'customer',status:'verified'},{id:SOURCE,user_id:'other-user',status:'verified'}]};
+}}});
+await assert.rejects(()=>conflictingOwner(input),error=>error.withdrawalReason==='withdrawal_destination_multiple_primary');assert.equal(posts,0);
+
 // Audit identity is owner-scoped: another user's reused key is untouched.
 await reset();db.SeamlessOperation.push({...audit(),id:'other-user',user_id:'other-user',status:'submitted',provider_reference_id:'other-payment'});
 mode='provider-deleted';assert.equal((await call({queuedTransactionId:TX})).status,400);assert.equal(db.SeamlessOperation.find(row=>row.id==='other-user').status,'submitted');assert.equal(posts,0);
