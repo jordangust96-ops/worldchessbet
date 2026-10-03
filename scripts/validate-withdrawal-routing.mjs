@@ -34,6 +34,37 @@ assert.equal(body.amount, '9.25');
 assert.equal(body.label, input.label);
 assert.ok(calls.every(c => c.method === 'GET'), 'preflight must never POST');
 
+// Production matching-destination regression (wallet tx 6ac0f3837594bd52f0055308,
+// funding_source_id ace8a1d7-1c71-488d-ac4d-461012b5eb13, verified + primary).
+// A genuinely matching frozen destination must NEVER produce
+// withdrawal_destination_changed, across the provider's observed response shapes.
+{
+  const frozenSourceId = 'ace8a1d7-1c71-488d-ac4d-461012b5eb13';
+  const prodInput = {providerUserId: 'recipient', sourceId: frozenSourceId, name: 'Test Player', amount: 10, label: 'chessbet-withdrawal-6ac0f3837594bd52f0055308'};
+  const shapes = [
+    ['source_id + is_primary true', {source_id: frozenSourceId, user_id: 'recipient', bank: 'Recipient Bank', status: 'verified', is_primary: true}],
+    ['id + is_primary "true"', {id: frozenSourceId, user_id: 'recipient', bank: 'Recipient Bank', status: 'verified', is_primary: 'true'}],
+    ['source_id + is_primary 1', {source_id: frozenSourceId, user_id: 'recipient', bank: 'Recipient Bank', status: 'verified', is_primary: 1}],
+  ];
+  for (const [label, row] of shapes) {
+    reset(); recipient[0] = row;
+    const ok = await buildVerifiedWithdrawalBody(prodInput);
+    assert.equal(ok.account, 'merchant-balance', `${label}: matching destination must pass preflight`);
+    assert.equal(calls.filter(c => c.method === 'POST').length, 0, `${label}: preflight must never POST`);
+  }
+}
+
+// Empty primary source id is indeterminate (funds reserved), never "changed".
+{
+  reset(); recipient[0] = {is_primary: true, user_id: 'recipient', bank: 'Recipient Bank', status: 'verified'};
+  let caught;
+  try { await buildVerifiedWithdrawalBody(input); } catch (e) { caught = e; }
+  assert.equal(caught.withdrawalReason, 'withdrawal_sources_unavailable');
+  assert.equal(isDefinitePreflightRejection(caught), false, 'empty primary source id must not be definitive');
+  assert.equal(caught.withdrawalIndeterminate, true);
+  assert.equal(calls.filter(c => c.method === 'POST').length, 0, 'empty primary source id: zero POSTs');
+}
+
 // Unverified / pending_verification / added destinations are credit-eligible.
 for (const status of ['unverified', 'pending_verification', 'added']) {
   reset(); recipient[0].status = status;

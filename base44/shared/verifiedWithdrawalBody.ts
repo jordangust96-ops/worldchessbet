@@ -59,12 +59,23 @@ export async function buildVerifiedWithdrawalBody(input) {
   const [merchant, recipient] = await Promise.all([fetchSources(merchantId), fetchSources(input.providerUserId)]);
 
   // Confirm exactly one current primary destination that belongs to the
-  // recipient and whose source_id equals the immutable snapshot saved on the
+  // recipient and whose source id equals the immutable snapshot saved on the
   // withdrawal. Do not require verified merely to receive a credit.
-  const primary = recipient.filter(row => row.is_primary === true && row.user_id === input.providerUserId);
+  // The provider returns the funding-source id under either `source_id` or
+  // `id` (observed across list responses), and `is_primary` may be boolean
+  // true, string "true", or 1. Normalize both so a genuinely matching frozen
+  // destination is never misclassified as "changed" by a response-shape
+  // difference. A primary row whose normalized source id is empty is NOT a
+  // destination change — it is an indeterminate provider read, so funds stay
+  // reserved and the request is never released as a rejection.
+  const sourceIdOf = (row) => String(row?.source_id || row?.id || '').trim();
+  const isPrimaryOf = (row) => row?.is_primary === true || row?.is_primary === 'true' || row?.is_primary === 1;
+  const primary = recipient.filter(row => isPrimaryOf(row) && String(row.user_id || '') === String(input.providerUserId));
   if (primary.length === 0) fail('withdrawal_destination_missing');
   if (primary.length > 1) fail('withdrawal_destination_multiple_primary');
-  if (primary[0].source_id !== input.sourceId) fail('withdrawal_destination_changed');
+  const primarySourceId = sourceIdOf(primary[0]);
+  if (!primarySourceId) fail('withdrawal_sources_unavailable', true);
+  if (primarySourceId !== String(input.sourceId || '')) fail('withdrawal_destination_changed');
   const status = String(primary[0].status || '').toLowerCase();
   if (status === 'deleted') fail('withdrawal_destination_deleted');
   // login-required / verification-expired are a distinct hold/review state
@@ -74,8 +85,8 @@ export async function buildVerifiedWithdrawalBody(input) {
   }
   // Unverified, pending_verification, added, verified — all credit-eligible.
 
-  const balances = merchant.filter(row => row.user_id === merchantId &&
-    String(row.bank).toLowerCase() === 'balance' && String(row.status).toLowerCase() === 'verified' && row.source_id);
+  const balances = merchant.filter(row => String(row.user_id || '') === String(merchantId) &&
+    String(row.bank).toLowerCase() === 'balance' && String(row.status).toLowerCase() === 'verified' && sourceIdOf(row));
   if (balances.length !== 1) fail('withdrawal_merchant_balance_unavailable');
-  return buildWithdrawalBody({ ...input, senderSourceId: balances[0].source_id });
+  return buildWithdrawalBody({ ...input, senderSourceId: sourceIdOf(balances[0]) });
 }
