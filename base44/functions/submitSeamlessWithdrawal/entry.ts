@@ -175,8 +175,8 @@ Deno.serve(async (req) => {
     if(prior&&Number(prior.amount)!==Number(amount))return Response.json({error:'Invalid withdrawal idempotency key reuse'},{status:409});
     const creditEligible = allBanks.filter(b => b.status !== 'deleted');
     // Existing requests retain their saved destination even if the local bank
-    // was deleted or is missing. Only provider preflight may classify it; never
-    // silently switch a queued payout to the user's new primary bank.
+    // was deleted or is missing. The local frozen-destination check classifies
+    // it; never silently switch a queued payout to the user's new primary bank.
     const bank = prior?.funding_source_id
       ? allBanks.find(item=>item.source_id===prior.funding_source_id) || { source_id: prior.funding_source_id }
       : creditEligible.find((item) => item.source_id && item.is_primary) || creditEligible[0];
@@ -395,10 +395,9 @@ Deno.serve(async (req) => {
     await upsertOperationAudit(base44, { user_id: user.id, idempotency_key: idempotencyKey, wallet_transaction_id: tx.id, amount: value, status: 'submitting', reservation_ledger_group_id: reservationGroupId, attempts: 1 });
 
     diagnosticTransactionId = tx.id;
-    // Preflight: read-only GET to confirm the saved destination. Separated
-    // from the POST so definitive destination rejections release funds with
-    // precise messaging, while indeterminate provider reads (ambiguous
-    // response, timeout, 5xx) keep funds reserved and never describe as rejection.
+    // Local preflight confirms the saved frozen destination without any
+    // provider GET. Definitive local rejections release funds with precise
+    // messaging; indeterminate local reads keep funds reserved for review.
     failureStage = 'withdrawal_preflight';
     let withdrawalBody;
     try {
@@ -452,7 +451,10 @@ Deno.serve(async (req) => {
         await releaseWithdrawalReservation(base44, tx, value, 'bank_declined', 'The bank transfer could not be submitted. Your withdrawal was returned to your wallet and no withdrawal fee was charged.', operation);
         return Response.json({ error: error.payoutCapacity ? error.message : 'The bank transfer could not be submitted. Your withdrawal was returned to your wallet and no withdrawal fee was charged.', transaction_id: tx.id, request_terminal: true }, { status: error.payoutCapacity ? 429 : 400 });
       }
-      await base44.asServiceRole.entities.WalletTransaction.update(tx.id, { integration_status: 'uncertain', source_event: 'seamless_withdrawal_uncertain' });
+      await base44.asServiceRole.entities.WalletTransaction.update(tx.id, {
+        integration_status: 'uncertain', source_event: 'seamless_withdrawal_uncertain',
+        ...(tx.withdrawal_requested_at ? { withdrawal_request_status: 'review_required' } : {}),
+      });
       await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, state: 'uncertain', reconciliation_required: true });
       await upsertOperationAudit(base44, { user_id: user.id, idempotency_key: idempotencyKey, wallet_transaction_id: tx.id, amount: value, status: 'uncertain', reservation_ledger_group_id: reservationGroupId, attempts: 1, last_error_code: 'provider_outcome_unknown' });
       return Response.json({ enabled: true, transaction_id: tx.id, status: 'uncertain', reconciliation_required: true }, { status: 202 });
@@ -461,8 +463,12 @@ Deno.serve(async (req) => {
     failureStage = 'persist_provider_result';
     const providerRef = data?.check_id || data?.check?.id || data?.id || data?.check?.check_id || '';
     if (!providerRef) {
-      await base44.asServiceRole.entities.WalletTransaction.update(tx.id, { integration_status: 'uncertain', source_event: 'seamless_withdrawal_uncertain' });
+      await base44.asServiceRole.entities.WalletTransaction.update(tx.id, {
+        integration_status: 'uncertain', source_event: 'seamless_withdrawal_uncertain',
+        ...(tx.withdrawal_requested_at ? { withdrawal_request_status: 'review_required' } : {}),
+      });
       await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, state: 'uncertain', reconciliation_required: true });
+      await upsertOperationAudit(base44, { user_id: user.id, idempotency_key: idempotencyKey, wallet_transaction_id: tx.id, amount: value, status: 'uncertain', reservation_ledger_group_id: reservationGroupId, attempts: 1, last_error_code: 'provider_reference_missing' });
       return Response.json({ enabled: true, transaction_id: tx.id, status: 'uncertain', reconciliation_required: true }, { status: 202 });
     }
 
