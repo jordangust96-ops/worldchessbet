@@ -203,7 +203,6 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
     {remaining>0 ? <>
       <label className="flex items-start gap-3 rounded-xl border border-white/10 p-3 text-xs leading-relaxed text-white/65"><input type="checkbox" checked={agree} disabled={busy || armed} onChange={e=>setAgree(e.target.checked)} className="mt-0.5"/><span>I will play fairly, without chess engines, AI, or outside assistance.</span></label>
       <Button onClick={ready} disabled={busy || !agree || armed} className="h-12 w-full rounded-2xl gold-gradient font-bold text-black disabled:opacity-60">{busy && <Loader2 size={16} className="mr-2 animate-spin"/>}{armed?(myReady?'Waiting for opponent…':'Reconnecting…'):'I’m Ready'}</Button>
-      <p className="text-center text-xs text-white/45">Your confirmation is saved for this match. If you switch tabs or reconnect, readiness resumes automatically when you return. Both players must be present to start.</p>
     </> : <p className="rounded-xl bg-white/5 p-3 text-sm text-white/60">{free?'The start window ended. This unstarted free game is closing.':'The start window ended. The system is closing this unstarted match and releasing both entries and fees.'}</p>}
     {connectionMessage && <p role="status" className="text-sm text-white/60">{connectionMessage}</p>}
     {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
