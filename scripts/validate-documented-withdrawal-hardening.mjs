@@ -138,24 +138,53 @@ async function readyCall(overrides, key) {
     'npm:@base44/sdk@0.8.38': {createClientFromRequest: () => client},
     ...overrides,
   }));
+  const invoke = async body => {
+    const r = await handler(new Request('https://test.invalid', {method: 'POST', body: JSON.stringify(body)}));
+    return {status: r.status, data: await r.json()};
+  };
   client._setAdmin(false);
-  await handler(new Request('https://test.invalid', {method: 'POST', body: JSON.stringify({amount: 9.25, idempotencyKey: key})}));
+  const queued = await invoke({amount: 9.25, idempotencyKey: key});
+  assert.equal(queued.status, 200);
+  assert.equal(queued.data.status, 'queued');
+  assert.equal(providerPosts, 0, 'creating the request never POSTs');
   const txId = client._store.WalletTransaction.find(t => t.type === 'withdrawal').id;
   client._setAdmin(true);
-  const r = await handler(new Request('https://test.invalid', {method: 'POST', body: JSON.stringify({queuedTransactionId: txId})}));
-  return {status: r.status, data: await r.json()};
+  const result = await invoke({queuedTransactionId: txId});
+  return {...result, client, ops, repeat: (extra = {}) => invoke({queuedTransactionId: txId, ...extra})};
 }
 
-// 4a. Definitive preflight rejection: no POST, funds released, precise reason
-{
+// 4a. Every definitive outcome: no POST, precise persisted terminal reason.
+for (const reason of DEFINITE) {
   const result = await readyCall({
-    '../../shared/verifiedWithdrawalBody.ts': {buildVerifiedWithdrawalBody: async () => {const e = new Error('wdc'); e.status = 409; e.withdrawalReason = 'withdrawal_destination_changed'; throw e;}, DEFINITE_DESTINATION_REASONS: DEFINITE, isDefinitePreflightRejection: isDef},
-  }, 'preflight-reject-12345678');
-  assert.equal(providerPosts, 0, 'no POST on definitive preflight rejection');
+    '../../shared/verifiedWithdrawalBody.ts': {buildVerifiedWithdrawalBody: async () => {throw Object.assign(new Error(reason), {status: 409, withdrawalReason: reason});}, DEFINITE_DESTINATION_REASONS: DEFINITE, isDefinitePreflightRejection: isDef},
+  }, 'preflight-' + reason);
+  assert.equal(providerPosts, 0, 'no POST on ' + reason);
   assert.equal(result.status, 400);
   assert.equal(result.data.request_terminal, true);
-  assert.equal(result.data.withdrawal_reason, 'withdrawal_destination_changed');
-  assert.match(result.data.error, /no longer matches your current primary bank/);
+  assert.equal(result.data.withdrawal_reason, reason);
+  if (reason === 'withdrawal_destination_changed') assert.match(result.data.error, /no longer matches your current primary bank/);
+  const tx = result.client._store.WalletTransaction[0];
+  assert.equal(tx.status, 'failed');
+  assert.match(tx.description, new RegExp(reason));
+  const before = providerPosts;
+  await result.repeat();
+  assert.equal(providerPosts - before, 0, 'failed request duplicate never POSTs');
+  ok();
+}
+
+// Not ready remains queued; neither preflight nor provider POST is reached.
+{
+  let preflightReads = 0;
+  const result = await readyCall({
+    '../../shared/withdrawalQueue.ts': {estimateQueuedWithdrawal: async () => ({}), queuedWithdrawalReady: async () => false},
+    '../../shared/verifiedWithdrawalBody.ts': {buildVerifiedWithdrawalBody: async x => {preflightReads++; return x;}, isDefinitePreflightRejection: isDef},
+  }, 'explicit-not-ready-1234567');
+  assert.equal(result.status, 200);
+  assert.equal(result.data.status, 'queued');
+  assert.equal(preflightReads, 0);
+  assert.equal(providerPosts, 0);
+  await result.repeat();
+  assert.equal(providerPosts, 0, 'duplicate not-ready scheduler invocation never POSTs');
   ok();
 }
 
@@ -168,6 +197,11 @@ async function readyCall(overrides, key) {
   assert.equal(result.status, 202);
   assert.equal(result.data.status, 'uncertain');
   assert.equal(result.data.reconciliation_required, true);
+  assert.equal(result.client._store.WalletTransaction[0].integration_status, 'uncertain');
+  assert.equal(result.client._store.WalletTransaction[0].withdrawal_request_status, 'review_required');
+  const before = providerPosts;
+  await result.repeat();
+  assert.equal(providerPosts - before, 0, 'indeterminate preflight duplicate never POSTs');
   ok();
 }
 
@@ -180,6 +214,40 @@ async function readyCall(overrides, key) {
   assert.equal(providerPosts, 1, 'exactly one POST on ambiguous response');
   assert.equal(result.status, 202);
   assert.equal(result.data.status, 'uncertain');
+  const before = providerPosts;
+  const duplicate = await result.repeat();
+  assert.equal(duplicate.status, 202);
+  assert.equal(duplicate.data.deduplicated, true);
+  assert.equal(providerPosts - before, 0, 'duplicate scheduler invocation performs zero additional POSTs');
+  assert.equal(result.client._store.WalletTransaction[0].integration_status, 'uncertain');
+  ok();
+}
+
+// Provider-confirmed controlled retry preserves identity; never automatic.
+{
+  let attempts = 0;
+  const capacityKeys = [];
+  const key = 'provider-confirmed-1234567';
+  const result = await readyCall({
+    '../../shared/verifiedWithdrawalBody.ts': {buildVerifiedWithdrawalBody: async x => x, isDefinitePreflightRejection: isDef},
+    '../../shared/limitedWithdrawal.ts': {sendLimitedWithdrawal: async (b, id, body, options) => {providerPosts++; capacityKeys.push(options.capacityKey); return ++attempts === 1 ? {} : {check_id: 'confirmed-payment'};}},
+  }, key);
+  assert.equal(result.status, 202);
+  // Redis retention loss must recover the ambiguous state from the durable row.
+  delete result.ops[key];
+  const before = providerPosts;
+  assert.equal((await result.repeat()).status, 202);
+  assert.equal(providerPosts - before, 0, 'durable uncertain state never automatically retries');
+  const tx = result.client._store.WalletTransaction[0];
+  await result.client.asServiceRole.entities.WalletTransaction.update(tx.id, {status: 'review_required', withdrawal_request_status: 'review_required'});
+  const confirmed = await result.repeat({providerNoPaymentConfirmed: true});
+  assert.equal(confirmed.status, 200);
+  assert.equal(confirmed.data.provider_reference_id, 'confirmed-payment');
+  assert.equal(providerPosts, 2, 'only an explicit provider-confirmed retry sends again');
+  assert.deepEqual(capacityKeys, [tx.id, tx.id + ':provider-confirmed-retry:1']);
+  const sent = providerPosts;
+  await result.repeat({providerNoPaymentConfirmed: true});
+  assert.equal(providerPosts - sent, 0, 'duplicate authorized retry never sends twice');
   ok();
 }
 
@@ -205,6 +273,12 @@ async function readyCall(overrides, key) {
   assert.equal(providerPosts, 1);
   assert.equal(result.status, 202);
   assert.equal(result.data.status, 'uncertain');
+  const before = providerPosts;
+  const duplicate = await result.repeat();
+  assert.equal(duplicate.status, 202);
+  assert.equal(duplicate.data.deduplicated, true);
+  assert.equal(providerPosts - before, 0, 'duplicate scheduler invocation performs zero additional POSTs');
+  assert.equal(result.client._store.WalletTransaction[0].integration_status, 'uncertain');
   ok();
 }
 
@@ -235,11 +309,12 @@ async function readyCall(overrides, key) {
 
 // ─── 5. Duplicate webhook returns 2xx for already-processed events ───
 {
+  providerPosts = 0;
   const {handler} = await loadBackend('base44/functions/seamlessAchWebhook/entry.ts', {
     'npm:@base44/sdk@0.8.38': {createClientFromRequest: () => ({
       asServiceRole: {entities: new Proxy({}, {get: () => ({filter: async () => [], get: async () => null, create: async (r) => r, update: async (i, p) => p})})},
     })},
-    '../../shared/seamlessAch.ts': {verifySeamlessWebhookAuth: () => true, webhookIdempotencyKey: () => 'dup-key', mapTransactionStatus, applyWebhookEvent, applyFundingSourceEvent, normalizeProviderEventTime: () => '', userSafeTransferFailureReason: () => '', SEAMLESS_PROVIDER_KEY: 'seamless_ach'},
+    '../../shared/seamlessAch.ts': {verifySeamlessWebhookAuth: () => true, webhookIdempotencyKey: () => 'dup-key', mapTransactionStatus, applyWebhookEvent, applyFundingSourceEvent, normalizeProviderEventTime: () => '', userSafeTransferFailureReason: () => '', SEAMLESS_PROVIDER_KEY: 'seamless_ach', seamlessRequest: async method => {if (method === 'POST') providerPosts++; return {};}},
     '../../shared/seamlessLedgerTransitions.ts': {postSeamlessSettlement: async () => {}, recoverFeeDepositState: async (b, t) => t, releaseSeamlessWithdrawal: async () => {}, reverseSeamlessSettlement: async () => {}},
     '../../shared/integrationEvents.ts': {recordIntegrationEvent: async () => {}},
     '../../shared/depositReconciliation.ts': {flagDepositReview: async () => {}},
@@ -249,12 +324,14 @@ async function readyCall(overrides, key) {
   const data = await r.json();
   assert.equal(r.status, 200);
   assert.equal(data.deduplicated, true);
+  assert.equal(providerPosts, 0, 'duplicate webhook must never POST');
   ok();
 }
 
-// ─── 6. Read-only reconciliation never POSTs (pure reducer check) ───
+// ─── 6. Preserve reducer coverage and execute real no-POST boundaries ───
 assert.equal(applyWebhookEvent({status: 'pending'}, {status: 'pending'}).action, 'ignore');
 ok();
+await import('./validate-withdrawal-no-post-boundaries.mjs');
 
 // ─── 7. Correct user copy: conditions not called "rejected" ───
 const {getTransferFailureMessage} = await import('../src/components/wallet/transferFailureCopy.js');
@@ -265,6 +342,7 @@ const copyCases = [
   ['withdrawal', '[withdrawal_merchant_balance_unavailable]', /temporarily unavailable/],
   ['withdrawal', '[withdrawal_preflight_uncertain]', /could not confirm your bank status/],
   ['withdrawal', 'The bank transfer could not be submitted', /could not be completed/],
+  ['deposit', 'NSF', /enough available funds/],
 ];
 for (const [type, description, expected] of copyCases) {
   const msg = getTransferFailureMessage({type, description});
@@ -273,4 +351,4 @@ for (const [type, description, expected] of copyCases) {
   ok();
 }
 
-console.log(`Documented withdrawal hardening: ${checks} assertions passed — lifecycle, exactly-once, preflight separation, no-POST invariants, duplicate webhook, user copy.`);
+console.log(`Documented withdrawal hardening: ${checks} scenario groups passed — lifecycle, exactly-once, preflight separation, no-POST invariants, duplicate webhook, user copy.`);

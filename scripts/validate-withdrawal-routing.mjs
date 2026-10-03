@@ -63,6 +63,7 @@ for (const [label, change, expected] of rejections) {
   assert.equal(caught.withdrawalReason, expected, `${label}: expected ${expected} got ${caught.withdrawalReason}`);
   assert.ok(DEFINITE_DESTINATION_REASONS.has(caught.withdrawalReason), `${label}: not in DEFINITE_DESTINATION_REASONS`);
   assert.ok(isDefinitePreflightRejection(caught), `${label}: isDefinitePreflightRejection should be true`);
+  assert.equal(calls.filter(c => c.method === 'POST').length, 0, `${label}: zero provider POSTs`);
 }
 
 // Indeterminate: ambiguous response (success !== true) must not be definitive.
@@ -70,6 +71,7 @@ reset();
 const {exports: {buildVerifiedWithdrawalBody: buildAmbiguous}} =
   await loadBackend('base44/shared/verifiedWithdrawalBody.ts', {
     './seamlessAch.ts': {PATH_ACCOUNT: '/account', buildWithdrawalBody, seamlessRequest: async (method, path) => {
+      calls.push({method, path});
       if (path === '/account') return {user_id: 'merchant'};
       if (path === '/funding-source/user/:merchant') return {success: true, list: merchant};
       return {success: false, list: null};
@@ -81,11 +83,13 @@ assert.ok(caughtAmbiguous);
 assert.equal(caughtAmbiguous.withdrawalReason, 'withdrawal_sources_unavailable');
 assert.equal(isDefinitePreflightRejection(caughtAmbiguous), false, 'ambiguous response must not be definitive');
 assert.equal(caughtAmbiguous.withdrawalIndeterminate, true);
+assert.equal(calls.filter(c => c.method === 'POST').length, 0, 'ambiguous sources: zero POSTs');
 
 // Indeterminate: raw HTTP error (no withdrawalReason) must not be definitive.
 const {exports: {buildVerifiedWithdrawalBody: buildHttpError}} =
   await loadBackend('base44/shared/verifiedWithdrawalBody.ts', {
-    './seamlessAch.ts': {PATH_ACCOUNT: '/account', buildWithdrawalBody, seamlessRequest: async () => {
+    './seamlessAch.ts': {PATH_ACCOUNT: '/account', buildWithdrawalBody, seamlessRequest: async (method, path) => {
+      calls.push({method, path});
       const e = new Error('timeout'); e.status = 0; throw e;
     }}
   });
@@ -94,6 +98,20 @@ try { await buildHttpError(input); } catch (e) { caughtHttp = e; }
 assert.ok(caughtHttp);
 assert.equal(isDefinitePreflightRejection(caughtHttp), false, 'raw HTTP error must not be definitive');
 assert.equal(caughtHttp.withdrawalReason, undefined);
+assert.equal(calls.filter(c => c.method === 'POST').length, 0, 'timeout: zero POSTs');
+
+// Missing account identity is an indeterminate read, not merchant rejection.
+reset();
+const {exports: {buildVerifiedWithdrawalBody: buildMissingAccount}} = await loadBackend('base44/shared/verifiedWithdrawalBody.ts', {
+  './seamlessAch.ts': {PATH_ACCOUNT: '/account', buildWithdrawalBody, seamlessRequest: async (method, path) => {calls.push({method, path}); return {};}}
+});
+await assert.rejects(() => buildMissingAccount(input), e => {
+  assert.equal(e.withdrawalReason, 'withdrawal_account_unavailable');
+  assert.equal(e.withdrawalIndeterminate, true);
+  assert.equal(isDefinitePreflightRejection(e), false);
+  return true;
+});
+assert.equal(calls.filter(c => c.method === 'POST').length, 0, 'missing account identity: zero POSTs');
 
 assert.throws(() => buildWithdrawalBody(input), /merchant sender/);
 assert.throws(() => buildWithdrawalBody({...input, senderSourceId: input.sourceId}), /merchant sender/);

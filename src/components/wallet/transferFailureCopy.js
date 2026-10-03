@@ -28,7 +28,7 @@ export function getTransferFailureMessage(tx) {
   if (/preflight_uncertain|preflight_indeterminate/.test(details)) {
     return "We could not confirm your bank status with the payment provider. Your funds remain reserved while we check. Do not submit another withdrawal; check Transaction History for updates.";
   }
-  if (/insufficient|not sufficient|nsf|available funds|sufficient funds/.test(details)) {
+  if (/insufficient|not sufficient|\bnsf\b|available funds|sufficient funds/.test(details)) {
     return direction === "deposit"
       ? "Your bank could not complete this deposit. Check that the account has enough available funds, or use a different connected bank."
       : "Your bank could not complete this withdrawal because the destination account may be unable to accept it.";

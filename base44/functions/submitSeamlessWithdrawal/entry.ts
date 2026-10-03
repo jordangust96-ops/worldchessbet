@@ -139,7 +139,12 @@ Deno.serve(async (req) => {
     const prior=queuedTx||saved[0];
     if(prior&&Number(prior.amount)!==Number(amount))return Response.json({error:'Invalid withdrawal idempotency key reuse'},{status:409});
     const creditEligible = allBanks.filter(b => b.status !== 'deleted');
-    const bank = prior?.funding_source_id ? creditEligible.find(item=>item.source_id===prior.funding_source_id) : creditEligible.find((item) => item.source_id && item.is_primary) || creditEligible[0];
+    // Existing requests retain their saved destination even if the local bank
+    // was deleted or is missing. Only provider preflight may classify it; never
+    // silently switch a queued payout to the user's new primary bank.
+    const bank = prior?.funding_source_id
+      ? allBanks.find(item=>item.source_id===prior.funding_source_id) || { source_id: prior.funding_source_id }
+      : creditEligible.find((item) => item.source_id && item.is_primary) || creditEligible[0];
     if (!bank?.source_id) {
       return Response.json({ error: 'Link a bank account first', action: 'bank_link_required' }, { status: 400 });
     }
@@ -203,11 +208,11 @@ Deno.serve(async (req) => {
           description: 'Seamless confirmed the prior submission never reached their infrastructure; one controlled retry is authorized.',
         });
       } else {
-        return Response.json({ enabled: true, transaction_id: operation.wallet_transaction_id || '', status: 'uncertain', deduplicated: true, reconciliation_required: true });
+        return Response.json({ enabled: true, transaction_id: operation.wallet_transaction_id || '', status: 'uncertain', deduplicated: true, reconciliation_required: true }, { status: 202 });
       }
     }
     if (operation.state === 'failed' || operation.state === 'released') {
-      return Response.json({ error: 'This withdrawal request was rejected. Start a new request with a new idempotency key.' }, { status: 409 });
+      return Response.json({ error: 'This withdrawal request could not be completed. Start a new request with a new idempotency key.' }, { status: 409 });
     }
 
     const profile = (await base44.asServiceRole.entities.SeamlessPaymentProfile.filter({ user_id: user.id }))[0];

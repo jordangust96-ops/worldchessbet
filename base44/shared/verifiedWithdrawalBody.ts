@@ -45,7 +45,8 @@ export async function buildVerifiedWithdrawalBody(input) {
   const account = await seamlessRequest('GET', PATH_ACCOUNT);
   const merchantId = account?.user_id || account?.account?.user_id || account?.data?.user_id ||
     account?.data?.account?.user_id || account?.user?.user_id || account?.id;
-  if (!merchantId || merchantId === input.providerUserId) fail('withdrawal_merchant_unavailable');
+  if (!merchantId) fail('withdrawal_account_unavailable', true);
+  if (merchantId === input.providerUserId) fail('withdrawal_merchant_unavailable');
 
   const fetchSources = async (id) => {
     const response = await seamlessRequest('GET', '/funding-source/user/:' + encodeURIComponent(id));

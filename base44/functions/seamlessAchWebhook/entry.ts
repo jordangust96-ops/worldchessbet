@@ -138,7 +138,7 @@ Deno.serve(async (req) => {
 
     const base44 = serviceClientForWebhook(req);
     let result;
-    if (eventType.startsWith('funding-source.')) {
+    if (eventType.startsWith('funding-source.') || eventType === 'bank.account.login.required') {
       result = await handleFundingSource(base44, body, eventType, idemKey);
     } else if (eventType === 'user.created' || eventType === 'user.changed') {
       result = await handleCustomer(base44, body, eventType, idemKey);
