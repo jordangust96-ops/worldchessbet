@@ -157,10 +157,11 @@ assert.equal(posts,1,'duplicate successful invocation: zero additional POSTs');
 // assertion documents that no code path here mutates an uncertain/review_required
 // record into an auto-retryable state.
 await reset('verified');
-const protectedTx={id:'6ac13ae2baa82122f2b8109d',user_id:USER,type:'withdrawal',amount:10,status:'pending',integration_status:'uncertain',withdrawal_request_status:'review_required',idempotency_key:'protected-key',funding_source_id:SOURCE,withdrawal_requested_at:new Date().toISOString()};
+const protectedKey='b317b26b-5ca3-4a31-ab7d-1c625c596a72';
+const protectedTx={id:'6ac13ae2baa82122f2b8109d',user_id:USER,type:'withdrawal',amount:10,status:'pending',integration_status:'uncertain',withdrawal_request_status:'review_required',idempotency_key:protectedKey,funding_source_id:SOURCE,withdrawal_requested_at:new Date().toISOString()};
 db.WalletTransaction.push(protectedTx);
 const snap=JSON.stringify(protectedTx);
-ops['protected-key']={amount:10,state:'uncertain',wallet_transaction_id:protectedTx.id};
+ops[protectedKey]={amount:10,state:'uncertain',wallet_transaction_id:protectedTx.id};
 r=await call({queuedTransactionId:protectedTx.id});
 assert.equal(r.status,202);assert.equal(r.data.deduplicated,true);
 assert.equal(posts,0,'protected uncertain record never auto-retried');
