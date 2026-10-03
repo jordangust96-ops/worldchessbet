@@ -153,7 +153,7 @@ assert.equal(verified.isDefinitePreflightRejection({withdrawalReason:'withdrawal
 // Recovery at every post-intent boundary runs the real immutable journal,
 // never another reservation or provider request, even if Redis retention is lost.
 for(const boundary of ['journal-entries','redis-released','audit-released','tx-failed']){
-  await reset();mode='local-deleted';failure=boundary;
+  await reset();mode='local-deleted';db.SeamlessBankAccount[0].status='deleted';failure=boundary;
   assert.equal((await call({queuedTransactionId:TX})).status,503,boundary);assert.equal(posts,0);
   assert.equal(audit().release_ledger_group_id,'seamless:withdrawal:release:'+TX);delete ops[KEY];
   const result=await call({queuedTransactionId:TX});assert.equal(result.status,400,boundary);assert.equal(posts,0);
