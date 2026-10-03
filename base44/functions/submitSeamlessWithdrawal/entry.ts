@@ -222,8 +222,10 @@ Deno.serve(async (req) => {
     }) : null;
     const hasReleaseIntent = releaseAudit?.release_ledger_group_id === `seamless:withdrawal:release:${auditTransactionId}` &&
       (DEFINITE_DESTINATION_REASONS.has(releaseAudit.last_error_code) || releaseAudit.last_error_code === 'bank_declined');
-    const retryAuthorized = providerNoPaymentConfirmed && processingQueue && prior?.status === 'review_required' &&
-      prior.integration_status === 'uncertain' && !operation.provider_reference_id && !releaseAudit?.provider_reference_id;
+    const retryAuthorized = providerNoPaymentConfirmed && processingQueue &&
+      ['pending','review_required'].includes(prior?.status) && prior?.integration_status === 'uncertain' &&
+      prior?.withdrawal_request_status === 'review_required' &&
+      !operation.provider_reference_id && !releaseAudit?.provider_reference_id;
     // Durable provider/review evidence cannot be downgraded by a stale cache.
     if (['submitted','processing','completed','succeeded','uncertain','ambiguous','review_required','reversed'].includes(releaseAudit?.status) &&
         operation.state !== 'submitted' && !retryAuthorized) {
@@ -251,8 +253,9 @@ Deno.serve(async (req) => {
     }
     if (operation.state === 'submitting' || operation.state === 'uncertain') {
       if (providerNoPaymentConfirmed && processingQueue && prior &&
-          prior.status === 'review_required' && prior.integration_status === 'uncertain' &&
-          !operation.provider_reference_id) {
+          ['pending','review_required'].includes(prior.status) && prior.integration_status === 'uncertain' &&
+          prior.withdrawal_request_status === 'review_required' && !operation.provider_reference_id &&
+          !releaseAudit?.provider_reference_id) {
         operation = await saveWithdrawalOperation(user.id, idempotencyKey, {
           ...operation,
           state: 'reserved',
