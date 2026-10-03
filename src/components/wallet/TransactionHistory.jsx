@@ -83,7 +83,7 @@ function getTransactionExplanation(tx, match) {
   }
   if(tx.type==='withdrawal'&&tx.withdrawal_requested_at&&!['failed','reversed','completed'].includes(tx.status)){
     const date=tx.withdrawal_estimated_arrival?new Date(tx.withdrawal_estimated_arrival).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric',timeZone:'America/New_York'}):null;
-    return {heading:'Withdrawal requested',text:`Your ${amount} withdrawal request is being processed.${date?' Estimated arrival: '+date+'.':''} Bank processing or additional verification may change the date.`};
+    return {heading:'Withdrawal requested',text:`Your ${amount} withdrawal request is being processed.${date?' Estimated arrival: '+date+'.':''}`};
   }
   const entry = match?.wager_amount != null ? `$${formatMoney(match.wager_amount)}` : null;
 
