@@ -57,14 +57,21 @@ export const FAQ_SECTIONS = [
         question: "What payment methods are accepted?",
         paragraphs: [
           "ChessBet supports ACH bank transfers through a connected bank account for eligible, verified users.",
-          "Deposits have a $10 wallet-credit minimum and a $1,100 total bank-debit maximum including the separate deposit fee. The Wallet shows wallet credit, deposit fee, and total debit before submission. Deposits become available to play after Seamless reports Processed and ChessBet completes the provider and settlement checks. You can request a withdrawal in your wallet and receive an email with an estimated arrival date.",
+          "Deposits have a $10 wallet-credit minimum and a $1,100 total bank-debit maximum including the separate deposit fee. The Wallet shows wallet credit, deposit fee, and total debit before submission. The deposit fee helps cover secure bank processing, verification, and standard transfer services through trusted payment providers; it is separate from any Platform Service Fee. Deposits become available to play after Seamless reports Processed and ChessBet completes the provider and settlement checks. You can request a withdrawal in your wallet and receive an email with an estimated arrival date.",
+        ],
+      },
+      {
+        question: "What fees does ChessBet charge?",
+        paragraphs: [
+          "ChessBet discloses three distinct fee types. A deposit fee is shown before each bank debit and helps cover secure bank processing, verification, and standard transfer services through trusted payment providers. Each paid contest has a fixed Platform Service Fee disclosed separately from the Entry Amount.",
+          "Standard withdrawals of $10 or more have no separate withdrawal fee. Withdrawing your entire Available Balance also waives the fee. Otherwise, a withdrawal below $10 currently has a $2.50 fee. The Wallet shows any applicable fee before you submit.",
         ],
       },
       {
         question: "Can I withdraw anytime?",
         paragraphs: [
           "When withdrawals are enabled and your account is eligible, you may request available funds through your verified bank. Requests are limited to $1,100 each. Requested funds are reserved, and the backend processes the withdrawal when the account, bank, and payment checks are complete. We email a confirmation and estimated arrival date.",
-          "Pending deposits, Clearing funds, reserved contest funds, pending winnings, and existing withdrawal reservations are unavailable to withdraw. Requests below $10 have a separate $2.50 fee, waived for a withdrawal of your entire Available Balance. Confirmed failed or reversed withdrawals return any associated charged withdrawal fee. Provider processing and reviews can delay arrival.",
+          "Pending deposits, Clearing funds, reserved contest funds, pending winnings, and existing withdrawal reservations are unavailable to withdraw. Standard withdrawals of $10 or more have no separate withdrawal fee. Requests below $10 have a separate $2.50 fee, waived for a withdrawal of your entire Available Balance. Confirmed failed or reversed withdrawals return any associated charged withdrawal fee. Provider processing and reviews can delay arrival.",
         ],
       },
       {
