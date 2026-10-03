@@ -29,18 +29,28 @@ const IDEMPOTENCY_KEY = /^[A-Za-z0-9._:-]{16,128}$/;
 // describe preflight, review, or reconnect conditions as provider rejection.
 const WITHDRAWAL_PREFLIGHT_MESSAGES = {
   withdrawal_destination_changed: 'The bank account selected for this withdrawal no longer matches your current primary bank. Start a new withdrawal after confirming your bank.',
-  withdrawal_destination_missing: 'No primary bank account is currently selected for withdrawals. Add or select a bank and try again.',
-  withdrawal_destination_multiple_primary: 'Multiple primary bank accounts were found. Contact support to resolve this before withdrawing.',
+  withdrawal_destination_missing: 'The bank account saved for this withdrawal is no longer available. Confirm your bank before starting a new request.',
+  withdrawal_destination_multiple_primary: 'Conflicting records were found for the bank account saved for this withdrawal. Contact support before withdrawing.',
   withdrawal_destination_deleted: 'The bank account selected for this withdrawal has been removed. Reconnect a bank and try again.',
   withdrawal_destination_reconnect_required: 'The bank account selected for this withdrawal needs to be reconnected. Reconnect your bank and try again.',
   withdrawal_merchant_unavailable: 'ChessBet payment account is temporarily unavailable for withdrawals. Please try again later.',
   withdrawal_merchant_balance_unavailable: 'ChessBet payment funding is temporarily unavailable for withdrawals. Please try again later.',
 };
 
+async function readOperationAudit(base44, fields) {
+  const rows = await base44.asServiceRole.entities.SeamlessOperation.filter(
+    { operation_type: 'withdrawal', user_id: fields.user_id, idempotency_key: fields.idempotency_key }, '-created_date', 2
+  );
+  if (!Array.isArray(rows) || rows.length > 1) throw Error('withdrawal_operation_read_indeterminate');
+  const existing = rows[0];
+  if (existing && fields.wallet_transaction_id && existing.wallet_transaction_id !== fields.wallet_transaction_id) {
+    throw Error('withdrawal_operation_identity_conflict');
+  }
+  return existing;
+}
+
 async function upsertOperationAudit(base44, fields) {
-  const existing = (await base44.asServiceRole.entities.SeamlessOperation.filter(
-    { operation_type: 'withdrawal', idempotency_key: fields.idempotency_key }, '-created_date', 1
-  ))[0];
+  const existing = await readOperationAudit(base44, fields);
   if (existing) return base44.asServiceRole.entities.SeamlessOperation.update(existing.id, { ...fields, updated_at: new Date().toISOString() });
   return base44.asServiceRole.entities.SeamlessOperation.create({ ...fields, operation_type: 'withdrawal', created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
 }
@@ -70,29 +80,54 @@ async function reserveWithdrawal(base44, tx, amount, withdrawalFee = 0) {
   return groupId;
 }
 
-async function releaseWithdrawalReservation(base44, tx, amount, reason, userMessage) {
+export async function releaseWithdrawalReservation(base44, tx, amount, reason, userMessage, operation = {}) {
   const groupId = `seamless:withdrawal:release:${tx.id}`;
+  const identity = { user_id: tx.user_id, idempotency_key: tx.idempotency_key, wallet_transaction_id: tx.id, amount };
+  const assertSafe = async () => {
+    const fresh = await base44.asServiceRole.entities.WalletTransaction.get(tx.id);
+    const audit = await readOperationAudit(base44, identity);
+    const protectedStates = ['submitted', 'processing', 'completed', 'succeeded', 'settled', 'uncertain', 'ambiguous', 'review_required', 'reversed'];
+    if (!fresh || fresh.user_id !== tx.user_id || fresh.idempotency_key !== tx.idempotency_key || Number(fresh.amount) !== amount ||
+        protectedStates.includes(fresh.status) || protectedStates.includes(fresh.integration_status) ||
+        fresh.withdrawal_request_status === 'review_required' || fresh.provider_last_status ||
+        audit?.provider_reference_id || protectedStates.includes(audit?.status) || operation.provider_reference_id ||
+        protectedStates.includes(operation.state) ||
+        (audit?.release_ledger_group_id && (audit.release_ledger_group_id !== groupId || audit.last_error_code !== reason)) ||
+        (fresh.status === 'failed' && (fresh.source_event !== 'seamless_withdrawal_not_completed' || !fresh.description?.includes(`[${reason}]`)))) {
+      throw Error('withdrawal_release_evidence_conflict');
+    }
+    return { fresh, audit };
+  };
+  const { fresh, audit } = await assertSafe();
+  // Write recoverable intent before money moves. Never masquerade it as an
+  // ambiguous provider outcome; replay is safe only for this exact release.
+  await upsertOperationAudit(base44, { ...identity, status: audit?.status || 'reserved',
+    release_ledger_group_id: groupId, last_error_code: reason, last_error_message: userMessage });
   await postLedgerLegs(base44, {
-      groupId,
-      walletTransactionId: tx.id,
-      actor: 'system',
-      triggerEvent: 'withdrawal_reservation_release',
-      externalRefType: 'provider_payout',
-      externalRefId: tx.id,
-      legs: [
-        { ledgerAccount: 'withdrawal_reserve', debit: amount, credit: 0, transactionType: 'reversal' },
-        { ledgerAccount: 'user_account', userId: tx.user_id, debit: 0, credit: amount, heldDelta: -amount, transactionType: 'reversal' },
-      ],
-    });
-  await base44.asServiceRole.entities.WalletTransaction.update(tx.id, {
-    status: 'failed', integration_status: 'failed', source_event: 'seamless_withdrawal_not_completed',
-    withdrawal_request_status: tx.withdrawal_requested_at ? 'failed' : undefined,
-    // Include the reason code in brackets so getTransferFailureMessage can
-    // match the precise condition without exposing sensitive provider data.
-    description: userMessage ? `${userMessage} [${reason}]` : `Seamless ACH withdrawal could not be completed: ${reason}`,
-    processed_at: new Date().toISOString(),
+    groupId, walletTransactionId: tx.id, actor: 'system', triggerEvent: 'withdrawal_reservation_release',
+    updateTransactions: false, beforePost: async () => { await assertSafe(); return true; },
+    externalRefType: 'provider_payout', externalRefId: tx.id,
+    legs: [
+      { ledgerAccount: 'withdrawal_reserve', debit: amount, credit: 0, transactionType: 'reversal' },
+      { ledgerAccount: 'user_account', userId: tx.user_id, debit: 0, credit: amount, heldDelta: -amount, transactionType: 'reversal' },
+    ],
   });
-  if(tx.withdrawal_requested_at)await settleQueuedWithdrawalFee(base44,tx,true);
+  if (tx.withdrawal_requested_at) await settleQueuedWithdrawalFee(base44, tx, true);
+  await assertSafe();
+  const completedAt = audit?.completed_at || (fresh.status === 'failed' && fresh.processed_at) || new Date().toISOString();
+  // Complete both operation stores BEFORE exposing a failed/released wallet.
+  // A crash at any boundary resumes from the durable intent without a POST.
+  await saveWithdrawalOperation(tx.user_id, tx.idempotency_key, { ...operation, amount,
+    wallet_transaction_id: tx.id, state: 'released', release_ledger_group_id: groupId,
+    last_error_code: reason, last_error_message: userMessage, completed_at: completedAt, updated_at: completedAt });
+  await upsertOperationAudit(base44, { ...identity, status: 'released', release_ledger_group_id: groupId,
+    last_error_code: reason, last_error_message: userMessage, completed_at: completedAt });
+  await base44.asServiceRole.entities.WalletTransaction.update(tx.id, {
+    status: 'failed', integration_status: 'failed', ledger_group_id: groupId, direction: 'release',
+    source_event: 'seamless_withdrawal_not_completed',
+    ...(tx.withdrawal_requested_at ? { withdrawal_request_status: 'failed' } : {}),
+    description: `${userMessage} [${reason}]`, processed_at: completedAt,
+  });
   return groupId;
 }
 
@@ -184,6 +219,17 @@ Deno.serve(async (req) => {
     // Recover an operation from the persisted request after the Redis retention window.
     if(!operation.wallet_transaction_id&&prior){
       operation=await saveWithdrawalOperation(user.id,idempotencyKey,{...operation,wallet_transaction_id:prior.id,fee_amount:Number(prior.withdrawal_request_fee||0),state:['submitted','settled'].includes(prior.integration_status)?'submitted':['submitting','uncertain'].includes(prior.integration_status)?'uncertain':prior.status==='failed'?'failed':'reserved'});
+    }
+    // Resume only an explicitly journaled definitive release, never a payout.
+    const releaseAudit = operation.wallet_transaction_id ? await readOperationAudit(base44, {
+      user_id: user.id, idempotency_key: idempotencyKey, wallet_transaction_id: operation.wallet_transaction_id,
+    }) : null;
+    if (releaseAudit?.release_ledger_group_id === `seamless:withdrawal:release:${operation.wallet_transaction_id}` &&
+        (DEFINITE_DESTINATION_REASONS.has(releaseAudit.last_error_code) || releaseAudit.last_error_code === 'bank_declined')) {
+      const releaseTx = await base44.asServiceRole.entities.WalletTransaction.get(operation.wallet_transaction_id);
+      await releaseWithdrawalReservation(base44, releaseTx, value, releaseAudit.last_error_code, releaseAudit.last_error_message, operation);
+      return Response.json({ error: releaseAudit.last_error_message, transaction_id: releaseTx.id,
+        request_terminal: true, withdrawal_reason: releaseAudit.last_error_code, deduplicated: true }, { status: 400 });
     }
     if (operation.state === 'submitted') {
       const sentTx=await base44.asServiceRole.entities.WalletTransaction.get(operation.wallet_transaction_id);
@@ -345,7 +391,8 @@ Deno.serve(async (req) => {
     try {
       withdrawalBody = await buildVerifiedWithdrawalBody({
         providerUserId: profile.provider_user_id, name: accountHolderName.fullName, amount: value,
-        description: `ChessBet withdrawal ${tx.id}`, label, sourceId: bank.source_id, transferSpeed,
+        description: `ChessBet withdrawal ${tx.id}`, label, sourceId: tx.funding_source_id, transferSpeed,
+        base44, userId: tx.user_id,
       });
     } catch (preflightError) {
       const reason = String(preflightError?.withdrawalReason || '');
@@ -353,10 +400,7 @@ Deno.serve(async (req) => {
         failureStage = 'release_preflight_rejection';
         const userMessage = WITHDRAWAL_PREFLIGHT_MESSAGES[reason] || 'This withdrawal could not be completed. Please try again or contact support.';
         console.error(JSON.stringify({event:'withdrawal_preflight_definitive',wallet_transaction_id:tx.id,reason}));
-        await upsertOperationAudit(base44, {user_id:user.id,idempotency_key:idempotencyKey,wallet_transaction_id:tx.id,amount:value,status:'uncertain',last_error_code:reason});
-        const releaseGroupId = await releaseWithdrawalReservation(base44, tx, value, reason, userMessage);
-        await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, state: 'failed', release_ledger_group_id: releaseGroupId });
-        await upsertOperationAudit(base44, { user_id: user.id, idempotency_key: idempotencyKey, wallet_transaction_id: tx.id, amount: value, status: 'released', reservation_ledger_group_id: reservationGroupId, attempts: 1, last_error_code: reason });
+        await releaseWithdrawalReservation(base44, tx, value, reason, userMessage, operation);
         return Response.json({ error: userMessage, transaction_id: tx.id, request_terminal: true, withdrawal_reason: reason }, { status: 400 });
       }
       // Indeterminate preflight read: never release funds or describe as rejection.
@@ -389,10 +433,7 @@ Deno.serve(async (req) => {
       }
       if (status >= 400 && status < 500) {
         failureStage = 'release_rejected_reservation';
-        await upsertOperationAudit(base44, {user_id:user.id,idempotency_key:idempotencyKey,wallet_transaction_id:tx.id,amount:value,status:'uncertain',last_error_code:error.withdrawalReason||`provider_rejected_http_${status}`});
-        const releaseGroupId = await releaseWithdrawalReservation(base44, tx, value, 'bank_declined', 'The bank transfer could not be submitted. Your withdrawal was returned to your wallet and no withdrawal fee was charged.');
-        await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, state: 'failed', release_ledger_group_id: releaseGroupId });
-        await upsertOperationAudit(base44, { user_id: user.id, idempotency_key: idempotencyKey, wallet_transaction_id: tx.id, amount: value, status: 'released', reservation_ledger_group_id: reservationGroupId, attempts: 1, last_error_code: error.withdrawalReason || `provider_rejected_http_${status}` });
+        await releaseWithdrawalReservation(base44, tx, value, 'bank_declined', 'The bank transfer could not be submitted. Your withdrawal was returned to your wallet and no withdrawal fee was charged.', operation);
         return Response.json({ error: error.payoutCapacity ? error.message : 'The bank transfer could not be submitted. Your withdrawal was returned to your wallet and no withdrawal fee was charged.', transaction_id: tx.id, request_terminal: true }, { status: error.payoutCapacity ? 429 : 400 });
       }
       await base44.asServiceRole.entities.WalletTransaction.update(tx.id, { integration_status: 'uncertain', source_event: 'seamless_withdrawal_uncertain' });

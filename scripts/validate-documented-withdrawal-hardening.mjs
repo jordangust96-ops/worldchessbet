@@ -332,6 +332,7 @@ for (const reason of DEFINITE) {
 assert.equal(applyWebhookEvent({status: 'pending'}, {status: 'pending'}).action, 'ignore');
 ok();
 await import('./validate-withdrawal-no-post-boundaries.mjs');
+await import('./validate-frozen-destination-release.mjs');
 
 // ─── 7. Correct user copy: conditions not called "rejected" ───
 const {getTransferFailureMessage} = await import('../src/components/wallet/transferFailureCopy.js');

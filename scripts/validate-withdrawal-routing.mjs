@@ -65,6 +65,14 @@ assert.ok(calls.every(c => c.method === 'GET'), 'preflight must never POST');
   assert.equal(calls.filter(c => c.method === 'POST').length, 0, 'empty primary source id: zero POSTs');
 }
 
+// Frozen source stays valid with no primary or a different current primary.
+for (const primary of [false, 'false', 0, undefined]) {
+  reset(); recipient[0].is_primary = primary;
+  recipient.push({source_id:'new-primary', user_id:'recipient', status:'verified', is_primary:true});
+  assert.equal((await buildVerifiedWithdrawalBody(input)).account, 'merchant-balance');
+  assert.equal(calls.filter(c => c.method === 'POST').length, 0);
+}
+
 // Unverified / pending_verification / added destinations are credit-eligible.
 for (const status of ['unverified', 'pending_verification', 'added']) {
   reset(); recipient[0].status = status;
@@ -74,10 +82,10 @@ for (const status of ['unverified', 'pending_verification', 'added']) {
 
 // Definitive rejections — each has a precise, persisted reason.
 const rejections = [
-  ['source mismatch',         () => recipient[0].source_id = 'different-bank',  'withdrawal_destination_changed'],
-  ['no primary',              () => recipient[0].is_primary = false,            'withdrawal_destination_missing'],
+  ['conflicting source aliases', () => {recipient[0].id = input.sourceId; recipient[0].source_id = 'different-bank';}, 'withdrawal_destination_changed'],
+  ['exact source absent',     () => recipient.splice(0),                      'withdrawal_destination_missing'],
   ['wrong owner',            () => recipient[0].user_id = 'someone-else',       'withdrawal_destination_missing'],
-  ['multiple primary',        () => recipient.push({...recipient[0], source_id: 'another-primary'}), 'withdrawal_destination_multiple_primary'],
+  ['conflicting exact matches', () => recipient.push({...recipient[0], status: 'deleted'}), 'withdrawal_destination_multiple_primary'],
   ['deleted',                () => recipient[0].status = 'deleted',             'withdrawal_destination_deleted'],
   ['verification_expired',   () => recipient[0].status = 'verification_expired', 'withdrawal_destination_reconnect_required'],
   ['login_required',         () => recipient[0].status = 'login_required',      'withdrawal_destination_reconnect_required'],

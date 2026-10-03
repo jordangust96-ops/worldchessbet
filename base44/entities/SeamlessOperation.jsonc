@@ -65,6 +65,14 @@
         "write": false
       }
     },
+    "release_ledger_group_id": {
+      "type": "string",
+      "description": "Durable same-request definitive release intent and deterministic journal group; never a payout retry authorization.",
+      "rls": {
+        "read": false,
+        "write": false
+      }
+    },
     "attempts": {
       "type": "integer",
       "default": 0
@@ -76,6 +84,19 @@
         "read": false,
         "write": false
       }
+    },
+    "last_error_message": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Sanitized player-safe explanation from the definitive release path.",
+      "rls": {
+        "read": false,
+        "write": false
+      }
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
     },
     "created_at": {
       "type": "string",
