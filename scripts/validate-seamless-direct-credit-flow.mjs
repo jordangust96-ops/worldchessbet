@@ -29,6 +29,7 @@ const entities=new Proxy({}, {get:(_,name)=>({
   get:async id=>structuredClone((db[name]||[]).find(r=>r.id===id)||null),
   create:async row=>{const next={...structuredClone(row),id:name+'-'+(db[name]||[]).length,created_date:new Date().toISOString()};(db[name]||=[]).push(next);return structuredClone(next);},
   update:async(id,patch)=>{const row=(db[name]||[]).find(r=>r.id===id);if(row)Object.assign(row,patch);return structuredClone(row);},
+  bulkCreate:async rows=>{for(const row of rows)(db[name]||=[]).push({...structuredClone(row),id:name+'-'+db[name].length});},
 })});
 const client={auth:{me:async()=>({id:USER,role:admin?'admin':'user',identity_verified:true})},asServiceRole:{entities}};
 const save=async(u,k,v)=>{ops[k]=structuredClone(v);return v;};
@@ -68,8 +69,9 @@ async function reset(status='verified'){
   // under test before the admin queued call exercises the preflight rejection.
   db={User:[{id:USER,identity_verified:true}],Wallet:[{id:'wallet',user_id:USER,available_balance:10,held_balance:0}],
     SeamlessPaymentProfile:[{user_id:USER,provider_user_id:CUSTOMER}],SeamlessBankAccount:[bankFixture('verified')],
-    WalletTransaction:[],SeamlessOperation:[],IntegrationReference:[]};
-  ops={};posts=0;capturedBody=null;providerGets=[];ambiguous=false;admin=false;
+    LedgerEntry:[{id:'seed',launch_epoch:2,user_id:USER,ledger_account:'user_account',available_delta:10,held_delta:0}],
+    LedgerJournalBatch:[],SystemLedgerAccount:[],WalletTransaction:[],SeamlessOperation:[],IntegrationReference:[]};
+  ops={};posts=0;capturedBody=null;providerGets=[];ambiguous=false;admin=false;ledgerLocked=false;transientRead=false;
   const q=await call({amount:10,idempotencyKey:KEY});
   assert.equal(q.status,200);assert.equal(q.data.status,'queued');assert.equal(posts,0);
   assert.equal(tx().funding_source_id,SOURCE);admin=true;
@@ -131,11 +133,9 @@ let r=await call({queuedTransactionId:tx().id});assert.equal(r.status,202);asser
 await reset('verified');db.SeamlessBankAccount.push({...bankFixture('verified'),id:'conflict'});
 r=await call({queuedTransactionId:tx().id});assert.equal(r.status,400);assert.equal(r.data.withdrawal_reason,'withdrawal_destination_multiple_primary');assert.equal(posts,0);
 
-await reset('verified');
-const originalFilter=client.asServiceRole.entities.SeamlessBankAccount.filter;
-client.asServiceRole.entities.SeamlessBankAccount.filter=async()=>{throw Error('transient read');};
+await reset('verified');transientRead=true;
 r=await call({queuedTransactionId:tx().id});assert.equal(r.status,202);assert.equal(r.data.status,'uncertain');assert.equal(posts,0);
-client.asServiceRole.entities.SeamlessBankAccount.filter=originalFilter;
+transientRead=false;
 
 // 7. Ambiguous POST remains reserved/review_required with zero automatic retry.
 await reset('verified');ambiguous=true;
