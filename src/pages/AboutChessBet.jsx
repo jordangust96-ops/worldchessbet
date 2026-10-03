@@ -37,11 +37,13 @@ const SECTIONS = [
   {
     id: "fees-and-eligibility",
     eyebrow: "Fees and eligibility",
-    heading: "Clear terms before cash play",
+    heading: "Clear fees and terms before you commit",
     intro:
-      "Cash-prize activity requires verified identity and age 21+, an eligible location, and a supported funding account.",
+      "Cash-prize activity requires verified identity and age 21+, an eligible location, and a supported funding account. ChessBet shows applicable charges before you authorize them.",
     points: [
-      "Every contest shows its entry amount and platform service fee before commitment",
+      "Every deposit shows the wallet credit, separate deposit fee, and total bank debit; the fee helps cover secure bank processing, verification, and standard transfer services through trusted providers",
+      "Every paid contest shows its entry amount and separate Platform Service Fee before commitment",
+      "Standard withdrawals of $10 or more have no separate withdrawal fee; full-balance withdrawals also waive the fee, while other withdrawals below $10 currently carry a $2.50 fee",
       "The winner receives the combined Entry Amounts as pending winnings; release follows the 24-hour reporting window when no open dispute or blocking integrity or reconciliation flag remains",
       "Identity and location eligibility are checked before funding or paid contest play",
     ],
