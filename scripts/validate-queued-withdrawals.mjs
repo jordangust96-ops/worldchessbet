@@ -87,7 +87,7 @@ const tx=()=>db.WalletTransaction.find(t=>t.type==='withdrawal');
 async function mature(){
  db.WalletTransaction.find(t=>t.id==='d').deposit_release_at='2026-01-01T00:00:00Z';
  tx().withdrawal_process_after='2026-01-01T00:00:00Z';
- globalThis.providerResponse={check:{check_id:'d',amount:9.25,status:'processed'}};
+ globalThis.providerResponse={check:{check_id:'d',amount:9.25,status:'processed',label:'chessbet-deposit-d'}};
 }
 await reset();
 let result=await request();eq(result.status,200);eq(result.data.status,'queued');eq(providerCalls,0);eq(db.Wallet[0].available_balance,0);eq(db.Wallet[0].held_balance,9.25);eq(emails.size,1);eq(tx().withdrawal_request_fee,0);assert.ok(Date.parse(result.data.estimated_arrival)>Date.parse(db.WalletTransaction[0].deposit_release_at));checks++;

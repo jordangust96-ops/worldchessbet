@@ -44,30 +44,66 @@ assert.equal(applyFundingSourceEvent({status: 'login_required', provider_event_a
 for (let i = 0; i < 3; i++) ok();
 
 // ─── 4. Handler: no provider POST in preflight/review/reconciliation-only cases ───
+//
+// New withdrawals always enter the queue (the handler returns {status:'queued'}
+// before reaching preflight/POST). To exercise preflight/POST in isolation,
+// each test issues a user call to create+queue the withdrawal, then an admin
+// call with queuedTransactionId to process the queue (queuedWithdrawalReady
+// returns true) and reach the separated preflight/POST path.
 let providerPosts = 0;
 
-function mockClient() {
-  const entities = {
-    SeamlessBankAccount: {filter: async () => [{id: 'bank', user_id: 'a', source_id: 'bank1', status: 'verified', is_primary: true}]},
-    SeamlessPaymentProfile: {filter: async () => [{user_id: 'a', provider_user_id: 'customer'}]},
-    WalletTransaction: {filter: async () => [], get: async () => null, create: async (r) => ({...r, id: 'tx'}), update: async (i, p) => ({id: i, ...p})},
-    Wallet: {filter: async () => [{id: 'wa', user_id: 'a', available_balance: 100, held_balance: 0}]},
-    SeamlessOperation: {filter: async () => [], create: async (r) => r, update: async (i, p) => p},
-    IntegrationReference: {filter: async () => [], create: async (r) => r},
-    IntegrationEvent: {create: async (r) => r},
-    User: {get: async () => ({id: 'a', identity_verified: true})},
+function persistentClient() {
+  const store = {
+    SeamlessBankAccount: [{id: 'bank', user_id: 'a', source_id: 'bank1', status: 'verified', is_primary: true}],
+    SeamlessPaymentProfile: [{user_id: 'a', provider_user_id: 'customer'}],
+    WalletTransaction: [],
+    Wallet: [{id: 'wa', user_id: 'a', available_balance: 100, held_balance: 0}],
+    SeamlessOperation: [],
+    IntegrationReference: [],
+    User: [{id: 'a', identity_verified: true}],
   };
+  let admin = false;
+  const matchQ = (row, q) => Object.entries(q || {}).every(([k, v]) => {
+    if (v && typeof v === 'object') {
+      if (v.$in) return v.$in.includes(row[k]);
+      if (v.$gt !== undefined) return row[k] > v.$gt;
+    }
+    return row[k] === v;
+  });
+  const entities = new Proxy({}, {get: (_, name) => ({
+    filter: async (q, sort, limit) => {
+      let rows = (store[name] || []).filter(r => matchQ(r, q));
+      if (sort) {
+        const desc = sort.startsWith('-'), key = desc ? sort.slice(1) : sort;
+        rows = [...rows].sort((a, b) => ((a[key] ?? '') < (b[key] ?? '') ? -1 : (a[key] ?? '') > (b[key] ?? '') ? 1 : 0) * (desc ? -1 : 1));
+      }
+      return structuredClone(rows.slice(0, limit || 500));
+    },
+    get: async (id) => structuredClone((store[name] || []).find(r => r.id === id) || null),
+    create: async (row) => {
+      const next = {created_date: new Date().toISOString(), ...structuredClone(row), id: name + '-' + (store[name] || []).length};
+      (store[name] || (store[name] = [])).push(next);
+      return structuredClone(next);
+    },
+    update: async (id, patch) => {
+      const row = (store[name] || []).find(r => r.id === id);
+      if (row) Object.assign(row, patch);
+      return structuredClone(row);
+    },
+  })});
   return {
-    auth: {me: async () => ({id: 'a', role: 'user', identity_verified: true})},
+    auth: {me: async () => ({id: 'a', role: admin ? 'admin' : 'user', identity_verified: true})},
     asServiceRole: {entities},
+    _setAdmin: (v) => { admin = v; },
+    _store: store,
   };
 }
 
-function baseDeps(overrides) {
+function baseDeps(ops, overrides) {
   return {
-    'npm:@base44/sdk@0.8.38': {createClientFromRequest: () => mockClient()},
+    'npm:@base44/sdk@0.8.38': {createClientFromRequest: () => persistentClient()},
     '../../shared/fundingProvenance.ts': {walletFundingSummary: async () => ({available_to_play: 100})},
-    '../../shared/withdrawalQueue.ts': {estimateQueuedWithdrawal: async () => ({}), queuedWithdrawalReady: async () => false},
+    '../../shared/withdrawalQueue.ts': {estimateQueuedWithdrawal: async () => ({}), queuedWithdrawalReady: async () => true},
     '../../shared/queuedWithdrawalFee.ts': {settleQueuedWithdrawalFee: async () => {}},
     '../../shared/withdrawalRequestedEmail.ts': {sendWithdrawalRequestedEmail: async () => ({sent: true})},
     '../../shared/seamlessFundingConfig.ts': {seamlessWithdrawalsEnabled: () => true, seamlessRtpPayoutsEnabled: () => false},
@@ -80,29 +116,41 @@ function baseDeps(overrides) {
     '../../shared/withdrawalLimits.js': {MAX_WITHDRAWAL_AMOUNT: 1100, withdrawalCents: a => Math.round(a * 100)},
     '../../shared/seamlessAtomicStore.ts': {
       acquireUserWalletLock: async () => true, releaseUserWalletLock: async () => {},
-      claimWithdrawalOperation: async (id, key, amount) => ({amount, state: 'new'}),
-      saveWithdrawalOperation: async (id, key, value) => value,
+      claimWithdrawalOperation: async (id, key, amount) => ops[key] || {amount, state: 'new'},
+      saveWithdrawalOperation: async (id, key, value) => {ops[key] = structuredClone(value); return value;},
     },
     '../../shared/limitedWithdrawal.ts': {sendLimitedWithdrawal: async () => {providerPosts++; return {check_id: 'payout'};}},
     ...overrides,
   };
 }
 
-const call = async (handler, body) => {
-  const r = await handler(new Request('https://test.invalid', {method: 'POST', body: JSON.stringify(body)}));
-  return {status: r.status, data: await r.json()};
-};
-
 const DEFINITE = new Set(['withdrawal_destination_changed','withdrawal_destination_missing','withdrawal_destination_multiple_primary','withdrawal_destination_deleted','withdrawal_destination_reconnect_required','withdrawal_merchant_unavailable','withdrawal_merchant_balance_unavailable']);
 const isDef = e => DEFINITE.has(e?.withdrawalReason);
 
+// Helper: create+queue a withdrawal (user call), then process the queue
+// (admin call) to reach the separated preflight/POST path. Returns the
+// admin-call response; providerPosts is reset at entry.
+async function readyCall(overrides, key) {
+  providerPosts = 0;
+  const ops = {};
+  const client = persistentClient();
+  const {handler} = await loadBackend('base44/functions/submitSeamlessWithdrawal/entry.ts', baseDeps(ops, {
+    'npm:@base44/sdk@0.8.38': {createClientFromRequest: () => client},
+    ...overrides,
+  }));
+  client._setAdmin(false);
+  await handler(new Request('https://test.invalid', {method: 'POST', body: JSON.stringify({amount: 9.25, idempotencyKey: key})}));
+  const txId = client._store.WalletTransaction.find(t => t.type === 'withdrawal').id;
+  client._setAdmin(true);
+  const r = await handler(new Request('https://test.invalid', {method: 'POST', body: JSON.stringify({queuedTransactionId: txId})}));
+  return {status: r.status, data: await r.json()};
+}
+
 // 4a. Definitive preflight rejection: no POST, funds released, precise reason
 {
-  providerPosts = 0;
-  const {handler} = await loadBackend('base44/functions/submitSeamlessWithdrawal/entry.ts', baseDeps({
+  const result = await readyCall({
     '../../shared/verifiedWithdrawalBody.ts': {buildVerifiedWithdrawalBody: async () => {const e = new Error('wdc'); e.status = 409; e.withdrawalReason = 'withdrawal_destination_changed'; throw e;}, DEFINITE_DESTINATION_REASONS: DEFINITE, isDefinitePreflightRejection: isDef},
-  }));
-  const result = await call(handler, {amount: 9.25, idempotencyKey: 'preflight-reject-12345678'});
+  }, 'preflight-reject-12345678');
   assert.equal(providerPosts, 0, 'no POST on definitive preflight rejection');
   assert.equal(result.status, 400);
   assert.equal(result.data.request_terminal, true);
@@ -113,11 +161,9 @@ const isDef = e => DEFINITE.has(e?.withdrawalReason);
 
 // 4b. Indeterminate preflight read: no POST, funds stay reserved (uncertain)
 {
-  providerPosts = 0;
-  const {handler} = await loadBackend('base44/functions/submitSeamlessWithdrawal/entry.ts', baseDeps({
+  const result = await readyCall({
     '../../shared/verifiedWithdrawalBody.ts': {buildVerifiedWithdrawalBody: async () => {const e = new Error('timeout'); e.status = 0; throw e;}, DEFINITE_DESTINATION_REASONS: new Set(), isDefinitePreflightRejection: () => false},
-  }));
-  const result = await call(handler, {amount: 9.25, idempotencyKey: 'preflight-indeter-1234567'});
+  }, 'preflight-indeter-1234567');
   assert.equal(providerPosts, 0, 'no POST on indeterminate preflight read');
   assert.equal(result.status, 202);
   assert.equal(result.data.status, 'uncertain');
@@ -127,12 +173,10 @@ const isDef = e => DEFINITE.has(e?.withdrawalReason);
 
 // 4c. Ambiguous POST response (no check_id): one POST, uncertain, no auto-retry
 {
-  providerPosts = 0;
-  const {handler} = await loadBackend('base44/functions/submitSeamlessWithdrawal/entry.ts', baseDeps({
+  const result = await readyCall({
     '../../shared/verifiedWithdrawalBody.ts': {buildVerifiedWithdrawalBody: async x => x, DEFINITE_DESTINATION_REASONS: new Set(), isDefinitePreflightRejection: () => false},
     '../../shared/limitedWithdrawal.ts': {sendLimitedWithdrawal: async () => {providerPosts++; return {};}},
-  }));
-  const result = await call(handler, {amount: 9.25, idempotencyKey: 'ambiguous-post-123456789'});
+  }, 'ambiguous-post-123456789');
   assert.equal(providerPosts, 1, 'exactly one POST on ambiguous response');
   assert.equal(result.status, 202);
   assert.equal(result.data.status, 'uncertain');
@@ -141,12 +185,10 @@ const isDef = e => DEFINITE.has(e?.withdrawalReason);
 
 // 4d. Definitive POST 4xx: one POST, funds released as bank decline
 {
-  providerPosts = 0;
-  const {handler} = await loadBackend('base44/functions/submitSeamlessWithdrawal/entry.ts', baseDeps({
+  const result = await readyCall({
     '../../shared/verifiedWithdrawalBody.ts': {buildVerifiedWithdrawalBody: async x => x, DEFINITE_DESTINATION_REASONS: new Set(), isDefinitePreflightRejection: () => false},
     '../../shared/limitedWithdrawal.ts': {sendLimitedWithdrawal: async () => {providerPosts++; const e = new Error('declined'); e.status = 400; throw e;}},
-  }));
-  const result = await call(handler, {amount: 9.25, idempotencyKey: 'post-reject-123456789012'});
+  }, 'post-reject-123456789012');
   assert.equal(providerPosts, 1);
   assert.equal(result.status, 400);
   assert.equal(result.data.request_terminal, true);
@@ -156,12 +198,10 @@ const isDef = e => DEFINITE.has(e?.withdrawalReason);
 
 // 4e. POST 5xx: one POST, uncertain, no release
 {
-  providerPosts = 0;
-  const {handler} = await loadBackend('base44/functions/submitSeamlessWithdrawal/entry.ts', baseDeps({
+  const result = await readyCall({
     '../../shared/verifiedWithdrawalBody.ts': {buildVerifiedWithdrawalBody: async x => x, DEFINITE_DESTINATION_REASONS: new Set(), isDefinitePreflightRejection: () => false},
     '../../shared/limitedWithdrawal.ts': {sendLimitedWithdrawal: async () => {providerPosts++; const e = new Error('5xx'); e.status = 503; throw e;}},
-  }));
-  const result = await call(handler, {amount: 9.25, idempotencyKey: 'post-5xx-12345678901234'});
+  }, 'post-5xx-12345678901234');
   assert.equal(providerPosts, 1);
   assert.equal(result.status, 202);
   assert.equal(result.data.status, 'uncertain');
@@ -172,7 +212,9 @@ const isDef = e => DEFINITE.has(e?.withdrawalReason);
 {
   providerPosts = 0;
   const ops = {};
-  const {handler} = await loadBackend('base44/functions/submitSeamlessWithdrawal/entry.ts', baseDeps({
+  const client = persistentClient();
+  const {handler} = await loadBackend('base44/functions/submitSeamlessWithdrawal/entry.ts', baseDeps(ops, {
+    'npm:@base44/sdk@0.8.38': {createClientFromRequest: () => client},
     '../../shared/seamlessAtomicStore.ts': {
       acquireUserWalletLock: async () => true, releaseUserWalletLock: async () => {},
       claimWithdrawalOperation: async (id, key, amount) => ops[key] || {amount, state: 'submitting', wallet_transaction_id: 'existing-tx'},
@@ -181,7 +223,9 @@ const isDef = e => DEFINITE.has(e?.withdrawalReason);
     '../../shared/verifiedWithdrawalBody.ts': {buildVerifiedWithdrawalBody: async () => {throw new Error('should not reach preflight')}, DEFINITE_DESTINATION_REASONS: new Set(), isDefinitePreflightRejection: () => false},
     '../../shared/limitedWithdrawal.ts': {sendLimitedWithdrawal: async () => {providerPosts++; return {check_id: 'payout'};}},
   }));
-  const result = await call(handler, {amount: 9.25, idempotencyKey: 'submitting-reentry-1234567'});
+  client._setAdmin(false);
+  const r = await handler(new Request('https://test.invalid', {method: 'POST', body: JSON.stringify({amount: 9.25, idempotencyKey: 'submitting-reentry-1234567'})}));
+  const result = {status: r.status, data: await r.json()};
   assert.equal(providerPosts, 0, 'no POST when already submitting');
   assert.equal(result.status, 202);
   assert.equal(result.data.status, 'uncertain');
