@@ -246,6 +246,8 @@ const FUNDING_SOURCE_EVENTS = new Set([
   'funding-source.deleted',
   'funding-source.made-primary',
   'funding-source.made-billing',
+  'funding-source.bank.account.login.required',
+  'bank.account.login.required',
 ]);
 
 function safeLastFour(body) {
@@ -575,4 +577,3 @@ async function handleTransaction(base44, body, eventType, idemKey, providerRef) 
   });
   return { received: true, action: decision.action, status: decision.status };
 }
-

@@ -73,7 +73,7 @@ const {handler}=await loadBackend('base44/functions/submitSeamlessWithdrawal/ent
  '../../shared/seamlessAtomicStore.ts':{
  acquireUserWalletLock:async()=>{if(userLocked)return false;userLocked=true;return true;},releaseUserWalletLock:async()=>{userLocked=false;},
  claimWithdrawalOperation:async(id,key,amount)=>ops[key]||{amount,state:'new'},saveWithdrawalOperation:async(id,key,value)=>ops[key]=structuredClone(value)},
- '../../shared/verifiedWithdrawalBody.ts':{buildVerifiedWithdrawalBody:async x=>x},
+ '../../shared/verifiedWithdrawalBody.ts':{buildVerifiedWithdrawalBody:async x=>x,DEFINITE_DESTINATION_REASONS:new Set(['withdrawal_destination_changed','withdrawal_destination_missing','withdrawal_destination_multiple_primary','withdrawal_destination_deleted','withdrawal_destination_reconnect_required','withdrawal_merchant_unavailable','withdrawal_merchant_balance_unavailable']),isDefinitePreflightRejection:e=>e?.withdrawalReason&&['withdrawal_destination_changed','withdrawal_destination_missing','withdrawal_destination_multiple_primary','withdrawal_destination_deleted','withdrawal_destination_reconnect_required','withdrawal_merchant_unavailable','withdrawal_merchant_balance_unavailable'].includes(e.withdrawalReason)},
  '../../shared/limitedWithdrawal.ts':{sendLimitedWithdrawal:async()=>{providerCalls++;if(outcome==='capacity')throw {status:429,payoutCapacity:true};if(outcome==='reject')throw {status:400};if(outcome==='timeout')throw {status:503};return {check_id:'payout'};}}
 });
 async function reset(){

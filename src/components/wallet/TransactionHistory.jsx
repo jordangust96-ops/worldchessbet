@@ -115,12 +115,23 @@ function getTransactionExplanation(tx, match) {
       text: "This was a duplicate processing attempt. It did not change your balance and can be ignored because the contest was completed in another transaction.",
     };
   }
-  if (tx.status === "failed" && ["deposit", "withdrawal"].includes(tx.type)) {
+  if (tx.status === "failed" && tx.type === "withdrawal") {
+    const details = String(tx.description || "").toLowerCase();
+    let heading = "Why it failed";
+    if (/destination_changed/.test(details)) heading = "Bank changed";
+    else if (/reconnect_required|login_required|verification_expired/.test(details)) heading = "Bank reconnect required";
+    else if (/destination_deleted/.test(details)) heading = "Bank removed";
+    else if (/destination_missing|destination_multiple_primary/.test(details)) heading = "Bank setup needed";
+    else if (/merchant_unavailable|merchant_balance_unavailable/.test(details)) heading = "Withdrawal unavailable";
+    return {
+      heading,
+      text: `${getTransferFailureMessage(tx)} The withdrawal was not sent and any reserved funds were returned to your available balance.`,
+    };
+  }
+  if (tx.status === "failed" && tx.type === "deposit") {
     return {
       heading: "Why it failed",
-      text: tx.type === "deposit"
-        ? `${getTransferFailureMessage(tx)} No money was added to your ChessBet wallet.`
-        : `${getTransferFailureMessage(tx)} The withdrawal was not sent and any reserved funds were returned to your available balance.`,
+      text: `${getTransferFailureMessage(tx)} No money was added to your ChessBet wallet.`,
     };
   }
   if (tx.status === "failed") {

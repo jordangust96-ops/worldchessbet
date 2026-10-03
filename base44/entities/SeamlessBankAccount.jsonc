@@ -8,7 +8,7 @@
     },
     "source_id": {
       "type": "string",
-      "description": "Seamless funding source id. Usable for debits/credits only once status is 'verified'."
+      "description": "Seamless funding source id. Usable for credits/direct deposits regardless of verification status; verification is required only for debits."
     },
     "profile_id": {
       "type": "string",
@@ -57,11 +57,12 @@
         "verified",
         "verification_failed",
         "verification_expired",
+        "login_required",
         "deleted",
         "error"
       ],
       "default": "added",
-      "description": "Funding-source lifecycle. 'verified' is set ONLY by a funding-source.verified webhook \u2014 never by the browser callback."
+      "description": "Funding-source lifecycle. 'verified' is set ONLY by a funding-source.verified webhook \u2014 never by the browser callback. 'login_required' is set by a bank.account.login.required webhook and means the bank link needs reconnection; the source may still be credit-eligible but is held for review before reliable use."
     },
     "added_at": {
       "type": "string",

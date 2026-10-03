@@ -234,6 +234,8 @@ export const FUNDING_SOURCE_EVENT_STATUS = Object.freeze({
   'funding-source.verification-failed': 'verification_failed',
   'funding-source.verification-expired': 'verification_expired',
   'funding-source.deleted': 'deleted',
+  'funding-source.bank.account.login.required': 'login_required',
+  'bank.account.login.required': 'login_required',
 });
 
 const FUNDING_SOURCE_STATUS_PRIORITY = Object.freeze({
@@ -241,6 +243,7 @@ const FUNDING_SOURCE_STATUS_PRIORITY = Object.freeze({
   pending_verification: 20,
   verified: 30,
   verification_failed: 40,
+  login_required: 45,
   verification_expired: 50,
   deleted: 60,
   error: 70,
@@ -293,7 +296,7 @@ export function applyFundingSourceEvent(current, event) {
   // insufficient: never let them downgrade an advanced lifecycle state.
   if (
     ['funding-source.added', 'funding-source.pending-verification'].includes(eventType) &&
-    ['verified', 'verification_failed', 'verification_expired', 'deleted'].includes(currentStatus)
+    ['verified', 'verification_failed', 'login_required', 'verification_expired', 'deleted'].includes(currentStatus)
   ) {
     return { action: 'ignore', status: currentStatus, providerEventAt: currentAt, reason: 'non_downgrade' };
   }

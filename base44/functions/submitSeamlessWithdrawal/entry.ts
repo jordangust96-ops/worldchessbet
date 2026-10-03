@@ -1,4 +1,4 @@
-import { buildVerifiedWithdrawalBody } from '../../shared/verifiedWithdrawalBody.ts';
+import { buildVerifiedWithdrawalBody, DEFINITE_DESTINATION_REASONS, isDefinitePreflightRejection } from '../../shared/verifiedWithdrawalBody.ts';
 import { estimateQueuedWithdrawal, queuedWithdrawalReady } from '../../shared/withdrawalQueue.ts';
 import { settleQueuedWithdrawalFee } from '../../shared/queuedWithdrawalFee.ts';
 import { sendWithdrawalRequestedEmail } from '../../shared/withdrawalRequestedEmail.ts';
@@ -24,6 +24,18 @@ const MAX_AMOUNT = MAX_WITHDRAWAL_AMOUNT;
 const SMALL_WITHDRAWAL_THRESHOLD = 10;
 const SMALL_WITHDRAWAL_FEE = 2.50;
 const IDEMPOTENCY_KEY = /^[A-Za-z0-9._:-]{16,128}$/;
+
+// Distinct user/admin messaging for each definitive preflight outcome. Never
+// describe preflight, review, or reconnect conditions as provider rejection.
+const WITHDRAWAL_PREFLIGHT_MESSAGES = {
+  withdrawal_destination_changed: 'The bank account selected for this withdrawal no longer matches your current primary bank. Start a new withdrawal after confirming your bank.',
+  withdrawal_destination_missing: 'No primary bank account is currently selected for withdrawals. Add or select a bank and try again.',
+  withdrawal_destination_multiple_primary: 'Multiple primary bank accounts were found. Contact support to resolve this before withdrawing.',
+  withdrawal_destination_deleted: 'The bank account selected for this withdrawal has been removed. Reconnect a bank and try again.',
+  withdrawal_destination_reconnect_required: 'The bank account selected for this withdrawal needs to be reconnected. Reconnect your bank and try again.',
+  withdrawal_merchant_unavailable: 'ChessBet payment account is temporarily unavailable for withdrawals. Please try again later.',
+  withdrawal_merchant_balance_unavailable: 'ChessBet payment funding is temporarily unavailable for withdrawals. Please try again later.',
+};
 
 async function upsertOperationAudit(base44, fields) {
   const existing = (await base44.asServiceRole.entities.SeamlessOperation.filter(
@@ -58,7 +70,7 @@ async function reserveWithdrawal(base44, tx, amount, withdrawalFee = 0) {
   return groupId;
 }
 
-async function releaseWithdrawalReservation(base44, tx, amount, reason) {
+async function releaseWithdrawalReservation(base44, tx, amount, reason, userMessage) {
   const groupId = `seamless:withdrawal:release:${tx.id}`;
   await postLedgerLegs(base44, {
       groupId,
@@ -73,9 +85,12 @@ async function releaseWithdrawalReservation(base44, tx, amount, reason) {
       ],
     });
   await base44.asServiceRole.entities.WalletTransaction.update(tx.id, {
-    status: 'failed', integration_status: 'failed', source_event: 'seamless_withdrawal_rejected',
+    status: 'failed', integration_status: 'failed', source_event: 'seamless_withdrawal_not_completed',
     withdrawal_request_status: tx.withdrawal_requested_at ? 'failed' : undefined,
-    description: `Seamless ACH withdrawal rejected: ${reason}`, processed_at: new Date().toISOString(),
+    // Include the reason code in brackets so getTransferFailureMessage can
+    // match the precise condition without exposing sensitive provider data.
+    description: userMessage ? `${userMessage} [${reason}]` : `Seamless ACH withdrawal could not be completed: ${reason}`,
+    processed_at: new Date().toISOString(),
   });
   if(tx.withdrawal_requested_at)await settleQueuedWithdrawalFee(base44,tx,true);
   return groupId;
@@ -115,14 +130,18 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Identity verification (21+) is required and account holds must be resolved before transfers. Contact hello@worldchessbet.com for help accessing existing funds.' }, { status: 403 });
     }
 
-    const verifiedBanks = await base44.asServiceRole.entities.SeamlessBankAccount.filter({ user_id: user.id, status: 'verified' });
+    // An unverified funding source can receive credits/direct deposits; only
+    // deleted is excluded from the initial selection. The authoritative
+    // destination check runs in buildVerifiedWithdrawalBody (preflight).
+    const allBanks = await base44.asServiceRole.entities.SeamlessBankAccount.filter({ user_id: user.id });
     const saved=(await base44.asServiceRole.entities.WalletTransaction.filter({user_id:user.id,type:'withdrawal',idempotency_key:idempotencyKey},'-created_date',2));
     if(saved.length>1)throw Error('duplicate_withdrawal_request');
     const prior=queuedTx||saved[0];
     if(prior&&Number(prior.amount)!==Number(amount))return Response.json({error:'Invalid withdrawal idempotency key reuse'},{status:409});
-    const bank = prior?.funding_source_id ? verifiedBanks.find(item=>item.source_id===prior.funding_source_id) : verifiedBanks.find((item) => item.source_id && item.is_primary) || verifiedBanks[0];
+    const creditEligible = allBanks.filter(b => b.status !== 'deleted');
+    const bank = prior?.funding_source_id ? creditEligible.find(item=>item.source_id===prior.funding_source_id) : creditEligible.find((item) => item.source_id && item.is_primary) || creditEligible[0];
     if (!bank?.source_id) {
-      return Response.json({ error: 'Link and verify a bank account first', action: 'bank_link_required' }, { status: 400 });
+      return Response.json({ error: 'Link a bank account first', action: 'bank_link_required' }, { status: 400 });
     }
 
     const value = Number(amount);
@@ -312,16 +331,47 @@ Deno.serve(async (req) => {
     await upsertOperationAudit(base44, { user_id: user.id, idempotency_key: idempotencyKey, wallet_transaction_id: tx.id, amount: value, status: 'submitting', reservation_ledger_group_id: reservationGroupId, attempts: 1 });
 
     diagnosticTransactionId = tx.id;
+    // Preflight: read-only GET to confirm the saved destination. Separated
+    // from the POST so definitive destination rejections release funds with
+    // precise messaging, while indeterminate provider reads (ambiguous
+    // response, timeout, 5xx) keep funds reserved and never describe as rejection.
+    failureStage = 'withdrawal_preflight';
+    let withdrawalBody;
+    try {
+      withdrawalBody = await buildVerifiedWithdrawalBody({
+        providerUserId: profile.provider_user_id, name: accountHolderName.fullName, amount: value,
+        description: `ChessBet withdrawal ${tx.id}`, label, sourceId: bank.source_id, transferSpeed,
+      });
+    } catch (preflightError) {
+      const reason = String(preflightError?.withdrawalReason || '');
+      if (isDefinitePreflightRejection(preflightError)) {
+        failureStage = 'release_preflight_rejection';
+        const userMessage = WITHDRAWAL_PREFLIGHT_MESSAGES[reason] || 'This withdrawal could not be completed. Please try again or contact support.';
+        console.error(JSON.stringify({event:'withdrawal_preflight_definitive',wallet_transaction_id:tx.id,reason}));
+        await upsertOperationAudit(base44, {user_id:user.id,idempotency_key:idempotencyKey,wallet_transaction_id:tx.id,amount:value,status:'uncertain',last_error_code:reason});
+        const releaseGroupId = await releaseWithdrawalReservation(base44, tx, value, reason, userMessage);
+        await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, state: 'failed', release_ledger_group_id: releaseGroupId });
+        await upsertOperationAudit(base44, { user_id: user.id, idempotency_key: idempotencyKey, wallet_transaction_id: tx.id, amount: value, status: 'released', reservation_ledger_group_id: reservationGroupId, attempts: 1, last_error_code: reason });
+        return Response.json({ error: userMessage, transaction_id: tx.id, request_terminal: true, withdrawal_reason: reason }, { status: 400 });
+      }
+      // Indeterminate preflight read: never release funds or describe as rejection.
+      console.error(JSON.stringify({event:'withdrawal_preflight_indeterminate',wallet_transaction_id:tx.id,http_status:Number(preflightError?.status||0),reason:reason||'provider_read_indeterminate'}));
+      await base44.asServiceRole.entities.WalletTransaction.update(tx.id, { integration_status: 'uncertain', source_event: 'seamless_withdrawal_preflight_uncertain', ...(tx.withdrawal_requested_at ? {withdrawal_request_status:'review_required'} : {}) });
+      await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, state: 'uncertain', reconciliation_required: true });
+      await upsertOperationAudit(base44, { user_id: user.id, idempotency_key: idempotencyKey, wallet_transaction_id: tx.id, amount: value, status: 'uncertain', reservation_ledger_group_id: reservationGroupId, attempts: 1, last_error_code: reason || 'withdrawal_preflight_indeterminate' });
+      return Response.json({ enabled: true, transaction_id: tx.id, status: 'uncertain', reconciliation_required: true }, { status: 202 });
+    }
+
+    // POST: exactly-once submission. The submitting stage was persisted above;
+    // a definite successful response captures the provider reference. An
+    // ambiguous response never auto-POSTs again; reconcile by GET/provider history.
     failureStage = 'provider_submission';
     let data;
     try {
       const capacityKey = providerNoPaymentConfirmed
         ? `${tx.id}:provider-confirmed-retry:1`
         : tx.id;
-      data = await sendLimitedWithdrawal(base44, tx.id, await buildVerifiedWithdrawalBody({
-        providerUserId: profile.provider_user_id, name: accountHolderName.fullName, amount: value,
-        description: `ChessBet withdrawal ${tx.id}`, label, sourceId: bank.source_id, transferSpeed,
-      }), { capacityKey });
+      data = await sendLimitedWithdrawal(base44, tx.id, withdrawalBody, { capacityKey });
     } catch (error) {
       const status = Number(error?.status || 0);
       failureStage = 'provider_error_handling';
@@ -335,7 +385,7 @@ Deno.serve(async (req) => {
       if (status >= 400 && status < 500) {
         failureStage = 'release_rejected_reservation';
         await upsertOperationAudit(base44, {user_id:user.id,idempotency_key:idempotencyKey,wallet_transaction_id:tx.id,amount:value,status:'uncertain',last_error_code:error.withdrawalReason||`provider_rejected_http_${status}`});
-        const releaseGroupId = await releaseWithdrawalReservation(base44, tx, value, 'provider_rejected');
+        const releaseGroupId = await releaseWithdrawalReservation(base44, tx, value, 'bank_declined', 'The bank transfer could not be submitted. Your withdrawal was returned to your wallet and no withdrawal fee was charged.');
         await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, state: 'failed', release_ledger_group_id: releaseGroupId });
         await upsertOperationAudit(base44, { user_id: user.id, idempotency_key: idempotencyKey, wallet_transaction_id: tx.id, amount: value, status: 'released', reservation_ledger_group_id: reservationGroupId, attempts: 1, last_error_code: error.withdrawalReason || `provider_rejected_http_${status}` });
         return Response.json({ error: error.payoutCapacity ? error.message : 'The bank transfer could not be submitted. Your withdrawal was returned to your wallet and no withdrawal fee was charged.', transaction_id: tx.id, request_terminal: true }, { status: error.payoutCapacity ? 429 : 400 });
