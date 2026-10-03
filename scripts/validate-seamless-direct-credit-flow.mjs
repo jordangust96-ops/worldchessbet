@@ -14,10 +14,14 @@ const BANK_ID='6aa1ccdb6b99b75629f46fb2';
 const SOURCE='ace8a1d7-1c71-488d-ac4d-461012b5eb13';
 const CUSTOMER='613b3d15-11d4-44c7-ba1d-916420f0a6a9';
 const KEY='direct-credit-regression-1234';
-let db,ops,posts,capturedBody,providerGets,ambiguous,admin;
+let db,ops,posts,capturedBody,providerGets,ambiguous,admin,ledgerLocked,transientRead;
 const matches=(row,q)=>Object.entries(q||{}).every(([k,v])=>row[k]===v);
 const entities=new Proxy({}, {get:(_,name)=>({
   filter:async(q={},sort='-created_date',limit=500)=>{
+    // transientRead simulates a transient local read failure on the
+    // buildVerifiedWithdrawalBody query (the only SeamlessBankAccount read with
+    // limit 10); the handler's allBanks read uses the default limit 500.
+    if(name==='SeamlessBankAccount'&&transientRead&&limit===10)throw Error('transient read');
     if(name==='SeamlessBankAccount')providerGets.push(name+':'+JSON.stringify(q));
     const rows=(db[name]||[]).filter(r=>matches(r,q));
     return structuredClone(rows.slice(0,limit));
@@ -29,18 +33,25 @@ const entities=new Proxy({}, {get:(_,name)=>({
 const client={auth:{me:async()=>({id:USER,role:admin?'admin':'user',identity_verified:true})},asServiceRole:{entities}};
 const save=async(u,k,v)=>{ops[k]=structuredClone(v);return v;};
 const {exports:verified}=await loadBackend('base44/shared/verifiedWithdrawalBody.ts',{'./seamlessAch.ts':{buildWithdrawalBody}});
+const {exports:{postLedgerLegs}}=await loadBackend('base44/shared/ledger.ts',{
+  './fundingProvenance.ts':{prepareFundingCommit:async()=>({})},
+  './ledgerPagination.ts':{allLedgerRows:async(entity,q)=>entity.filter(q)},
+  './integrationEvents.ts':{recordIntegrationEvent:async()=>{}},
+  './seamlessAtomicStore.ts':{acquireLedgerLock:async()=>{if(ledgerLocked)return false;ledgerLocked=true;return true;},releaseLedgerLock:async()=>{ledgerLocked=false;},refreshLedgerLock:async()=>true,getUserWalletBarrier:async()=>''},
+});
+const {exports:{settleQueuedWithdrawalFee}}=await loadBackend('base44/shared/queuedWithdrawalFee.ts',{'./ledger.ts':{postLedgerLegs}});
 const deps={
   'npm:@base44/sdk@0.8.38':{createClientFromRequest:()=>client},
   '../../shared/fundingProvenance.ts':{walletFundingSummary:async()=>({available_to_play:10})},
   '../../shared/withdrawalQueue.ts':{estimateQueuedWithdrawal:async()=>({withdrawal_estimated_arrival:'2026-10-09T17:42:00Z'}),queuedWithdrawalReady:async()=>true},
-  '../../shared/queuedWithdrawalFee.ts':{settleQueuedWithdrawalFee:async()=>{}},
+  '../../shared/queuedWithdrawalFee.ts':{settleQueuedWithdrawalFee},
   '../../shared/withdrawalRequestedEmail.ts':{sendWithdrawalRequestedEmail:async()=>({sent:true})},
   '../../shared/seamlessFundingConfig.ts':{seamlessWithdrawalsEnabled:()=>true,seamlessRtpPayoutsEnabled:()=>false},
   '../../shared/complianceEvidence.ts':{extendComplianceEvidenceRetention:async()=>({})},
   '../../shared/identityEligibility.js':{hasVerifiedIdentity:async()=>true},
   '../../shared/legalName.ts':{legalNameFromUser:()=>({fullName:'Fixture Player'})},
   '../../shared/seamlessAch.ts':{seamlessConfig:()=>({}),seamlessBaseUrl:()=>'',PATH_CHECK_SEND:'/check/send',SEAMLESS_PROVIDER_KEY:'seamless_ach'},
-  '../../shared/ledger.ts':{postLedgerLegs:async()=>{}},
+  '../../shared/ledger.ts':{postLedgerLegs},
   '../../shared/integrationEvents.ts':{recordIntegrationEvent:async()=>{}},
   '../../shared/withdrawalLimits.js':{MAX_WITHDRAWAL_AMOUNT:1100,withdrawalCents:a=>Math.round(a*100)},
   '../../shared/seamlessAtomicStore.ts':{acquireUserWalletLock:async()=>true,releaseUserWalletLock:async()=>{},claimWithdrawalOperation:async(u,k,a)=>ops[k]||{amount:a,state:'new'},saveWithdrawalOperation:save},
@@ -52,12 +63,17 @@ const call=async body=>{const res=await handler(new Request('https://isolated.in
 const tx=()=>db.WalletTransaction.find(t=>t.type==='withdrawal');
 function bankFixture(status){return {id:BANK_ID,user_id:USER,source_id:SOURCE,profile_id:'profile',provider_user_id:CUSTOMER,account_name:'Acorns',status,is_primary:true,verified_at:'2026-09-09T21:17:33.000Z'};}
 async function reset(status='verified'){
+  // The user call always creates the queued withdrawal against a verified bank so
+  // the destination is selectable; the bank status is then swapped to the case
+  // under test before the admin queued call exercises the preflight rejection.
   db={User:[{id:USER,identity_verified:true}],Wallet:[{id:'wallet',user_id:USER,available_balance:10,held_balance:0}],
-    SeamlessPaymentProfile:[{user_id:USER,provider_user_id:CUSTOMER}],SeamlessBankAccount:[bankFixture(status)],
+    SeamlessPaymentProfile:[{user_id:USER,provider_user_id:CUSTOMER}],SeamlessBankAccount:[bankFixture('verified')],
     WalletTransaction:[],SeamlessOperation:[],IntegrationReference:[]};
   ops={};posts=0;capturedBody=null;providerGets=[];ambiguous=false;admin=false;
-  const q=await call({amount:10,idempotencyKey:KEY});assert.equal(q.status,200);assert.equal(q.data.status,'queued');assert.equal(posts,0);
+  const q=await call({amount:10,idempotencyKey:KEY});
+  assert.equal(q.status,200);assert.equal(q.data.status,'queued');assert.equal(posts,0);
   assert.equal(tx().funding_source_id,SOURCE);admin=true;
+  db.SeamlessBankAccount[0].status=status;
 }
 
 // 1. Exact live fixture reaches exactly one POST /check/send after local checks.

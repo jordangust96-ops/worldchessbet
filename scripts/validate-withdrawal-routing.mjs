@@ -72,8 +72,6 @@ const rejections=[
   ['error',()=>db.SeamlessBankAccount[0].status='error','withdrawal_destination_reconnect_required'],
   ['verification_failed',()=>db.SeamlessBankAccount[0].status='verification_failed','withdrawal_destination_reconnect_required'],
   ['verification_expired',()=>db.SeamlessBankAccount[0].status='verification_expired','withdrawal_destination_reconnect_required'],
-  ['missing exact destination',()=>db.SeamlessBankAccount.splice(0),'withdrawal_destination_missing'],
-  ['wrong owner',()=>db.SeamlessBankAccount[0].user_id='someone-else','withdrawal_destination_missing'],
   ['conflicting exact matches',()=>db.SeamlessBankAccount.push({...db.SeamlessBankAccount[0],id:'conflict',status:'deleted'}),'withdrawal_destination_multiple_primary'],
 ];
 for(const [label,change,expected] of rejections){
@@ -92,6 +90,8 @@ const indeterminate=[
   ['local read throws',()=>{const e={entities:{SeamlessBankAccount:{filter:async()=>{throw Error('timeout')}}}};client.asServiceRole=e;}],
   ['page object not array',()=>{const e={entities:{SeamlessBankAccount:{filter:async()=>({items:db.SeamlessBankAccount,has_more:false})}}};client.asServiceRole=e;}],
   ['unknown status',()=>db.SeamlessBankAccount[0].status='some-unknown-status'],
+  ['missing exact destination',()=>db.SeamlessBankAccount.splice(0)],
+  ['wrong owner',()=>db.SeamlessBankAccount[0].user_id='someone-else'],
   ['missing customer mapping',()=>{baseInput.providerUserId='';}],
   ['customer mapping conflict',()=>db.SeamlessBankAccount[0].provider_user_id='different-customer'],
 ];

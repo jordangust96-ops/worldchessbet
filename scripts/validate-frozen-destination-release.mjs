@@ -17,8 +17,11 @@ let db, ops, posts, gets, writes, mode, failure, admin, ledgerLocked;
 const matches=(row,q)=>Object.entries(q||{}).every(([k,v])=>v&&typeof v==='object'&&v.$in?v.$in.includes(row[k]):row[k]===v);
 const entities=new Proxy({}, {get:(_,name)=>({
   filter:async(q={},sort='created_date',limit=500)=>{
-    if(name==='SeamlessBankAccount'&&mode==='entity-timeout'&&q.source_id)throw Error('mock read timeout');
-    if(name==='SeamlessBankAccount'&&mode==='entity-page'&&q.source_id)return {items:db[name],has_more:false};
+    // The buildVerifiedWithdrawalBody query is the only SeamlessBankAccount read
+    // that passes sort='-created_date' with limit 10; the handler's allBanks read
+    // uses the defaults. Trigger entity-page/entity-timeout only on that query.
+    if(name==='SeamlessBankAccount'&&mode==='entity-timeout'&&sort==='-created_date'&&limit===10)throw Error('mock read timeout');
+    if(name==='SeamlessBankAccount'&&mode==='entity-page'&&sort==='-created_date'&&limit===10)return {items:db[name],has_more:false};
     const rows=(db[name]||[]).filter(row=>matches(row,q));
     const key=sort.replace(/^-/,''),direction=sort.startsWith('-')?-1:1;
     return structuredClone(rows.sort((a,b)=>String(a[key]||'').localeCompare(String(b[key]||''))*direction).slice(0,limit));

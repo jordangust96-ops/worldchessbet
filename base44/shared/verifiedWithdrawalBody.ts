@@ -16,7 +16,6 @@ import { buildWithdrawalBody } from './seamlessAch.ts';
 // handler releases the reservation for these with correct, distinct messaging.
 export const DEFINITE_DESTINATION_REASONS = new Set([
   'withdrawal_destination_changed',
-  'withdrawal_destination_missing',
   'withdrawal_destination_multiple_primary',
   'withdrawal_destination_deleted',
   'withdrawal_destination_reconnect_required',
@@ -57,8 +56,12 @@ function exactLocalDestination(rows, owner, sourceId) {
   if (!Array.isArray(rows)) fail('withdrawal_sources_unavailable', true);
   const exact = rows.filter(row => primitive(row?.source_id) === sourceId);
   if (exact.length > 1) fail('withdrawal_destination_multiple_primary');
+  // A missing local destination (no exact source_id match, or owner mismatch) is
+  // indeterminate, not definitive: the frozen record may be absent due to a local
+  // sync/read issue rather than a confirmed invalid destination, so funds stay
+  // reserved for reconciliation instead of being auto-released.
   if (exact.length === 0 || primitive(exact[0].user_id) !== owner) {
-    fail('withdrawal_destination_missing');
+    fail('withdrawal_destination_missing', true);
   }
   const row = exact[0];
   const status = statusOf(row);

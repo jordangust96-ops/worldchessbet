@@ -424,7 +424,7 @@ Deno.serve(async (req) => {
       await base44.asServiceRole.entities.WalletTransaction.update(tx.id, { integration_status: 'uncertain', source_event: 'seamless_withdrawal_preflight_uncertain', ...(tx.withdrawal_requested_at ? {withdrawal_request_status:'review_required'} : {}) });
       await saveWithdrawalOperation(user.id, idempotencyKey, { ...operation, state: 'uncertain', reconciliation_required: true });
       await upsertOperationAudit(base44, { user_id: user.id, idempotency_key: idempotencyKey, wallet_transaction_id: tx.id, amount: value, status: 'uncertain', reservation_ledger_group_id: reservationGroupId, attempts: 1, last_error_code: reason || 'withdrawal_preflight_indeterminate' });
-      return Response.json({ enabled: true, transaction_id: tx.id, status: 'uncertain', reconciliation_required: true }, { status: 202 });
+      return Response.json({ enabled: true, transaction_id: tx.id, status: 'uncertain', reconciliation_required: true, withdrawal_reason: reason || 'withdrawal_preflight_indeterminate' }, { status: 202 });
     }
 
     // POST: exactly-once submission. The submitting stage was persisted above;
