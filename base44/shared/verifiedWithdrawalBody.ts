@@ -43,10 +43,11 @@ const statusOf = row => primitive(row?.status).toLowerCase().replace(/[\s-]+/g, 
 function exactDestination(rows, owner, sourceId, local = false) {
   if (!Array.isArray(rows) || rows.some(row => !row || !primitive(row.user_id) ||
       !(local ? primitive(row.source_id) : sourceIdOf(row)))) fail('withdrawal_sources_unavailable', true);
-  const exact = rows.filter(row => primitive(row.user_id) === owner &&
-    (primitive(row.source_id) === sourceId || (!local && primitive(row.id) === sourceId)));
-  if (exact.length === 0) fail(local ? 'withdrawal_sources_unavailable' : 'withdrawal_destination_missing', local);
+  const exact = rows.filter(row => primitive(row.source_id) === sourceId || (!local && primitive(row.id) === sourceId));
   if (exact.length > 1) fail('withdrawal_destination_multiple_primary'); // legacy code: conflicting exact-source records
+  if (exact.length === 0 || primitive(exact[0].user_id) !== owner) {
+    fail(local ? 'withdrawal_sources_unavailable' : 'withdrawal_destination_missing', local);
+  }
   const row = exact[0];
   if (!local && primitive(row.source_id) && primitive(row.id) && primitive(row.source_id) !== primitive(row.id)) {
     fail('withdrawal_destination_changed'); // conflicting provider identifiers, never a primary-bank change

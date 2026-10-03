@@ -216,17 +216,30 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Invalid withdrawal idempotency key reuse' }, { status: 409 });
     }
 
-    // Recover an operation from the persisted request after the Redis retention window.
-    if(!operation.wallet_transaction_id&&prior){
-      operation=await saveWithdrawalOperation(user.id,idempotencyKey,{...operation,wallet_transaction_id:prior.id,fee_amount:Number(prior.withdrawal_request_fee||0),state:['submitted','settled'].includes(prior.integration_status)?'submitted':['submitting','uncertain'].includes(prior.integration_status)?'uncertain':prior.status==='failed'?'failed':'reserved'});
-    }
-    // Resume only an explicitly journaled definitive release, never a payout.
-    const releaseAudit = operation.wallet_transaction_id ? await readOperationAudit(base44, {
-      user_id: user.id, idempotency_key: idempotencyKey, wallet_transaction_id: operation.wallet_transaction_id,
+    const auditTransactionId = operation.wallet_transaction_id || prior?.id;
+    const releaseAudit = auditTransactionId ? await readOperationAudit(base44, {
+      user_id: user.id, idempotency_key: idempotencyKey, wallet_transaction_id: auditTransactionId,
     }) : null;
-    if (releaseAudit?.release_ledger_group_id === `seamless:withdrawal:release:${operation.wallet_transaction_id}` &&
-        (DEFINITE_DESTINATION_REASONS.has(releaseAudit.last_error_code) || releaseAudit.last_error_code === 'bank_declined')) {
-      const releaseTx = await base44.asServiceRole.entities.WalletTransaction.get(operation.wallet_transaction_id);
+    const hasReleaseIntent = releaseAudit?.release_ledger_group_id === `seamless:withdrawal:release:${auditTransactionId}` &&
+      (DEFINITE_DESTINATION_REASONS.has(releaseAudit.last_error_code) || releaseAudit.last_error_code === 'bank_declined');
+    const retryAuthorized = providerNoPaymentConfirmed && processingQueue && prior?.status === 'review_required' &&
+      prior.integration_status === 'uncertain' && !operation.provider_reference_id && !releaseAudit?.provider_reference_id;
+    // Durable provider/review evidence cannot be downgraded by a stale cache.
+    if (['submitted','processing','completed','succeeded','uncertain','ambiguous','review_required','reversed'].includes(releaseAudit?.status) &&
+        operation.state !== 'submitted' && !retryAuthorized) {
+      return Response.json({ enabled: true, transaction_id: auditTransactionId, status: 'uncertain', deduplicated: true, reconciliation_required: true }, { status: 202 });
+    }
+    // Recover after Redis retention loss. A recorded definitive release intent
+    // distinguishes an interrupted release from an ambiguous provider POST.
+    if(!operation.wallet_transaction_id&&prior){
+      const releaseRecovery = hasReleaseIntent && ['reserved','submitting','failed'].includes(prior.integration_status) &&
+        ['pending','failed'].includes(prior.status) && !prior.provider_last_status;
+      operation=await saveWithdrawalOperation(user.id,idempotencyKey,{...operation,wallet_transaction_id:prior.id,fee_amount:Number(prior.withdrawal_request_fee||0),state:releaseRecovery?'releasing':['submitted','settled'].includes(prior.integration_status)?'submitted':['submitting','uncertain'].includes(prior.integration_status)?'uncertain':prior.status==='failed'?'failed':'reserved'});
+    }
+    if (hasReleaseIntent) {
+      failureStage = 'resume_definitive_release';
+      diagnosticTransactionId = auditTransactionId;
+      const releaseTx = await base44.asServiceRole.entities.WalletTransaction.get(auditTransactionId);
       await releaseWithdrawalReservation(base44, releaseTx, value, releaseAudit.last_error_code, releaseAudit.last_error_message, operation);
       return Response.json({ error: releaseAudit.last_error_message, transaction_id: releaseTx.id,
         request_terminal: true, withdrawal_reason: releaseAudit.last_error_code, deduplicated: true }, { status: 400 });

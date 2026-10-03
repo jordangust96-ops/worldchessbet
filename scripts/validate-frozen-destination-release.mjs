@@ -14,7 +14,7 @@ let db, ops, posts, gets, writes, mode, failure, admin, ledgerLocked;
 const matches=(row,q)=>Object.entries(q||{}).every(([k,v])=>v&&typeof v==='object'&&v.$in?v.$in.includes(row[k]):row[k]===v);
 const entities=new Proxy({}, {get:(_,name)=>({
   filter:async(q={},sort='created_date',limit=500)=>{
-    if(name==='SeamlessBankAccount'&&mode==='entity-timeout')throw Error('mock read timeout');
+    if(name==='SeamlessBankAccount'&&mode==='entity-timeout'&&q.source_id)throw Error('mock read timeout');
     if(name==='SeamlessBankAccount'&&mode==='entity-page'&&q.source_id)return {items:db[name],has_more:false};
     const rows=(db[name]||[]).filter(row=>matches(row,q));
     const key=sort.replace(/^-/,''),direction=sort.startsWith('-')?-1:1;
@@ -132,7 +132,7 @@ for(const [testMode,reason] of [['provider-deleted',REASON],['provider-reconnect
   assert.ok(releasedIndex>=0&&releasedIndex<failedIndex,'wallet failure is exposed only after durable operation release');
 }
 
-for(const testMode of ['provider-timeout','provider-failed','provider-page','provider-empty','provider-malformed','entity-page','local-missing']){
+for(const testMode of ['provider-timeout','provider-failed','provider-page','provider-empty','provider-malformed','entity-page','entity-timeout','local-missing']){
   await reset();mode=testMode;if(testMode==='local-missing')db.SeamlessBankAccount=[];
   const result=await call({queuedTransactionId:TX});assert.equal(result.status,202,testMode);assert.equal(result.data.status,'uncertain');assert.equal(posts,0);
   assert.equal(tx().withdrawal_request_status,'review_required');assert.equal(audit().status,'uncertain');assert.equal(ops[KEY].state,'uncertain');
@@ -162,6 +162,9 @@ for(const protectedStatus of ['submitted','processing','completed','succeeded','
   const before=JSON.stringify(db),count=writes.length;
   await assert.rejects(()=>releaseWithdrawalReservation(client,structuredClone(tx()),10,REASON,'Safe message',ops[KEY]),/withdrawal_release_evidence_conflict/);
   assert.equal(JSON.stringify(db),before);assert.equal(writes.length,count);assert.equal(posts,0);
+  delete ops[KEY];
+  assert.equal((await call({queuedTransactionId:TX})).status,202);
+  assert.equal(JSON.stringify(db),before,'handler also preserves protected evidence after cache loss');assert.equal(writes.length,count);assert.equal(posts,0);
 }
 await reset();audit().provider_reference_id='provider-evidence';
 await assert.rejects(()=>releaseWithdrawalReservation(client,structuredClone(tx()),10,REASON,'Safe message',ops[KEY]),/withdrawal_release_evidence_conflict/);assert.equal(posts,0);
