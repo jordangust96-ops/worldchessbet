@@ -155,23 +155,27 @@ export function buildDepositBody({ providerUserId, name, amount, description, la
   };
 }
 
-// Withdrawal: POST /check/send; account is the merchant sender, never the recipient bank.
-// Seamless v2 requires a non-empty recipient name.
+// Withdrawal: POST /check/send per Seamless's Direct Credit reference.
+// body fields: recipient, name, amount, description, label, plus account ONLY
+// when an explicit merchant sender source id is configured. The recipient
+// funding_source_id (sourceId) is NEVER sent as account and is not a body
+// field. Seamless v2 requires a non-empty recipient name.
 export function buildWithdrawalBody({ providerUserId, name, amount, description, label, sourceId, senderSourceId, transferSpeed }) {
   if (!providerUserId) throw new Error('provider user id required');
   if (!String(name || '').trim()) throw new Error('account holder name required');
-  if (!sourceId) throw new Error('verified source_id required');
-  if (!senderSourceId || senderSourceId === sourceId) throw new Error('merchant sender source_id required');
   if (!label) throw new Error('stable label required');
   if (transferSpeed != null && transferSpeed !== 'rtp') throw new Error('unsupported transfer speed');
+  if (senderSourceId != null && senderSourceId !== '' && sourceId && String(senderSourceId) === String(sourceId)) {
+    throw new Error('merchant sender source_id required');
+  }
   const body = {
     recipient: providerUserId,
     name: String(name).trim(),
     amount: formatAmount(amount),
-    description: description || 'Withdrawal',
+    description: String(description || 'Withdrawal').slice(0, 128),
     label,
-    account: senderSourceId,
   };
+  if (senderSourceId) body.account = senderSourceId;
   if (transferSpeed === 'rtp') body.transfer_speed = 'rtp';
   return body;
 }

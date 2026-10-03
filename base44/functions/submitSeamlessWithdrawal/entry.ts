@@ -405,6 +405,9 @@ Deno.serve(async (req) => {
       withdrawalBody = await buildVerifiedWithdrawalBody({
         providerUserId: profile.provider_user_id, name: accountHolderName.fullName, amount: value,
         description: `ChessBet withdrawal ${tx.id}`, label, sourceId: tx.funding_source_id, transferSpeed,
+        // account is the merchant sender source_id ONLY when explicitly configured.
+        // No configured value means account is omitted, matching the Direct Credit contract.
+        senderSourceId: (Deno.env.get('SEAMLESS_MERCHANT_SENDER_ACCOUNT') || '').trim() || undefined,
         base44, userId: tx.user_id,
       });
     } catch (preflightError) {

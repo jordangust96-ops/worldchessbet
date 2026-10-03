@@ -5,6 +5,9 @@ import {buildWithdrawalBody} from '../base44/shared/seamlessAchPure.js';
 
 // Exact production identities are fixtures only. No live SDK, network, secrets,
 // function invocation or workflow access exists in this dependency-injected harness.
+// This suite proves the documented Direct Credit flow: local frozen-destination
+// validation, ZERO provider funding-source list GET, exactly one POST on success,
+// idempotent release on definitive local rejection, and protected-evidence safety.
 const TX='6ac0ffa858d9771269dfa357';
 const KEY='a317b26b-5ca3-4a31-ab7d-1c625c596a72';
 const SOURCE='ace8a1d7-1c71-488d-ac4d-461012b5eb13';
@@ -47,22 +50,9 @@ const {exports:{postLedgerLegs}}=await loadBackend('base44/shared/ledger.ts',{
   './seamlessAtomicStore.ts':{acquireLedgerLock:async()=>{if(ledgerLocked)return false;ledgerLocked=true;return true;},releaseLedgerLock:async()=>{ledgerLocked=false;},refreshLedgerLock:async()=>true,getUserWalletBarrier:async()=>''},
 });
 const {exports:{settleQueuedWithdrawalFee}}=await loadBackend('base44/shared/queuedWithdrawalFee.ts',{'./ledger.ts':{postLedgerLegs}});
-const provider=async(method,path)=>{
-  assert.equal(method,'GET','preflight is read-only');gets.push(path);
-  if(path==='/account')return {user_id:'merchant'};
-  if(path==='/funding-source/user/:merchant')return {success:true,list:[{id:'merchant-balance',user_id:'merchant',bank:'Balance',status:'verified'}]};
-  assert.equal(path,'/funding-source/user/:customer');
-  if(mode==='provider-timeout')throw Object.assign(Error('mock timeout'),{status:503});
-  if(mode==='provider-failed')return {success:false,list:[]};
-  if(mode==='provider-page')return {success:true,list:{data:[]}};
-  if(mode==='provider-empty')return {success:true,list:[]};
-  if(mode==='provider-malformed')return {success:true,list:[{status:'verified'}]};
-  const row={id:SOURCE,user_id:'customer',bank:'Acorns',status:' VERIFIED ',is_primary:'false'};
-  if(mode==='provider-deleted')row.status='deleted';
-  if(mode==='provider-reconnect')row.status='login-required';
-  return {success:true,list:mode==='provider-conflict'?[row,{...row,status:'deleted'}]:[row,{id:'new-primary',user_id:'customer',status:'verified',is_primary:true}]};
-};
-const {exports:verified}=await loadBackend('base44/shared/verifiedWithdrawalBody.ts',{'./seamlessAch.ts':{PATH_ACCOUNT:'/account',buildWithdrawalBody,seamlessRequest:provider}});
+// buildVerifiedWithdrawalBody must not call any provider endpoint. If it did,
+// this function fails the test.
+const {exports:verified}=await loadBackend('base44/shared/verifiedWithdrawalBody.ts',{'./seamlessAch.ts':{buildWithdrawalBody}});
 const deps={
   'npm:@base44/sdk@0.8.38':{createClientFromRequest:()=>client},
   '../../shared/fundingProvenance.ts':{walletFundingSummary:async()=>({available_to_play:10})},
@@ -73,13 +63,13 @@ const deps={
   '../../shared/complianceEvidence.ts':{extendComplianceEvidenceRetention:async()=>({})},
   '../../shared/identityEligibility.js':{hasVerifiedIdentity:async()=>true},
   '../../shared/legalName.ts':{legalNameFromUser:()=>({fullName:'Fixture Player'})},
-  '../../shared/seamlessAch.ts':{seamlessConfig:()=>({}),seamlessBaseUrl:()=>'',PATH_CHECK_SEND:'/send',SEAMLESS_PROVIDER_KEY:'seamless_ach'},
+  '../../shared/seamlessAch.ts':{seamlessConfig:()=>({}),seamlessBaseUrl:()=>'',PATH_CHECK_SEND:'/check/send',SEAMLESS_PROVIDER_KEY:'seamless_ach'},
   '../../shared/ledger.ts':{postLedgerLegs},
   '../../shared/integrationEvents.ts':{recordIntegrationEvent:async()=>{}},
   '../../shared/withdrawalLimits.js':{MAX_WITHDRAWAL_AMOUNT:1100,withdrawalCents:value=>Math.round(value*100)},
   '../../shared/seamlessAtomicStore.ts':{acquireUserWalletLock:async()=>true,releaseUserWalletLock:async()=>{},claimWithdrawalOperation:async(user,key,amount)=>ops[key]||{amount,state:'new'},saveWithdrawalOperation:save},
   '../../shared/verifiedWithdrawalBody.ts':verified,
-  '../../shared/limitedWithdrawal.ts':{sendLimitedWithdrawal:async()=>{posts++;return {check_id:'mock-payment'};}},
+  '../../shared/limitedWithdrawal.ts':{sendLimitedWithdrawal:async(b,id,body)=>{posts++;gets.push('POST /check/send');return {check_id:'mock-payment'};}},
 };
 const {handler,exports:{releaseWithdrawalReservation}}=await loadBackend('base44/functions/submitSeamlessWithdrawal/entry.ts',deps);
 const call=async body=>{const res=await handler(new Request('https://isolated.invalid',{method:'POST',body:JSON.stringify(body)}));return {status:res.status,data:await res.json()};};
@@ -95,26 +85,36 @@ async function reset(){
 }
 const input={base44:client,userId:'fixture-user',providerUserId:'customer',sourceId:SOURCE,name:'Fixture Player',amount:10,label:'chessbet-withdrawal-'+TX};
 
-// Actual positional-array query, exact ID alias/status normalization, and no
-// primary selection in either local or provider records. Direct preflight: zero POST.
+// Actual local positional-array query, exact frozen destination, no provider GET,
+// no account in the body (no configured merchant sender), exactly one POST on success.
 await reset();db.SeamlessBankAccount[0].is_primary=false;
 let body=await verified.buildVerifiedWithdrawalBody(input);
-assert.equal(body.account,'merchant-balance');assert.equal(body.recipient,'customer');assert.equal(body.amount,'10.00');assert.equal(posts,0);
+assert.equal(body.recipient,'customer');assert.equal(body.amount,'10.00');assert.equal(body.label,'chessbet-withdrawal-'+TX);
+assert.ok(!('account' in body),'account absent when no merchant sender configured');
+assert.ok(!('source_id' in body),'recipient funding_source_id never sent');
+assert.equal(gets.length,0,'zero provider funding-source list GET');
 assert.equal((await call({queuedTransactionId:TX})).status,200);assert.equal(posts,1);
+assert.equal(gets.filter(g=>g.startsWith('POST')).length,1,'exactly one /check/send POST');
 await call({queuedTransactionId:TX});assert.equal(posts,1,'successful payout is never resent');
 
-// Primitive number/string equality uses the exact source, never Boolean(primary).
-const {exports:{buildVerifiedWithdrawalBody:primitiveBody}}=await loadBackend('base44/shared/verifiedWithdrawalBody.ts',{'./seamlessAch.ts':{PATH_ACCOUNT:'/account',buildWithdrawalBody,seamlessRequest:async(method,path)=>{
-  assert.equal(method,'GET');if(path==='/account')return {user_id:88};
-  return {success:true,list:path.endsWith(':88')?[{id:99,user_id:'88',bank:' Balance ',status:' VERIFIED '}]:[{source_id:123,user_id:77,status:' added ',is_primary:0}]};
-}}});
-assert.equal((await primitiveBody({providerUserId:' 77 ',sourceId:' 123 ',name:'Fixture',amount:10,label:'test'})).account,'99');
-assert.equal(posts,1,'primitive preflight did not submit');
+// Primitive number/string normalization on the LOCAL record (source_id as number, spaced status).
+await reset();db.SeamlessBankAccount[0]={id:'local',user_id:'fixture-user',source_id:123,provider_user_id:'customer',status:' VERIFIED ',is_primary:false};
+const primBody=await verified.buildVerifiedWithdrawalBody({...input,sourceId:' 123 ',providerUserId:'  customer '});
+assert.equal(primBody.recipient,'customer');assert.equal(primBody.amount,'10.00');assert.equal(posts,0,'primitive local preflight causes zero POST');
 
-for(const [testMode,reason] of [['provider-deleted',REASON],['provider-reconnect','withdrawal_destination_reconnect_required'],['provider-conflict','withdrawal_destination_multiple_primary'],['local-deleted',REASON],['local-reconnect','withdrawal_destination_reconnect_required'],['local-conflict','withdrawal_destination_multiple_primary']]){
+// Definitive local rejections: precise persisted reason, zero POST, idempotent release.
+for(const [testMode,reason] of [
+  ['local-deleted','withdrawal_destination_deleted'],
+  ['local-reconnect','withdrawal_destination_reconnect_required'],
+  ['local-error','withdrawal_destination_reconnect_required'],
+  ['local-verification-failed','withdrawal_destination_reconnect_required'],
+  ['local-conflict','withdrawal_destination_multiple_primary'],
+]){
   await reset();mode=testMode;
   if(testMode==='local-deleted')db.SeamlessBankAccount[0].status='deleted';
   if(testMode==='local-reconnect')db.SeamlessBankAccount[0].status='verification_expired';
+  if(testMode==='local-error')db.SeamlessBankAccount[0].status='error';
+  if(testMode==='local-verification-failed')db.SeamlessBankAccount[0].status='verification_failed';
   if(testMode==='local-conflict')db.SeamlessBankAccount.push({...db.SeamlessBankAccount[0],id:'conflict',status:'deleted'});
   const result=await call({queuedTransactionId:TX});assert.equal(result.status,400,testMode);assert.equal(result.data.withdrawal_reason,reason);
   assert.equal(posts,0);assert.equal(tx().status,'failed');assert.equal(tx().integration_status,'failed');assert.equal(tx().withdrawal_request_status,'failed');
@@ -122,6 +122,7 @@ for(const [testMode,reason] of [['provider-deleted',REASON],['provider-reconnect
   assert.equal(audit().completed_at,tx().processed_at);assert.ok(Date.parse(audit().updated_at)>=Date.parse(audit().completed_at));
   assert.equal(ops[KEY].state,'released');assert.equal(ops[KEY].last_error_code,reason);assert.equal(ops[KEY].last_error_message,result.data.error);
   assert.equal(db.Wallet[0].available_balance,10);assert.equal(db.Wallet[0].held_balance,0);
+  assert.equal(gets.filter(g=>g.startsWith('POST')).length,0,'zero POST on definitive rejection');
   const complete=audit().completed_at,processed=tx().processed_at,entries=db.LedgerEntry.length;
   await call({queuedTransactionId:TX});await call({queuedTransactionId:TX});
   assert.equal(posts,0);assert.equal(db.LedgerEntry.length,entries);assert.equal(db.Wallet[0].available_balance,10);assert.equal(db.Wallet[0].held_balance,0);
@@ -132,12 +133,16 @@ for(const [testMode,reason] of [['provider-deleted',REASON],['provider-reconnect
   assert.ok(releasedIndex>=0&&releasedIndex<failedIndex,'wallet failure is exposed only after durable operation release');
 }
 
-for(const testMode of ['provider-timeout','provider-failed','provider-page','provider-empty','provider-malformed','entity-page','entity-timeout','local-missing']){
-  await reset();mode=testMode;if(testMode==='local-missing')db.SeamlessBankAccount=[];
+// Indeterminate local reads: zero POST, funds stay reserved, review_required.
+for(const testMode of ['entity-page','entity-timeout','local-missing','local-unknown-status']){
+  await reset();mode=testMode;
+  if(testMode==='local-missing')db.SeamlessBankAccount=[];
+  if(testMode==='local-unknown-status')db.SeamlessBankAccount[0].status='some-unknown-status';
   const result=await call({queuedTransactionId:TX});assert.equal(result.status,202,testMode);assert.equal(result.data.status,'uncertain');assert.equal(posts,0);
   assert.equal(tx().withdrawal_request_status,'review_required');assert.equal(audit().status,'uncertain');assert.equal(ops[KEY].state,'uncertain');
   assert.equal(db.Wallet[0].held_balance,10);assert.equal(db.Wallet[0].available_balance,0);
   assert.equal(db.LedgerJournalBatch.filter(row=>row.trigger_event==='withdrawal_reservation_release').length,0);
+  assert.equal(gets.filter(g=>g.startsWith('POST')).length,0,'zero POST on indeterminate read');
   await call({queuedTransactionId:TX});assert.equal(posts,0);
 }
 assert.equal(verified.isDefinitePreflightRejection({withdrawalReason:'withdrawal_destination_missing',withdrawalIndeterminate:true}),false);
@@ -145,7 +150,7 @@ assert.equal(verified.isDefinitePreflightRejection({withdrawalReason:'withdrawal
 // Recovery at every post-intent boundary runs the real immutable journal,
 // never another reservation or provider request, even if Redis retention is lost.
 for(const boundary of ['journal-entries','redis-released','audit-released','tx-failed']){
-  await reset();mode='provider-deleted';failure=boundary;
+  await reset();mode='local-deleted';failure=boundary;
   assert.equal((await call({queuedTransactionId:TX})).status,503,boundary);assert.equal(posts,0);
   assert.equal(audit().release_ledger_group_id,'seamless:withdrawal:release:'+TX);delete ops[KEY];
   const result=await call({queuedTransactionId:TX});assert.equal(result.status,400,boundary);assert.equal(posts,0);
@@ -171,18 +176,14 @@ await assert.rejects(()=>releaseWithdrawalReservation(client,structuredClone(tx(
 await reset();tx().status='review_required';tx().integration_status='uncertain';
 await assert.rejects(()=>releaseWithdrawalReservation(client,structuredClone(tx()),10,REASON,'Safe message',ops[KEY]),/withdrawal_release_evidence_conflict/);assert.equal(db.Wallet[0].held_balance,10);assert.equal(posts,0);
 
-// A same-ID conflicting owner is never ignored beside a matching source.
-await reset();
-const {exports:{buildVerifiedWithdrawalBody:conflictingOwner}}=await loadBackend('base44/shared/verifiedWithdrawalBody.ts',{'./seamlessAch.ts':{PATH_ACCOUNT:'/account',buildWithdrawalBody,seamlessRequest:async(method,path)=>{
-  assert.equal(method,'GET');if(path==='/account')return {user_id:'merchant'};
-  return {success:true,list:path.endsWith(':merchant')?[{source_id:'merchant-balance',user_id:'merchant',bank:'Balance',status:'verified'}]:[{id:SOURCE,user_id:'customer',status:'verified'},{id:SOURCE,user_id:'other-user',status:'verified'}]};
-}}});
-await assert.rejects(()=>conflictingOwner(input),error=>error.withdrawalReason==='withdrawal_destination_multiple_primary');assert.equal(posts,0);
+// A same-ID conflicting owner on the local record is never ignored beside a matching source.
+await reset();db.SeamlessBankAccount.push({id:'conflict',user_id:'fixture-user',source_id:SOURCE,provider_user_id:'other-customer',status:'verified'});
+await assert.rejects(()=>verified.buildVerifiedWithdrawalBody(input),error=>error.withdrawalReason==='withdrawal_destination_multiple_primary'||error.withdrawalReason==='withdrawal_sources_unavailable');assert.equal(posts,0);
 
 // Audit identity is owner-scoped: another user's reused key is untouched.
 await reset();db.SeamlessOperation.push({...audit(),id:'other-user',user_id:'other-user',status:'submitted',provider_reference_id:'other-payment'});
-mode='provider-deleted';assert.equal((await call({queuedTransactionId:TX})).status,400);assert.equal(db.SeamlessOperation.find(row=>row.id==='other-user').status,'submitted');assert.equal(posts,0);
+mode='local-deleted';assert.equal((await call({queuedTransactionId:TX})).status,400);assert.equal(db.SeamlessOperation.find(row=>row.id==='other-user').status,'submitted');assert.equal(posts,0);
 const schema=JSON.parse(await readFile(new URL('../base44/entities/SeamlessOperation.jsonc',import.meta.url),'utf8'));
 for(const field of ['release_ledger_group_id','last_error_message','completed_at'])assert.ok(schema.properties[field]);
 assert.equal(schema.rls.create,false);assert.equal(schema.rls.update,false);assert.equal(schema.rls.delete,false);
-console.log('Frozen production destination and operation-release consistency: exact-source lookup, plain arrays, primitive normalization, zero-POST failures, real journal idempotency, interruption recovery, protected evidence and owner scope passed.');
+console.log('Frozen production destination and operation-release consistency: local-only lookup, plain arrays, zero provider GET, exactly one POST on success, real journal idempotency, interruption recovery, protected evidence and owner scope passed.');

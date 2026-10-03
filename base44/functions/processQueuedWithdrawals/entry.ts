@@ -46,7 +46,8 @@ Deno.serve(async req=>{
    const user=await base44.asServiceRole.entities.User.get(tx.user_id);
    const body=await buildVerifiedWithdrawalBody({providerUserId:profile?.provider_user_id,
     name:legalNameFromUser(user)?.fullName,amount:tx.amount,sourceId:tx.funding_source_id,
-    label:'chessbet-withdrawal-'+tx.id});
+    label:'chessbet-withdrawal-'+tx.id,base44,userId:tx.user_id,
+    senderSourceId:(Deno.env.get('SEAMLESS_MERCHANT_SENDER_ACCOUNT')||'').trim()||undefined});
    return Response.json({inspect_only:true,routing_valid:true,amount:body.amount,
     sender_account:body.account,recipient:body.recipient,recipient_source:tx.funding_source_id,
     provider_submission:false});
