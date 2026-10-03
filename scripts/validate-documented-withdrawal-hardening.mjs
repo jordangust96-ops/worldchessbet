@@ -246,7 +246,8 @@ for (const reason of DEFINITE) {
   assert.equal((await result.repeat()).status, 202);
   assert.equal(providerPosts - before, 0, 'durable uncertain state never automatically retries');
   const tx = result.client._store.WalletTransaction[0];
-  await result.client.asServiceRole.entities.WalletTransaction.update(tx.id, {status: 'review_required', withdrawal_request_status: 'review_required'});
+  assert.equal(tx.status, 'pending');
+  assert.equal(tx.withdrawal_request_status, 'review_required');
   const confirmed = await result.repeat({providerNoPaymentConfirmed: true});
   assert.equal(confirmed.status, 200);
   assert.equal(confirmed.data.provider_reference_id, 'confirmed-payment');
