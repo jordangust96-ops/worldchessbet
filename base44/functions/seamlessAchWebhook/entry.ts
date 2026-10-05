@@ -569,6 +569,57 @@ async function handleTransaction(base44, body, eventType, idemKey, providerRef) 
     }
   }
 
+  if (decision.status !== 'pending') {
+    const freshTx = await base44.asServiceRole.entities.WalletTransaction.get(tx.id);
+    const operationStatus = decision.action === 'post'
+      ? 'completed'
+      : decision.action === 'reverse'
+        ? 'reversed'
+        : tx.type === 'withdrawal' ? 'released' : 'failed';
+    const operations = await base44.asServiceRole.entities.SeamlessOperation.filter(
+      { wallet_transaction_id: tx.id }, '-updated_at', 10
+    );
+    for (const operation of operations) {
+      await base44.asServiceRole.entities.SeamlessOperation.update(operation.id, {
+        status: operationStatus,
+        provider_reference_id: providerRef || operation.provider_reference_id || '',
+        settlement_ledger_group_id: decision.action === 'post'
+          ? (freshTx.ledger_group_id || operation.settlement_ledger_group_id || '')
+          : (operation.settlement_ledger_group_id || ''),
+        release_ledger_group_id: decision.action === 'fail' && tx.type === 'withdrawal'
+          ? (freshTx.ledger_group_id || operation.release_ledger_group_id || '')
+          : (operation.release_ledger_group_id || ''),
+        completed_at: checkedAt,
+        updated_at: checkedAt,
+        last_error_code: '',
+        last_error_message: '',
+      });
+    }
+
+    const recoveryState = decision.action === 'post'
+      ? 'settled'
+      : decision.action === 'reverse' ? 'reversed' : 'failed';
+    const normalizedStatus = decision.action === 'post'
+      ? 'completed'
+      : decision.action === 'reverse' ? 'reversed' : 'failed';
+    const recoveries = await base44.asServiceRole.entities.SeamlessStatusReconciliation.filter(
+      { wallet_transaction_id: tx.id }, '-updated_date', 10
+    );
+    for (const recovery of recoveries) {
+      await base44.asServiceRole.entities.SeamlessStatusReconciliation.update(recovery.id, {
+        provider_reference_id: providerRef || recovery.provider_reference_id || '',
+        state: recoveryState,
+        provider_status: providerStatus || recovery.provider_status || '',
+        normalized_status: normalizedStatus,
+        last_checked_at: checkedAt,
+        next_check_at: checkedAt,
+        completed_at: checkedAt,
+        last_error_code: '',
+        description: 'Recovery metadata synchronized to the authoritative terminal provider event.',
+      });
+    }
+  }
+
   await recordIntegrationEvent(base44, {
     eventType: `seamless.transaction.${decision.action}`, aggregateType: 'wallet_transaction', aggregateId: tx.id,
     correlationId: tx.id, idempotencyKey: `audit:${idemKey}`, actorType: 'system', userId: tx.user_id,
