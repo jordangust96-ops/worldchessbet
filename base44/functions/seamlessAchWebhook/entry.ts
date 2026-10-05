@@ -570,6 +570,11 @@ async function handleTransaction(base44, body, eventType, idemKey, providerRef) 
   }
 
   if (decision.status !== 'pending') {
+    if (tx.type === 'withdrawal') {
+      await base44.asServiceRole.entities.WalletTransaction.update(tx.id, {
+        withdrawal_request_status: decision.action === 'post' ? 'completed' : 'failed',
+      });
+    }
     const freshTx = await base44.asServiceRole.entities.WalletTransaction.get(tx.id);
     const operationStatus = decision.action === 'post'
       ? 'completed'
