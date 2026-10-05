@@ -54,7 +54,13 @@ function rowFlags({ transaction, journal, ledgerOperation, seamlessOperation, st
   if (ledgerOperation && ledgerOperation.status !== 'completed') flags.push(`ledger_${ledgerOperation.status}`);
   if (isUnbalanced(journal)) flags.push('unbalanced_journal');
   if (seamlessOperation && ['uncertain', 'failed', 'retryable'].includes(seamlessOperation.status)) flags.push(`seamless_${seamlessOperation.status}`);
-  if (statusRecovery && ['retryable_error', 'manual_review', 'failed', 'reversed'].includes(statusRecovery.state)) flags.push(`provider_recovery_${statusRecovery.state}`);
+  const transactionIsProviderTerminal =
+    (transaction?.status === 'completed' && transaction?.integration_status === 'settled') ||
+    ['failed', 'reversed'].includes(transaction?.status) ||
+    ['failed', 'reversed'].includes(transaction?.integration_status);
+  // Recovery rows are diagnostic history. Once the authoritative wallet
+  // transaction is terminal, stale recovery metadata must not keep the ledger flagged.
+  if (!transactionIsProviderTerminal && statusRecovery && ['retryable_error', 'manual_review', 'failed', 'reversed'].includes(statusRecovery.state)) flags.push(`provider_recovery_${statusRecovery.state}`);
   return [...new Set(flags)];
 }
 
