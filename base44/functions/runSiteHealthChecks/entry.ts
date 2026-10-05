@@ -297,7 +297,9 @@ async function collect(svc: any, config: any, previous: any, now: number) {
     async () => read('seamless_bank_failures', 'Seamless bank-verification failures', () => svc.SeamlessBankAccount.filter({ status: { $in: ['verification_failed', 'verification_expired', 'error'] }, updated_date: { $gte: since } }, '-updated_date', 501), rows =>
       check('seamless_bank_failures', 'Seamless bank-verification failures', rows.length ? 'warning' : 'healthy',
         rows.length + ' bank-verification failures or expirations updated in the last 24 hours. Monitoring reads saved webhook state only.', rows.length, 'failures')),
-    async () => read('seamless_bank_pending', 'Seamless pending bank verifications', () => svc.SeamlessBankAccount.filter({ status: { $in: ['added', 'pending_verification'] } }, '-updated_date', 501), rows => {
+    async () => read('seamless_bank_pending', 'Seamless pending bank verifications', () => svc.SeamlessBankAccount.filter({ status: 'pending_verification' }, '-updated_date', 501), rows => {
+      // 'added' is a valid credit-capable funding-source state; only an explicit
+      // verification-in-progress state should age into a verification warning.
       const overdue = rows.filter(r => now - timeMs(r.updated_date || r.added_at) > 60 * 60000).length;
       return check('seamless_bank_pending', 'Seamless pending bank verifications', overdue || rows.length >= 501 ? 'warning' : 'healthy',
         overdue + ' saved bank records have remained pending for over one hour. This is a reconciliation signal, not proof of provider downtime.', overdue, 'accounts');
