@@ -279,7 +279,13 @@ Deno.serve(async (req) => {
         ref.external_reference_id &&
         !String(ref.external_reference_id).startsWith('chessbet-')
       ) || null;
-      const providerRef = cleanText(providerRefRecord?.external_reference_id, 255);
+      let providerRef = cleanText(providerRefRecord?.external_reference_id, 255);
+      if (!providerRef) {
+        const operations = await base44.asServiceRole.entities.SeamlessOperation.filter(
+          { wallet_transaction_id: candidate.id }, '-updated_at', 5
+        );
+        providerRef = cleanText(operations.find((op: any) => op.provider_reference_id)?.provider_reference_id, 255);
+      }
 
       if (ageMs > MAX_LOOKUP_AGE_MS && candidate.status === 'completed') {
         tracker = await upsertTracker(base44, tracker, {
