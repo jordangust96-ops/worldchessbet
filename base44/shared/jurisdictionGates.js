@@ -86,6 +86,7 @@ export function hasReliableLocationEvidence(row) {
 const LOCATION_TEST_ACCOUNTS = Object.freeze({
   '6a4ed72636c51cb3280d2bc7': 'jordangust96@gmail.com',
   '6a791a1983246f5f71e66c09': 'jordan.gust@na.scio-automation.com',
+  '6ac3f495f62a4f5975c19648': 'chess.bet.world@gmail.com',
 });
 export function isLocationTestAccountId(id) { return Object.hasOwn(LOCATION_TEST_ACCOUNTS, id || ''); }
 export function isLocationTestAccount(user) {
