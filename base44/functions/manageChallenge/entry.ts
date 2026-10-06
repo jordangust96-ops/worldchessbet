@@ -159,7 +159,7 @@ Deno.serve(async (req) => {
     return response({ error:['ready','heartbeat','unready','finalize'].includes(requestStage)
       ? 'Connection interrupted while confirming the match. Please retry readiness.'
       : requestStage==='list' ? 'Unable to refresh your challenges. Please try again.'
-      : 'This challenge could not be updated. Please retry; do not start another payment.', action:'retry', component:requestStage, diagnostic:coordinationStatus,
+      : 'This challenge could not be updated. Please retry.', action:'retry', component:requestStage, diagnostic:coordinationStatus,
       ...(error?.coordinationReason ? { dependencyStatus:error.coordinationHttpStatus, dependencyReason:error.coordinationReason,
         dependencyCommands:error.coordinationCommands, dependencyReadOnly:error.coordinationReadOnly } : {}),
     },503);
