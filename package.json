@@ -40,7 +40,7 @@
     "test:acceptance-email": "node scripts/validate-acceptance-email.mjs && node scripts/validate-accept-email-preference.mjs"
   },
   "dependencies": {
-    "@base44/sdk": "^0.8.52",
+    "@base44/sdk": "^0.8.53",
     "@base44/vite-plugin": "^1.0.44",
     "@hello-pangea/dnd": "^17.0.0",
     "@heycatch/sdk": "^0.7.0",
