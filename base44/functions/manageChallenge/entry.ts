@@ -137,6 +137,7 @@ Deno.serve(async (req) => {
     if (action === 'visibility') return response(await setChallengeVisibility(base44,user,match,body));
     if (action === 'authorize') return response(await authorizeChallenge(req,base44,user,match,body));
     if (action === 'accept') {
+      requestStage = 'accept';
       const result = await acceptChallenge(req,base44,user,match,body);
       return response(result, result.processing ? 202 : 200);
     }
@@ -159,6 +160,7 @@ Deno.serve(async (req) => {
     return response({ error:['ready','heartbeat','unready','finalize'].includes(requestStage)
       ? 'Connection interrupted while confirming the match. Please retry readiness.'
       : requestStage==='list' ? 'Unable to refresh your challenges. Please try again.'
+      : requestStage==='accept' ? 'This challenge could not be accepted. Please retry.'
       : 'This challenge could not be updated. Please retry.', action:'retry', component:requestStage, diagnostic:coordinationStatus,
       ...(error?.coordinationReason ? { dependencyStatus:error.coordinationHttpStatus, dependencyReason:error.coordinationReason,
         dependencyCommands:error.coordinationCommands, dependencyReadOnly:error.coordinationReadOnly } : {}),
