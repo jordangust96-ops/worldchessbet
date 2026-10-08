@@ -176,17 +176,15 @@ export default function Landing() {
                   Start playing free
                 </Button>
               </Link>
-              <Link to="/login" className="block">
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="w-full border-[#C9A84C]/40 text-white hover:bg-[#C9A84C]/10 font-semibold text-lg h-14 rounded-2xl transition-colors"
-                >
-                  Log In
-                </Button>
-              </Link>
               <p className="mt-2.5 text-xs leading-relaxed text-white/55">
                 Play worldwide in minutes. No deposit, no verification — just create an account.
+              </p>
+
+              <p className="text-white/70 text-sm mt-5">
+                Already have an account?{" "}
+                <Link to="/login" className="font-semibold text-[#C9A84C] hover:underline">
+                  Sign in
+                </Link>
               </p>
             </div>
           </div>
