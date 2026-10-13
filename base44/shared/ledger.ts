@@ -18,9 +18,10 @@ function userHeldDelta(leg) {
   return number(leg.heldDelta) + number(leg.creditHeld);
 }
 
-async function ensureWallet(base44, userId) {
+async function ensureWallet(base44, userId, beforeWrite = async () => {}) {
   const wallets = await base44.asServiceRole.entities.Wallet.filter({ user_id: userId });
   if (wallets[0]) return wallets[0];
+  await beforeWrite();
   return base44.asServiceRole.entities.Wallet.create({
     user_id: userId,
     balance: 0,
@@ -34,9 +35,10 @@ async function ensureWallet(base44, userId) {
   });
 }
 
-async function ensureSystemAccount(base44, accountName) {
+async function ensureSystemAccount(base44, accountName, beforeWrite = async () => {}) {
   const accounts = await base44.asServiceRole.entities.SystemLedgerAccount.filter({ account_name: accountName });
   if (accounts[0]) return accounts[0];
+  await beforeWrite();
   return base44.asServiceRole.entities.SystemLedgerAccount.create({
     account_name: accountName,
     balance: 0,
@@ -46,10 +48,12 @@ async function ensureSystemAccount(base44, accountName) {
 // The immutable journal is authoritative. Wallet and system-account balances
 // are materialized projections which can always be rebuilt from it after an
 // interrupted write.
-export async function rebuildLedgerBalances(base44, { userIds = [], systemAccounts = [] } = {}) {
+export async function rebuildLedgerBalances(base44, { userIds = [], systemAccounts = [], beforeWrite = async () => {} } = {}) {
+  let walletsUpdated = 0;
+  let systemAccountsUpdated = 0;
   for (const userId of [...new Set(userIds.filter(Boolean))]) {
     const [wallet, entries] = await Promise.all([
-      ensureWallet(base44, userId),
+      ensureWallet(base44, userId, beforeWrite),
       allLedgerRows(base44.asServiceRole.entities.LedgerEntry, { launch_epoch: 2, user_id: userId }),
     ]);
     const totals = entries.reduce((sum, entry) => {
@@ -69,7 +73,7 @@ export async function rebuildLedgerBalances(base44, { userIds = [], systemAccoun
     if (available < -0.001 || held < -0.001 || total < -0.001) {
       throw new Error(`Ledger journal would materialize a negative user balance for ${userId}`);
     }
-    await base44.asServiceRole.entities.Wallet.update(wallet.id, {
+    const patch = {
       available_balance: available,
       held_balance: held,
       total_balance: total,
@@ -78,12 +82,18 @@ export async function rebuildLedgerBalances(base44, { userIds = [], systemAccoun
       total_won: Math.round(totals.won * 100) / 100,
       total_deposited: Math.round(totals.deposited * 100) / 100,
       total_withdrawn: Math.round(totals.withdrawn * 100) / 100,
-    });
+    };
+    // A full reconciliation should not rewrite an already-correct balance.
+    if (Object.entries(patch).some(([field, value]) => Number(wallet[field]) !== value)) {
+      await beforeWrite();
+      await base44.asServiceRole.entities.Wallet.update(wallet.id, patch);
+      walletsUpdated++;
+    }
   }
 
   for (const accountName of [...new Set(systemAccounts.filter(Boolean))]) {
     const [account, entries] = await Promise.all([
-      ensureSystemAccount(base44, accountName),
+      ensureSystemAccount(base44, accountName, beforeWrite),
       allLedgerRows(base44.asServiceRole.entities.LedgerEntry, { launch_epoch: 2, ledger_account: accountName }),
     ]);
     const balance = Math.round(entries.reduce(
@@ -93,8 +103,13 @@ export async function rebuildLedgerBalances(base44, { userIds = [], systemAccoun
     if (['contest_clearing', 'suspense', 'platform_revenue'].includes(accountName) && balance < -0.001) {
       throw new Error(`Ledger journal would overdraw protected account: ${accountName}`);
     }
-    await base44.asServiceRole.entities.SystemLedgerAccount.update(account.id, { balance });
+    if (Number(account.balance) !== balance) {
+      await beforeWrite();
+      await base44.asServiceRole.entities.SystemLedgerAccount.update(account.id, { balance });
+      systemAccountsUpdated++;
+    }
   }
+  return { wallets_updated: walletsUpdated, system_accounts_updated: systemAccountsUpdated };
 }
 
 // Shared Internal Ledger posting helper. The write order is journal-first:
