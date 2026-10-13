@@ -5,7 +5,7 @@
       "trigger_type": "scheduled",
       "events": [],
       "schedule_mode": "recurring",
-      "cron_expression": "*/5 * * * *",
+      "cron_expression": "0 * * * *",
       "one_time_date": null,
       "timezone": "UTC",
       "interval_value": null,
@@ -41,5 +41,5 @@
     ]
   },
   "name": "Ledger Materialization Recovery",
-  "description": "Every 5 minutes, validates balanced ledger groups and rebuilds derived wallet and system-account balances from the immutable journal."
+  "description": "Hourly, validates balanced ledger groups and rebuilds derived wallet and system-account balances from the immutable journal."
 }
