@@ -48,13 +48,16 @@ async function ensureSystemAccount(base44, accountName, beforeWrite = async () =
 // The immutable journal is authoritative. Wallet and system-account balances
 // are materialized projections which can always be rebuilt from it after an
 // interrupted write.
-export async function rebuildLedgerBalances(base44, { userIds = [], systemAccounts = [], beforeWrite = async () => {} } = {}) {
+// A recovery snapshot must be complete and held under the global ledger lease.
+// Normal posting callers omit it and keep their existing scoped reads.
+export async function rebuildLedgerBalances(base44, { userIds = [], systemAccounts = [], beforeWrite = async () => {}, snapshot = null } = {}) {
   let walletsUpdated = 0;
   let systemAccountsUpdated = 0;
   for (const userId of [...new Set(userIds.filter(Boolean))]) {
     const [wallet, entries] = await Promise.all([
-      ensureWallet(base44, userId, beforeWrite),
-      allLedgerRows(base44.asServiceRole.entities.LedgerEntry, { launch_epoch: 2, user_id: userId }),
+      snapshot?.wallets.find((wallet) => wallet.user_id === userId) || ensureWallet(base44, userId, beforeWrite),
+      snapshot ? snapshot.entries.filter((entry) => entry.user_id === userId)
+        : allLedgerRows(base44.asServiceRole.entities.LedgerEntry, { launch_epoch: 2, user_id: userId }),
     ]);
     const totals = entries.reduce((sum, entry) => {
       const legacyAvailable = number(entry.credit_amount) - number(entry.debit_amount);
@@ -93,8 +96,9 @@ export async function rebuildLedgerBalances(base44, { userIds = [], systemAccoun
 
   for (const accountName of [...new Set(systemAccounts.filter(Boolean))]) {
     const [account, entries] = await Promise.all([
-      ensureSystemAccount(base44, accountName, beforeWrite),
-      allLedgerRows(base44.asServiceRole.entities.LedgerEntry, { launch_epoch: 2, ledger_account: accountName }),
+      snapshot?.accounts.find((account) => account.account_name === accountName) || ensureSystemAccount(base44, accountName, beforeWrite),
+      snapshot ? snapshot.entries.filter((entry) => entry.ledger_account === accountName)
+        : allLedgerRows(base44.asServiceRole.entities.LedgerEntry, { launch_epoch: 2, ledger_account: accountName }),
     ]);
     const balance = Math.round(entries.reduce(
       (sum, entry) => sum - number(entry.debit_amount) + number(entry.credit_amount),
