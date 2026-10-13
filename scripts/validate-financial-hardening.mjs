@@ -86,7 +86,7 @@ assert.match(ledger, /LedgerJournalBatch\.create/);
 assert.match(ledger, /legs_json: canonicalLegs/);
 assert.ok(ledger.indexOf('LedgerJournalBatch.create') < ledger.indexOf('LedgerEntry.bulkCreate'));
 assert.match(ledgerRecovery, /missing_legs_materialized/);
-assert.match(ledgerWorkflow, /\*\/5 \* \* \* \*/);
+assert.equal(JSON.parse(ledgerWorkflow).trigger.config.cron_expression, '0 * * * *');
 
 assert.match(pooled, /seamlessRequest\('GET', PATH_ACCOUNT\)/);
 assert.match(pooled, /buildMerchantBalanceLookupPath/);
