@@ -121,8 +121,15 @@ Deno.serve(async (req) => {
     const systemAccounts = [...new Set(
       entries.filter((entry) => entry.ledger_account !== 'user_account').map((entry) => entry.ledger_account)
     )];
+    stage = 'read_balances';
+    const wallets = await allLedgerRows(base44.asServiceRole.entities.Wallet, {});
+    const accounts = await allLedgerRows(base44.asServiceRole.entities.SystemLedgerAccount, {});
+    await assertLease();
     stage = 'rebuild_balances';
-    const updated = await rebuildLedgerBalances(base44, { userIds, systemAccounts, beforeWrite: assertLease });
+    const updated = await rebuildLedgerBalances(base44, {
+      userIds, systemAccounts, beforeWrite: assertLease,
+      snapshot: { entries, wallets, accounts },
+    });
     await assertLease();
     const result = {
       repaired: true,
