@@ -10,6 +10,18 @@ const STATUS_STYLES = {
   verification_failed: "bg-orange-500/10 text-orange-400 border-orange-500/20",
 };
 
+function verificationExplanation(log) {
+  if (!log) return "No verification evidence recorded.";
+  if (log.provider === "PolicyReview") return "Historical approval requires recheck: previous location evidence did not meet verification requirements.";
+  if (log.enforcement_bypassed) return "Historical enforcement bypass. Review the original result below.";
+  if (log.verification_result === "approved") return "Location verified in an approved jurisdiction.";
+  if (log.pre_bypass_reason && !log.pre_bypass_reason.includes("VPN, proxy, or location-masking software")) return log.pre_bypass_reason;
+  if (log.vpn_or_proxy_detected) return "VPN, proxy, or hosting network detected.";
+  if (Number.isFinite(log.subdivision_confidence) && log.subdivision_confidence < 51) return "Low state confidence: location could not be verified reliably.";
+  if (Number.isFinite(log.accuracy_radius_km) && log.accuracy_radius_km > 100) return "Location estimate covers too large an area.";
+  return log.description || "Location could not be verified. A new check is required.";
+}
+
 function StatusBadge({ status }) {
   const style = STATUS_STYLES[status] || STATUS_STYLES.unknown;
   return (
@@ -145,6 +157,12 @@ export default function JurisdictionPanel({ targetUser, logs }) {
         </div>
       </div>
 
+      <div className="mb-4 rounded-xl border border-white/10 bg-white/[0.02] p-3">
+        <p className="text-[10px] uppercase tracking-widest text-white/40 mb-1">Decision explanation</p>
+        <p className="text-sm leading-6 text-white/80">{targetUser.jurisdiction_verification_reason || verificationExplanation(latestLog)}</p>
+        {latestLog && <p className="mt-2 text-xs text-white/50">Country confidence: {latestLog.country_confidence ?? "—"}% · State confidence: {latestLog.subdivision_confidence ?? "—"}% · Accuracy radius: {latestLog.accuracy_radius_km ?? "—"} km</p>}
+      </div>
+
       {targetUser.jurisdiction_vpn_detected && (
         <p className="text-xs text-orange-400/80 mb-4">
           VPN, proxy, or anonymizing network detected on the most recent verification.
@@ -165,6 +183,7 @@ export default function JurisdictionPanel({ targetUser, logs }) {
                   {log.trigger_event ? ` · ${log.trigger_event}` : ""}
                 </p>
                 <p className="text-white/30">{moment(log.verified_at || log.created_date).format("MMM D, YYYY h:mm A")}</p>
+                <p className="mt-1 text-white/60 leading-5">{verificationExplanation(log)}</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {log.vpn_or_proxy_detected && (
