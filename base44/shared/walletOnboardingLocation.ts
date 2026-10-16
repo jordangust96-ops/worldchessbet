@@ -23,7 +23,7 @@ function publicStatus(row) {
     promptEligible: blocked,
     country: row?.detected_country || '', state: row?.detected_state || '',
     reason: approved || !row ? '' : blocked
-      ? 'Wallet setup is not available from your location. Identity verification cannot continue.'
+      ? (row.pre_bypass_reason || 'Money play is not available from your location. You can still create and play free challenges.')
       : getLocationDenialMessage(row) ||
         (row.pre_bypass_reason && !row.pre_bypass_reason.includes('VPN, proxy, or location-masking software')
           ? row.pre_bypass_reason
