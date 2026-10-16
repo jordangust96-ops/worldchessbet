@@ -1,3 +1,4 @@
+import { getOriginalClientIp } from '../../shared/jurisdictionGates.js';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { walletOnboardingLocation } from '../../shared/walletOnboardingLocation.ts';
 import { getRequestJurisdiction } from '../../shared/requestJurisdiction.ts';
@@ -22,6 +23,22 @@ Deno.serve(async (req) => {
     owner = candidate;
     const latest = await walletOnboardingLocation(base44, userId);
     if (latest.allowed) return Response.json(latest);
+    // Suppress repeated denied wallet lookups only, never gameplay checks or approvals.
+    // A changed trusted edge IP can be checked immediately. Hold the wallet lock
+    // across the read and lookup so concurrent requests cannot multiply charges.
+    const recent = await base44.asServiceRole.entities.JurisdictionVerificationLog.filter(
+      {user_id:userId, trigger_event:'wallet_onboarding'}, '-verified_at', 1);
+    const previous = recent[0];
+    const ip = getOriginalClientIp(req);
+    const age = Date.now() - Date.parse(previous?.verified_at || '');
+    if (ip && previous?.user_id === userId && previous.ip_address === ip &&
+        previous.provider === 'MaxMind' && previous.geolocation_enforcement_enabled === true &&
+        previous.enforcement_bypassed === false &&
+        ['blocked','unknown','verification_failed'].includes(previous.verification_result) &&
+        age >= 0 && age < 30000) {
+      return Response.json({...latest, retryAfterSeconds:Math.ceil((30000-age)/1000),
+        retryMessage:'Please wait up to 30 seconds before checking this connection again. If you switch Wi-Fi or mobile networks, you can check immediately.'});
+    }
     // Always use the trusted edge IP, not client-supplied body/approval.
     // No admin bypass: the green check means a real recorded approval.
     const response = await getRequestJurisdiction(req, {triggerEvent:'wallet_onboarding'},
