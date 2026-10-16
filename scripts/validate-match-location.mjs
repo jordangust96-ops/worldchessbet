@@ -98,6 +98,12 @@ for(const role of ['user','admin']) {
 // State-confidence boundary regression: execute the real handler with mocked
 // provider/SDK so these checks never call MaxMind or change player records.
 for (const c of [
+  {country:'DE',state:'',stateConfidence:undefined,countryConfidence:99,expected:'blocked'},
+  {country:'PH',stateConfidence:50,countryConfidence:99,expected:'blocked'},
+  {country:'NG',stateConfidence:20,countryConfidence:99,radius:200,expected:'blocked'},
+  {country:'DE',stateConfidence:50,countryConfidence:49,expected:'verification_failed'},
+  {country:'DE',stateConfidence:50,countryConfidence:99,vpn:true,expected:'verification_failed'},
+  {country:'DE',stateConfidence:50,countryConfidence:99,anycast:true,expected:'verification_failed'},
   {stateConfidence:99,countryConfidence:99,browser:true,expected:'verification_failed'},
   {stateConfidence:10,countryConfidence:99,radius:1000,expected:'verification_failed'},
   {stateConfidence:99,countryConfidence:99,radius:1000,expected:'verification_failed'},
@@ -120,8 +126,8 @@ for (const c of [
     './jurisdictionGates.js':gates,'./jurisdictionRegions.js':regions
   },{
     Deno:{env:{get:name=>({MAXMIND_GEOIP_ENABLED:'true',MAXMIND_ACCOUNT_ID:'test',MAXMIND_LICENSE_KEY:'test',MAXMIND_MIN_SUBDIVISION_CONFIDENCE:c.override})[name]}},
-    fetch:async()=>Response.json({country:{iso_code:'US',confidence:c.countryConfidence},
-      subdivisions:[{iso_code:c.state||'GA',confidence:c.stateConfidence}],location:{accuracy_radius:c.radius??5,latitude:33.75,longitude:-84.39},traits:{is_anonymous_vpn:!!c.vpn}})
+    fetch:async()=>Response.json({country:{iso_code:c.country||'US',confidence:c.countryConfidence},
+      subdivisions:[{iso_code:c.state??'GA',confidence:c.stateConfidence}],location:{accuracy_radius:c.radius??5,latitude:33.75,longitude:-84.39},traits:{is_anonymous_vpn:!!c.vpn,is_anycast:!!c.anycast}})
   }).exports;
   const result=await (await geo.getRequestJurisdiction(
     new Request('https://example.invalid',{headers:{'true-client-ip':'198.51.100.1','cf-connecting-ip':'74.220.48.45','x-forwarded-for':'198.51.100.77'}}),

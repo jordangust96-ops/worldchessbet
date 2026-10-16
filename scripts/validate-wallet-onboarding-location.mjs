@@ -35,6 +35,7 @@ for(const status of ['approved','blocked','verification_failed']) {
  assert.equal(req.headers.get('true-client-ip'),'192.0.2.1');
  rows.push(evidence({verification_result:status,pre_bypass_verification_result:status}));
  return Response.json({status});}},
+ '../../shared/jurisdictionGates.js':gates,
  '../../shared/seamlessAtomicStore.ts':{acquireUserWalletLock:async()=>{locks++;return true;},releaseUserWalletLock:async()=>{releases++;}}
  });
  const request=()=>new Request('https://test.invalid',{method:'POST',headers:{'true-client-ip':'192.0.2.1'},
@@ -55,6 +56,7 @@ const {handler:anonymous}=await loadBackend('base44/functions/verifyWalletOnboar
  'npm:@base44/sdk@0.8.38':{createClientFromRequest:()=>sdk([],null)},
  '../../shared/walletOnboardingLocation.ts':location,
  '../../shared/requestJurisdiction.ts':{getRequestJurisdiction:async()=>{geoCalls++;}},
+ '../../shared/jurisdictionGates.js':gates,
  '../../shared/seamlessAtomicStore.ts':{acquireUserWalletLock:async()=>true,releaseUserWalletLock:async()=>{}}
 });
 assert.equal((await anonymous(new Request('https://test.invalid',{method:'POST'}))).status,401);
@@ -72,3 +74,27 @@ const step=fs.readFileSync('src/components/wallet/DepositLocationStep.jsx','utf8
 assert.ok(!/pending deposit|deposit pending|another deposit/i.test(step.replace(/\/\/[^\n]*/g,'')));
 assert.ok(!/getCurrentJurisdiction|getJurisdictionCheck|useEffect/.test(step));
 console.log('One-time wallet location: trusted legacy evidence, permanent approval, denied/error states, spoof refusal, no rechecks after approval, separate gameplay, and concise UI passed.');
+
+for (const c of [
+ {age:1000,ip:'192.0.2.1',status:'verification_failed',calls:0},
+ {age:1000,ip:'192.0.2.2',status:'verification_failed',calls:1},
+ {age:31000,ip:'192.0.2.1',status:'verification_failed',calls:1},
+ {age:-10000,ip:'192.0.2.1',status:'verification_failed',calls:1},
+ {age:1000,ip:'192.0.2.1',status:'blocked',calls:0}
+]) {
+ let calls=0,releases=0;
+ const rows=[evidence({verification_result:c.status,pre_bypass_verification_result:c.status,verified_at:new Date(Date.now()-c.age).toISOString()})];
+ const client=sdk(rows);
+ const {handler}=await loadBackend('base44/functions/verifyWalletOnboardingLocation/entry.ts',{
+  'npm:@base44/sdk@0.8.38':{createClientFromRequest:()=>client},
+  '../../shared/walletOnboardingLocation.ts':location,
+  '../../shared/jurisdictionGates.js':gates,
+  '../../shared/requestJurisdiction.ts':{getRequestJurisdiction:async()=>{calls++;return Response.json({status:c.status});}},
+  '../../shared/seamlessAtomicStore.ts':{acquireUserWalletLock:async()=>true,releaseUserWalletLock:async()=>{releases++;}}
+ });
+ const response=await handler(new Request('https://test.invalid',{method:'POST',headers:{'true-client-ip':c.ip}}));
+ assert.equal(response.status,200);const result=await response.json();
+ assert.equal(result.allowed,false);assert.equal(calls,c.calls,JSON.stringify(c));
+ assert.equal(releases,1);assert.equal(!!result.retryAfterSeconds,c.calls===0);
+}
+console.log('Wallet retry protection: same IP denied, changed IP immediate, expiry, future evidence and lock release passed.');
