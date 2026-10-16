@@ -35,6 +35,7 @@ Deno.serve(async req => {
        ': insufficient location confidence, excessive accuracy radius, or conflicting signals. Historical provider record preserved; no new location asserted.'
      });
      await entities.User.update(userId,{jurisdiction_status:'verification_failed',
+      jurisdiction_verification_reason:'Historical approval requires recheck: previous location evidence did not meet verification requirements.',
       current_jurisdiction_state:'',current_jurisdiction_country:'',
       jurisdiction_last_verified_at:now,jurisdiction_verification_provider:'PolicyReview'});
      repaired=true;
