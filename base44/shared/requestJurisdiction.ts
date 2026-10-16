@@ -251,6 +251,7 @@ export async function getRequestJurisdiction(req, context = null, policy = { fre
       const now = new Date().toISOString();
       await base44.asServiceRole.entities.User.update(user.id, {
         jurisdiction_status: 'approved',
+        jurisdiction_verification_reason: 'Designated test account or admin location exemption.',
         current_jurisdiction_state: '',
         current_jurisdiction_country: '',
         jurisdiction_last_verified_at: now,
@@ -327,6 +328,13 @@ export async function getRequestJurisdiction(req, context = null, policy = { fre
             status = 'verification_failed';
             reason = getLocationDenialMessage(lookup);
 
+          } else if (/^[A-Z]{2}$/.test(country) && country !== 'US' &&
+            Number.isFinite(lookup.countryConfidence) && lookup.countryConfidence >= MIN_COUNTRY_CONFIDENCE &&
+            lookup.countryConfidence <= 100 && !lookup.isAnycast && !lookup.isSatelliteProvider) {
+            // Country alone can establish ineligibility, never eligibility.
+            // Keep anonymizer checks above and all US approval evidence below.
+            status = 'blocked';
+            reason = 'Money play is not available in your country. You can still create and play free challenges.';
           } else if (!country || !state) {
             status = 'unknown';
             reason = getLocationDenialMessage(lookup) || UNKNOWN_MESSAGE;
@@ -403,6 +411,7 @@ export async function getRequestJurisdiction(req, context = null, policy = { fre
 
     await base44.asServiceRole.entities.User.update(user.id, {
       jurisdiction_status: status,
+      jurisdiction_verification_reason: reason || 'Location verified in an approved jurisdiction.',
       current_jurisdiction_state: state,
       current_jurisdiction_country: country,
       jurisdiction_last_verified_at: now,
