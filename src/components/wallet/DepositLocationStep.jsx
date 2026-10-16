@@ -43,6 +43,11 @@ export default function DepositLocationStep({ decision, onDecision }) {
           <p className="text-lg font-bold leading-6 text-amber-200">{resultTitle}</p>
           <p className="mt-2 text-base font-medium leading-6 text-white">Money play requires an approved location. You can still create and play free challenges.</p>
           <p className="mt-2 text-base leading-6 text-white/90">{decision.reason || "The location check did not complete. Please try again."}</p>
+          {decision.retryMessage ? (
+            <p className="mt-2 text-sm leading-6 text-white/80">{decision.retryMessage}</p>
+          ) : !blocked && (
+            <p className="mt-2 text-sm leading-6 text-white/80">Checking repeatedly on the same connection may give the same result. Try a different Wi-Fi or mobile network before checking again.</p>
+          )}
         </div>
       )}
       {!approved && (
