@@ -54,8 +54,11 @@ export function auditLedgerSnapshot({ entries = [], wallets = [], accounts = [],
   }
 
   const accountByName = new Map(accounts.map((account) => [account.account_name, account]));
-  const negative_system_accounts = accounts.filter((account) => Number(account.balance || 0) < -0.001)
-    .map((account) => account.account_name);
+  // Settlement is a contra account: incoming cash is recorded as a debit,
+  // so its normal posted balance is negative in the account projection.
+  const negative_system_accounts = accounts.filter((account) =>
+    account.account_name !== 'settlement' && Number(account.balance || 0) < -0.001
+  ).map((account) => account.account_name);
   const missing_source_transactions = transactions
     .filter((transaction) => transaction.status === 'completed' && (!transaction.ledger_group_id || !groups.has(transaction.ledger_group_id)))
     .map((transaction) => transaction.id);
