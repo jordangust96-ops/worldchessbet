@@ -9,6 +9,11 @@ const p=policyContext.exports, now=Date.parse('2026-09-07T18:00:00Z');
 assert.equal(p.healthSummary(null,now).status,'unknown');
 assert.equal(p.healthSummary({checked_at:new Date(now-36*60000).toISOString(),checks_json:'[]'},now).status,'unknown');
 assert.equal(p.overall([{status:'healthy'},{status:'unknown'}]),'unknown');
+assert.equal(p.seamlessPooledCoverageCheck(null,now).status,'unknown');
+assert.equal(p.seamlessPooledCoverageCheck({occurred_at:new Date(now-3*3600000).toISOString(),status:'covered',amount:1},now).status,'unknown');
+assert.equal(p.seamlessPooledCoverageCheck({occurred_at:new Date(now).toISOString(),status:'shortfall',amount:-0.20},now).status,'critical');
+assert.equal(p.seamlessPooledCoverageCheck({occurred_at:new Date(now).toISOString(),status:'covered',amount:0},now).status,'healthy');
+assert.equal(p.seamlessPooledCoverageCheck({occurred_at:new Date(now).toISOString(),status:'covered',amount:-0.20},now).status,'unknown');
 assert.equal(p.creditCheck({},now).status,'unknown');
 const credits={credit_observed_at:new Date(now).toISOString(),credit_cycle_started_at:'2026-08-20T00:00:00Z',credit_renews_at:'2026-09-20T00:00:00Z',credit_used:1000,credit_allowance:20000};
 assert.equal(p.creditCheck(credits,now).status,'healthy');
@@ -82,6 +87,11 @@ for(let i=0;i<400;i++){
  assert.ok(history.length<=24);assert.equal(history.at(-1).at,saved.checked_at);
  assert.equal(history.at(-1).values.active_games.value,0);
 }
+rows.IntegrationEvent=[{occurred_at:new Date(clock).toISOString(),event_type:'financial.seamless_merchant_balance_reconciled',status:'shortfall',amount:-0.20}];
+result=await(await collect(request({persist:false}))).json();
+assert.equal(result.status,'critical');
+assert.equal(result.checks.find(c=>c.key==='seamless_pooled_coverage').value,-0.20);
+assert.equal(result.persisted,false);
 const huge={at:new Date(clock).toISOString(),status:'warning',values:{huge:{status:'warning',value:'x'.repeat(20001)}}};
 assert.equal(p.boundedHealthHistory([],huge)[0].history_details_omitted,true);
 assert.ok(JSON.stringify(p.boundedHealthHistory({},huge)).length<p.HISTORY_JSON_BUDGET);
