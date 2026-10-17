@@ -17,6 +17,23 @@ assert.equal(clean.projection_mismatches.length, 0);
 assert.equal(clean.duplicate_operation_ids.length, 0);
 assert.equal(clean.missing_source_transactions.length, 0);
 
+const feeDeposit = auditLedgerSnapshot({
+  ...base,
+  entries: [
+    ...base.entries,
+    { id: 'e3', ledger_group_id: 'g2', ledger_account: 'settlement', debit_amount: 1.35, credit_amount: 0 },
+    { id: 'e4', ledger_group_id: 'g2', ledger_account: 'processor_fee_clearing', debit_amount: 0, credit_amount: 1.15 },
+    { id: 'e5', ledger_group_id: 'g2', ledger_account: 'deposit_fee_revenue', debit_amount: 0, credit_amount: 0.20 },
+  ],
+  accounts: [
+    ...base.accounts,
+    { account_name: 'processor_fee_clearing', balance: 1.15 },
+    { account_name: 'deposit_fee_revenue', balance: 0.20 },
+  ],
+});
+assert.equal(feeDeposit.aggregate_diff, 0, 'evidenced deposit fees are included in the aggregate invariant');
+assert.equal(feeDeposit.balanced, true, 'balanced fee posting does not raise a false ledger alarm');
+
 const unbalanced = auditLedgerSnapshot({ ...base, entries: base.entries.slice(0, 1) });
 assert.equal(unbalanced.unbalanced_groups.length, 1, 'unbalanced group is detected');
 
