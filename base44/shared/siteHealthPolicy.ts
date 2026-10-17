@@ -29,6 +29,7 @@ export function formatHealthEmail(checks: any[], checkedAt: string, digest = fal
     analyzer_failed: 'Review the failed analysis records and analyzer logs.',
     integration_failures: 'Review failed delivery records.',
     seamless_recovery: 'Review the recorded recovery exceptions.',
+    seamless_pooled_coverage: 'Reconcile Seamless available cash with player wallet liabilities and review the open critical finding before any funds movement.',
     public_site: 'Check the public website and DigitalOcean uptime monitor.',
     financial_redis: 'Check the financial Redis service and connection configuration.',
     rating_redis: 'Check the rating Redis service and connection configuration.',
@@ -143,6 +144,19 @@ export function timeMs(value: unknown) {
 }
 export function check(key: string, label: string, status: string, summary: string, value: number | null = null, unit = '', latency_ms: number | null = null) {
   return { key, label, status, summary, value, unit, latency_ms };
+}
+export function seamlessPooledCoverageCheck(event: any, now: number) {
+  const key = 'seamless_pooled_coverage', label = 'Seamless pooled funds coverage';
+  const observed = timeMs(event?.occurred_at);
+  const variance = Number(event?.amount);
+  if (!Number.isFinite(observed) || observed > now + 60_000 || now - observed > 2 * 60 * 60_000 || !Number.isFinite(variance))
+    return check(key, label, 'unknown', 'No valid provider-to-ledger reconciliation from the last two hours. The saved event is not proof of current coverage.');
+  const at = new Date(observed).toISOString();
+  if (event.status === 'shortfall' && variance < 0)
+    return check(key, label, 'critical', 'Hourly Seamless API reconciliation at ' + at + ' found available cash $' + Math.abs(variance).toFixed(2) + ' below player wallet liabilities. Investigate the provider and ledger evidence; no funds were moved.', variance, 'USD variance');
+  if (event.status === 'covered' && variance >= 0)
+    return check(key, label, 'healthy', 'Hourly Seamless API reconciliation at ' + at + ' found available cash covering player wallet liabilities. Numerical coverage is not a custody certification.', variance, 'USD variance');
+  return check(key, label, 'unknown', 'The latest provider-to-ledger reconciliation at ' + at + ' has an unrecognized or inconsistent result.');
 }
 export function overall(checks: any[]) {
   if (!checks.length) return 'unknown';
