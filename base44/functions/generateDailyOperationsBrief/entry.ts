@@ -68,15 +68,18 @@ Deno.serve(async (req) => {
 
     // --- Internal ledger invariant (mirrors checkLedgerIntegrity, read-only here) ---
     const userTotalSum = wallets.reduce((s, w) => s + (w.available_balance || 0) + (w.held_balance || 0), 0);
-    const revenue = ledgerAccounts.find((a) => a.account_name === 'platform_revenue')?.balance || 0;
-    const suspense = ledgerAccounts.find((a) => a.account_name === 'suspense')?.balance || 0;
+    const systemBalance = (name) => Number(ledgerAccounts.find((a) => a.account_name === name)?.balance || 0);
+    const revenue = systemBalance('platform_revenue');
+    const suspense = systemBalance('suspense');
+    const processorFeeClearing = systemBalance('processor_fee_clearing');
+    const depositFeeRevenue = systemBalance('deposit_fee_revenue');
     // Sum across all launch-era settlement-account rows regardless of transaction_type.
     // Deposits post a debit (credit_amount: 0) and withdrawals post a credit
     // (debit_amount: 0); reversal rows swap the two and so net out exactly, and
     // any future settlement-account activity is incorporated transparently.
     const deposits = settlementEntries.reduce((s, e) => s + (e.debit_amount || 0), 0);
     const withdrawals = settlementEntries.reduce((s, e) => s + (e.credit_amount || 0), 0);
-    const lhs = userTotalSum + revenue + suspense;
+    const lhs = userTotalSum + revenue + suspense + processorFeeClearing + depositFeeRevenue;
     const rhs = deposits - withdrawals;
     const ledgerDiff = Math.round((lhs - rhs) * 100) / 100;
     const ledgerBalanced = Math.abs(ledgerDiff) < 0.01;
@@ -109,8 +112,8 @@ Deno.serve(async (req) => {
         status: 'human_approval_required',
         authority_level: 'human_approval_required',
         title: 'Internal ledger invariant failed',
-        summary: `User balances + platform revenue + suspense (${lhs}) did not equal deposits - withdrawals (${rhs}). Diff: ${ledgerDiff}.`,
-        evidence: `user_total=${userTotalSum}; platform_revenue=${revenue}; suspense=${suspense}; deposits=${deposits}; withdrawals=${withdrawals}; diff=${ledgerDiff}; computed_at=${now.toISOString()}`,
+        summary: `Player balances and accounted system balances (${lhs}) did not equal net settlement entries (${rhs}). Diff: ${ledgerDiff}.`,
+        evidence: `user_total=${userTotalSum}; platform_revenue=${revenue}; suspense=${suspense}; processor_fee_clearing=${processorFeeClearing}; deposit_fee_revenue=${depositFeeRevenue}; settlement_debits=${deposits}; settlement_credits=${withdrawals}; diff=${ledgerDiff}; computed_at=${now.toISOString()}`,
         recommended_next_step: 'Administrator must reconcile the contest-clearing ledger before any payout or refund. Do not initiate a second payout. Verify WalletTransaction and ledger groups for recent contests.',
         is_approval_required: true,
         related_entity_type: 'ledger_entry',
