@@ -16,6 +16,13 @@ assert.equal(clean.unbalanced_groups.length, 0);
 assert.equal(clean.projection_mismatches.length, 0);
 assert.equal(clean.duplicate_operation_ids.length, 0);
 assert.equal(clean.missing_source_transactions.length, 0);
+assert.deepEqual(clean.negative_system_accounts, [], 'normal settlement contra balance is not a negative-account alert');
+assert.equal(clean.requires_manual_review, false, 'a balanced baseline does not require manual review');
+const negativeSuspense = auditLedgerSnapshot({
+  ...base,
+  accounts: [...base.accounts.filter((a) => a.account_name !== 'suspense'), { account_name: 'suspense', balance: -1 }],
+});
+assert.deepEqual(negativeSuspense.negative_system_accounts, ['suspense'], 'unexpected negative system balances still alert');
 
 const feeDeposit = auditLedgerSnapshot({
   ...base,
