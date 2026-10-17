@@ -78,12 +78,15 @@ export function auditLedgerSnapshot({ entries = [], wallets = [], accounts = [],
     .map((operation) => ({ id: operation.id, operation_type: operation.operation_type, wallet_transaction_id: operation.wallet_transaction_id || '', status: operation.status }));
 
   const settlementEntries = entries.filter((entry) => entry.ledger_account === 'settlement');
-  const deposits = settlementEntries.filter((entry) => entry.transaction_type === 'deposit').reduce((sum, entry) => sum + Number(entry.debit_amount || 0), 0);
-  const withdrawals = settlementEntries.filter((entry) => entry.transaction_type === 'withdrawal').reduce((sum, entry) => sum + Number(entry.credit_amount || 0), 0);
+  // Include every settlement leg, including deposit fee pass-through and reversals.
+  const settlementNet = settlementEntries.reduce((sum, entry) =>
+    sum + Number(entry.debit_amount || 0) - Number(entry.credit_amount || 0), 0);
   const userTotal = wallets.reduce((sum, wallet) => sum + Number(wallet.available_balance || 0) + Number(wallet.held_balance || 0), 0);
-  const revenue = Number(accountByName.get('platform_revenue')?.balance || 0);
-  const suspense = Number(accountByName.get('suspense')?.balance || 0);
-  const aggregate_diff = round(userTotal + revenue + suspense - (deposits - withdrawals));
+  // These fee accounts hold evidenced bank proceeds outside player wallets.
+  // Omitting them makes a correctly balanced deposit appear short by its fees.
+  const accountedSystemTotal = ['platform_revenue', 'suspense', 'processor_fee_clearing', 'deposit_fee_revenue']
+    .reduce((sum, name) => sum + Number(accountByName.get(name)?.balance || 0), 0);
+  const aggregate_diff = round(userTotal + accountedSystemTotal - settlementNet);
 
   return {
     checked: { entries: entries.length, wallets: wallets.length, accounts: accounts.length, transactions: transactions.length },
