@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
-import { check, overall, creditCheck, parseJson, telemetryChecks, timeMs, shouldNotify, formatHealthEmail, boundedHealthHistory } from '../../shared/siteHealthPolicy.ts';
+import { check, overall, creditCheck, parseJson, telemetryChecks, timeMs, shouldNotify, formatHealthEmail, boundedHealthHistory, seamlessPooledCoverageCheck } from '../../shared/siteHealthPolicy.ts';
 import { buildActivityMetrics, inRange, journalLegs, readAll, PRODUCTION_START } from '../../shared/siteActivityMetrics.js';
 import { isWalletLocationEvidence } from '../../shared/walletOnboardingLocation.ts';
 
@@ -294,6 +294,9 @@ async function collect(svc: any, config: any, previous: any, now: number) {
     async () => read('seamless_recovery', 'Seamless recovery exceptions', () => svc.SeamlessStatusReconciliation.filter({ state: { $in: ['retryable_error', 'manual_review'] } }, '-updated_date', 501), rows =>
       check('seamless_recovery', 'Seamless recovery exceptions', rows.length ? 'warning' : 'healthy',
         rows.length + ' recorded recovery exceptions. Monitoring reads saved results only and does not contact a payment endpoint.', rows.length, 'exceptions')),
+    async () => read('seamless_pooled_coverage', 'Seamless pooled funds coverage', () => svc.IntegrationEvent.filter(
+      { event_type: 'financial.seamless_merchant_balance_reconciled' }, '-occurred_at', 1
+    ), rows => seamlessPooledCoverageCheck(rows[0], now)),
     async () => read('seamless_bank_failures', 'Seamless bank-verification failures', () => svc.SeamlessBankAccount.filter({ status: { $in: ['verification_failed', 'verification_expired', 'error'] }, updated_date: { $gte: since } }, '-updated_date', 501), rows =>
       check('seamless_bank_failures', 'Seamless bank-verification failures', rows.length ? 'warning' : 'healthy',
         rows.length + ' bank-verification failures or expirations updated in the last 24 hours. Monitoring reads saved webhook state only.', rows.length, 'failures')),
