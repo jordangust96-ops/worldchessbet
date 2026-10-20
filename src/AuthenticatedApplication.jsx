@@ -20,6 +20,8 @@ const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
 const Home = lazy(() => import("@/pages/Home"));
 const WalletPage = lazy(() => import("@/pages/WalletPage"));
 const Profile = lazy(() => import("@/pages/Profile"));
+const AccountDeletion = lazy(() => import("@/pages/AccountDeletion"));
+const AdminAccountDeletion = lazy(() => import("@/pages/AdminAccountDeletion"));
 const VerifyMfa = lazy(() => import("@/pages/VerifyMfa"));
 const PrivacyPolicy = lazy(() => import("@/pages/PrivacyPolicy"));
 const PrivacyPolicyAdmin = lazy(() => import("@/pages/PrivacyPolicyAdmin"));
@@ -111,6 +113,7 @@ function RoutedApplication() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/account-deletion" element={<AccountDeletion />} />
         <Route path="/terms-of-service" element={<TermsOfService />} />
         <Route path="/official-rules" element={<OfficialRules />} />
         <Route path="/faq" element={<FAQ />} />
@@ -130,6 +133,7 @@ function RoutedApplication() {
                   <Route path="/admin/terms-of-service" element={<TermsOfServiceAdmin />} />
                   <Route path="/admin/official-rules" element={<OfficialRulesAdmin />} />
                   <Route path="/admin/actions" element={<AdminActionCenter />} />
+                  <Route path="/admin/account-deletion" element={<AdminAccountDeletion />} />
                   <Route path="/admin/health" element={<AdminSiteHealth />} />
                   <Route path="/admin/challenges" element={<AdminChallenges />} />
                   <Route path="/admin/integrity" element={<IntegrityReviewQueue />} />

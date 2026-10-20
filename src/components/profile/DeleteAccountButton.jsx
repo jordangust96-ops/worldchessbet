@@ -43,7 +43,7 @@ export default function DeleteAccountButton({ onClosed }) {
           className="w-full h-12 rounded-2xl text-white/30 hover:text-red-400 hover:bg-red-500/5 font-medium"
         >
           <Trash2 size={16} className="mr-2" />
-          Delete Account
+          Close Account
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>

@@ -16,6 +16,7 @@ import {
 const SITE_ACTIVITY_ADMIN_EMAIL = "jordangust96@gmail.com";
 
 const reviewTools = [
+  { to: "/admin/account-deletion", icon: UserRoundSearch, label: "Account Deletion Requests", description: "Review deletion requests, retention obligations and fulfillment evidence." },
   {
     to: "/admin/actions",
     icon: BellRing,

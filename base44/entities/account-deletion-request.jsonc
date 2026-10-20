@@ -1,0 +1,95 @@
+{
+  "name": "AccountDeletionRequest",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "contact_email": {
+      "type": "string"
+    },
+    "requested_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "target_date": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "requested",
+        "in_review",
+        "awaiting_settlement",
+        "completed"
+      ],
+      "default": "requested"
+    },
+    "reviewed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewed_by": {
+      "type": "string"
+    },
+    "player_message": {
+      "type": "string",
+      "maxLength": 1500
+    },
+    "retention_summary": {
+      "type": "string",
+      "maxLength": 3000
+    },
+    "completion_reference": {
+      "type": "string",
+      "maxLength": 2000,
+      "rls": {
+        "read": {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        "write": false
+      }
+    },
+    "apple_access_handled": {
+      "type": "boolean",
+      "default": false
+    },
+    "associated_data_handled": {
+      "type": "boolean",
+      "default": false
+    },
+    "confirmation_sent": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "user_id",
+    "requested_at",
+    "status"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "data.user_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "create": false,
+    "update": false,
+    "delete": false
+  }
+}

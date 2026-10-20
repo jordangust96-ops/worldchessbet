@@ -8,6 +8,7 @@ import Logo from "@/components/Logo";
 import LegalSection from "@/components/profile/LegalSection";
 import MyRatingSection from "@/components/profile/MyRatingSection";
 import DeleteAccountButton from "@/components/profile/DeleteAccountButton";
+import AccountDeletionPanel from "@/components/profile/AccountDeletionPanel";
 import AdminToolsSection from "@/components/profile/AdminToolsSection";
 import FoundingPlayerBadge from "@/components/profile/FoundingPlayerBadge";
 import SoundToggle from "@/components/play/SoundToggle";
@@ -307,6 +308,7 @@ export default function Profile() {
           Sign Out
         </Button>
 
+        <AccountDeletionPanel />
         <DeleteAccountButton onClosed={handleLogout} />
       </motion.div>
     </div>);

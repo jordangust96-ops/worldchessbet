@@ -13,8 +13,7 @@ export async function challengeRequest(action, body = {}) {
 export async function challengeLocationContext() {
   const geo = await getBrowserGeolocation();
   return { browserGeoPermission: geo.permission, browserLatitude: geo.latitude,
-    browserLongitude: geo.longitude, browserAccuracyMeters: geo.accuracyMeters,
-    };
+    browserLongitude: geo.longitude, browserAccuracyMeters: geo.accuracyMeters };
 }
 export function challengeErrorMessage(error) {
   return error?.response?.data?.error || error?.message || 'Unable to update this challenge. Please try again.';
