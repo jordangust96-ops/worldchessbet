@@ -1,12 +1,5 @@
-// Secondary, non-authoritative forensic signals collected only immediately
-// before a paid action (deposit or contest entry reservation). Neither
-// signal ever gates or blocks the user client-side — the server-side
-// MaxMind jurisdiction check remains the sole authority. These are purely
-// logged for administrative/fraud-investigation purposes.
-
-// Requests the browser's HTML5 Geolocation API. Resolves quickly with a
-// descriptive permission state rather than throwing, so callers can always
-// safely proceed with their paid action regardless of the outcome.
+// Device location supplements the server's jurisdiction evidence. A credible
+// mismatch can veto approval; the server remains the authority for paid actions.
 export function getBrowserGeolocation() {
   return new Promise((resolve) => {
     if (!navigator.geolocation) {
@@ -33,27 +26,6 @@ export function getBrowserGeolocation() {
   });
 }
 
-// Builds a lightweight, non-invasive device fingerprint from ordinary
-// browser characteristics (never canvas/audio fingerprinting) and returns a
-// SHA-256 hex hash. Used only for fraud investigation — never to block users.
-export async function getDeviceFingerprintHash() {
-  try {
-    const parts = [
-      navigator.userAgent || "",
-      navigator.platform || "",
-      navigator.language || "",
-      Intl.DateTimeFormat().resolvedOptions().timeZone || "",
-      `${window.screen?.width || ""}x${window.screen?.height || ""}`,
-      String(window.screen?.colorDepth || ""),
-      String(window.devicePixelRatio || ""),
-    ];
-    const encoder = new TextEncoder();
-    const data = encoder.encode(parts.join("|"));
-    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-    return Array.from(new Uint8Array(hashBuffer))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-  } catch {
-    return "";
-  }
-}
+// Compatibility for previously cached imports. No device attributes are read,
+// combined, hashed, or transmitted. Current callers no longer use this export.
+export async function getDeviceFingerprintHash() { return ""; }
