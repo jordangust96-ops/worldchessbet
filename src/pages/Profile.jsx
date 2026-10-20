@@ -4,7 +4,6 @@ import { Link } from "react-router-dom";
 import { Trophy, Swords, LogOut, Loader2, Crown, XCircle, Flag, ChevronRight, HelpCircle, BookOpen, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
-import Logo from "@/components/Logo";
 import LegalSection from "@/components/profile/LegalSection";
 import MyRatingSection from "@/components/profile/MyRatingSection";
 import DeleteAccountButton from "@/components/profile/DeleteAccountButton";
