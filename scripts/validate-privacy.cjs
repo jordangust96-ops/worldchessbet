@@ -46,7 +46,7 @@ for(const device of [
  b.ctx.document.createElement=()=>({});
  b.ctx.document.head={appendChild:s=>scripts.push(s.src)};
  b.ctx.canTrack=category=>b.p.allowed(category);b.ctx.safePage=()=>({});
- const deferred=fs.readFileSync(__dirname+'/../src/lib/deferredAnalytics.js','utf8').replace(/^import .*;\\n/,'').replace(/export function /g,'function ');
+ const deferred=fs.readFileSync(__dirname+'/../src/lib/deferredAnalytics.js','utf8').split('\n').slice(1).join('\n').replace(/export function /g,'function ');
  vm.runInNewContext(deferred+';syncOptionalAnalytics();',b.ctx);
  ok(scripts.length===0&&!b.ctx.gtag&&!b.ctx.fbq,'Apple third-party libraries never initialized');
  b.data._ga='legacy';b.data._fbp='legacy';b.p.clean();
