@@ -4,6 +4,13 @@
   var APP_ID = "6a4ed72536c51cb3280d2bc6";
   var memory = null;
   var publicPaths = ["/", "/about", "/faq", "/blog", "/fair-play-integrity", "/privacy-policy", "/terms-of-service", "/official-rules"];
+  // No ATT bridge is shipped. Keep optional collection off on Apple mobile
+  // devices, including Safari and desktop-mode iPad, rather than infer consent
+  // from a cookie choice or an unreliable WebView-only user-agent marker.
+  function appleMobile() {
+    return /iPad|iPhone|iPod/i.test(navigator.userAgent || "") ||
+      (/Mac/i.test(navigator.platform || "") && Number(navigator.maxTouchPoints) > 1);
+  }
   function gpc() { return navigator.globalPrivacyControl === true; }
   function read() {
     var p = memory;
@@ -13,7 +20,7 @@
   }
   function choice() {
     var p = read();
-    return { decided: !!p, analytics: !!p && p.analytics && !gpc(), marketing: !!p && p.marketing && !gpc(), gpc: gpc() };
+    return { decided: !!p, analytics: !!p && p.analytics && !gpc() && !appleMobile(), marketing: !!p && p.marketing && !gpc() && !appleMobile(), gpc: gpc(), appleMobile: appleMobile() };
   }
   function publicPage() {
     if (location.search || location.hash) return false;
