@@ -19,7 +19,6 @@ Deno.serve(async (req) => {
       browserLatitude,
       browserLongitude,
       browserAccuracyMeters,
-      deviceFingerprintHash,
     } = await req.json();
 
     if (!matchId) return Response.json({ error: 'matchId is required' }, { status: 400 });
@@ -53,7 +52,6 @@ Deno.serve(async (req) => {
         browserLatitude,
         browserLongitude,
         browserAccuracyMeters,
-        deviceFingerprintHash,
       });
       if (!reservation.ok) return reservation;
       match = await base44.asServiceRole.entities.Match.get(matchId);
@@ -63,7 +61,7 @@ Deno.serve(async (req) => {
     // funds a second time. Only this explicit player request calls MaxMind.
     if (alreadyReserved && match.status !== 'in_progress') {
       const location = await verifyMatchLocation(req, match, {
-        browserGeoPermission, browserLatitude, browserLongitude, browserAccuracyMeters, deviceFingerprintHash,
+        browserGeoPermission, browserLatitude, browserLongitude, browserAccuracyMeters,
       });
       if (location.status !== 'approved') return Response.json({
         error: location.reason || 'Unable to verify your location.',
