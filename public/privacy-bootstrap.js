@@ -51,7 +51,7 @@
   }
   function save(p) {
     var previouslyAllowedAnalytics = allowed("analytics");
-    memory = { version: VERSION, savedAt: Date.now(), analytics: p.analytics === true && !gpc(), marketing: p.marketing === true && !gpc() };
+    memory = { version: VERSION, savedAt: Date.now(), analytics: p.analytics === true && !gpc() && !appleMobile(), marketing: p.marketing === true && !gpc() && !appleMobile() };
     var persisted = true;
     try { localStorage.setItem(KEY, JSON.stringify(memory)); } catch (_) { persisted = false; }
     window["ga-disable-G-JLHMN26FS2"] = !allowed("analytics");
