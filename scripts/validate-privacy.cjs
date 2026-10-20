@@ -37,7 +37,20 @@ for(const device of [
  for(const url of ['/api/apps/app/functions/requestJurisdiction','/api/apps/app/functions/verifyMfaOtp','/api/apps/app/entities/Wallet','https://cdn.plaid.com/link/v2/stable/link-initialize.js']) {
   ok((await b.ctx.fetch(url)).status===200,'Apple essential request preserved '+url);
  }
- b.p.clean();ok(!Object.keys(b.data).some(k=>/^_ga|^_fbp/.test(k)),'Apple tracking storage cleaned');
+ b.ctx.navigator.sendBeacon('https://www.facebook.com/tr','test');
+ ok(!b.calls.includes('https://www.facebook.com/tr'),'Apple beacon blocked');
+ const xhr=new b.ctx.XMLHttpRequest();xhr.open('POST','https://www.google-analytics.com/g/collect');xhr.send();
+ ok(b.calls.includes('abort')&&!b.calls.includes('send'),'Apple XHR blocked');
+ const scripts=[];
+ b.ctx.document.getElementById=()=>null;
+ b.ctx.document.createElement=()=>({});
+ b.ctx.document.head={appendChild:s=>scripts.push(s.src)};
+ b.ctx.canTrack=category=>b.p.allowed(category);b.ctx.safePage=()=>({});
+ const deferred=fs.readFileSync(__dirname+'/../src/lib/deferredAnalytics.js','utf8').replace(/^import .*;\\n/,'').replace(/export function /g,'function ');
+ vm.runInNewContext(deferred+';syncOptionalAnalytics();',b.ctx);
+ ok(scripts.length===0&&!b.ctx.gtag&&!b.ctx.fbq,'Apple third-party libraries never initialized');
+ b.data._ga='legacy';b.data._fbp='legacy';b.p.clean();
+ ok(!Object.keys(b.data).some(k=>/^_ga|^_fbp/.test(k)),'Apple tracking storage cleaned');
 }
 b=browser({saved,userAgent:'Mozilla/5.0 Macintosh',platform:'MacIntel',maxTouchPoints:0});
 ok(b.p.allowed('analytics')&&b.p.allowed('marketing'),'desktop Mac consent preserved');
