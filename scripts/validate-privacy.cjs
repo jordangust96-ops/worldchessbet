@@ -1,12 +1,12 @@
 const vm=require('node:vm'),fs=require('node:fs'),assert=require('node:assert/strict');
 const code=fs.readFileSync(__dirname+'/../public/privacy-bootstrap.js','utf8');let checks=0;
 function ok(v,m){assert.ok(v,m);checks++}
-function browser({path='/',saved=null,gpc=false,token=false,broken=false,storedAppId='app'}={}){
+function browser({path='/',saved=null,gpc=false,token=false,broken=false,storedAppId='app',userAgent='',platform='',maxTouchPoints=0}={}){
  const data={};if(storedAppId)data.base44_app_id=storedAppId;if(saved)data.chessbet_cookie_preferences_v1=JSON.stringify(saved);if(token)data.base44_access_token='test-token';
  const storage=new Proxy({getItem:k=>{if(broken)throw Error();return data[k]??null},setItem:(k,v)=>{if(broken)throw Error();data[k]=String(v)},removeItem:k=>delete data[k]},{ownKeys:()=>Object.keys(data),getOwnPropertyDescriptor:()=>({enumerable:true,configurable:true})});
  const calls=[],listeners={},nav=[];const location={search:path.includes('?')?'?private=1':'',hash:path.includes('#')?'#private':'',origin:'https://worldchessbet.com',hostname:'worldchessbet.com',pathname:path,href:'https://worldchessbet.com'+path,assign:u=>nav.push(u),replace:u=>nav.push(u),reload:()=>nav.push('reload')};
  function XHR(){}XHR.prototype.open=function(m,u){calls.push(u)};XHR.prototype.send=function(){calls.push('send')};XHR.prototype.abort=function(){calls.push('abort')};
- const ctx={window:null,document:{cookie:''},navigator:{globalPrivacyControl:gpc,sendBeacon:u=>{calls.push(u);return true}},location,localStorage:storage,sessionStorage:storage,history:{pushState:()=>calls.push('push'),replaceState:()=>calls.push('replace')},XMLHttpRequest:XHR,URL,Response,Event,Date,JSON,Promise,fetch:async u=>{calls.push(u);return new Response(null,{status:200})},addEventListener:(n,f)=>listeners[n]=f,dispatchEvent:e=>listeners[e.type]?.(e)};ctx.window=ctx;vm.runInNewContext(code,ctx);return {ctx,p:ctx.ChessBetPrivacy,calls,data,nav};
+ const ctx={window:null,document:{cookie:''},navigator:{userAgent,platform,maxTouchPoints,globalPrivacyControl:gpc,sendBeacon:u=>{calls.push(u);return true}},location,localStorage:storage,sessionStorage:storage,history:{pushState:()=>calls.push('push'),replaceState:()=>calls.push('replace')},XMLHttpRequest:XHR,URL,Response,Event,Date,JSON,Promise,fetch:async u=>{calls.push(u);return new Response(null,{status:200})},addEventListener:(n,f)=>listeners[n]=f,dispatchEvent:e=>listeners[e.type]?.(e)};ctx.window=ctx;vm.runInNewContext(code,ctx);return {ctx,p:ctx.ChessBetPrivacy,calls,data,nav};
 }
 (async()=>{
 let b=browser();ok(!b.p.choice().decided,'fresh choice');ok(!b.p.allowed('analytics'),'default deny');
@@ -23,5 +23,23 @@ b=browser({saved:{...saved,savedAt:Date.now()+86400000}});ok(!b.p.choice().decid
 b=browser({saved:{...saved,version:0}});ok(!b.p.choice().decided,'old version');
 b=browser({broken:true});ok(!b.p.allowed('analytics'),'storage unavailable fail closed');ok(b.p.save({analytics:false,marketing:false})===false,'storage failure reported');ok(b.p.choice().decided,'in-memory choice remembered');
 b=browser({saved});b.ctx.__chessbetTrackingLoaded=true;b.ctx.history.pushState({},'', '/wallet');ok(b.nav[0]==='https://worldchessbet.com/wallet','unload trackers before private route');ok(!b.calls.includes('push'),'no unsafe SPA transition');
+for(const device of [
+ {userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148'},
+ {userAgent:'Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18 Safari/604.1'},
+ {userAgent:'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) AppleWebKit/605.1.15',platform:'MacIntel',maxTouchPoints:5}
+]) {
+ b=browser({...device,saved});ok(b.p.choice().appleMobile,'Apple mobile recognized');
+ ok(!b.p.allowed('analytics')&&!b.p.allowed('marketing'),'stored consent cannot enable Apple tracking');
+ b.p.save({analytics:true,marketing:true});ok(!b.p.choice().analytics&&!b.p.choice().marketing,'accept cannot enable Apple tracking');
+ for(const url of ['https://www.google-analytics.com/g/collect','https://www.googletagmanager.com/gtag/js','https://www.facebook.com/tr','https://connect.facebook.net/en_US/fbevents.js','/api/apps/app/analytics/track/batch','/api/app-logs/app/log-user-in-app/home']) {
+  ok((await b.ctx.fetch(url)).status===204,'Apple optional request blocked '+url);
+ }
+ for(const url of ['/api/apps/app/functions/requestJurisdiction','/api/apps/app/functions/verifyMfaOtp','/api/apps/app/entities/Wallet','https://cdn.plaid.com/link/v2/stable/link-initialize.js']) {
+  ok((await b.ctx.fetch(url)).status===200,'Apple essential request preserved '+url);
+ }
+ b.p.clean();ok(!Object.keys(b.data).some(k=>/^_ga|^_fbp/.test(k)),'Apple tracking storage cleaned');
+}
+b=browser({saved,userAgent:'Mozilla/5.0 Macintosh',platform:'MacIntel',maxTouchPoints:0});
+ok(b.p.allowed('analytics')&&b.p.allowed('marketing'),'desktop Mac consent preserved');
 console.log(checks+' privacy assertions passed');
 })().catch(e=>{console.error(e);process.exit(1)});
