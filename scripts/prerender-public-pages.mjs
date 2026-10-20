@@ -217,10 +217,20 @@ function renderLegal(doc) {
 }
 
 async function fetchJson(url) {
-  const response = await fetch(url, {
+  let response = await fetch(url, {
     headers: { Accept: "application/json" },
     signal: AbortSignal.timeout(15000),
   });
+  // A cold revision URL may fail while the normal public blog response is
+  // healthy. Preserve article output by retrying that same read without v.
+  if (!response.ok && url.startsWith(BLOG_API)) {
+    const stableUrl = new URL(url);
+    stableUrl.searchParams.delete("v");
+    response = await fetch(stableUrl, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(15000),
+    });
+  }
   if (!response.ok) throw new Error(`${url} returned HTTP ${response.status}`);
   return response.json();
 }
