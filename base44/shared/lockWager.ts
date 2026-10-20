@@ -57,7 +57,6 @@ export async function lockWager(req, context = null) {
       browserLatitude,
       browserLongitude,
       browserAccuracyMeters,
-      deviceFingerprintHash,
     } = context || await req.json();
 
     if (!matchId) return Response.json({ error: 'matchId is required' }, { status: 400 });
@@ -120,7 +119,6 @@ export async function lockWager(req, context = null) {
       browserLatitude,
       browserLongitude,
       browserAccuracyMeters,
-      deviceFingerprintHash,
     }) };
     if (jurisdictionRes.data?.error || jurisdictionRes.data?.status !== 'approved') {
       return Response.json({ error: jurisdictionRes.data?.reason || 'You are not currently eligible to fund a contest entry from your location.' }, { status: 403 });
