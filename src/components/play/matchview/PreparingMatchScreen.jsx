@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import FairPlayAttestation from "@/components/play/matchview/FairPlayAttestation";
 import { computeContestFinancials } from "@/lib/contestFinancials";
-import { getBrowserGeolocation, getDeviceFingerprintHash } from "@/lib/deviceContext";
+import { getBrowserGeolocation } from "@/lib/deviceContext";
 
 const PREPARATION_TIMEOUT_MS = 2 * 60 * 1000;
 
@@ -127,14 +127,12 @@ export default function PreparingMatchScreen({ match, userId, opponentId, onCanc
       // paid action. They remain non-authoritative and never bypass the
       // server's jurisdiction, identity, balance, or participation checks.
       const geo = await getBrowserGeolocation();
-      const deviceFingerprintHash = await getDeviceFingerprintHash();
       const { data } = await base44.functions.invoke("confirmMatchReadiness", {
         matchId: match.id,
         browserGeoPermission: geo.permission,
         browserLatitude: geo.latitude,
         browserLongitude: geo.longitude,
         browserAccuracyMeters: geo.accuracyMeters,
-        deviceFingerprintHash,
       });
       if (data?.error) {
         setNeedsLocationRecheck(data.action === "match_location_required" && data.requiredUserIds?.includes(userId) === true);
