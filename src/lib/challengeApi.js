@@ -1,7 +1,7 @@
 import { base44 } from '@/api/base44Client';
 import { getMfaSessionToken } from '@/lib/mfaSession';
 import { setPostAuthRedirect } from '@/lib/postAuthRedirect';
-import { getBrowserGeolocation, getDeviceFingerprintHash } from '@/lib/deviceContext';
+import { getBrowserGeolocation } from '@/lib/deviceContext';
 export { CHALLENGE_TERMS, CHALLENGE_NOT_RESERVED, VALID_INVITE, validEntry } from '../../base44/shared/challengePolicy.js';
 
 export async function challengeRequest(action, body = {}) {
@@ -14,7 +14,7 @@ export async function challengeLocationContext() {
   const geo = await getBrowserGeolocation();
   return { browserGeoPermission: geo.permission, browserLatitude: geo.latitude,
     browserLongitude: geo.longitude, browserAccuracyMeters: geo.accuracyMeters,
-    deviceFingerprintHash: await getDeviceFingerprintHash() };
+    };
 }
 export function challengeErrorMessage(error) {
   return error?.response?.data?.error || error?.message || 'Unable to update this challenge. Please try again.';
