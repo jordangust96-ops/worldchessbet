@@ -226,7 +226,6 @@ export async function getRequestJurisdiction(req, context = null, policy = { fre
     let browserLongitude;
     let browserAccuracyMeters;
     let browserGeoPermission = 'not_requested';
-    let deviceFingerprintHash = '';
     let forceLiveCheck = false;
     try {
       const body = context || await req.json();
@@ -238,7 +237,7 @@ export async function getRequestJurisdiction(req, context = null, policy = { fre
       if (typeof body?.browserLatitude === 'number') browserLatitude = body.browserLatitude;
       if (typeof body?.browserLongitude === 'number') browserLongitude = body.browserLongitude;
       if (typeof body?.browserAccuracyMeters === 'number') browserAccuracyMeters = body.browserAccuracyMeters;
-      if (body?.deviceFingerprintHash) deviceFingerprintHash = body.deviceFingerprintHash;
+      // Ignore legacy device fingerprints from cached clients; never persist new fingerprints.
       forceLiveCheck = body?.forceLiveCheck === true;
     } catch {
       // No body provided — defaults above are fine.
@@ -471,7 +470,6 @@ export async function getRequestJurisdiction(req, context = null, policy = { fre
       browser_accuracy_meters: browserAccuracyMeters,
       geo_mismatch_km: geoMismatchKm,
       geo_mismatch_flag: geoMismatchFlag,
-      device_fingerprint_hash: deviceFingerprintHash,
       verified_at: now,
     });
 
