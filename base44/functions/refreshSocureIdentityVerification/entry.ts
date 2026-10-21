@@ -56,6 +56,20 @@ Deno.serve(async req => {
       if (result.status === 'pending') {
         const incomplete = !row.completed_at && data.eval_status === 'evaluation_paused' &&
           (!data.evaluation_status || data.evaluation_status === 'evaluation_paused');
+        // Only expire after Socure confirms its evaluation remains paused/incomplete.
+        // This stops repeated provider reads for abandoned sessions without treating
+        // missing callbacks or elapsed time alone as proof of abandonment.
+        const sessionExpired = incomplete && Number.isFinite(Date.parse(row.expires_at || '')) &&
+          Date.now() >= Date.parse(row.expires_at);
+        if (sessionExpired) {
+          await base44.asServiceRole.entities.SocureIdentityVerification.update(row.id,
+            {status:'expired',failure_code:'hosted_verification_incomplete_expired'});
+          const latestUser = await base44.asServiceRole.entities.User.get(userId);
+          if (latestUser.identity_verification_provider === 'socure' &&
+              [row.provider_evaluation_id,row.request_id].includes(latestUser.identity_provider_reference))
+            await base44.asServiceRole.entities.User.update(userId,{identity_verification_status:'expired'});
+          return Response.json({status:'expired',can_retry:true});
+        }
         await base44.asServiceRole.entities.SocureIdentityVerification.update(row.id,
           {failure_code:incomplete?'hosted_verification_incomplete':''});
         return Response.json({status:incomplete?'incomplete':'pending'});
