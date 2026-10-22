@@ -2,6 +2,37 @@
 @tailwind components;
 @tailwind utilities;
 
+/* The native iOS shell extends beneath the status bar and home indicator.
+   Reserve the system-provided insets once for flowing content; fixed navigation
+   reserves its own bottom inset. Desktop/browser insets remain zero. */
+:root {
+  --app-safe-top: env(safe-area-inset-top, 0px);
+  --app-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --app-safe-left: env(safe-area-inset-left, 0px);
+  --app-safe-right: env(safe-area-inset-right, 0px);
+}
+
+#root {
+  padding-top: var(--app-safe-top);
+  padding-left: var(--app-safe-left);
+  padding-right: var(--app-safe-right);
+}
+
+.app-page-with-nav {
+  padding-bottom: calc(6rem + var(--app-safe-bottom));
+}
+
+.app-bottom-nav {
+  padding-left: var(--app-safe-left);
+  padding-right: var(--app-safe-right);
+  padding-bottom: var(--app-safe-bottom);
+}
+
+/* Sticky page headers must also stop below the status area when scrolled. */
+#root .sticky.top-0 {
+  top: var(--app-safe-top);
+}
+
 /* Use the native UI font stack to avoid a render-blocking cross-origin font
    stylesheet and seven mobile font downloads. */
 
