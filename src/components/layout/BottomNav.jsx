@@ -13,7 +13,7 @@ export default function BottomNav() {
   const location = useLocation();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/5 bg-[#0A0A0A]/95 backdrop-blur-xl">
+    <nav className="app-bottom-nav fixed bottom-0 left-0 right-0 z-50 border-t border-white/5 bg-[#0A0A0A]/95 backdrop-blur-xl">
       <div className="flex items-center justify-around px-2 py-2 max-w-lg mx-auto">
         {navItems.map(({ icon: Icon, label, path }) => {
           const isActive = location.pathname === path;
@@ -46,7 +46,6 @@ export default function BottomNav() {
           );
         })}
       </div>
-      <div className="h-[env(safe-area-inset-bottom)]" />
     </nav>
   );
 }
