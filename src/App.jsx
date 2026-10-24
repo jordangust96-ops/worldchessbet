@@ -8,13 +8,7 @@ import Landing from "@/pages/Landing";
 
 const AuthenticatedApplication = lazy(() => import("@/AuthenticatedApplication"));
 
-function LoadingScreen() {
-  return (
-    <div className="fixed inset-0 flex items-center justify-center bg-[#0A0A0A]">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-white/10 border-t-[#C9A84C]" />
-    </div>
-  );
-}
+import LoadingScreen from "@/components/LoadingScreen";
 
 function hasBase44Session(search) {
   const params = new URLSearchParams(search);
