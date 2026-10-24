@@ -53,13 +53,7 @@ const MfaGuard = lazy(() => import("@/components/MfaGuard"));
 const AdminGuard = lazy(() => import("@/components/AdminGuard"));
 const PolicyAcceptanceGuard = lazy(() => import("@/components/legal/PolicyAcceptanceGuard"));
 
-function LoadingScreen() {
-  return (
-    <div className="fixed inset-0 flex items-center justify-center bg-[#0A0A0A]">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-white/10 border-t-[#C9A84C]" />
-    </div>
-  );
-}
+import LoadingScreen from "@/components/LoadingScreen";
 
 // Paths where the global app header (Logo + AccountBalance) is the intended
 // header. Public pages (blog, faq, about, unsubscribe, legal docs, etc.) each
