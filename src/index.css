@@ -2,6 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Branded loading only; it never delays navigation or changes session handling. */
+.chessbet-launch {
+  position: fixed; inset: 0; z-index: 60;
+  display: grid; place-items: center; overflow: hidden;
+  box-sizing: border-box;
+  padding: max(24px, env(safe-area-inset-top, 0px)) max(24px, env(safe-area-inset-right, 0px)) max(24px, env(safe-area-inset-bottom, 0px)) max(24px, env(safe-area-inset-left, 0px));
+  background: #0a0a0a; color: #c9a84c;
+}
+.chessbet-launch__brand { position: relative; display: flex; flex-direction: column; align-items: center; width: min(100%, 320px); isolation: isolate; }
+.chessbet-launch__halo { position: absolute; z-index: -1; width: 320px; height: 320px; top: -62px; border-radius: 50%; background: radial-gradient(circle, rgba(201,168,76,.09), rgba(201,168,76,.025) 45%, transparent 70%); animation: chessbet-breathe 3.6s ease-in-out infinite; }
+.chessbet-launch__crown { width: 156px; height: 156px; display: block; }
+.chessbet-launch__name { margin-top: -12px; font: 650 32px/1.2 ui-sans-serif, system-ui, -apple-system, sans-serif; letter-spacing: -.035em; color: #edda99; }
+.chessbet-launch__caption { margin-top: 18px; font: 500 9px/1.6 ui-sans-serif, system-ui, -apple-system, sans-serif; letter-spacing: .24em; color: #8f8875; }
+.chessbet-launch__activity { position: relative; margin-top: 30px; width: 80px; height: 2px; border-radius: 2px; overflow: hidden; background: rgba(201,168,76,.13); }
+.chessbet-launch__activity span { position: absolute; width: 32px; height: 100%; border-radius: inherit; background: #c9a84c; animation: chessbet-loading 1.8s ease-in-out infinite; }
+@keyframes chessbet-breathe { 0%,100% { opacity: .55; transform: scale(.94); } 50% { opacity: 1; transform: scale(1.04); } }
+@keyframes chessbet-loading { 0% { transform: translateX(-32px); opacity: .3; } 50% { opacity: 1; } 100% { transform: translateX(80px); opacity: .3; } }
+@media (prefers-reduced-motion: reduce) {
+  .chessbet-launch__halo, .chessbet-launch__activity span { animation: none; }
+  .chessbet-launch__activity span { left: 24px; }
+}
+
+
 /* The native iOS shell extends beneath the status bar and home indicator.
    Reserve the system-provided insets once for flowing content; fixed navigation
    reserves its own bottom inset. Desktop/browser insets remain zero. */
