@@ -127,7 +127,16 @@ export default function GameHUD({
   const myColor = isP1 ? "w" : "b";
   const opponentId = isP1 ? match.player2_id : match.player1_id;
   const opponentColorFull = isP1 ? "black" : "white";
-  const opponentDisconnectedAt = game?.[`${opponentColorFull}_disconnected_at`] || null;
+  const opponentPolicyVersion = game?.[`${opponentColorFull}_disconnect_policy_version`];
+  const opponentDisconnectedAt = opponentPolicyVersion === "chesscom-reconnect-v1"
+    ? game?.[`${opponentColorFull}_disconnected_at`] || null
+    : null;
+  const activeColor = game?.fen?.split(" ")[1] === "b" ? "black" : "white";
+  const opponentToMove = activeColor === opponentColorFull;
+  const baseTimeDefaults = { blitz: 180000, rapid: 600000, classical: 900000 };
+  const disconnectBaseTimeMs = Number(match?.clock_initial_ms) > 0
+    ? Number(match.clock_initial_ms)
+    : baseTimeDefaults[match?.time_control] || 300000;
 
   useEffect(() => {
     const load = async () => {
@@ -221,7 +230,13 @@ export default function GameHUD({
             <p className="text-[10px] font-bold uppercase tracking-widest text-red-400">Integrity Review Active</p>
           </div>
         )}
-        <OpponentConnectionBanner disconnectedAt={opponentDisconnectedAt} />
+        <OpponentConnectionBanner
+          disconnectedAt={opponentDisconnectedAt}
+          opponentToMove={opponentToMove}
+          turnStartedAt={game?.turn_started_at}
+          baseTimeMs={disconnectBaseTimeMs}
+          incrementMs={game?.increment_ms}
+        />
         {/* Mobile prioritizes the live clocks above all match metadata. These
             values come from the same server-authoritative useChessClock hook
             used by the full player cards below. */}
