@@ -2,7 +2,7 @@
   "name": "Game",
   "properties": {
     "black_disconnected_at": {
-      "description": "Set server-side when Black is currently considered disconnected. Cleared on reconnect.",
+      "description": "Server observation time when Black's game heartbeat became stale. The reconnect timer starts conservatively here and clears on a fresh heartbeat.",
       "format": "date-time",
       "type": "string"
     },
@@ -212,7 +212,7 @@
       "type": "string"
     },
     "white_disconnected_at": {
-      "description": "Set server-side (by the opponent's heartbeat detecting staleness) when White is currently considered disconnected. Cleared the moment White's own heartbeat resumes. Purely informational/audit \u2014 the chess clock alone determines any timeout outcome.",
+      "description": "Server observation time when White's game heartbeat became stale. The reconnect timer starts conservatively here and clears on a fresh heartbeat.",
       "format": "date-time",
       "type": "string"
     },
