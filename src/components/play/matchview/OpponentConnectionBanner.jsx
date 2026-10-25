@@ -1,43 +1,56 @@
 import React, { useState, useEffect } from "react";
 import { WifiOff } from "lucide-react";
-import { base44 } from "@/api/base44Client";
 
-// Subtle, non-blocking indicator shown to a player while their opponent is
-// recorded as disconnected. Disappears automatically the instant the Game's
-// disconnected_at field clears (the opponent's heartbeat resumed) â€” no
-// action needed from either player. The chess clock keeps running the whole
-// time; nothing here ever pauses or adjusts it.
-export default function OpponentConnectionBanner({ disconnectedAt }) {
-  const [elapsedSec, setElapsedSec] = useState(0);
-  const [graceSeconds, setGraceSeconds] = useState(45);
+function gracePeriodMs(baseTimeMs, incrementMs) {
+  const baseMs = Number(baseTimeMs) > 0 ? Number(baseTimeMs) : 300000;
+  const increment = Math.max(0, Number(incrementMs) || 0);
+  return Math.max(30000, Math.min(180000, Math.floor((baseMs + 40 * increment) * 0.1)));
+}
+
+function parseTime(value) {
+  if (!value) return NaN;
+  const text = String(value);
+  const hasTimezone = /Z$|[+-]\\d{2}:?\\d{2}$/.test(text);
+  const parsed = Date.parse(hasTimezone ? text : `${text}Z`);
+  return Number.isFinite(parsed) ? parsed : NaN;
+}
+
+export default function OpponentConnectionBanner({
+  disconnectedAt,
+  opponentToMove,
+  turnStartedAt,
+  baseTimeMs,
+  incrementMs,
+}) {
+  const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
     if (!disconnectedAt) return;
-    base44.entities.GameSettings.list().then((rows) => {
-      if (rows[0]?.reconnect_grace_period_seconds) {
-        setGraceSeconds(rows[0].reconnect_grace_period_seconds);
-      }
-    });
-  }, [disconnectedAt]);
-
-  useEffect(() => {
-    if (!disconnectedAt) return;
-    const tick = () => setElapsedSec(Math.max(0, Math.floor((Date.now() - new Date(disconnectedAt).getTime()) / 1000)));
-    tick();
-    const interval = setInterval(tick, 1000);
+    const interval = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(interval);
   }, [disconnectedAt]);
 
   if (!disconnectedAt) return null;
 
-  const withinGrace = elapsedSec < graceSeconds;
+  const detectedAt = parseTime(disconnectedAt);
+  const turnAt = parseTime(turnStartedAt);
+  const graceMs = gracePeriodMs(baseTimeMs, incrementMs);
+  const timerStartsAt = opponentToMove && Number.isFinite(turnAt)
+    ? Math.max(detectedAt, turnAt)
+    : null;
+  const remainingSeconds = timerStartsAt === null
+    ? null
+    : Math.max(0, Math.ceil((graceMs - (now - timerStartsAt)) / 1000));
 
   return (
-    <div className="flex items-center gap-2 rounded-xl bg-amber-500/10 border border-amber-500/20 px-3 py-2">
-      <WifiOff className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+    <div className="flex items-start gap-2 rounded-xl bg-amber-500/10 border border-amber-500/20 px-3 py-2">
+      <WifiOff className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
       <p className="text-[11px] text-amber-300/90">
-        {withinGrace ? "Opponent disconnected." : "Opponent still disconnected."} Their clock is still running.{" "}
-        <span className="tabular-nums">({elapsedSec}s)</span>
+        {!opponentToMove
+          ? "ChessBet has not received your opponent’s game heartbeat. Their reconnect window starts when it is their turn; clocks keep running."
+          : remainingSeconds > 0
+            ? `ChessBet has not received your opponent’s game heartbeat. They have about ${remainingSeconds}s to reconnect. Their clock keeps running.`
+            : "Checking for a restored connection. If no heartbeat returns, the game will end by disconnect timeout."}
       </p>
     </div>
   );
