@@ -5,7 +5,7 @@
       "trigger_type": "scheduled",
       "events": [],
       "schedule_mode": "recurring",
-      "cron_expression": "*/5 * * * *",
+      "cron_expression": "* * * * *",
       "one_time_date": null,
       "timezone": "UTC",
       "interval_value": null,
@@ -41,5 +41,5 @@
     ]
   },
   "name": "Game Clock Timeout Sweep",
-  "description": "Every 5 minutes, resolves any in-progress game whose server-authoritative clock has actually run out, as a safety net for when no connected client is present to trigger the normal per-game timeout check."
+  "description": "Every minute, resolves server-clock flags and advances disconnect reconnect checks, including games where both clients are offline."
 }
