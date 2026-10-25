@@ -4,6 +4,7 @@ const END_REASON_LABELS = {
   checkmate: "Checkmate",
   resignation: "Resignation",
   timeout: "Timeout",
+  disconnect_timeout: "Disconnect Timeout",
   draw_agreement: "Draw by Agreement",
   stalemate: "Stalemate",
   threefold_repetition: "Threefold Repetition",
