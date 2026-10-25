@@ -32,9 +32,9 @@ function hasSufficientMatingMaterial(fen, color) {
   return knights + bishops >= 2;
 }
 
-Deno.serve(async () => {
+Deno.serve(async (req) => {
   try {
-    const base44 = createClientFromRequest(new Request('https://internal.invalid', { method: 'POST' }));
+    const base44 = createClientFromRequest(req);
 
     const activeGames = await base44.asServiceRole.entities.Game.filter(
       { launch_epoch: 2, status: 'active' },
