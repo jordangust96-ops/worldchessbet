@@ -131,8 +131,8 @@ export default function GameHUD({
   const opponentDisconnectedAt = opponentPolicyVersion === "chesscom-reconnect-v1"
     ? game?.[`${opponentColorFull}_disconnected_at`] || null
     : null;
-  const activeColor = game?.fen?.split(" ")[1] === "b" ? "black" : "white";
-  const opponentToMove = activeColor === opponentColorFull;
+  const activeSideFull = game?.fen?.split(" ")[1] === "b" ? "black" : "white";
+  const opponentToMove = activeSideFull === opponentColorFull;
   const baseTimeDefaults = { blitz: 180000, rapid: 600000, classical: 900000 };
   const disconnectBaseTimeMs = Number(match?.clock_initial_ms) > 0
     ? Number(match.clock_initial_ms)
