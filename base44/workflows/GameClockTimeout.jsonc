@@ -41,5 +41,5 @@
     ]
   },
   "name": "Game Clock Timeout Sweep",
-  "description": "Every minute, resolves server-clock flags and advances disconnect reconnect checks, including games where both clients are offline."
+  "description": "Every 5 minutes, resolves clock flags for games with no connected clients. A connected opponent heartbeat runs reconnect checks during active play."
 }
