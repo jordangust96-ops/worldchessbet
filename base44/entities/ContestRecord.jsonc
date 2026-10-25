@@ -122,6 +122,7 @@
         "checkmate",
         "resignation",
         "timeout",
+        "disconnect_timeout",
         "stalemate",
         "draw_agreement",
         "threefold_repetition",
