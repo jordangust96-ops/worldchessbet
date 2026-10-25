@@ -53,7 +53,7 @@ const MfaGuard = lazy(() => import("@/components/MfaGuard"));
 const AdminGuard = lazy(() => import("@/components/AdminGuard"));
 const PolicyAcceptanceGuard = lazy(() => import("@/components/legal/PolicyAcceptanceGuard"));
 
-import LoadingScreen from "@/components/LoadingScreen";
+import LoadingScreen, { AppReady } from "@/components/LoadingScreen";
 
 // Paths where the global app header (Logo + AccountBalance) is the intended
 // header. Public pages (blog, faq, about, unsubscribe, legal docs, etc.) each
@@ -151,6 +151,7 @@ function RoutedApplication() {
 
         <Route path="*" element={<PageNotFound />} />
       </Routes>
+      <AppReady />
     </Suspense>
   );
 }
