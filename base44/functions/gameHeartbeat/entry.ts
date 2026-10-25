@@ -40,6 +40,11 @@ Deno.serve(async (req) => {
     const now = new Date();
     const nowIso = now.toISOString();
 
+    // Resolve an already-expired confirmation candidate before treating this
+    // request as a reconnect. A heartbeat arriving after the final check must
+    // not resurrect a completed result.
+    const priorCheck = await checkDisconnectTimeout(base44, game, match, now.getTime());
+    if (priorCheck.completed) return Response.json({ game: priorCheck.game });
     const updates = { [`${myColor}_last_seen_at`]: nowIso };
 
     // A returning heartbeat cancels any pending reconnect timeout. New policy
