@@ -581,9 +581,16 @@ export default function SeamlessFundingPanel({
               )}
 
               {direction === "withdrawal" && (
-                <p role="note" className="text-center text-xs leading-relaxed text-white/60">
-                  Request up to $1,100. We’ll email a confirmation with your estimated arrival date. Requested funds are reserved while your withdrawal is processed.
-                </p>
+                <>
+                  <p role="note" className="text-center text-xs leading-relaxed text-white/60">
+                    Request up to $1,100. We’ll email a confirmation with your estimated arrival date. Requested funds are reserved while your withdrawal is processed.
+                  </p>
+                  {Number(state?.funding?.withdrawal_restricted_balance || 0) > 0 && (
+                    <p className="text-center text-xs leading-relaxed text-amber-200/80">
+                      Some playable funds are still under a deposit withdrawal hold. You can request them now; bank submission waits until the source clears and final checks pass.
+                    </p>
+                  )}
+                </>
               )}
 
               {exceedsWithdrawalLimit && <p role="alert" className="text-center text-xs text-red-400">Enter $1,100.00 or less. Remaining funds stay in your wallet.</p>}
