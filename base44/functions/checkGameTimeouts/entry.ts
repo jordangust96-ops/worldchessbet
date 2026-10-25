@@ -1,32 +1,14 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { checkDisconnectTimeout } from '../../shared/disconnectPolicy.js';
 
-// System sweep (invoked on a schedule by the Game Clock Timeout Sweep
-// workflow — no user session involved, so this never checks auth.me()):
-// resolves any in-progress Game whose authoritative server clock has
-// actually run out, even when no connected client is present to trigger the
-// existing per-game checkTimeout function (which only ever fires from a
-// player's own browser, driven by its own local countdown). Without this, if
-// both players disconnect or close their tab at or after a clock flag,
-// nothing else ever resolves the Game — it (and both players' escrowed
-// entry amounts and platform service fees) would otherwise stay stuck in
-// 'active'/'in_progress' indefinitely, since settleMatch only ever acts on
-// an already-completed Game.
-//
-// This mirrors checkPreparationTimeout's role for the earlier preparation
-// phase, but note the distinction: it applies the exact same deterministic,
-// already-decided rule checkTimeout applies (elapsed time vs. remaining
-// clock, FIDE Article 6.9 insufficient-material handling) — this is NOT a
-// discretionary abandonment/forfeiture policy call. GameSettings is explicit
-// that grace-period expiration alone never forces a forfeit; this sweep
-// changes nothing about that. It only reaches the same conclusion a
-// connected client would already have reached on its own.
-
-// Duplicated (not imported) in submitMove/checkTimeout — backend functions
-// deploy independently and cannot share local modules. There is one
-// authoritative implementation; keep all copies identical.
+// System sweep for active games. It preserves the chess clock as the
+// independent authority when a clock reaches zero, and also completes a
+// disconnected side-to-move only after the time-control-specific reconnect
+// window plus a fresh-heartbeat confirmation interval. A missed heartbeat is
+// never treated as proof of intentional abandonment.
 function parseServerTime(dateStr, fallbackMs) {
   if (!dateStr) return fallbackMs;
-  const hasTz = /Z$|[+-]\d{2}:?\d{2}$/.test(dateStr);
+  const hasTz = /Z$|[+-]\\d{2}:?\\d{2}$/.test(dateStr);
   const parsedMs = new Date(hasTz ? dateStr : `${dateStr}Z`).getTime();
   return Number.isFinite(parsedMs) ? parsedMs : fallbackMs;
 }
@@ -50,9 +32,9 @@ function hasSufficientMatingMaterial(fen, color) {
   return knights + bishops >= 2;
 }
 
-Deno.serve(async (req) => {
+Deno.serve(async () => {
   try {
-    const base44 = createClientFromRequest(req);
+    const base44 = createClientFromRequest(new Request('https://internal.invalid', { method: 'POST' }));
 
     const activeGames = await base44.asServiceRole.entities.Game.filter(
       { launch_epoch: 2, status: 'active' },
@@ -69,13 +51,19 @@ Deno.serve(async (req) => {
       const elapsedMs = Math.max(0, now - turnStartedAt);
       const timeField = sideToMove === 'w' ? 'white_time_ms' : 'black_time_ms';
       const remainingMs = (candidate[timeField] ?? 0) - elapsedMs;
-      if (remainingMs > 0) continue;
 
-      // Re-fetch fresh state before doing any further work — never act on
-      // the query snapshot above, which can be stale by the time a later
-      // candidate in a large sweep is reached. Another path (a player's own
-      // checkTimeout call, a resignation, a draw acceptance, or a legal
-      // move) may have already resolved or advanced this game.
+      if (remainingMs > 0) {
+        const match = await base44.asServiceRole.entities.Match.get(candidate.match_id);
+        if (match) {
+          const disconnectCheck = await checkDisconnectTimeout(base44, candidate, match, now);
+          if (disconnectCheck.completed) resolvedIds.push(candidate.id);
+        }
+        continue;
+      }
+
+      // Re-fetch fresh state before resolving a flag. Another path (a player's
+      // checkTimeout call, a resignation, a draw acceptance, or a legal move)
+      // may have completed or advanced the game since the sweep snapshot.
       const game = await base44.asServiceRole.entities.Game.get(candidate.id);
       if (!game || game.status !== 'active') continue;
       if (game.fen !== candidate.fen || game.turn_started_at !== candidate.turn_started_at) continue;
@@ -83,8 +71,8 @@ Deno.serve(async (req) => {
       const match = await base44.asServiceRole.entities.Match.get(game.match_id);
       if (!match) continue;
 
-      // FIDE Article 6.9: the flagged player only loses if the opponent has
-      // sufficient material to deliver checkmate by some legal sequence.
+      // FIDE Article 6.9: a clock flag is a draw if the opponent cannot
+      // deliver checkmate by any legal sequence.
       const opponentColor = sideToMove === 'w' ? 'b' : 'w';
       const opponentCanMate = hasSufficientMatingMaterial(game.fen, opponentColor);
 
@@ -108,12 +96,14 @@ Deno.serve(async (req) => {
             [timeField]: 0,
           };
 
-      // Final guard, taken fresh right before committing: the same race this
-      // whole sweep exists to close for absent clients still applies between
-      // the read above and this write (a client could reconnect and resolve
-      // the game itself in that window).
+      // Final fresh-state guard before committing the result.
       const preCommitGame = await base44.asServiceRole.entities.Game.get(game.id);
-      if (!preCommitGame || preCommitGame.status === 'completed' || preCommitGame.fen !== game.fen) continue;
+      if (
+        !preCommitGame ||
+        preCommitGame.status === 'completed' ||
+        preCommitGame.fen !== game.fen ||
+        preCommitGame.turn_started_at !== game.turn_started_at
+      ) continue;
 
       await base44.asServiceRole.entities.Game.update(game.id, timeoutUpdates);
       resolvedIds.push(game.id);
