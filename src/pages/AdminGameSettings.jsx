@@ -1,59 +1,27 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Loader2, WifiOff, Save } from "lucide-react";
+import { ArrowLeft, Loader2, WifiOff } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { invokeAdminFunction } from "@/lib/adminApi";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/components/ui/use-toast";
 
-// Admin-only control for the reconnect grace period shown to players during a
-// disconnect. This value is informational/display-only for now \u2014 the chess
-// clock remains the sole authority over any timeout outcome.
+const WINDOWS = [
+  { control: "Blitz (3+0)", seconds: 30 },
+  { control: "Rapid (10+0)", seconds: 60 },
+  { control: "Classical (15+0)", seconds: 90 },
+];
+
 export default function AdminGameSettings() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [settingsId, setSettingsId] = useState(null);
-  const [graceSeconds, setGraceSeconds] = useState(45);
-  const { toast } = useToast();
 
   useEffect(() => {
-    load();
-  }, []);
-
-  const load = async () => {
-    const me = await base44.auth.me();
-    if (me?.role !== "admin") {
+    base44.auth.me().then((me) => {
+      setIsAdmin(me?.role === "admin");
+      setLoading(false);
+    }).catch(() => {
       setIsAdmin(false);
       setLoading(false);
-      return;
-    }
-    setIsAdmin(true);
-
-    const rows = await base44.entities.GameSettings.list();
-    if (rows[0]) {
-      setSettingsId(rows[0].id);
-      setGraceSeconds(rows[0].reconnect_grace_period_seconds ?? 45);
-    }
-    setLoading(false);
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      const value = Math.max(5, Math.round(Number(graceSeconds) || 45));
-      const { data } = await invokeAdminFunction("updateGameSettings", {
-        reconnectGracePeriodSeconds: value,
-      });
-      if (data?.settings?.id) setSettingsId(data.settings.id);
-      setGraceSeconds(value);
-      toast({ title: "Saved", description: "Reconnect grace period updated." });
-    } finally {
-      setSaving(false);
-    }
-  };
+    });
+  }, []);
 
   if (loading) {
     return (
@@ -85,37 +53,24 @@ export default function AdminGameSettings() {
         <div className="w-10 h-10 rounded-xl bg-[#C9A84C]/10 flex items-center justify-center shrink-0">
           <WifiOff size={18} className="text-[#C9A84C]" />
         </div>
-        <h1 className="text-xl font-extrabold text-white">Disconnect & Reconnect Settings</h1>
+        <h1 className="text-xl font-extrabold text-white">Disconnect & Reconnect Rules</h1>
       </div>
-      <p className="text-xs text-white/40 mb-6">
-        Controls the reconnect grace period shown to players during a disconnect. The chess clock always remains the
-        sole authority over any timeout outcome \u2014 this setting never grants extra thinking time or triggers a
-        forfeiture on its own.
+      <p className="text-xs text-white/50 mb-6">
+        Reconnect windows follow Chess.com's published time-control formula. They start only when the disconnected
+        player is on move. A returning game heartbeat cancels the pending disconnect result; the chess clock keeps running.
       </p>
 
-      <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-5 space-y-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="grace-seconds" className="text-xs text-white/50">
-            Reconnect grace period (seconds)
-          </Label>
-          <Input
-            id="grace-seconds"
-            type="number"
-            min={5}
-            max={300}
-            value={graceSeconds}
-            onChange={(e) => setGraceSeconds(e.target.value)}
-            className="bg-white/[0.03] border-white/10 text-white max-w-[160px]"
-          />
-        </div>
-        <Button
-          onClick={handleSave}
-          disabled={saving}
-          className="gold-gradient text-black hover:opacity-90 font-semibold"
-        >
-          <Save className="w-4 h-4 mr-1.5" />
-          {saving ? "Saving..." : "Save"}
-        </Button>
+      <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-5 space-y-3">
+        {WINDOWS.map((window) => (
+          <div key={window.control} className="flex items-center justify-between border-b border-white/5 pb-3 last:border-0 last:pb-0">
+            <span className="text-sm text-white/70">{window.control}</span>
+            <span className="text-sm font-semibold text-[#C9A84C]">{window.seconds} seconds</span>
+          </div>
+        ))}
+        <p className="text-[11px] text-white/35 pt-2">
+          Chess.com formula: 10% of base time plus 40 times the increment, with a 30-second minimum and 3-minute maximum.
+          A short server-side confirmation follows the window to catch a returning heartbeat.
+        </p>
       </div>
     </div>
   );
