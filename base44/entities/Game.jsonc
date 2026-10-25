@@ -6,6 +6,10 @@
       "format": "date-time",
       "type": "string"
     },
+    "black_disconnect_policy_version": {
+      "description": "Policy version attached to Black's current server-observed disconnect. Older markers receive a fresh reconnect window before they can affect an outcome.",
+      "type": "string"
+    },
     "black_focus_loss_count": {
       "default": 0,
       "description": "Number of distinct focus-loss periods recorded for Black. Supporting telemetry only.",
@@ -50,6 +54,19 @@
       "maxLength": 1000,
       "type": "string"
     },
+    "disconnect_timeout_candidate_at": {
+      "description": "Server timestamp for the additional heartbeat confirmation interval after the reconnect window expires.",
+      "format": "date-time",
+      "type": "string"
+    },
+    "disconnect_timeout_candidate_color": {
+      "description": "Side awaiting a final fresh-heartbeat check before a disconnect timeout can be recorded.",
+      "enum": [
+        "white",
+        "black"
+      ],
+      "type": "string"
+    },
     "draw_offered_by": {
       "description": "User ID of the player who currently has an open draw offer pending, empty/null when there is none",
       "type": "string"
@@ -60,6 +77,7 @@
         "checkmate",
         "resignation",
         "timeout",
+        "disconnect_timeout",
         "draw_agreement",
         "stalemate",
         "threefold_repetition",
@@ -196,6 +214,10 @@
     "white_disconnected_at": {
       "description": "Set server-side (by the opponent's heartbeat detecting staleness) when White is currently considered disconnected. Cleared the moment White's own heartbeat resumes. Purely informational/audit \u2014 the chess clock alone determines any timeout outcome.",
       "format": "date-time",
+      "type": "string"
+    },
+    "white_disconnect_policy_version": {
+      "description": "Policy version attached to White's current server-observed disconnect. Older markers receive a fresh reconnect window before they can affect an outcome.",
       "type": "string"
     },
     "white_focus_loss_count": {
