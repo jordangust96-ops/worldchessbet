@@ -1,26 +1,14 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import {
+  DISCONNECT_POLICY_VERSION,
+  HEARTBEAT_STALE_MS,
+  checkDisconnectTimeout,
+} from '../../shared/disconnectPolicy.js';
 
-// If no heartbeat has been received from a player for longer than this, the
-// opponent's own heartbeat call (the only trigger point available, since
-// there is no persistent server process) marks that player disconnected.
-// Recommended heartbeat cadence on the client is ~8s, so this comfortably
-// tolerates a couple of missed beats before recording a disconnect.
-const HEARTBEAT_STALE_MS = 20000;
-
-// Server-authoritative presence tracking for an active Game. Called
-// periodically by both players while a match is in progress. Two things
-// happen on every call:
-//  1. The caller's own last-seen timestamp is refreshed, and if they had
-//     previously been marked disconnected, that is now recorded as a
-//     reconnect (audit only â€” never grants extra thinking time).
-//  2. As a side effect, the opponent's staleness is checked and, if they've
-//     gone quiet longer than HEARTBEAT_STALE_MS, they are marked
-//     disconnected server-side. This piggybacks disconnect *detection* onto
-//     whichever player still has a live connection, with no separate
-//     scheduled job required.
-// The chess clock (turn_started_at + white/black_time_ms) remains the sole
-// authority over any timeout outcome â€” nothing here ever changes status,
-// result, winner_id, or clock values.
+// Server-authoritative presence tracking for an active Game. The heartbeat is
+// a connectivity signal only: a missed heartbeat does not prove intent. The
+// time-control-specific reconnect window is resolved separately by the shared
+// disconnect policy and the scheduled safety sweep.
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -54,31 +42,40 @@ Deno.serve(async (req) => {
 
     const updates = { [`${myColor}_last_seen_at`]: nowIso };
 
-    // I'm reconnecting if I had previously been recorded as disconnected.
+    // A returning heartbeat cancels any pending reconnect timeout. New policy
+    // timestamps are recorded when the server observes staleness, not
+    // backdated to the last beat, so this window cannot expire early.
     const myDisconnectedAt = game[`${myColor}_disconnected_at`];
     if (myDisconnectedAt) {
       const durationMs = Math.max(0, now.getTime() - new Date(myDisconnectedAt).getTime());
       updates[`${myColor}_disconnected_at`] = '';
+      updates[`${myColor}_disconnect_policy_version`] = '';
       updates[`${myColor}_reconnected_at`] = nowIso;
       updates[`${myColor}_total_disconnected_ms`] = (game[`${myColor}_total_disconnected_ms`] || 0) + durationMs;
     }
+    if (game.disconnect_timeout_candidate_color === myColor) {
+      updates.disconnect_timeout_candidate_at = '';
+      updates.disconnect_timeout_candidate_color = '';
+    }
 
-    // Detect the opponent's disconnect as a side effect of my heartbeat.
+    // A connected player's heartbeat detects a stale opponent. Start the
+    // reconnect period at this observation time, not at a reconstructed or
+    // backdated estimate of when the network first failed.
     const opponentLastSeenAt = game[`${opponentColor}_last_seen_at`];
     const opponentAlreadyDisconnected = !!game[`${opponentColor}_disconnected_at`];
     if (!opponentAlreadyDisconnected && opponentLastSeenAt) {
       const sinceLastSeen = now.getTime() - new Date(opponentLastSeenAt).getTime();
       if (sinceLastSeen > HEARTBEAT_STALE_MS) {
-        // Back-date to when they actually went quiet, not to "now", for an
-        // accurate audit trail.
-        updates[`${opponentColor}_disconnected_at`] = new Date(
-          new Date(opponentLastSeenAt).getTime() + HEARTBEAT_STALE_MS
-        ).toISOString();
+        updates[`${opponentColor}_disconnected_at`] = nowIso;
+        updates[`${opponentColor}_disconnect_policy_version`] = DISCONNECT_POLICY_VERSION;
+        updates.disconnect_timeout_candidate_at = '';
+        updates.disconnect_timeout_candidate_color = '';
       }
     }
 
     const updatedGame = await base44.asServiceRole.entities.Game.update(gameId, updates);
-    return Response.json({ game: updatedGame });
+    const timeoutCheck = await checkDisconnectTimeout(base44, updatedGame, match, now.getTime());
+    return Response.json({ game: timeoutCheck.game || updatedGame });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
