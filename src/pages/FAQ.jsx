@@ -57,6 +57,13 @@ export default function FAQ() {
 
         <PlayerProtectionCallout />
 
+        <section id="contact" aria-labelledby="support-title" className="rounded-2xl border border-[#C9A84C]/20 bg-white/[0.03] p-5 space-y-2">
+          <h2 id="support-title" className="text-base font-semibold text-white">Contact ChessBet support</h2>
+          <p className="text-sm leading-6 text-white/60">For account, contest, or payment questions, email our support team.</p>
+          <a href="mailto:hello@worldchessbet.com" className="inline-block break-all text-sm font-medium text-[#C9A84C] underline underline-offset-4">hello@worldchessbet.com</a>
+          <p className="text-xs leading-5 text-white/45">Do not email passwords, full bank details, or identity documents.</p>
+        </section>
+
         <div className="space-y-6">
           {FAQ_SECTIONS.map((section) => (
             <div
