@@ -8,7 +8,7 @@ import Landing from "@/pages/Landing";
 
 const AuthenticatedApplication = lazy(() => import("@/AuthenticatedApplication"));
 
-import LoadingScreen from "@/components/LoadingScreen";
+import LoadingScreen, { AppReady, LaunchProvider } from "@/components/LoadingScreen";
 
 function hasBase44Session(search) {
   const params = new URLSearchParams(search);
@@ -37,7 +37,7 @@ function ApplicationRouter() {
       <GoogleAnalyticsTracker />
       <CookiePreferences />
       {showLeanPublicLanding ? (
-        <Landing />
+        <><Landing /><AppReady /></>
       ) : (
         <Suspense fallback={<LoadingScreen />}>
           <AuthenticatedApplication />
@@ -50,9 +50,11 @@ function ApplicationRouter() {
 export default function App() {
   return (
     <HelmetProvider>
-      <Router>
-        <ApplicationRouter />
-      </Router>
+      <LaunchProvider>
+        <Router>
+          <ApplicationRouter />
+        </Router>
+      </LaunchProvider>
     </HelmetProvider>
   );
 }
