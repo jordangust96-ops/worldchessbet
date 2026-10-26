@@ -1,5 +1,8 @@
 # Apple readiness handoff — 2026-10-20
 
+## October 26 provider update
+Base44 reports native Firebase analytics starts at iOS launch and Sentry error/crash reports carry a user ID. The web privacy bootstrap below does not control these native SDKs. Use [the October 26 privacy and deletion review](ios-privacy-deletion-review-2026-10-26.md) for proposed App Privacy answers, Privacy Policy edits, and vendor-shell evidence still needed. The October 20 web assertions remain valid for the named web endpoints only.
+
 ## Implemented
 - Official Rules version 13 adds Apple non-sponsorship and non-involvement disclosure; every previous paragraph is unchanged. Historical contest terms remain governed by their snapshots.
 - Privacy Policy updated through the normal versioned publisher to explain optional tracking restrictions, fingerprint removal, and manual account deletion.
