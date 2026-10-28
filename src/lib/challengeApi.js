@@ -5,10 +5,18 @@ import { getBrowserGeolocation } from '@/lib/deviceContext';
 export { CHALLENGE_TERMS, CHALLENGE_NOT_RESERVED, VALID_INVITE, validEntry } from '../../base44/shared/challengePolicy.js';
 
 export async function challengeRequest(action, body = {}) {
-  const { data } = await base44.functions.invoke('manageChallenge', {
-    ...body, action, ...(action === 'view' ? {} : { sessionToken: getMfaSessionToken() }),
-  });
-  return data;
+  const payload = { ...body, action, ...(action === 'view' ? {} : { sessionToken: getMfaSessionToken() }) };
+  // Readiness is read-only. A brief server-side rate limit can clear without
+  // making the player restart; never automatically retry a money operation.
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const { data } = await base44.functions.invoke('manageChallenge', payload);
+      return data;
+    } catch (error) {
+      if (action !== 'readiness' || attempt >= 1 || error?.response?.status !== 503) throw error;
+      await new Promise(resolve => setTimeout(resolve, 12000));
+    }
+  }
 }
 export async function challengeLocationContext() {
   const geo = await getBrowserGeolocation();

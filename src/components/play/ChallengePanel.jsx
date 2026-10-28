@@ -43,7 +43,9 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
   const open = card?.status === 'open';
   const creatorReady = card?.creatorPresenceRequired === false || (card?.creatorReady && Date.parse(card.creatorReadyUntil || '') > now);
   const shareUrl = `${window.location.origin}${path}`;
-  const setupCopy = readiness?.code === 'identity_required'
+  const setupCopy = readiness?.code === 'check_failed'
+    ? { title:'Unable to check eligibility', detail:'We could not check your eligibility right now. Please try again.', action:'Try again' }
+    : readiness?.code === 'identity_required'
     ? { title:'Verify your identity to accept', detail:'Complete identity verification before playing a money challenge.', action:'Verify Identity in Wallet' }
     : readiness?.code === 'bank_required'
       ? { title:'Connect a bank to accept', detail:'Connect and verify a bank account before playing a money challenge.', action:'Connect Bank in Wallet' }
@@ -64,7 +66,7 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
   useEffect(() => {
     refresh();
     const update = () => { if (document.visibilityState === 'visible') refresh(); };
-    const timer = setInterval(update, 3000);
+    const timer = setInterval(update, 10000);
     const clock = setInterval(() => setNow(Date.now()),1000);
     window.addEventListener('focus',update);
     window.addEventListener('online',update);
@@ -99,7 +101,7 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
       setStage(state.ready ? 'confirm' : 'setup');
     }).catch(err => {
       if (!cancelled) {
-        setReadiness({ ready:false, reason:challengeErrorMessage(err) });
+        setReadiness({ ready:false, code:'check_failed', reason:challengeErrorMessage(err) });
         setStage('setup');
         setError(challengeErrorMessage(err));
       }
@@ -218,9 +220,9 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
               </div>
             </div>
             {readiness?.code === 'funds_required' && readiness?.availableBalance != null && <div className="flex justify-between rounded-xl bg-black/20 px-3 py-2 text-sm"><span className="text-white/55">Available now</span><span className="font-semibold">{usd(readiness.availableBalance)} of {usd(card.totalRequired)}</span></div>}
-            {walletCodes.includes(readiness?.code) ? <Button onClick={fund} disabled={Boolean(busy)} className="h-12 w-full rounded-xl gold-gradient text-black font-bold">{setupCopy.action}</Button> : <Link to="/play" className="block text-center font-semibold text-[#C9A84C]">Return to Play</Link>}
+            {readiness?.code === 'check_failed' ? <Button onClick={begin} disabled={Boolean(busy)} className="h-12 w-full rounded-xl gold-gradient text-black font-bold">Try again</Button> : walletCodes.includes(readiness?.code) ? <Button onClick={fund} disabled={Boolean(busy)} className="h-12 w-full rounded-xl gold-gradient text-black font-bold">{setupCopy.action}</Button> : <Link to="/play" className="block text-center font-semibold text-[#C9A84C]">Return to Play</Link>}
             <p className="text-center text-xs leading-relaxed text-white/45">The challenge stays open, and another eligible player may accept first.</p>
-            <button onClick={begin} className="w-full py-1 text-sm font-medium text-[#E5CA7A]">I’ve completed this — check again</button>
+            {readiness?.code !== 'check_failed' && <button onClick={begin} className="w-full py-1 text-sm font-medium text-[#E5CA7A]">I’ve completed this — check again</button>}
           </div>}
           {!free && open && !creator && stage === 'confirm' && <div className="space-y-3">
             {!creator && !creatorReady && <div className="rounded-xl bg-white/5 p-3 text-sm text-white/60">{free?'Waiting for the creator to return to the Play screen.':'Waiting for the creator to return to the Play screen with enough available funds. No opponent or funds are reserved.'}
