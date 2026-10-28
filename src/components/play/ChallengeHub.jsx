@@ -70,8 +70,17 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
     refresh();
     if(!userId)return;
     let eventTimer;
+    const eventStates = new Map();
     const unsubscribe=base44.entities.Match.subscribe(event=>{
-      if(event.data?.launch_epoch===2 && event.data?.player1_id===userId){
+      const match=event.data;
+      if(match?.launch_epoch===2 && match?.player1_id===userId){
+        // Presence renewals update the row every three seconds. Refresh only
+        // for changes that affect the challenge list, not each renewal.
+        const signature=JSON.stringify([event.type,match.status,match.challenge_operation_state,
+          match.player2_id,match.challenge_publicly_listed,match.notify_on_accept,
+          match.challenge_expires_at,match.is_private]);
+        if(match.id && eventStates.get(match.id)===signature)return;
+        if(match.id)eventStates.set(match.id,signature);
         clearTimeout(eventTimer);eventTimer=setTimeout(()=>refresh(),150);
       }
     });

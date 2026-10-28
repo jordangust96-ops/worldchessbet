@@ -12,9 +12,11 @@ export default function LiveStatsBar() {
   const [stats, setStats] = useState(null);
   const [isStale, setIsStale] = useState(false);
   const requestInFlight = useRef(false);
+  const lastRequestAt = useRef(0);
 
   const fetchStats = useCallback(async () => {
-    if (requestInFlight.current) return;
+    if (requestInFlight.current || Date.now() - lastRequestAt.current < REFRESH_INTERVAL_MS) return;
+    lastRequestAt.current = Date.now();
     requestInFlight.current = true;
     try {
       const { data } = await base44.functions.invoke("getLiveStats", {});
