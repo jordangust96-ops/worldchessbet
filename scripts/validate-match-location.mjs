@@ -147,7 +147,12 @@ for(const name of ['finalizeMatchStart','getOrCreateGame']) {
     Match:{get:async()=>({...match,status:name==='getOrCreateGame'?'both_ready':'preparing'}),update:async()=>{writes++;}},
     Game:{create:async()=>{writes++;}}
   }},functions:{invoke:async()=>{invokes++;}}};
+  const locationDependency={getMatchLocationReadiness:async()=>({ready:false,requiredUserIds:['p2']}),matchLocationRequiredResponse:helpers.matchLocationRequiredResponse};
+  const gameHelper=load('base44/shared/getOrCreateMatchGame.ts',{
+    './matchLocation.ts':locationDependency, './challengePolicy.js':challengePolicy,
+  }).exports;
   const loaded=load('base44/functions/'+name+'/entry.ts',{
+    '../../shared/getOrCreateMatchGame.ts':gameHelper,
     'npm:@base44/sdk@0.8.38':{createClientFromRequest:()=>sdk},
     '../../shared/matchLocation.ts':{getMatchLocationReadiness:async()=>({ready:false,requiredUserIds:['p2']}),matchLocationRequiredResponse:helpers.matchLocationRequiredResponse},
     '../../shared/integrationEvents.ts':{recordIntegrationEvent:async()=>{}},
