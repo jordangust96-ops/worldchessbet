@@ -45,20 +45,19 @@ export async function requireChallengePolicies(base44: any, userId: string) {
 // Query active statuses, not the user's latest five records: older live games
 // must not disappear behind newly created, non-binding invitations.
 export async function findConflictingMatch(base44: any, userId: string, exceptId = '') {
-  for (const field of ['player1_id', 'player2_id', 'challenge_claimant_id']) {
-    const active = await base44.asServiceRole.entities.Match.filter({
-      launch_epoch: 2, [field]: userId,
-      status: { $in: ['preparing', 'both_ready', 'in_progress', 'settling', 'cancelling', 'disputed'] },
-    }, '-created_date', 10);
-    const conflict = active.find((m: any) => m.id !== exceptId);
-    if (conflict) return conflict;
-    const pending = await base44.asServiceRole.entities.Match.filter({
-      launch_epoch: 2, [field]: userId, challenge_operation_state: { $in: ['reserving', 'releasing'] },
-    }, '-created_date', 10);
-    const inFlight = pending.find((m: any) => m.id !== exceptId);
-    if (inFlight) return inFlight;
-  }
-  return null;
+  // One query retains all participant and in-flight checks. At most one row
+  // is excluded (this challenge), so two matches suffice to find a conflict.
+  const rows = await base44.asServiceRole.entities.Match.filter({
+    launch_epoch: 2,
+    $and: [
+      { $or: [{ player1_id:userId }, { player2_id:userId }, { challenge_claimant_id:userId }] },
+      { $or: [
+        { status: { $in: ['preparing', 'both_ready', 'in_progress', 'settling', 'cancelling', 'disputed'] } },
+        { challenge_operation_state: { $in: ['reserving', 'releasing'] } },
+      ] },
+    ],
+  }, '-created_date', 2);
+  return rows.find((m: any) => m.id !== exceptId) || null;
 }
 
 // Read-only, cost-aware gates. Available Balance only; neither pending deposits
