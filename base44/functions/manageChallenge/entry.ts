@@ -1,3 +1,4 @@
+import { withChallengeReadBackoff } from '../../shared/challengeReadBackoff.js';
 import { rematchControl } from '../../shared/rematchControl.ts';
 import { challengeWalletSummary } from '../../shared/challengeWalletSummary.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
@@ -44,9 +45,10 @@ Deno.serve(async (req) => {
     if (text.length > 6000) return response({ error:'Request too large' }, 413);
     let body;
     try { body = JSON.parse(text || '{}'); } catch { return response({ error:'Invalid request' }, 400); }
-    const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me().catch(() => null);
     const action = String(body.action || 'view');
+    const rawClient = createClientFromRequest(req);
+    const base44 = action === 'accept' ? withChallengeReadBackoff(rawClient) : rawClient;
+    const user = await base44.auth.me().catch(() => null);
     requestStage = ['ready','heartbeat','unready','finalize','list'].includes(action) ? action : 'challenge_action';
     if (action === 'view') {
       // Reject malformed capability links before any Redis or entity access.
