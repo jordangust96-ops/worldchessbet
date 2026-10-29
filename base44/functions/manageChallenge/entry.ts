@@ -1,3 +1,4 @@
+import { withChallengeReadBackoff } from '../../shared/challengeReadBackoff.js';
 import { rematchControl } from '../../shared/rematchControl.ts';
 import { challengeWalletSummary } from '../../shared/challengeWalletSummary.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
@@ -138,7 +139,7 @@ Deno.serve(async (req) => {
     if (action === 'authorize') return response(await authorizeChallenge(req,base44,user,match,body));
     if (action === 'accept') {
       requestStage = 'accept';
-      const result = await acceptChallenge(req,base44,user,match,body);
+      const result = await acceptChallenge(req,withChallengeReadBackoff(base44),user,match,body);
       return response(result, result.processing ? 202 : 200);
     }
     if (action === 'cancel') return response(await cancelChallenge(base44,user,match.id));
