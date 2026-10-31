@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import Logo from "@/components/Logo";
 import RestrictedModeBanner from "@/components/RestrictedModeBanner";
 import TransactionHistory from "@/components/wallet/TransactionHistory";
 import SeamlessFundingPanel from "@/components/wallet/SeamlessFundingPanel";
@@ -254,7 +252,7 @@ export default function WalletPage() {
             </div>
             <div>
               <p className="text-[10px] uppercase text-white/30">Available to Request</p>
-              <p className="text-sm font-bold text-emerald-400">{funding ? '$' + Number(funding.available_to_play).toFixed(2) : 'Checking…'}</p>
+              <p className="text-sm font-bold text-emerald-400">{funding ? "$" + Number(wallet?.available_balance ?? wallet?.balance ?? 0).toFixed(2) : "Checking…"}</p>
               <p className="mt-0.5 text-[10px] text-white/25">Request a bank withdrawal</p>
             </div>
             <div>
