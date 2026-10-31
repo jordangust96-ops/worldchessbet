@@ -70,7 +70,7 @@ export default function Home() {
       ? Math.floor(Math.min(boardAreaSize.width, boardAreaSize.height))
       : null;
   const moveSoundStateRef = useRef({ gameId: null, moveCount: 0 });
-  const { fen, handleDrop, handleSquareClick, selectedSquare, legalTargets, orientation, game } =
+  const { fen, syncMessage, handleDrop, handleSquareClick, selectedSquare, legalTargets, orientation, game } =
     useChessGame(myMatchId, user?.id, gameActive);
 
   const handleMovementModeChange = (mode) => {
@@ -396,6 +396,7 @@ export default function Home() {
           className={`${gameActive || boardState === "countdown" ? "w-full" : "hidden lg:flex"} min-w-0 min-h-0 lg:h-full lg:flex-[62_1_0%] lg:flex lg:flex-col lg:items-center lg:justify-center lg:overflow-hidden gap-3`}
           style={desktopBoardSize ? /** @type {any} */ ({ "--desktop-board-size": `${desktopBoardSize}px` }) : undefined}
         >
+          {gameActive && syncMessage && <p role="status" aria-live="polite" className="text-center text-sm text-[#E5CA7A]">{syncMessage}</p>}
           <ChessboardPreview
             state={boardState}
             fen={gameActive ? fen : undefined}

@@ -31,6 +31,10 @@ function recordUpdatedAtMs(record) {
 export function useChessGame(matchId, userId, active) {
   const [fen, setFen] = useState(START_FEN);
   const [game, setGame] = useState(null);
+  const pendingMoveRef = useRef(null);
+  const [syncMessage, setSyncMessage] = useState("");
+  const activeMatchRef = useRef(matchId);
+  activeMatchRef.current = matchId;
   const [color, setColor] = useState("white");
   const chessRef = useRef(new Chess());
   // Ply of the position currently rendered — the single source of truth for
@@ -65,6 +69,43 @@ export function useChessGame(matchId, userId, active) {
     setLegalTargets(targets);
   }, []);
 
+  const applyLatest = useCallback((latest) => {
+      if (!latest?.fen || latest.match_id !== activeMatchRef.current) return false;
+      // Reject any state that is behind what's already rendered — this is what
+      // stops a delayed/in-flight poll or subscription event from ever
+      // rolling the board back to an earlier position.
+      const latestPly = plyFromFen(latest.fen);
+      const latestUpdatedAt = recordUpdatedAtMs(latest);
+      if (latestPly < renderedPlyRef.current) return;
+      if (latestPly === renderedPlyRef.current && latestUpdatedAt < renderedUpdatedAtRef.current) return;
+      if (renderedStatusRef.current === "completed" && latest.status !== "completed") return;
+      const positionChanged = latest.fen !== chessRef.current.fen();
+      const gameEnded = latest.status === "completed";
+      if (positionChanged) {
+        chessRef.current.load(latest.fen);
+        setFen(chessRef.current.fen());
+      }
+      renderedPlyRef.current = latestPly;
+      renderedUpdatedAtRef.current = Math.max(renderedUpdatedAtRef.current, latestUpdatedAt);
+      renderedStatusRef.current = latest.status;
+      setGame(latest);
+      if (pendingMoveRef.current && (latestPly > pendingMoveRef.current.ply || gameEnded)) {
+        pendingMoveRef.current = null;
+        setSyncMessage("");
+      }
+
+      // Keep a valid click-to-move selection across same-position refreshes.
+      // Realtime may emit metadata-only Game updates and the recovery poll
+      // fetches the same record every five seconds; neither changes legal
+      // moves, so clearing here made the highlights appear to vanish at
+      // random. A genuine position change (opponent move, reconnect to a newer
+      // position, or server correction) or game completion still clears it.
+      if (positionChanged || gameEnded) {
+        clearSelection();
+      }
+      return true;
+  }, [clearSelection]);
+
   const loadGame = useCallback(async () => {
     if (!matchId || !userId) return;
     const match = await base44.entities.Match.get(matchId);
@@ -75,19 +116,16 @@ export function useChessGame(matchId, userId, active) {
     // on the same Game id, eliminating the prior client-side race where each
     // player could independently create their own Game record.
     const { data } = await base44.functions.invoke("getOrCreateGame", { matchId });
-    const g = data.game;
-    setGame(g);
-    chessRef.current.load(g.fen || START_FEN);
-    setFen(chessRef.current.fen());
-    renderedPlyRef.current = plyFromFen(chessRef.current.fen());
-    renderedUpdatedAtRef.current = recordUpdatedAtMs(g);
-    renderedStatusRef.current = g.status;
-  }, [matchId, userId]);
+    if (activeMatchRef.current !== matchId) return;
+    applyLatest(data.game);
+  }, [matchId, userId, applyLatest]);
 
   useEffect(() => {
     if (!active) {
       // Clear any previous match's game data so a dismissed/completed game can
       // never bleed into the next match's initial render.
+      pendingMoveRef.current = null;
+      setSyncMessage("");
       setGame(null);
       setFen(START_FEN);
       chessRef.current = new Chess();
@@ -176,43 +214,15 @@ export function useChessGame(matchId, userId, active) {
   useEffect(() => {
     if (!active || !game?.id) return;
 
-    const applyLatest = (latest) => {
-      // Reject any state that is behind what's already rendered — this is what
-      // stops a delayed/in-flight poll or subscription event from ever
-      // rolling the board back to an earlier position.
-      const latestPly = plyFromFen(latest.fen);
-      const latestUpdatedAt = recordUpdatedAtMs(latest);
-      if (latestPly < renderedPlyRef.current) return;
-      if (latestPly === renderedPlyRef.current && latestUpdatedAt < renderedUpdatedAtRef.current) return;
-      if (renderedStatusRef.current === "completed" && latest.status !== "completed") return;
-      const positionChanged = latest.fen !== chessRef.current.fen();
-      const gameEnded = latest.status === "completed";
-      if (positionChanged) {
-        chessRef.current.load(latest.fen);
-        setFen(chessRef.current.fen());
-      }
-      renderedPlyRef.current = latestPly;
-      renderedUpdatedAtRef.current = Math.max(renderedUpdatedAtRef.current, latestUpdatedAt);
-      renderedStatusRef.current = latest.status;
-      setGame(latest);
 
-      // Keep a valid click-to-move selection across same-position refreshes.
-      // Realtime may emit metadata-only Game updates and the recovery poll
-      // fetches the same record every five seconds; neither changes legal
-      // moves, so clearing here made the highlights appear to vanish at
-      // random. A genuine position change (opponent move, reconnect to a newer
-      // position, or server correction) or game completion still clears it.
-      if (positionChanged || gameEnded) {
-        clearSelection();
-      }
-    };
 
     // Recover the authoritative state immediately on (re)subscribe, e.g. after a
     // browser refresh or a dropped realtime connection being re-established.
-    base44.entities.Game.get(game.id).then(applyLatest);
+    let stopped = false;
+    base44.entities.Game.get(game.id).then(latest => { if (!stopped) applyLatest(latest); }).catch(() => {});
 
     const unsubscribe = base44.entities.Game.subscribe((event) => {
-      if (event.data?.id !== game.id) return;
+      if (stopped || event.data?.id !== game.id) return;
       if (event.type === "update" || event.type === "create") {
         applyLatest(event.data);
       }
@@ -226,7 +236,14 @@ export function useChessGame(matchId, userId, active) {
       if (document.visibilityState !== "visible" || recoveryInFlight) return;
       recoveryInFlight = true;
       try {
-        applyLatest(await base44.entities.Game.get(game.id));
+        const latest = await base44.entities.Game.get(game.id);
+        if (!stopped) {
+          applyLatest(latest);
+          if (pendingMoveRef.current?.uncertain) {
+            pendingMoveRef.current = null;
+            setSyncMessage("");
+          }
+        }
       } catch {
         // The next realtime event or visible recovery interval will retry.
       } finally {
@@ -239,20 +256,21 @@ export function useChessGame(matchId, userId, active) {
     window.addEventListener("online", recoverLatest);
 
     return () => {
+      stopped = true;
       unsubscribe();
       clearInterval(pollInterval);
       document.removeEventListener("visibilitychange", recoverLatest);
       window.removeEventListener("focus", recoverLatest);
       window.removeEventListener("online", recoverLatest);
     };
-  }, [active, game?.id, clearSelection]);
+  }, [active, game?.id, clearSelection, applyLatest]);
 
   // Shared core used by both Drag & Drop (handleDrop) and Click to Move
   // (handleSquareClick) — the single path that ever calls submitMove, so both
   // input methods run through identical validation/optimistic-update/rollback logic.
   const attemptMove = useCallback(
     (sourceSquare, targetSquare, inputMeta = {}) => {
-      if (!game || game.status === "completed") return false;
+      if (!game || game.status === "completed" || pendingMoveRef.current) return false;
 
       // Only the player whose turn it is may initiate a move. This keeps
       // click and drag input aligned with server authority and prevents legal
@@ -275,13 +293,10 @@ export function useChessGame(matchId, userId, active) {
 
       const previousFen = chessRef.current.fen();
 
-      // Optimistic local update for responsiveness; corrected/confirmed by the server response.
-      chessRef.current.load(preview.fen());
-      setFen(preview.fen());
-      // Advance the progress marker immediately so any stale poll/subscription
-      // response still reflecting the pre-move position gets rejected by
-      // applyLatest instead of briefly rendering over this optimistic move.
-      renderedPlyRef.current = plyFromFen(preview.fen());
+      // Keep the confirmed board and turn until the server accepts the move.
+      const operation = { gameId: game.id, ply: plyFromFen(previousFen) };
+      pendingMoveRef.current = operation;
+      setSyncMessage("Confirming move…");
       clearSelection();
 
       // Sanitized, aggregate-only input telemetry helps detect mobile
@@ -306,59 +321,51 @@ export function useChessGame(matchId, userId, active) {
       }
 
       (async () => {
+        let deadline;
         try {
-          // The HTTP response only confirms success/failure. The authoritative board
-          // update for both players comes exclusively from the Game realtime subscription.
-          await base44.functions.invoke("submitMove", {
-            gameId: game.id,
-            from: sourceSquare,
-            to: targetSquare,
-            promotion: "q",
-            expectedFen: previousFen,
-          });
+          // Never resubmit automatically: a lost response may still have committed.
+          const response = await Promise.race([
+            base44.functions.invoke("submitMove", {
+              gameId: game.id, from: sourceSquare, to: targetSquare,
+              promotion: "q", expectedFen: previousFen,
+            }),
+            new Promise((_, reject) => {
+              deadline = setTimeout(() => reject(new Error("Move confirmation interrupted")), 15000);
+            }),
+          ]);
+          if (activeMatchRef.current !== matchId) return;
+          if (response?.data?.game) applyLatest(response.data.game);
+          if (pendingMoveRef.current === operation) pendingMoveRef.current = null;
+          setSyncMessage("");
         } catch (error) {
-          // The request failed — but on a flaky connection (common on mobile)
-          // the move may have actually been recorded server-side even though
-          // the response never arrived, or the rejection may be stale (e.g.
-          // "Not your turn" because the opponent's move already landed).
-          // Re-sync with the authoritative Game record instead of blindly
-          // trusting the local rollback, so a lost response never leaves a
-          // player stuck retrying a move that already succeeded.
-          let moveAlreadyLanded = false;
+          if (activeMatchRef.current !== matchId || pendingMoveRef.current !== operation) return;
+          operation.uncertain = true;
+          setSyncMessage("Reconnecting — checking your move…");
           try {
             const latest = await base44.entities.Game.get(game.id);
-            const latestPly = plyFromFen(latest.fen);
-            if (latestPly >= renderedPlyRef.current) {
-              chessRef.current.load(latest.fen);
-              setFen(chessRef.current.fen());
-              renderedPlyRef.current = latestPly;
-              renderedUpdatedAtRef.current = Math.max(renderedUpdatedAtRef.current, recordUpdatedAtMs(latest));
-              renderedStatusRef.current = latest.status;
-              setGame(latest);
-              moveAlreadyLanded = latest.fen === preview.fen();
-            } else {
-              chessRef.current.load(previousFen);
-              setFen(previousFen);
-              renderedPlyRef.current = plyFromFen(previousFen);
+            if (activeMatchRef.current !== matchId || pendingMoveRef.current !== operation) return;
+            applyLatest(latest);
+            if (pendingMoveRef.current === operation) pendingMoveRef.current = null;
+            setSyncMessage("");
+            if (plyFromFen(latest.fen) === operation.ply && latest.status !== "completed") {
+              toast({
+                title: "Move not confirmed",
+                description: "The confirmed position has been restored. Check whose turn it is before trying again.",
+              });
             }
-          } catch (refetchError) {
-            chessRef.current.load(previousFen);
-            setFen(previousFen);
-            renderedPlyRef.current = plyFromFen(previousFen);
+          } catch {
+            // Keep input blocked until a later authoritative update proves the
+            // outcome. A read failure must never roll back a confirmed position.
+            setSyncMessage("Reconnecting — waiting to confirm your move. Please keep this game open.");
           }
-          if (!moveAlreadyLanded) {
-            toast({
-              title: "Move rejected",
-              description: error?.response?.data?.error || "That move could not be made.",
-              variant: "destructive",
-            });
-          }
+        } finally {
+          clearTimeout(deadline);
         }
       })();
 
       return true;
     },
-    [game, color, toast, clearSelection]
+    [game, color, toast, clearSelection, matchId, applyLatest]
   );
 
   const handleDrop = useCallback(
@@ -431,6 +438,7 @@ export function useChessGame(matchId, userId, active) {
 
   return {
     fen,
+    syncMessage,
     handleDrop,
     handleSquareClick,
     selectedSquare,
