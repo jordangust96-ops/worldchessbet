@@ -1,3 +1,4 @@
+import { guardGameMutations } from '../../shared/gameMutationGuard.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { buildTimeoutCompletion } from '../../shared/gameActivity.ts';
 
@@ -8,7 +9,7 @@ const STALE_LEASE_MS = 2 * 60 * 1000;
 // independent of either player's browser session.
 Deno.serve(async (req) => {
   try {
-    const base44 = createClientFromRequest(req);
+    const base44 = guardGameMutations(createClientFromRequest(req));
     const caller = await base44.auth.me().catch(() => null);
     if (!caller) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     if (caller.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 });

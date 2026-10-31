@@ -1,3 +1,4 @@
+import { guardGameMutations } from '../../shared/gameMutationGuard.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import {
   DISCONNECT_POLICY_VERSION,
@@ -11,7 +12,7 @@ import {
 // disconnect policy and the scheduled safety sweep.
 Deno.serve(async (req) => {
   try {
-    const base44 = createClientFromRequest(req);
+    const base44 = guardGameMutations(createClientFromRequest(req));
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -82,6 +83,6 @@ Deno.serve(async (req) => {
     const timeoutCheck = await checkDisconnectTimeout(base44, updatedGame, match, now.getTime());
     return Response.json({ game: timeoutCheck.game || updatedGame });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ error: error.message }, { status: error.status || 500 });
   }
 });

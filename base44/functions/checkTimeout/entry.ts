@@ -1,3 +1,4 @@
+import { guardGameMutations } from '../../shared/gameMutationGuard.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 
 // Server timestamps are always UTC but can come back without a timezone
@@ -42,7 +43,7 @@ function hasSufficientMatingMaterial(fen, color) {
 
 Deno.serve(async (req) => {
   try {
-    const base44 = createClientFromRequest(req);
+    const base44 = guardGameMutations(createClientFromRequest(req));
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -114,6 +115,6 @@ Deno.serve(async (req) => {
     const updatedGame = await base44.asServiceRole.entities.Game.update(gameId, timeoutUpdates);
     return Response.json({ game: updatedGame });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ error: error.message }, { status: error.status || 500 });
   }
 });

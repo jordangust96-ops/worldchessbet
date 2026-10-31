@@ -1,3 +1,4 @@
+import { guardGameMutations } from '../../shared/gameMutationGuard.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { checkDisconnectTimeout } from '../../shared/disconnectPolicy.js';
 
@@ -34,7 +35,7 @@ function hasSufficientMatingMaterial(fen, color) {
 
 Deno.serve(async (req) => {
   try {
-    const base44 = createClientFromRequest(req);
+    const base44 = guardGameMutations(createClientFromRequest(req));
 
     const activeGames = await base44.asServiceRole.entities.Game.filter(
       { launch_epoch: 2, status: 'active' },
