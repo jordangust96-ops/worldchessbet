@@ -37,7 +37,8 @@
     "test:free-play": "node scripts/validate-free-play.mjs",
     "test:funding": "node scripts/validate-funding-provenance.mjs && node scripts/validate-funding-journal.mjs",
     "test:withdrawal-queue": "node scripts/validate-queued-withdrawals.mjs && node scripts/validate-withdrawal-request-email.mjs",
-    "test:acceptance-email": "node scripts/validate-acceptance-email.mjs && node scripts/validate-accept-email-preference.mjs"
+    "test:acceptance-email": "node scripts/validate-acceptance-email.mjs && node scripts/validate-accept-email-preference.mjs",
+    "test:game-sync": "node scripts/validate-game-sync-hardening.mjs"
   },
   "dependencies": {
     "@base44/sdk": "^0.8.57",

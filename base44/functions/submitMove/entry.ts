@@ -49,8 +49,8 @@ Deno.serve(async (req) => {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { gameId, from, to, promotion, expectedFen } = await req.json();
-    if (!gameId || !from || !to) {
-      return Response.json({ error: 'gameId, from, and to are required' }, { status: 400 });
+    if (!gameId || !from || !to || typeof expectedFen !== 'string' || !expectedFen) {
+      return Response.json({ error: 'gameId, from, to, and expectedFen are required' }, { status: 400 });
     }
 
     const game = await base44.asServiceRole.entities.Game.get(gameId);
@@ -79,6 +79,11 @@ Deno.serve(async (req) => {
     const chess = new Chess();
     for (const entry of game.move_log || []) {
       chess.move(entry.san);
+    }
+
+    if (chess.fen() !== game.fen) {
+      console.error(JSON.stringify({event:'game_position_history_mismatch',game_id:gameId}));
+      return Response.json({ error: 'The saved position needs review. Please reconnect; do not submit another move.' }, { status: 409 });
     }
 
     const myColor = isP1 ? 'w' : 'b';

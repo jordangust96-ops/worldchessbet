@@ -38,7 +38,7 @@ export function useChessGame(matchId, userId, active) {
   const [color, setColor] = useState("white");
   const chessRef = useRef(new Chess());
   // Ply of the position currently rendered — the single source of truth for
-  // ordering. Never let a lower-ply update overwrite it.
+  // ordering of confirmed states. Never let a lower-ply update overwrite it.
   const renderedPlyRef = useRef(0);
   const renderedUpdatedAtRef = useRef(0);
   const renderedStatusRef = useRef(null);
@@ -278,8 +278,7 @@ export function useChessGame(matchId, userId, active) {
   }, [active, game?.id, clearSelection, applyLatest]);
 
   // Shared core used by both Drag & Drop (handleDrop) and Click to Move
-  // (handleSquareClick) — the single path that ever calls submitMove, so both
-  // input methods run through identical validation/optimistic-update/rollback logic.
+  // (handleSquareClick) — one confirmation and recovery path for both input modes.
   const attemptMove = useCallback(
     (sourceSquare, targetSquare, inputMeta = {}) => {
       if (!game || game.status === "completed" || pendingMoveRef.current) return false;
@@ -347,8 +346,7 @@ export function useChessGame(matchId, userId, active) {
           ]);
           if (activeMatchRef.current !== matchId) return;
           if (response?.data?.game) applyLatest(response.data.game);
-          if (pendingMoveRef.current === operation) pendingMoveRef.current = null;
-          setSyncMessage("");
+          if (pendingMoveRef.current === operation) { pendingMoveRef.current = null; setSyncMessage(""); }
         } catch (error) {
           if (activeMatchRef.current !== matchId || pendingMoveRef.current !== operation) return;
           operation.uncertain = true;
