@@ -248,7 +248,7 @@ export default function WalletPage() {
             <div>
               <p className="text-[10px] uppercase text-white/30">Available Balance</p>
               <p className="text-sm font-bold text-emerald-400">
-                ${Number(funding?.available_to_play ?? wallet?.available_balance ?? wallet?.balance ?? 0).toFixed(2)}
+                ${Number(wallet?.available_balance ?? wallet?.balance ?? 0).toFixed(2)}
               </p>
               <p className="mt-0.5 text-[10px] text-white/25">Available to play</p>
             </div>
