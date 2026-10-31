@@ -81,5 +81,22 @@ submit.reject(new Error('network lost'));await flush();assert.equal(output.fen,l
 // A rejected move keeps the confirmed board and becomes actionable again.
 emit({...latest,fen:(()=>{chess.move('Nc6');return chess.fen();})(),updated_date:'2026-10-31T22:00:04Z'});await flush();
 const confirmed=output.fen;submit=deferred();output.handleDrop('f1','b5');await flush();submit.reject(new Error('not saved'));await flush();assert.equal(output.fen,confirmed);assert.equal(output.syncMessage,'');assert.ok(notices.length);
+// Castling is displayed only after acknowledgement, survives refresh, and
+// cannot be undone by a delayed pre-castle snapshot.
+const castle = new Chess();
+for (const san of ['e4','e5','Nf3','Nc6','Bc4','Nf6']) castle.move(san);
+const preCastle={...initial(),fen:castle.fen(),updated_date:'2026-10-31T22:00:05Z'};
+emit(preCastle);await flush();submit=deferred();
+assert.equal(output.handleDrop('e1','g1'),true);await flush();
+assert.equal(output.fen,preCastle.fen);
+castle.move('O-O');
+const castled={...preCastle,fen:castle.fen(),updated_date:'2026-10-31T22:00:06Z'};
+latest=castled;submit.resolve({data:{game:castled}});await flush();
+assert.equal(output.fen,castled.fen);
+emit(preCastle);await flush();assert.equal(output.fen,castled.fen);
+latest=castled;
+for(const slot of slots)slot?.cleanup?.();
+slots=[];cursor=0;effects=[];output=undefined;dirty=true;
+await flush();assert.equal(output.fen,castled.fen,'refresh restores the confirmed castle');
 for(const slot of slots)slot?.cleanup?.();
 console.log('Actual handler races, stale sweep, duplicate requests, response confirmation, pending input, stale updates, lost responses and rejected-move recovery passed.');

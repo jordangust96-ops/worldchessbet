@@ -204,6 +204,7 @@ Deno.serve(async (req) => {
 
     const updatedGame = await base44.asServiceRole.entities.Game.update(gameId, updates);
 
+    console.info(JSON.stringify({ event:'game_move_committed', game_id:gameId, ply:updates.move_log.length }));
     return Response.json({ game: updatedGame });
   } catch (error) {
     return Response.json({ error: error.message }, { status: error.status || 500 });
