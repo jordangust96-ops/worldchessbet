@@ -106,6 +106,18 @@ export function useChessGame(matchId, userId, active) {
       return true;
   }, [clearSelection]);
 
+  useEffect(() => {
+    pendingMoveRef.current = null;
+    setSyncMessage("");
+    renderedPlyRef.current = 0;
+    renderedUpdatedAtRef.current = 0;
+    renderedStatusRef.current = null;
+    chessRef.current = new Chess();
+    setFen(START_FEN);
+    setGame(null);
+    clearSelection();
+  }, [matchId, clearSelection]);
+
   const loadGame = useCallback(async () => {
     if (!matchId || !userId) return;
     const match = await base44.entities.Match.get(matchId);
@@ -238,8 +250,8 @@ export function useChessGame(matchId, userId, active) {
       try {
         const latest = await base44.entities.Game.get(game.id);
         if (!stopped) {
-          applyLatest(latest);
-          if (pendingMoveRef.current?.uncertain) {
+          const applied = applyLatest(latest);
+          if (applied && pendingMoveRef.current?.uncertain) {
             pendingMoveRef.current = null;
             setSyncMessage("");
           }

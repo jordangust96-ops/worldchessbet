@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
       if (remainingMs > 0) {
         const match = await base44.asServiceRole.entities.Match.get(candidate.match_id);
         if (match) {
-          const disconnectCheck = await checkDisconnectTimeout(base44, candidate, match, now);
+          const disconnectCheck = await checkDisconnectTimeout(base44, candidate, match, now).catch(() => ({completed:false}));
           if (disconnectCheck.completed) resolvedIds.push(candidate.id);
         }
         continue;
@@ -106,7 +106,8 @@ Deno.serve(async (req) => {
         preCommitGame.turn_started_at !== game.turn_started_at
       ) continue;
 
-      await base44.asServiceRole.entities.Game.update(game.id, timeoutUpdates);
+      try { await base44.asServiceRole.entities.Game.update(game.id, timeoutUpdates); }
+      catch (error) { if (error.status === 409) continue; throw error; }
       resolvedIds.push(game.id);
     }
 

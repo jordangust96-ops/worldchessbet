@@ -90,6 +90,7 @@ export function useChessClock(game) {
     window.addEventListener("online", resyncWhenVisible);
 
     return () => {
+      syncSequenceRef.current++;
       clearInterval(resyncInterval);
       document.removeEventListener("visibilitychange", resyncWhenVisible);
       window.removeEventListener("focus", resyncWhenVisible);

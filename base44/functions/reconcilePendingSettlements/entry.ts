@@ -53,7 +53,11 @@ Deno.serve(async (req) => {
       if (game.status === 'active') {
         const timeoutUpdates = buildTimeoutCompletion(game, match);
         if (!timeoutUpdates) continue;
-        game = await base44.asServiceRole.entities.Game.update(game.id, timeoutUpdates);
+        try { game = await base44.asServiceRole.entities.Game.update(game.id, timeoutUpdates); }
+        catch (error) {
+          if (error.status === 409) { summary.pending += 1; continue; }
+          throw error;
+        }
         summary.timed_out += 1;
       }
 
