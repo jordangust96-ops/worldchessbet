@@ -8,6 +8,8 @@ import RestrictedModeBanner from "@/components/RestrictedModeBanner";
 import TransactionHistory from "@/components/wallet/TransactionHistory";
 import SeamlessFundingPanel from "@/components/wallet/SeamlessFundingPanel";
 
+import usePendingWinnings from "@/components/wallet/usePendingWinnings";
+
 const TX_PAGE_SIZE = 20;
 const MATCH_HISTORY_PAGE_SIZE = 500;
 
@@ -32,6 +34,7 @@ export default function WalletPage() {
   const [funding, setFunding] = useState(null);
   const [pendingDeposits, setPendingDeposits] = useState(0);
   const [userId, setUserId] = useState(null);
+  const winnings = usePendingWinnings(userId);
   const [transactions, setTransactions] = useState([]);
   const [txPage, setTxPage] = useState(1);
   const [txTotalCount, setTxTotalCount] = useState(0);
@@ -52,7 +55,10 @@ export default function WalletPage() {
       inFlight = true;
       try {
         const wallets = await base44.entities.Wallet.filter({ user_id: userId });
-        if (!stopped && wallets[0]) setWallet(wallets[0]);
+        if (!stopped && wallets[0]) {
+          setWallet(wallets[0]);
+          await loadTransactions(userId, txPage);
+        }
       } catch {
         // Keep the last confirmed balance; retry on the next tick/focus.
       } finally { inFlight = false; }
@@ -66,7 +72,7 @@ export default function WalletPage() {
       window.removeEventListener("focus", refreshBalance);
       document.removeEventListener("visibilitychange", refreshBalance);
     };
-  }, [userId]);
+  }, [userId, txPage]);
 
 
   useEffect(() => {
@@ -238,28 +244,33 @@ export default function WalletPage() {
           <h1 className="text-4xl font-extrabold text-white mb-1">
             ${Number(wallet?.total_balance ?? wallet?.balance ?? 0).toFixed(2)}
           </h1>
-          <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 items-start gap-3 sm:gap-8">
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 items-start gap-3 sm:gap-8">
             <div>
-              <p className="text-[10px] uppercase text-white/30">Available to Play</p>
+              <p className="text-[10px] uppercase text-white/30">Available Balance</p>
               <p className="text-sm font-bold text-emerald-400">
                 ${Number(funding?.available_to_play ?? wallet?.available_balance ?? wallet?.balance ?? 0).toFixed(2)}
               </p>
-              <p className="mt-0.5 text-[10px] text-white/25">Ready for contest entries</p>
+              <p className="mt-0.5 text-[10px] text-white/25">Available to play</p>
             </div>
             <div>
               <p className="text-[10px] uppercase text-white/30">Available to Request</p>
               <p className="text-sm font-bold text-emerald-400">{funding ? '$' + Number(funding.available_to_play).toFixed(2) : 'Checking…'}</p>
               <p className="mt-0.5 text-[10px] text-white/25">Request a bank withdrawal</p>
             </div>
-            <div className="border-x border-white/10 px-2 sm:px-8">
-              <p className="text-[10px] uppercase text-white/30">Reserved</p>
-              <p className="text-sm font-bold text-[#C9A84C]">
-                ${Number(wallet?.held_balance ?? 0).toFixed(2)}
-              </p>
-              <p className="mt-0.5 text-[10px] text-white/25">Contests, withdrawals, or pending funds</p>
+            <div>
+              <p className="text-[10px] uppercase text-white/30">Pending Winnings</p>
+              <p className="text-sm font-bold text-[#C9A84C]">{winnings.data != null ? "$" + winnings.data.toFixed(2) : winnings.isError ? "Unavailable" : "Checking…"}</p>
+              <p className="mt-0.5 text-[10px] text-white/25">Held during the 24-hour reporting window; review may delay release</p>
             </div>
             <div>
-              <p className="text-[10px] uppercase text-white/30">Pending</p>
+              <p className="text-[10px] uppercase text-white/30">Other Reserved Funds</p>
+              <p className="text-sm font-bold text-[#C9A84C]">
+                {winnings.data != null ? "$" + Math.max(0, Number(wallet?.held_balance ?? 0) - winnings.data).toFixed(2) : "Checking…"}
+              </p>
+              <p className="mt-0.5 text-[10px] text-white/25">Contest entries, withdrawals, or clearing deposits</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase text-white/30">Pending Deposits</p>
               <p className="text-sm font-bold text-amber-300">${pendingDeposits.toFixed(2)}</p>
               <p className="mt-0.5 text-[10px] text-white/25">Waiting for bank confirmation</p>
             </div>
