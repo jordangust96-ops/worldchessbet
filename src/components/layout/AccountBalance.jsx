@@ -5,8 +5,11 @@ import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { challengeRequest } from '@/lib/challengeApi';
 
+import usePendingWinnings from '@/components/wallet/usePendingWinnings';
+
 export default function AccountBalance() {
   const { user } = useAuth();
+  const winnings = usePendingWinnings(user?.id);
   const { pathname } = useLocation();
   const client = useQueryClient();
   const queryKey = ['header-wallet', user?.id];
@@ -52,13 +55,15 @@ export default function AccountBalance() {
     return () => { stopWallet(); stopTransactions(); stopMatches(); };
   }, [user?.id, client]);
   const content = <>
-    <span className="block text-[10px] uppercase tracking-widest text-white/40">Balance</span>
+    <span className="block text-[10px] uppercase tracking-widest text-white/40">Available Balance</span>
     <span className="block text-lg font-bold leading-6 text-[#C9A84C] tabular-nums">{data ? `$${data.balance.toFixed(2)}` : '—'}</span>
+    {winnings.data > 0 && <span className="block text-xs font-normal leading-4 text-[#C9A84C] tabular-nums">Pending Winnings ${winnings.data.toFixed(2)}</span>}
+    {winnings.isError && <span className="block text-[10px] text-white/50">Pending winnings update unavailable</span>}
     {data?.reserved > 0 && <span className="block text-xs font-normal leading-4 text-white/65 tabular-nums">${data.reserved.toFixed(2)} reserved for matches</span>}
     {data?.pending > 0 && <span className="block text-xs font-normal leading-4 text-white/50 tabular-nums">${data.pending.toFixed(2)} pending deposit</span>}
     {isError && <span className="block text-[10px] text-white/50">Balance update unavailable</span>}
   </>;
   return pathname.replace(/\/$/, '') === '/wallet'
     ? <div className="text-right" aria-label="Wallet balance">{content}</div>
-    : <Link to="/wallet" className="rounded-md text-right focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#C9A84C]" aria-label="View wallet balance, match reservations and pending deposits">{content}</Link>;
+    : <Link to="/wallet" className="rounded-md text-right focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#C9A84C]" aria-label="View available balance, pending winnings, match reservations and pending deposits">{content}</Link>;
 }
