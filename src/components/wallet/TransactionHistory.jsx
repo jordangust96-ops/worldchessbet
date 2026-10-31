@@ -36,7 +36,7 @@ const statusConfig = {
   failed: { label: "Not applied", className: "text-white/45 bg-white/5 border-white/10" },
   failed_transfer: { label: "Failed", className: "text-red-300 bg-red-500/10 border-red-500/20" },
   review_required: { label: "Review required", className: "text-orange-300 bg-orange-500/10 border-orange-500/20" },
-  pending_release: { label: "Pending release", className: "text-[#C9A84C] bg-[#C9A84C]/10 border-[#C9A84C]/20" },
+  pending_release: { label: "Pending Winnings", className: "text-[#C9A84C] bg-[#C9A84C]/10 border-[#C9A84C]/20" },
   clearing: { label: "Clearing", className: "text-[#C9A84C] bg-[#C9A84C]/10 border-[#C9A84C]/20" },
 };
 
@@ -105,7 +105,7 @@ function getTransactionExplanation(tx, match) {
       ? `eligible for release on or after ${moment(tx.payout_release_at).format("MMM D [at] h:mm A")} when no open dispute or blocking integrity or reconciliation flag remains`
       : "eligible for release after the 24-hour reporting window when no open dispute or blocking integrity or reconciliation flag remains";
     return {
-      heading: "Pending release",
+      heading: "Pending Winnings",
       text: `You won this contest and ${amount} has been credited, but held pending the standard 24-hour contest reporting window — ${releaseText}. It does not count toward your available balance yet.`,
     };
   }
@@ -156,13 +156,13 @@ function getTransactionExplanation(tx, match) {
   const explanations = {
     deposit: `This transaction added ${amount} to your available balance.`,
     withdrawal: `This transaction removed ${amount} from your ChessBet balance for withdrawal.`,
-    wager_lock: `Your ${amount} contest entry moved from available funds to reserved funds when the contest began.`,
+    wager_lock: `Your ${amount} contest entry was reserved when you committed to this contest. This is the original entry record; the contest result and any prize or refund are recorded separately.`,
     wager_refund: `Your ${amount} contest entry was returned to your available balance.`,
     wager_forfeit: `You lost this contest, so your ${amount} reserved contest entry was forfeited to your opponent and is no longer part of your balance.`,
     payout: entry
       ? `You won this contest and ${amount} was added to your available balance. The prize is funded by both players’ ${entry} contest entries; platform service fees are separate.`
       : `You won this contest and ${amount} was added to your available balance. Platform service fees are separate from the prize.`,
-    service_fee_charge: `The separate ${amount} platform service fee was reserved when the contest began. It is not deducted from the winner’s prize.`,
+    service_fee_charge: `The separate ${amount} platform service fee was reserved when you committed to the contest. It is not deducted from the winner’s prize.`,
     service_fee_refund: `The ${amount} platform service fee was returned to your available balance.`,
     withdrawal_fee: `A ${amount} fee applies to withdrawals under $${SMALL_WITHDRAWAL_THRESHOLD} to help cover bank transfer costs. Withdrawing your entire available balance at once waives this fee.`,
     withdrawal_fee_refund: `${amount} was returned to your available balance because the related bank withdrawal did not complete.`,
@@ -233,7 +233,12 @@ export default function TransactionHistory({
       </p>
       <div className="space-y-2">
         {transactions.map((tx) => {
-          const config = tx.type === 'admin_reversal' && tx.source_event === 'legacy_deposit_fee_adjustment' ? {...typeConfig.admin_reversal,label:'Deposit Fee'} : typeConfig[tx.type] || typeConfig.deposit;
+          const baseConfig = tx.type === 'admin_reversal' && tx.source_event === 'legacy_deposit_fee_adjustment' ? {...typeConfig.admin_reversal,label:'Deposit Fee'} : typeConfig[tx.type] || typeConfig.deposit;
+          const config = tx.type === "payout" && tx.payout_hold_status === "held"
+            ? { ...baseConfig, label: "Pending Winnings" }
+            : tx.type === "wager_lock" && ["completed", "cancelled"].includes(matchDetailsById[tx.match_id]?.match?.status)
+              ? { ...baseConfig, label: "Contest Entry" }
+              : baseConfig;
           const Icon = config.icon;
           const isIncoming = incomingTypes.includes(tx.type);
           const isExpanded = expandedId === tx.id;
