@@ -13,6 +13,8 @@ import { setPostAuthRedirect } from '@/lib/postAuthRedirect';
 import { challengeRequest, challengeLocationContext, challengeErrorMessage, handleChallengeGate,
   saveChallengeContext, CHALLENGE_TERMS, VALID_INVITE } from '@/lib/challengeApi';
 
+import { challengeReadWithTimeout } from '@/lib/challengeReadTimeout';
+
 const usd = value => `$${Number(value || 0).toFixed(2)}`;
 const walletCodes = ['identity_required','bank_required','funds_required'];
 
@@ -58,8 +60,8 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
     if (refreshingRef.current || actionRef.current === 'accept') return;
     refreshingRef.current = true;
     try {
-      const data = await challengeRequest('view', { inviteCode });
-      if (actionRef.current !== 'accept') setView(data);
+      const data = await challengeReadWithTimeout(() => challengeRequest('view', { inviteCode }));
+      if (actionRef.current !== 'accept') { setView(data); setError(''); }
     } catch (err) { setError(challengeErrorMessage(err)); }
     finally { refreshingRef.current = false; setLoading(false); }
   }, [inviteCode]);
@@ -176,7 +178,7 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
     <div className={embedded ? "space-y-4" : "mx-auto max-w-lg space-y-6"}>
       {embedded ? <button onClick={onClose} className="inline-flex items-center gap-1 text-sm text-white/50"><ArrowLeft size={15} />Challenges</button> : <div className="flex items-center justify-between gap-4"><Link to="/" aria-label="ChessBet"><Logo size="sm" /></Link>
         <Link to="/play" className="inline-flex items-center gap-1 text-sm text-white/50"><ArrowLeft size={15} />Play</Link></div>}
-      {loading ? <div className="py-16 text-center"><Loader2 className="mx-auto animate-spin text-[#C9A84C]" /></div> : card ? <>
+      {loading ? <div role="status" className="py-16 text-center"><Loader2 className="mx-auto animate-spin text-[#C9A84C]" /><p className="mt-3 text-sm text-white/55">Loading challenge…</p></div> : card ? <>
         <section className={embedded ? "space-y-4" : "space-y-5 rounded-3xl border border-[#C9A84C]/20 bg-gradient-to-br from-[#191610] to-[#111] p-5 sm:p-7"}>
           <div className="space-y-2"><p className="text-xs font-semibold uppercase tracking-widest text-[#C9A84C]">{free ? 'Free chess' : card.isRematch ? 'Rematch invitation' : 'Chess for money'}</p>
             <h1 className="text-2xl font-extrabold sm:text-3xl">{creator ? 'Your challenge is ready' : `${card.creatorName}’s challenge`}</h1>
@@ -233,7 +235,7 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
               {busy && <Loader2 size={16} className="mr-2 animate-spin" />}{free ? 'Accept Free Challenge' : creator ? 'Enable Acceptance for 2 Minutes' : `Accept & Reserve ${usd(card.totalRequired)}`}</Button>
             {creator && <p className="text-xs text-white/45">Enabling acceptance reserves nothing. Both players are checked again at final acceptance.</p>}
           </div>}
-          {card.status === 'processing' && <div className="rounded-xl bg-white/5 p-4 text-sm text-white/65"><Loader2 size={16} className="mb-2 animate-spin" />Confirming the reservation result. Do not submit another payment.</div>}
+          {card.status === 'processing' && <div role="status" className="space-y-3 rounded-xl bg-white/5 p-4 text-sm text-white/65"><p>{!view?.participant && !view?.ownOperation ? 'The creator’s challenge is still being confirmed. You have not accepted it and no funds have been reserved from your wallet. If this continues, ask the creator to check the challenge on their Play screen.' : 'Confirming the reservation result. Do not submit another payment.'}</p><button onClick={refresh} disabled={Boolean(busy)} className="font-semibold text-[#C9A84C]">Check challenge status</button></div>}
           {!open && card.status !== 'processing' && <div className="space-y-3 rounded-2xl bg-white/5 p-4"><h2 className="font-bold">{card.status === 'expired' ? 'This challenge expired' : card.status === 'cancelled' ? 'This challenge was cancelled' : 'This challenge is no longer open'}</h2>
             <p className="text-sm text-white/55">Create your own challenge or find another opponent.</p>
             <Link to="/play" className="block font-semibold text-[#C9A84C]">Create a Challenge →</Link><Link to="/play?mode=public" className="block text-sm text-white/55">Find an Opponent</Link></div>}
@@ -241,7 +243,7 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
           {open && <p className="text-center text-xs text-white/35">Expires {new Date(card.expiresAt).toLocaleString()}</p>}
         </section>
         {!free && stage !== 'setup' && <p className="text-center text-xs leading-relaxed text-white/40">Money play requires account, identity and location eligibility, a verified bank connection, and sufficient available funds. Pending deposits cannot be used to accept a challenge.</p>}
-      </> : <div className="rounded-2xl border border-white/10 p-6"><h1 className="text-xl font-bold">Challenge unavailable</h1><Link to="/play" className="mt-4 inline-block text-[#C9A84C]">Create your own challenge</Link></div>}
+      </> : <div className="rounded-2xl border border-white/10 p-6"><h1 className="text-xl font-bold">{error ? "Unable to load challenge" : "Challenge unavailable"}</h1><button onClick={() => { setLoading(true); refresh(); }} className="mt-4 block font-semibold text-[#C9A84C]">Try again</button><Link to="/play" className="mt-4 inline-block text-[#C9A84C]">Create your own challenge</Link></div>}
       {error && <p role="alert" className="rounded-xl border border-red-500/20 bg-red-500/5 p-3 text-sm text-red-300">{error}</p>}
       {message && <p role="status" className="flex items-start gap-2 rounded-xl bg-white/5 p-3 text-sm text-[#E5CA7A]"><Check size={16} className="mt-0.5 shrink-0" />{message}</p>}
       {!free && <div className="flex justify-center gap-5 text-xs text-white/40"><Link to="/official-rules">Official Rules</Link><Link to="/fair-play-integrity">Fair Play</Link><Link to="/terms-of-service">Terms</Link></div>}
