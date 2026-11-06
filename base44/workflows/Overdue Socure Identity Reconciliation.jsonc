@@ -1,0 +1,45 @@
+{
+  "name": "Overdue Socure Identity Reconciliation",
+  "description": "Every 15 minutes, reconcile expired hosted identity sessions against canonical Socure results before allowing retry.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "7,22,37,52 * * * *",
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "socure_overdue_identity_reconciliation",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "reconcile_overdue_socure_identities": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "reconcileOverdueSocureIdentities",
+            "args": {}
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Reconcile Overdue Socure Identities",
+            "description": "Read canonical Socure results and offer retry only for confirmed incomplete sessions"
+          }
+        }
+      }
+    ]
+  }
+}
