@@ -151,8 +151,13 @@ Deno.serve(async (req) => {
         summary[status]++;
       } catch (error) {
         summary.failed++;
+        const reason = String(error?.message || 'unknown').slice(0, 100);
+        const currentRow = await service.entities.SocureIdentityVerification.get(candidate.id).catch(() => null);
+        if (currentRow?.status === 'pending')
+          await service.entities.SocureIdentityVerification.update(candidate.id,
+            { description: 'overdue_sync_failed:' + reason }).catch(() => {});
         console.error(JSON.stringify({ event: 'socure_overdue_reconciliation_failed',
-          verification_id: candidate.id, reason: String(error?.message || 'unknown').slice(0, 100) }));
+          verification_id: candidate.id, reason }));
       } finally {
         if (owner) await releaseUserWalletLock(userId, owner).catch(() => {});
       }
