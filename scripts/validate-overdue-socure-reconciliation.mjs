@@ -17,7 +17,7 @@ async function run({provider={...accepted,eval_status:'evaluation_paused',decisi
     identity_verification_status:'pending',account_state:'provisional'};
   let reads=0,archives=0;
   const sdk={auth:{me:async()=>auth?{id:'admin',role:auth}:null},asServiceRole:{entities:{
-    SocureIdentityVerification:{filter:async()=>[{...row}],get:async()=>({...row}),update:async(id,patch)=>{row={...row,...patch};}},
+    SocureIdentityVerification:{filter:async(query)=>query.description ? (row.description===query.description?[{...row}]:[]) : (row.status==='pending'?[{...row}]:[]),get:async()=>({...row}),update:async(id,patch)=>{row={...row,...patch};}},
     User:{get:async()=>({...user}),update:async(id,patch)=>{user={...user,...patch};}}
   }}};
   const {handler}=await loadBackend('base44/functions/reconcileOverdueSocureIdentities/entry.ts',{
