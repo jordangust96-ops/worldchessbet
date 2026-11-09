@@ -1,3 +1,4 @@
+import { initialWalletRetentionDeadline } from './walletRetention.ts';
 import { settleQueuedWithdrawalFee } from './queuedWithdrawalFee.ts';
 import { buildCheckLookupPath, seamlessRequest } from './seamlessAch.ts';
 import { bankWithdrawalAt } from './depositTiming.js';
@@ -55,6 +56,7 @@ export async function refundWithdrawalFee(base44, withdrawal, providerRef, reaso
   ))[0];
   if (!refund) {
     refund = await base44.asServiceRole.entities.WalletTransaction.create({
+          retention_until: initialWalletRetentionDeadline(),
       launch_epoch: 2,
       user_id: withdrawal.user_id,
       type: 'withdrawal_fee_refund',

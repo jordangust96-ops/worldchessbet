@@ -1,3 +1,4 @@
+import { initialWalletRetentionDeadline } from '../../shared/walletRetention.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
 import { requireAdminMfa } from '../../shared/mfa.ts';
@@ -429,6 +430,7 @@ Deno.serve(async (req) => {
           const legs = [];
           if (winnerId && payout > 0) {
             const winnerReversalTx = await base44.asServiceRole.entities.WalletTransaction.create({
+          retention_until: initialWalletRetentionDeadline(),
               user_id: winnerId,
               type: 'admin_reversal',
               amount: payout,
@@ -447,6 +449,7 @@ Deno.serve(async (req) => {
           }
           if (loserId && entryAmount > 0) {
             const loserRefundTx = await base44.asServiceRole.entities.WalletTransaction.create({
+          retention_until: initialWalletRetentionDeadline(),
               user_id: loserId,
               type: 'wager_refund',
               amount: entryAmount,
@@ -481,6 +484,7 @@ Deno.serve(async (req) => {
             legs.push({ ledgerAccount: 'platform_revenue', debit: fee, credit: 0, transactionType: 'reversal' });
             for (const playerId of feeRefundTargets) {
               const feeRefundTx = await base44.asServiceRole.entities.WalletTransaction.create({
+          retention_until: initialWalletRetentionDeadline(),
                 user_id: playerId,
                 type: 'service_fee_refund',
                 amount: feePerPlayer,
@@ -557,6 +561,7 @@ Deno.serve(async (req) => {
             const legs = [];
             if (winnerId && payout > 0) {
               const winnerReversalTx = await base44.asServiceRole.entities.WalletTransaction.create({
+          retention_until: initialWalletRetentionDeadline(),
                 user_id: winnerId,
                 type: 'admin_reversal',
                 amount: payout,
@@ -575,6 +580,7 @@ Deno.serve(async (req) => {
             }
             if (winnerId && entryAmount > 0) {
               const winnerRefundTx = await base44.asServiceRole.entities.WalletTransaction.create({
+          retention_until: initialWalletRetentionDeadline(),
                 user_id: winnerId,
                 type: 'wager_refund',
                 amount: entryAmount,
@@ -593,6 +599,7 @@ Deno.serve(async (req) => {
             }
             if (loserId && entryAmount > 0) {
               const loserRefundTx = await base44.asServiceRole.entities.WalletTransaction.create({
+          retention_until: initialWalletRetentionDeadline(),
                 user_id: loserId,
                 type: 'wager_refund',
                 amount: entryAmount,
@@ -621,6 +628,7 @@ Deno.serve(async (req) => {
               legs.push({ ledgerAccount: 'platform_revenue', debit: fee, credit: 0, transactionType: 'reversal' });
               for (const playerId of feeRefundTargets) {
                 const feeRefundTx = await base44.asServiceRole.entities.WalletTransaction.create({
+          retention_until: initialWalletRetentionDeadline(),
                   user_id: playerId,
                   type: 'service_fee_refund',
                   amount: feePerPlayer,
@@ -692,6 +700,7 @@ Deno.serve(async (req) => {
               if (existing.length > 1) throw new Error('duplicate_contest_void_refund_operation');
               if (existing[0]) return existing[0];
               return base44.asServiceRole.entities.WalletTransaction.create({
+          retention_until: initialWalletRetentionDeadline(),
                 user_id: playerId,
                 type,
                 amount,

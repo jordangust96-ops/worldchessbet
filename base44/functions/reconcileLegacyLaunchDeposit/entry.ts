@@ -1,3 +1,4 @@
+import { initialWalletRetentionDeadline } from '../../shared/walletRetention.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 import { requireAdminMfa } from '../../shared/mfa.ts';
 import { postLedgerLegs } from '../../shared/ledger.ts';
@@ -25,7 +26,8 @@ Deno.serve(async req=>{
   if(claim.claim==='completed')return Response.json({deduplicated:true,...summary});
   let adjustments=await base44.asServiceRole.entities.WalletTransaction.filter({idempotency_key:GROUP},'-created_date',2);
   if(adjustments.length>1)throw Error('duplicate_adjustment');
-  let adjustment=adjustments[0]||await base44.asServiceRole.entities.WalletTransaction.create({user_id:USER,type:'admin_reversal',amount:0.75,status:'pending',direction:'debit',currency:'USD',launch_epoch:2,idempotency_key:GROUP,source_event:'legacy_deposit_fee_adjustment',description:'Deposit fee: $0.75.',initiating_actor:'administrator',initiating_actor_id:USER});
+  let adjustment=adjustments[0]||await base44.asServiceRole.entities.WalletTransaction.create({
+          retention_until: initialWalletRetentionDeadline(),user_id:USER,type:'admin_reversal',amount:0.75,status:'pending',direction:'debit',currency:'USD',launch_epoch:2,idempotency_key:GROUP,source_event:'legacy_deposit_fee_adjustment',description:'Deposit fee: $0.75.',initiating_actor:'administrator',initiating_actor_id:USER});
   await postLedgerLegs(base44,{groupId:GROUP,walletTransactionId:adjustment.id,actor:'administrator',actorId:USER,triggerEvent:'legacy_deposit_fee_adjustment',externalRefType:'provider_payment',externalRefId:REF,updateTransactions:false,
    beforePost:async()=>{
     const current=await base44.asServiceRole.entities.WalletTransaction.get(TX);

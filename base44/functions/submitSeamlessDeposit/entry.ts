@@ -1,3 +1,4 @@
+import { initialWalletRetentionDeadline } from '../../shared/walletRetention.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { seamlessDepositsEnabled } from '../../shared/seamlessFundingConfig.ts';
 import { extendComplianceEvidenceRetention } from '../../shared/complianceEvidence.ts';
@@ -146,6 +147,7 @@ Deno.serve(async (req) => {
       : null;
     if (!pending) {
       pending = await base44.asServiceRole.entities.WalletTransaction.create({
+          retention_until: initialWalletRetentionDeadline(),
         launch_epoch: 2,
         user_id: user.id,
         type: 'deposit',

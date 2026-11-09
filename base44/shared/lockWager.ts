@@ -1,3 +1,4 @@
+import { initialWalletRetentionDeadline } from './walletRetention.ts';
 import { verifyMatchLocation } from './matchLocation.ts';
 import { paidContestsEnabled } from './seamlessFundingConfig.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
@@ -149,6 +150,7 @@ export async function lockWager(req, context = null) {
     }
 
     const entryTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
+          retention_until: initialWalletRetentionDeadline(),
       launch_epoch: 2,
       user_id: user.id,
       type: 'wager_lock',
@@ -179,6 +181,7 @@ export async function lockWager(req, context = null) {
     });
 
     const feeTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
+          retention_until: initialWalletRetentionDeadline(),
       launch_epoch: 2,
       user_id: user.id,
       type: 'service_fee_charge',

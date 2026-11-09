@@ -1,3 +1,4 @@
+import { initialWalletRetentionDeadline } from '../../shared/walletRetention.ts';
 import { buildVerifiedWithdrawalBody, DEFINITE_DESTINATION_REASONS, isDefinitePreflightRejection } from '../../shared/verifiedWithdrawalBody.ts';
 import { estimateQueuedWithdrawal, queuedWithdrawalReady } from '../../shared/withdrawalQueue.ts';
 import { settleQueuedWithdrawalFee } from '../../shared/queuedWithdrawalFee.ts';
@@ -325,6 +326,7 @@ Deno.serve(async (req) => {
         return Response.json({ error: errorMsg }, { status: 400 });
       }
       tx = await base44.asServiceRole.entities.WalletTransaction.create({
+          retention_until: initialWalletRetentionDeadline(),
         launch_epoch: 2,
         user_id: user.id, type: 'withdrawal', amount: value,
         description: 'Withdrawal requested.',
@@ -355,7 +357,8 @@ Deno.serve(async (req) => {
       const key=idempotencyKey+':fee';
       const rows=await base44.asServiceRole.entities.WalletTransaction.filter({user_id:user.id,type:'withdrawal_fee',idempotency_key:key},'-created_date',2);
       if(rows.length>1)throw Error('duplicate_withdrawal_fee');
-      const fee=rows[0]||await base44.asServiceRole.entities.WalletTransaction.create({launch_epoch:2,user_id:user.id,type:'withdrawal_fee',amount:withdrawalFee,status:'pending',integration_status:'reserved',direction:'debit',currency:'USD',description:'Withdrawal fee: $'+withdrawalFee.toFixed(2)+'.',idempotency_key:key,correlation_id:tx.id});
+      const fee=rows[0]||await base44.asServiceRole.entities.WalletTransaction.create({
+          retention_until: initialWalletRetentionDeadline(),launch_epoch:2,user_id:user.id,type:'withdrawal_fee',amount:withdrawalFee,status:'pending',integration_status:'reserved',direction:'debit',currency:'USD',description:'Withdrawal fee: $'+withdrawalFee.toFixed(2)+'.',idempotency_key:key,correlation_id:tx.id});
       tx=await base44.asServiceRole.entities.WalletTransaction.update(tx.id,{withdrawal_fee_transaction_id:fee.id});
     }
     const totalDebitAmount = value + withdrawalFee;
@@ -512,6 +515,7 @@ Deno.serve(async (req) => {
         let feeTx = (await base44.asServiceRole.entities.WalletTransaction.filter({ idempotency_key: feeIdempotencyKey }, '-created_date', 1))[0];
         if (!feeTx) {
           feeTx = await base44.asServiceRole.entities.WalletTransaction.create({
+          retention_until: initialWalletRetentionDeadline(),
             launch_epoch: 2,
             user_id: user.id, type: 'withdrawal_fee', amount: withdrawalFee,
             description: `Small-withdrawal fee: applies to withdrawals under $${SMALL_WITHDRAWAL_THRESHOLD.toFixed(2)} (this one was $${value.toFixed(2)})`,

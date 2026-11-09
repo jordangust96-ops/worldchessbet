@@ -1,3 +1,4 @@
+import { initialWalletRetentionDeadline } from '../../shared/walletRetention.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { postLedgerLegs } from '../../shared/ledger.ts';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
@@ -49,6 +50,7 @@ async function createCanonicalSettlementTransaction(base44, { match, game, userI
   if (existing.some((transaction) => ['pending', 'review_required'].includes(transaction.status))) return null;
 
   const transaction = await base44.asServiceRole.entities.WalletTransaction.create({
+          retention_until: initialWalletRetentionDeadline(),
     launch_epoch: 2,
     user_id: userId,
     type,

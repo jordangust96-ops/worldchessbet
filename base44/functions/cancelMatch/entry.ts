@@ -1,3 +1,4 @@
+import { initialWalletRetentionDeadline } from '../../shared/walletRetention.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { postLedgerLegs } from '../../shared/ledger.ts';
 import { recordIntegrationEvent } from '../../shared/integrationEvents.ts';
@@ -76,6 +77,7 @@ Deno.serve(async (req) => {
 
     for (const depositorId of refundTargets) {
       const entryTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
+          retention_until: initialWalletRetentionDeadline(),
         launch_epoch: 2,
         user_id: depositorId,
         type: 'wager_refund',
@@ -103,6 +105,7 @@ Deno.serve(async (req) => {
       });
 
       const feeTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
+          retention_until: initialWalletRetentionDeadline(),
         launch_epoch: 2,
         user_id: depositorId,
         type: 'service_fee_refund',

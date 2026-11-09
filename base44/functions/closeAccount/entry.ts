@@ -1,3 +1,4 @@
+import { initialWalletRetentionDeadline } from '../../shared/walletRetention.ts';
 import { buildVerifiedWithdrawalBody } from '../../shared/verifiedWithdrawalBody.ts';
 import { walletFundingSummary } from '../../shared/fundingProvenance.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
@@ -67,6 +68,7 @@ Deno.serve(async (req) => {
 
       for (const depositorId of refundTargets) {
         const walletTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
+          retention_until: initialWalletRetentionDeadline(),
           launch_epoch: 2,
           user_id: depositorId,
           type: 'wager_refund',
@@ -188,6 +190,7 @@ Deno.serve(async (req) => {
         seamlessConfig(); // fail closed before any provider mutation
 
         const walletTransaction = await base44.asServiceRole.entities.WalletTransaction.create({
+          retention_until: initialWalletRetentionDeadline(),
           launch_epoch: 2,
           user_id: user.id,
           type: 'withdrawal',
