@@ -8,6 +8,8 @@ export async function loadBackend(path, dependencies = {}, environment = {}) {
   const source = await readFile(new URL('../../' + path, import.meta.url), 'utf8');
   const exports = {};
   let handler;
+  const retentionSource = await readFile(new URL('../../base44/shared/walletRetention.ts', import.meta.url), 'utf8');
+  const retentionModule = await import('data:text/javascript,' + encodeURIComponent(retentionSource));
   const context = {
     exports, Response, Request, Headers, URL, Date, JSON, structuredClone, console, Blob, CompressionStream, DecompressionStream,
     crypto: webcrypto, TextEncoder, TextDecoder, btoa, atob,
@@ -16,6 +18,7 @@ export async function loadBackend(path, dependencies = {}, environment = {}) {
     setInterval: () => 1, clearInterval: () => {},
     Deno: { env: { get: (key) => environment[key] }, serve: (fn) => { handler = fn; } },
     require: (name) => {
+      if (name.endsWith('/walletRetention.ts')) return retentionModule;
       if (!(name in dependencies)) throw new Error('Unmocked dependency: ' + name);
       return dependencies[name];
     },
