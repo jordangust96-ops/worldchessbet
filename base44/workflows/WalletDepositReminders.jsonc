@@ -1,13 +1,13 @@
 {
   "name": "Wallet Deposit Reminders",
-  "description": "Hourly check for a one-time deposit reminder after five days of inactivity following verified bank connection. Respects unsubscribe preferences, pending deposits, funded wallets, and account readiness.",
+  "description": "Daily at 14:00 UTC check for a one-time deposit reminder after five days of inactivity following verified bank connection. Respects unsubscribe preferences, pending deposits, funded wallets, and account readiness.",
   "trigger": {
     "condition": null,
     "config": {
       "trigger_type": "scheduled",
       "events": [],
       "schedule_mode": "recurring",
-      "cron_expression": "0 * * * *",
+      "cron_expression": "0 14 * * *",
       "one_time_date": null,
       "timezone": "UTC",
       "interval_value": null,
