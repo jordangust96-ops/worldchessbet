@@ -1,13 +1,13 @@
 {
   "name": "Deposit Available Email Notifications",
-  "description": "Every 30 minutes, retries any transactional deposit-ready email that was not successfully accepted after cleared funds became available in a player's wallet.",
+  "description": "Hourly retry of transactional deposit-ready emails after funds become available.",
   "trigger": {
     "condition": null,
     "config": {
       "trigger_type": "scheduled",
       "events": [],
       "schedule_mode": "recurring",
-      "cron_expression": "*/30 * * * *",
+      "cron_expression": "0 * * * *",
       "one_time_date": null,
       "timezone": "UTC",
       "interval_value": null,
