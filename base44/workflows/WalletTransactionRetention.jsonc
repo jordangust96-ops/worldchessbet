@@ -1,13 +1,13 @@
 {
   "name": "Wallet Transaction Retention Enforcement",
-  "description": "Every 15 minutes, stamps or extends each production WalletTransaction's minimum two-year retention deadline. It never deletes or archives records; deletion is separately denied by WalletTransaction RLS.",
+  "description": "Daily at 11:15 UTC, stamp or extend minimum two-year retention deadlines for legacy transactions and later activity. New transactions receive an initial deadline at creation.",
   "trigger": {
     "condition": null,
     "config": {
       "trigger_type": "scheduled",
       "events": [],
       "schedule_mode": "recurring",
-      "cron_expression": "*/15 * * * *",
+      "cron_expression": "15 11 * * *",
       "one_time_date": null,
       "timezone": "UTC",
       "interval_value": null,
