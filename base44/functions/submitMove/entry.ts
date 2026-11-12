@@ -44,7 +44,7 @@ function hasSufficientMatingMaterial(fen, color) {
 
 Deno.serve(async (req) => {
   try {
-    const base44 = guardGameMutations(createClientFromRequest(req));
+    const base44 = guardGameMutations(createClientFromRequest(req), { waitForLease: true });
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -207,6 +207,7 @@ Deno.serve(async (req) => {
     console.info(JSON.stringify({ event:'game_move_committed', game_id:gameId, ply:updates.move_log.length }));
     return Response.json({ game: updatedGame });
   } catch (error) {
+    console.warn(JSON.stringify({ event: 'game_move_rejected', status: error.status || 500, reason: error.code || error.message }));
     return Response.json({ error: error.message }, { status: error.status || 500 });
   }
 });
