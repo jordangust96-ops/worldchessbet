@@ -43,6 +43,8 @@ Deno.serve(async (req) => {
 
     return Response.json({
       game_id: game.id,
+      fen: game.fen,
+      game,
       status: game.status,
       active_color: activeColor,
       white_remaining_ms: activeColor === 'w' ? Math.max(0, whiteStoredMs - elapsedMs) : whiteStoredMs,
