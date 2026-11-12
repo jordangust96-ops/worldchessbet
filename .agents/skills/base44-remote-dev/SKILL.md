@@ -9,7 +9,7 @@ description: >-
   run_command is `sandbox run`). Covers connecting/
   authenticating, the available sandbox tools (run_command, read_file,
   write_file, edit_file, grep, list_directory, create_checkpoint,
-  get_app_preview_url, get_app_status, list_user_apps, and the connector tools
+  list_user_apps, and the connector tools
   list_connectors / initiate_connector_connection), the edit→preview→verify loop, how changes
   persist, builder/external-agent concurrency, the in-editor "Send to Coding
   Agent" button + onboarding README URLs, and tips like reading the Vite
@@ -93,7 +93,7 @@ on another device, and the client receives the token.
 
 | Tools | Required scope |
 |---|---|
-| `read_file`, `grep`, `list_directory`, `get_app_preview_url`, `get_app_status`, `list_user_apps` | `apps:read` (granted by default) |
+| `read_file`, `grep`, `list_directory`, `list_user_apps` | `apps:read` (granted by default) |
 | `write_file`, `edit_file`, `run_command`, `create_checkpoint` | `sandbox:write` |
 
 `sandbox:write` is **not** granted by default — shell and file mutation
@@ -112,11 +112,21 @@ Start **read-only** to build a mental model before changing anything:
 
 ```
 Using the base44 tools on appId <APP_ID>:
-1. list_directory on the app root (recursive, depth 2)
-2. read_file src/App.jsx and src/pages.config.js
-3. grep for the component I want to change
+1. GET /api/apps/<APP_ID>/agent-profile (execute_api, or with your CLI token)
+   and note its `framework`
+2. list_directory on the app root (recursive, depth 2), then read_file AGENTS.md
+3. read the router: src/routes/ for `tanstack_start`, src/App.jsx for `vite_spa`
+4. grep for the component I want to change
 Summarize the structure before editing.
 ```
+
+> **Keep the app's framework.** It is fixed when the app is created and the
+> editor finds pages only in that framework's layout. In a TanStack Start app
+> every page is a file route in `src/routes/` (`index.jsx` is `/`) and there is
+> no `index.html`, `src/main.jsx`, `src/App.jsx` or `react-router-dom`; in a
+> Vite app pages are routed by React Router in `src/App.jsx`. When you port
+> code written for the other framework, rewrite it into this app's layout
+> instead of replacing the router, or the editor shows no pages and no preview.
 
 > **Cold start:** if the app has no running sandbox, the first tool call
 > transparently brings one up from your last commit — it just takes a bit
@@ -167,9 +177,15 @@ with dry_run, then apply it.
 
 There is no live log-streaming tool, but you can close the feedback loop:
 
-- **See it live:** `get_app_preview_url` brings up the dev server and returns
-  the preview URL. Vite HMR reflects your edits as you make them.
-- **Build status:** `get_app_status` returns `ready` / `processing` / `error`.
+- **See it live:** `GET /api/apps/{app_id}/sandbox/preview-url` brings up the
+  dev server and returns the preview URL. Vite HMR reflects your edits as you
+  make them. A `409` means the app's code doesn't currently build.
+- **Build status:** `GET /api/apps/{app_id}` returns `status.state` as
+  `ready` / `processing` / `error`.
+
+  Both are platform API operations, not sandbox tools. Over MCP, call them with
+  `execute_api`. Called directly over REST, they need a personal API key.
+  Workspace API keys are rejected.
 - **Surface build/type/lint errors on demand** with `run_command`:
   ```bash
   npm run build       # bundler/compile errors
@@ -185,7 +201,7 @@ There is no live log-streaming tool, but you can close the feedback loop:
   not the file tools — and therefore needs `sandbox:write`.)
 
 A solid loop: `edit_file` → `npm run build` (or tail `/tmp/vite.log`) → fix any
-errors → `get_app_preview_url` to eyeball it.
+errors → open the preview URL to eyeball it.
 
 > **Browser-runtime errors** (a component that compiles but throws on render,
 > a failing client API call) appear in the browser console, not in
@@ -230,8 +246,10 @@ You and the in-app Base44 builder can't mutate the same app at once:
   is implicit — recent tool calls *are* the session; it ends after a short idle
   period (~10 min).
 - **If the Base44 builder is mid-build**, your mutating tools return
-  `BUILDER_BUSY`. Poll `get_app_status` and retry once it's `ready`. Read-only
-  tools still work during a build.
+  `BUILDER_BUSY`. Treat that as the signal to wait, then retry. Don't check
+  the build status first and then write. The builder can start in between,
+  so the retry on `BUILDER_BUSY` is what keeps you safe. Read-only tools still
+  work during a build.
 
 ---
 
@@ -308,7 +326,7 @@ no `config.jsonc` is required.
 | `create_checkpoint` | `base44 sandbox checkpoint` |
 
 ```bash
-npx base44 sandbox read --app-id <APP_ID> src/App.jsx
+npx base44 sandbox read --app-id <APP_ID> AGENTS.md
 ```
 
 `base44 sandbox checkpoint` takes an optional `--name` (message/title) and saves a restore point.

@@ -1,6 +1,6 @@
 ---
 name: base44-cli
-description: "The base44 CLI is used for EVERYTHING related to base44 projects: resource configuration (entities, backend functions, realtime actors, ai agents), initialization and actions (resource creation, deployment). This skill is the place for learning about how to configure resources, including actors — the realtime/WebSocket primitive behind multiplayer, collaborative boards, presence and live cursors, in-room chat, and live auctions. When you plan or implement a feature, you must learn this skill"
+description: "The base44 CLI is used for EVERYTHING related to base44 projects: resource configuration (entities, backend functions, realtime actors, ai agents), initialization and actions (resource creation, deployment), and any other operation on an existing app or workspace through the Base44 public API (settings, domains, users, members, source export). This skill is the place for learning about how to configure resources, including actors — the realtime/WebSocket primitive behind multiplayer, collaborative boards, presence and live cursors, in-room chat, and live auctions. When you plan or implement a feature, you must learn this skill"
 metadata:
   sourcePackage:
     name: base44
@@ -408,7 +408,9 @@ Agents are conversational AI assistants that can interact with users, access you
     // Entity tool - gives agent access to entity operations
     { "entity_name": "tasks", "allowed_operations": ["read", "create", "update", "delete"] },
     // Backend function tool - gives agent access to a function
-    { "function_name": "send_email", "description": "Send an email notification" }
+    { "function_name": "send_email", "description": "Send an email notification" },
+    // Server route tool - gives agent access to one of a full-stack app's server routes
+    { "tool_name": "order_summary", "route_path": "/api/orders/summary", "method": "get", "description": "Summarize the user's recent orders" }
   ],
   "memory_config": {                 // Optional: lets the agent remember facts across conversations
     "enabled": true,
@@ -431,6 +433,7 @@ Agents are conversational AI assistants that can interact with users, access you
 **Tool config types:**
 - **Entity tools**: `entity_name` + `allowed_operations` (array of: `read`, `create`, `update`, `delete`)
 - **Backend function tools**: `function_name` + `description`
+- **Server route tools** (full-stack apps): `tool_name` (1-64 chars of letters, digits, `_`, `-`) + `route_path` (app-relative, starts with a single `/`, no query string) + `method` (`get`\|`post`\|`put`\|`patch`\|`delete`, default `post`) + `description` (default `"agent server route"`)
 
 **Memory config fields** (all optional, see [agents-push.md](references/agents-push.md#memory-configuration) for details): `enabled` (bool, default `true`), `scope` (`global`\|`user`\|`both`, default `both`), `include_other_conversation_context` (bool, default `false`), `instructions` (string\|null, default `null`)
 
@@ -480,9 +483,9 @@ Connectors let your app connect to external services (Google Calendar, Slack, St
 | `base44 connectors list-available` | List all available integration types from Base44     | [connectors-list-available.md](references/connectors-list-available.md) |
 | `base44 connectors initiate --integration-type <t> [--scopes <s...>]` | Initialize a connector and start its OAuth flow; works projectless with `--app-id` | [connectors-initiate.md](references/connectors-initiate.md) |
 | `base44 connectors pull`           | Pull remote connectors to local files                | [connectors-pull.md](references/connectors-pull.md)                 |
-| `base44 connectors push`           | Push local connectors to Base44                      | [connectors-push.md](references/connectors-push.md)                 |
+| `base44 connectors push [--force]` | Push local connectors to Base44; `--force` also removes remote ones not found locally | [connectors-push.md](references/connectors-push.md)                 |
 
-**Note:** Connector commands perform full synchronization - pushing replaces all remote connectors with local ones (and triggers OAuth for new OAuth connectors), and pulling replaces all local connectors with remote ones.
+**Note:** `connectors push` adds and updates remote connectors (and triggers OAuth for new OAuth connectors), but only removes remote connectors missing locally with `--force` — the same rule as `functions deploy`. `deploy` never removes connectors. `connectors pull` is a full sync: it replaces all local connectors with remote ones.
 
 #### Connector Schema (Quick Reference)
 
@@ -558,6 +561,26 @@ Run one-off scripts against your app with the Base44 SDK pre-authenticated. Use 
 | `base44 site open`   | Open the deployed site in your browser    | [site-open.md](references/site-open.md)     |
 
 **SPA only**: Base44 hosting supports Single Page Applications with a single `index.html` entry point. All routes are served from `index.html` (client-side routing).
+
+### Any Other API Operation
+
+For a Base44 platform task with no dedicated command above (custom domains, URL redirects, SEO settings, app users, collaborators and ownership, analytics, security scans, workspace members and groups, CSV imports, and more), find and call the public API endpoint directly with `base44 api`. It covers the Apps API and Workspace API with your CLI login, through the server's OpenAPI spec.
+
+**Prefer a dedicated command only when it does exactly what was asked** (`base44 secrets`, `base44 functions`, `base44 logs`, `base44 deploy`, and the rest of this skill). If it also does something the user didn't ask for (read its reference first), use `base44 api` instead.
+
+The API covers apps and workspaces, not your own Base44 account: there is no operation for your password, email or profile. Send the user to the Base44 web app for those.
+
+**The flow:**
+1. **Find the endpoint:** `npx base44 api search "<what you want to do>"`, or browse with `api catalog [area]`, or `api grep <regex>` when search misses. Each result's `endpoint` (e.g. `"GET /api/apps/{app_id}/custom-domains"`) is the method and path to pass on as is.
+2. **Read its contract:** `npx base44 api fetch <METHOD> <path> --help | jq '.description, .parameters, .requestBodySchema, .responseSchema'`. Read the `description` before calling: the top search result is not always the right operation.
+3. **Call it:** `npx base44 api fetch <METHOD> <path> [--body <json>]`. Add `--read-only` while only looking.
+
+| Command | Description | Reference |
+|---------|-------------|-----------|
+| `base44 api search <text...>` | Search every public API operation by what it does | [api-search.md](references/api-search.md) |
+| `base44 api catalog [area]` | List the API's areas, or every operation in one area | [api-catalog.md](references/api-catalog.md) |
+| `base44 api grep <pattern>` | Search the API spec with a regular expression, for when search misses | [api-grep.md](references/api-grep.md) |
+| `base44 api fetch <METHOD> <path>` | Call an operation with your login; add `--help` after the path for its contract | [api-fetch.md](references/api-fetch.md) ⚠️ **READ BEFORE CALLING** |
 
 ## Quick Start
 
@@ -724,7 +747,7 @@ Most commands require authentication. If you're not logged in, the CLI will auto
 | Invalid agent name          | Agent names must be lowercase alphanumeric with underscores only                    |
 | No agent skills found       | Ensure skill files exist in `base44/agent-skills/` directory with valid `.md` files  |
 | Invalid skill file          | Skill file name must be lowercase-hyphenated and include a `description` in its frontmatter |
-| Push cancelled / requires --yes | `agents push`, `agent-skills push`, `entities push`, and `connectors push` are destructive full-syncs — confirm interactively or pass `-y`/`--yes` in CI/non-interactive mode |
+| Push cancelled / requires --yes | `agents push`, `agent-skills push`, `entities push`, and `connectors push --force` are destructive — confirm interactively or pass `-y`/`--yes` in CI/non-interactive mode |
 | No connectors found         | Ensure connectors exist in `base44/connectors/` directory with valid `.jsonc` configs |
 | Invalid connector type      | Run `npx base44 connectors list-available` to see valid types |
 | Duplicate connector type    | Each connector type can only be defined once per project                            |
