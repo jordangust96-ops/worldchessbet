@@ -70,7 +70,7 @@ export default function Home() {
       ? Math.floor(Math.min(boardAreaSize.width, boardAreaSize.height))
       : null;
   const moveSoundStateRef = useRef({ gameId: null, moveCount: 0 });
-  const { fen, syncMessage, handleDrop, handleSquareClick, selectedSquare, legalTargets, orientation, game } =
+  const { fen, syncMessage, applyGameSnapshot, handleDrop, handleSquareClick, selectedSquare, legalTargets, orientation, game } =
     useChessGame(myMatchId, user?.id, gameActive);
 
   const handleMovementModeChange = (mode) => {
@@ -396,7 +396,7 @@ export default function Home() {
           className={`${gameActive || boardState === "countdown" ? "w-full" : "hidden lg:flex"} min-w-0 min-h-0 lg:h-full lg:flex-[62_1_0%] lg:flex lg:flex-col lg:items-center lg:justify-center lg:overflow-hidden gap-3`}
           style={desktopBoardSize ? /** @type {any} */ ({ "--desktop-board-size": `${desktopBoardSize}px` }) : undefined}
         >
-          {gameActive && syncMessage && <p role="status" aria-live="polite" className="text-center text-sm text-[#E5CA7A]">{syncMessage}</p>}
+          {gameActive && syncMessage && <p role="status" aria-live="polite" className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 max-w-[calc(100vw-2.5rem)] rounded-xl border border-white/10 bg-[#151515]/95 px-4 py-2 text-center text-xs text-[#E5CA7A] shadow-lg pointer-events-none">{syncMessage}</p>}
           <ChessboardPreview
             state={boardState}
             fen={gameActive ? fen : undefined}
@@ -445,6 +445,7 @@ export default function Home() {
               }}
               onStateChange={setBoardState}
               game={game}
+              onGameSync={applyGameSnapshot}
               match={activeMatch}
               onRefresh={handleRefreshActiveMatch}
               movementMode={movementMode}
