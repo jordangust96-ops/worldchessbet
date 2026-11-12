@@ -161,10 +161,12 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
     else { setStage('preview'); setAgree(false); await refresh(); }
   });
   const copy = async () => {
+    if (!open || !creator) return;
     try { await navigator.clipboard.writeText(shareUrl); setMessage('Challenge URL copied.'); }
     catch { setMessage('Select the URL below and copy it.'); }
   };
   const share = async () => {
+    if (!open || !creator) return;
     if (!navigator.share) { await copy(); return; }
     try { await navigator.share({ title:free?'A free ChessBet challenge':`A ${usd(card.entryAmount)} ChessBet challenge`,
       text:free?'Think you can beat me? Join my free chess challenge.':`Think you can beat me? ${usd(card.entryAmount)} entry, separate service fee. First eligible, funded player to accept gets the match.`,url:shareUrl }); }
@@ -181,18 +183,13 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
       {loading ? <div role="status" className="py-16 text-center"><Loader2 className="mx-auto animate-spin text-[#C9A84C]" /><p className="mt-3 text-sm text-white/55">Loading challenge…</p></div> : card ? <>
         <section className={embedded ? "space-y-4" : "space-y-5 rounded-3xl border border-[#C9A84C]/20 bg-gradient-to-br from-[#191610] to-[#111] p-5 sm:p-7"}>
           <div className="space-y-2"><p className="text-xs font-semibold uppercase tracking-widest text-[#C9A84C]">{free ? 'Free chess' : card.isRematch ? 'Rematch invitation' : 'Chess for money'}</p>
-            <h1 className="text-2xl font-extrabold sm:text-3xl">{creator ? 'Your challenge is ready' : `${card.creatorName}’s challenge`}</h1>
-            <p className="flex items-center gap-2 text-sm text-white/55"><Clock size={15} />{card.displayName} · No increment</p></div>
+            <h1 className="text-2xl font-extrabold sm:text-3xl">{creator ? (open ? 'Your challenge is ready' : 'Your challenge') : card.creatorName && card.creatorName !== 'ChessBet player' ? `${card.creatorName}’s challenge` : 'Chess challenge'}</h1>
+            <p className="flex items-center gap-2 text-sm text-white/55"><Clock size={15} />{card.displayName}</p></div>
           {free ? <p className="rounded-2xl border border-[#C9A84C]/20 bg-[#C9A84C]/5 p-4 text-sm text-[#E5CA7A]">Free play · Play worldwide and build your rating.</p> : <><div className="grid grid-cols-2 gap-3">
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4"><p className="text-xs text-white/55">Entry per player</p><p className="mt-1 text-3xl font-bold">{usd(card.entryAmount)}</p></div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4"><p className="text-xs text-white/55">Your total</p><p className="mt-1 text-3xl font-bold">{usd(card.totalRequired)}</p><p className="mt-1 text-xs text-white/50">{usd(card.entryAmount)} entry + {usd(card.serviceFee)} fee</p></div>
             <div className="rounded-2xl border border-[#C9A84C]/20 bg-[#C9A84C]/5 p-4"><p className="text-xs text-white/55">Winner award</p><p className="mt-1 text-3xl font-bold text-[#C9A84C]">{usd(card.winnerAward)}</p></div>
           </div>
-          <dl className="space-y-2 text-sm">
-            <div className="flex justify-between gap-3"><dt className="text-white/55">Your Entry Amount</dt><dd>{usd(card.entryAmount)}</dd></div>
-            <div className="flex justify-between gap-3"><dt className="text-white/55">Your Platform Service Fee</dt><dd>{usd(card.serviceFee)}</dd></div>
-            <div className="flex justify-between gap-3 border-t border-white/10 pt-2 font-semibold"><dt>Total required per player</dt><dd>{usd(card.totalRequired)}</dd></div>
-          </dl>
-          {stage !== 'setup' && <p className="text-xs leading-relaxed text-white/45">The winner award includes both players’ entry amounts. The fee is separate and returned if there is no decisive result. Standard settlement and winnings-release rules apply.</p>}</>}
+          </>}
 
           {open && creator && <div className="space-y-3">
             <Button onClick={share} className="h-11 w-full rounded-xl gold-gradient font-bold text-black"><Share2 size={16} className="mr-2" />Share</Button>
@@ -235,14 +232,14 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
               {busy && <Loader2 size={16} className="mr-2 animate-spin" />}{free ? 'Accept Free Challenge' : creator ? 'Enable Acceptance for 2 Minutes' : `Accept & Reserve ${usd(card.totalRequired)}`}</Button>
             {creator && <p className="text-xs text-white/45">Enabling acceptance reserves nothing. Both players are checked again at final acceptance.</p>}
           </div>}
-          {card.status === 'processing' && <div role="status" className="space-y-3 rounded-xl bg-white/5 p-4 text-sm text-white/65"><p>{!view?.participant && !view?.ownOperation ? 'The creator’s challenge is still being confirmed. You have not accepted it and no funds have been reserved from your wallet. If this continues, ask the creator to check the challenge on their Play screen.' : 'Confirming the reservation result. Do not submit another payment.'}</p><button onClick={refresh} disabled={Boolean(busy)} className="font-semibold text-[#C9A84C]">Check challenge status</button></div>}
+          {card.status === 'processing' && <div role="status" className="space-y-3 rounded-xl bg-white/5 p-4 text-sm text-white/65"><p>{!view?.participant && !view?.ownOperation ? 'This challenge is temporarily unavailable. Please check again shortly.' : 'Finishing your request. Please wait.'}</p><button onClick={refresh} disabled={Boolean(busy)} className="font-semibold text-[#C9A84C]">Check again</button></div>}
           {!open && card.status !== 'processing' && <div className="space-y-3 rounded-2xl bg-white/5 p-4"><h2 className="font-bold">{card.status === 'expired' ? 'This challenge expired' : card.status === 'cancelled' ? 'This challenge was cancelled' : 'This challenge is no longer open'}</h2>
             <p className="text-sm text-white/55">Create your own challenge or find another opponent.</p>
             <Link to="/play" className="block font-semibold text-[#C9A84C]">Create a Challenge →</Link><Link to="/play?mode=public" className="block text-sm text-white/55">Find an Opponent</Link></div>}
           {open && creator && <button disabled={Boolean(busy)} onClick={()=>withAction('cancel',async()=>{ await challengeRequest('cancel',{inviteCode}); await refresh(); await onChanged?.(); })} className="w-full py-2 text-sm text-white/45 hover:text-red-300">Cancel Open Challenge</button>}
           {open && <p className="text-center text-xs text-white/35">Expires {new Date(card.expiresAt).toLocaleString()}</p>}
         </section>
-        {!free && stage !== 'setup' && <p className="text-center text-xs leading-relaxed text-white/40">Money play requires account, identity and location eligibility, a verified bank connection, and sufficient available funds. Pending deposits cannot be used to accept a challenge.</p>}
+        {!free && <details className="text-xs leading-relaxed text-white/50"><summary className="cursor-pointer text-center">Fees & eligibility</summary><p className="mt-3">The winner receives both entry amounts. The service fee is separate and returned if there is no decisive result. Settlement and winnings-release rules apply.</p><p className="mt-2">Money play requires account, identity and location eligibility, a verified bank, and available funds. Pending deposits cannot be used.</p></details>}
       </> : <div className="rounded-2xl border border-white/10 p-6"><h1 className="text-xl font-bold">{error ? "Unable to load challenge" : "Challenge unavailable"}</h1><button onClick={() => { setLoading(true); refresh(); }} className="mt-4 block font-semibold text-[#C9A84C]">Try again</button><Link to="/play" className="mt-4 inline-block text-[#C9A84C]">Create your own challenge</Link></div>}
       {error && <p role="alert" className="rounded-xl border border-red-500/20 bg-red-500/5 p-3 text-sm text-red-300">{error}</p>}
       {message && <p role="status" className="flex items-start gap-2 rounded-xl bg-white/5 p-3 text-sm text-[#E5CA7A]"><Check size={16} className="mt-0.5 shrink-0" />{message}</p>}
