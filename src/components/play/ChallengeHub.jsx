@@ -110,6 +110,7 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
     ? 'Think you can beat me? Join my free ChessBet challenge.'
     : `Think you can beat me? Join my $${Number(card.entryAmount).toFixed(2)} ChessBet challenge. Entry plus a separate service fee; eligibility and available funds are required.`;
   const copyUrl=async card=>{
+    if(card.status !== 'open') return;
     const url=`${window.location.origin}${card.path}`;
     try{
       await navigator.clipboard.writeText(url);
@@ -120,6 +121,7 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
     }
   };
   const share=async card=>{
+    if(card.status !== 'open') return;
     const url=`${window.location.origin}${card.path}`;
     try{
       if(navigator.share) await navigator.share({title:'ChessBet Challenge',text:shareText(card),url});
@@ -140,7 +142,7 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
     {!selectedCode && !loading && (challenges.length > 0 || activePublic) && <div className="border-t border-white/10 pt-4">
       <div className="mb-4 flex items-center gap-3">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#C9A84C]/25 bg-[#C9A84C]/10 text-[#E5CA7A]"><Swords size={23}/></div>
-        <div><p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-[#C9A84C]">Challenge posted</p>
+        <div><p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-[#C9A84C]">Your challenge</p>
           <h2 className="text-xl font-extrabold leading-tight text-white">Your next match starts here</h2></div>
       </div>
       {challenges.length > 0 && <div className="space-y-3">{challenges.map(card=><article key={card.id} className="space-y-3 rounded-2xl border border-[#C9A84C]/20 bg-gradient-to-br from-[#C9A84C]/10 to-transparent p-4">
@@ -152,8 +154,9 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
           <div><p className="text-xs text-white/50">Entry Amount</p><p className="mt-1 text-2xl font-bold text-white">${Number(card.entryAmount).toFixed(2)}</p></div>
           <div><p className="text-xs text-white/50">Winner award</p><p className="mt-1 text-2xl font-bold text-[#E5CA7A]">${Number(card.winnerAward).toFixed(2)}</p></div>
         </div></>}
-        <p className="text-sm leading-relaxed text-white/65">{card.status==='processing' ? 'Share your challenge link while it gets ready.' : card.publiclyListed ? 'Your challenge is listed publicly. Share the link with a friend, or wait for someone new to accept.' : 'Your challenge is link-only. Share it with the person you want to play.'}</p>
-        {['open','processing'].includes(card.status) && <>
+        <p className="text-sm leading-relaxed text-white/65">{card.status==='processing' ? 'Finishing your challenge. Sharing unlocks when it’s ready.' : card.status!=='open' ? 'This challenge is no longer open.' : card.publiclyListed ? 'Listed publicly. Share with a friend or wait for an opponent.' : 'Ready to share with your opponent.'}</p>
+        {card.status==='processing' && <Button variant="outline" disabled={Boolean(busyId)} onClick={async()=>{setBusyId(card.id);setError('');try{await challengeRequest('recover',{matchId:card.id});await refresh();}catch(err){setError(challengeErrorMessage(err));}finally{setBusyId('');}}} className="h-11 w-full rounded-xl">{busyId===card.id?'Checking…':'Check status'}</Button>}
+        {card.status==='open' && <>
           <div className="grid grid-cols-2 gap-2">
             <Button onClick={()=>share(card)} className="h-11 rounded-xl gold-gradient font-bold text-black"><Share2 size={15} className="mr-2"/>Share</Button>
             <Button variant="outline" onClick={()=>cancel(card)} disabled={Boolean(busyId)} className="h-11 rounded-xl border-white/15 text-white/65">{busyId===card.id?'Cancelling…':'Cancel'}</Button>
