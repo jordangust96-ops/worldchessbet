@@ -12,7 +12,7 @@ library. Two providers sit behind it:
 
 | Provider | Endpoints | Client |
 |----------|-----------|--------|
-| `openai` (default) | Chat Completions, `/images/generations`, `/images/edits`, `/videos`, `/audio/speech` | Any OpenAI-compatible client (the `openai` SDK, Vercel AI SDK, TanStack AI, …) |
+| `openai` (default) | Chat Completions, `/images/generations`, `/images/edits`, `/videos`, `/audio/speech` | Any OpenAI-compatible client (Vercel AI SDK, Mastra, the `openai` SDK, …) |
 | `typesafe` | Structured evaluations with the `jev` model | `@ai-sdk/typesafe-ai` + `ai`'s `experimental_evaluate` |
 
 Every call is metered against your app's credit quota, the same quota
@@ -43,11 +43,12 @@ Apps that restrict Core integrations (the default for new apps) also block front
 |--------|-----------|-------------|
 | `connection(options?)` | `({ provider?: "openai" \| "typesafe" }) => AiGatewayConnection` | Returns `{ baseURL, token, headers }` for the selected provider. Defaults to `openai`. |
 
-- **`base44.asServiceRole.aiGateway`** — the app's service-role token. Use it server-side; the
-  gateway rejects other calls with **403** `ai_gateway_requires_service_role`. Works with no
-  signed-in user (e.g. scheduled automations).
-- **`base44.aiGateway`** — the signed-in app user's token. Accepted only on apps shared
-  privately or with the workspace.
+Call it as **`base44.asServiceRole.aiGateway.connection()`**. `base44.aiGateway` (the
+caller's token) also exists, but new apps restrict Core integrations by default, and a
+public app then rejects user-token gateway calls with **403**. Service-role calls from a
+backend function always pass.
+
+`headers` requires `@base44/sdk` 0.8.52+ and `provider` requires 0.8.50+.
 
 ## Rules for every gateway call
 
@@ -60,9 +61,9 @@ Apps that restrict Core integrations (the default for new apps) also block front
 - **Decide cost-driving parameters in code** (model, image count, video duration,
   resolution). Don't pass a browser-supplied request straight to the gateway, or any
   signed-in user can pick the most expensive options.
-- **Always pass `headers`** to the client (`defaultHeaders` for the `openai` SDK and TanStack
-  AI, `headers` for Vercel AI SDK providers). On a client from `createClientFromRequest()` it
-  carries the signed `Base44-State` that a workspace IP allowlist requires; without it those
+- **Always pass `headers`** to the client (`defaultHeaders` for the `openai` SDK, `headers`
+  for Vercel AI SDK providers). On a client from `createClientFromRequest()` it carries the
+  signed `Base44-State` that a workspace IP allowlist requires; without it those
   workspaces reject the call.
 - **Set `maxRetries: 0` on image, video, speech, and evaluation calls.** Client retries replay
   billed requests.
@@ -255,20 +256,16 @@ if (video.status === "failed") throw new Error(video.error?.message || "Video ge
 - **Models:** there is **no `automatic`** — pass a specific model:
   `veo_3_1_lite`, `veo_3_1_fast`, `seedance_2`, `seedance_2_5`, `seedance_2_fast`,
   `seedance_2_mini`, `kling_3`, `minimax_h3`, `minimax_h3_max`, `grok_imagine_video`,
-  `grok_imagine_video_1_5`, `flux_3_video`, `wan_3`. Supported `seconds`, `resolution`, `aspect_ratio`, and
+  `grok_imagine_video_1_5`. Supported `seconds`, `resolution`, `aspect_ratio`, and
   references differ per model, and some models reject `generate_audio`; unsupported values
   return **400**, and an unknown model
   (including `automatic`) returns **404**.
 - **Request fields:** `model`, `prompt`, `seconds`, `aspect_ratio`, `resolution`,
   `generate_audio`, `seed`, `dry_run`, and either `frame_images` (up to 2, each
   `{ type: "image_url", image_url: { url }, frame_type: "first_frame" | "last_frame" }`) or
-  `input_references` (image/video/audio URLs, each
+  `input_references` (up to 8 image/video/audio URLs, each
   `{ type: "image_url", image_url: { url } }` and likewise for `video_url` / `audio_url`) —
-  don't combine the two. Reference limits per model: `seedance_2_5` 30 images, 10 videos,
-  10 audio; other Seedance models 9 images, 3 videos, 3 audio; `minimax_h3` 3 of each type;
-  `wan_3` 5 videos and 50 references in total; Grok models 7 images. On Seedance and
-  `minimax_h3`, audio needs an image or video reference too. Reference URLs must be public
-  HTTPS URLs or private files the app owns.
+  don't combine the two. Reference URLs must be public HTTPS URLs.
 - **Cost preview:** `videos.create({ ...request, dry_run: true })` returns HTTP 200 with
   `usage.base44_credits` and **no job id** — don't poll it, and don't return it as a 202.
 
@@ -444,8 +441,7 @@ export default async function (req) {
 ## Notes
 
 - **Token:** the service-role token for `base44.asServiceRole.aiGateway`; the caller's
-  token for `base44.aiGateway`. The gateway expects the service-role token; otherwise
-  **403** `ai_gateway_requires_service_role`.
+  token (or an empty string when unauthenticated) for `base44.aiGateway`.
 - **Billing:** metered per call against your app's credit quota (same as InvokeLLM). If
   the app is out of credits, calls are rejected before the model runs.
 
@@ -456,11 +452,11 @@ export default async function (req) {
 interface AiGatewayConnection {
   /** Base URL of the selected gateway provider. */
   baseURL: string;
-  /** Bearer token for the gateway: the service-role token, or the signed-in user's token. The gateway expects the service-role token. */
+  /** Bearer token for the gateway. Empty string when the caller is unauthenticated. */
   token: string;
   /**
    * Extra headers to send with every gateway request (`defaultHeaders` for the `openai`
-   * SDK and TanStack AI, `headers` for Vercel AI SDK providers). On a client from
+   * SDK, `headers` for Vercel AI SDK providers). On a client from
    * `createClientFromRequest()` this carries the signed `Base44-State` a workspace IP
    * allowlist requires; otherwise it's empty.
    */

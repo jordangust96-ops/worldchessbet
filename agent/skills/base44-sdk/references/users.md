@@ -67,18 +67,15 @@ await base44.auth.inviteUser("newuser@example.com", "user");
 
 ## Type Definitions
 
-There's no exported `UsersModule` type or `users.types.ts` in the SDK — `base44.users` is a small inline object with one method. The shape, for reference:
-
 ```typescript
-// Not an exported SDK type — shape of base44.users for reference only.
-interface UsersModuleShape {
+/** Users module for inviting users to the app. */
+interface UsersModule {
   /**
    * Invite a user to the application.
    * @param user_email - User's email address.
    * @param role - User's role ('user' or 'admin').
    * @returns Promise resolving when the invitation is sent.
-   * @throws Error if role is not 'user' or 'admin'. Exact message:
-   *   `Invalid role: "${role}". Role must be either "user" or "admin".`
+   * @throws Error if role is not 'user' or 'admin'.
    */
   inviteUser(user_email: string, role: "user" | "admin"): Promise<any>;
 }

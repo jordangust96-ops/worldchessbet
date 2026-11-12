@@ -1,89 +1,35 @@
 {
-  "version": 2,
+  "version": 1,
   "skills": {
     "base44-cli": {
       "source": "base44/skills",
       "sourceType": "github",
       "skillPath": "skills/base44-cli/SKILL.md",
-      "computedHash": "ca90c9f7721d3296821fb260a0c814a389b1471165866ec661078b08060ccfb9"
-    },
-    "base44-platform-actors": {
-      "source": "base44/skills",
-      "sourceType": "github",
-      "skillPath": "skills/base44-platform-actors/SKILL.md",
-      "computedHash": "376e6c73e5e9bc6d07be38715270a5b7bf137cd91459ca5539e715dfc5d3b94a"
-    },
-    "base44-platform-agents": {
-      "source": "base44/skills",
-      "sourceType": "github",
-      "skillPath": "skills/base44-platform-agents/SKILL.md",
-      "computedHash": "677cfe864adb1494fed264960104c30378d6188495091a4a6adcc6c7de5d058f"
-    },
-    "base44-platform-backend-functions": {
-      "source": "base44/skills",
-      "sourceType": "github",
-      "skillPath": "skills/base44-platform-backend-functions/SKILL.md",
-      "computedHash": "c1e7021a9bd31826c271cb9e54e9f7cbdbc305e7855ee77974a0fde4339ab01f"
-    },
-    "base44-platform-connectors": {
-      "source": "base44/skills",
-      "sourceType": "github",
-      "skillPath": "skills/base44-platform-connectors/SKILL.md",
-      "computedHash": "b5a2776c80323dd9a8ba9909897e660da22f8d8a874bffd1239f240172dfe14b"
-    },
-    "base44-platform-entities": {
-      "source": "base44/skills",
-      "sourceType": "github",
-      "skillPath": "skills/base44-platform-entities/SKILL.md",
-      "computedHash": "1b52c03ac4ee76f8f363cee8a41455a2535eaa52e41883dc08d59d6a37d22a4f"
-    },
-    "base44-platform-frontend": {
-      "source": "base44/skills",
-      "sourceType": "github",
-      "skillPath": "skills/base44-platform-frontend/SKILL.md",
-      "computedHash": "9ae35449ab88f1a2eebfb00e791e5f047a98fe0b1f44202c1e748c30aab85393"
-    },
-    "base44-platform-integrations-sdk": {
-      "source": "base44/skills",
-      "sourceType": "github",
-      "skillPath": "skills/base44-platform-integrations-sdk/SKILL.md",
-      "computedHash": "6106a06d954b12d79e6ab06e7c71c27d13043d27292a5076d7dcf983913090c4"
-    },
-    "base44-platform-platform": {
-      "source": "base44/skills",
-      "sourceType": "github",
-      "skillPath": "skills/base44-platform-platform/SKILL.md",
-      "computedHash": "78d83f32a8f683375d23f6beb34e67d3ac0e3f8eb03695e005eb455fa409535a"
-    },
-    "base44-platform-workflows": {
-      "source": "base44/skills",
-      "sourceType": "github",
-      "skillPath": "skills/base44-platform-workflows/SKILL.md",
-      "computedHash": "e8d5a5c43f4b1ea0e0cf2fc3754f509b5abd08d20567f7a86a56346fa1c62006"
+      "computedHash": "38abcd02310fccff5842995decb20122318717a1d9567a4e6d27aa089b0dea3d"
     },
     "base44-remote-dev": {
       "source": "base44/skills",
       "sourceType": "github",
       "skillPath": "skills/base44-remote-dev/SKILL.md",
-      "computedHash": "cac9ffb125c3623bbb4149c437dfa421cc37b318a98b0a527b00ecf05d7a8e5f"
+      "computedHash": "71cc706f59499d1fd5faed8418c1a3f1957c95b9361ee32b4cf7a099dc23718e"
     },
     "base44-sandbox": {
       "source": "base44/skills",
       "sourceType": "github",
       "skillPath": "skills/base44-sandbox/SKILL.md",
-      "computedHash": "601ca3f30254a7c07c27ed8118767a309b3cdc50fbf15521e19c74bd88a27813"
+      "computedHash": "66dc99070cec03c747f9c7cae1a8d94f7097a5f5abeb0dd0a19c9dcd14bde2fb"
     },
     "base44-sdk": {
       "source": "base44/skills",
       "sourceType": "github",
       "skillPath": "skills/base44-sdk/SKILL.md",
-      "computedHash": "a1722032179695f8a90dbba1b0572601ffba92b928892cd915d6e9ea2242a6fe"
+      "computedHash": "d0a569bb153b81311b20c0d8cdb30fe8c000e83471eec1ebb60128b410b6b7e5"
     },
     "base44-troubleshooter": {
       "source": "base44/skills",
       "sourceType": "github",
       "skillPath": "skills/base44-troubleshooter/SKILL.md",
-      "computedHash": "b7780d78006bdb60ea19907d4f6e032e7b3531d6e7a7083a64341cb9cb8efad7"
+      "computedHash": "8330fa7749b8749242b6671aa47c75e70fa0a4aad4b8707d2b5a4223964e5130"
     }
   }
 }

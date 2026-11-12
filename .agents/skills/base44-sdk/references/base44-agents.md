@@ -2,7 +2,7 @@
 
 AI agent conversations and messages via `base44.agents`.
 
-> **Note:** `base44.agents` methods work in the context of the authenticated user (or anonymously, where the app allows it). For backend code that needs elevated permissions, use `base44.asServiceRole.agents` — same methods, invoked with the service role.
+> **Note:** This module requires a logged-in user. All agent methods work in the context of the authenticated user.
 
 > **This module is for in-app agents** — **managed and conversational**: app users talk to the agent and the platform runs the loop. For **non-conversational task work where your code owns the loop** (triggered by an entity event, schedule, or webhook — not a chat), build a **code agent** on the AI gateway instead. See [ai-gateway.md](ai-gateway.md).
 
@@ -25,12 +25,11 @@ AI agent conversations and messages via `base44.agents`.
 |--------|-----------|-------------|
 | `createConversation(params)` | `Promise<Conversation>` | Create a new conversation with an agent |
 | `getConversations()` | `Promise<Conversation[]>` | Get all user's conversations |
-| `getConversation(id)` | `Promise<Conversation \| undefined>` | Get conversation with messages (includes full tool call results) |
+| `getConversation(id)` | `Promise<Conversation>` | Get conversation with messages (includes full tool call results) |
 | `listConversations(filterParams)` | `Promise<Conversation[]>` | Filter/sort/paginate conversations |
 | `subscribeToConversation(id, onUpdate?)` | `() => void` | Realtime updates via WebSocket; tool call data truncated (returns unsubscribe function) |
 | `addMessage(conversation, message)` | `Promise<Message>` | Send a message |
 | `getWhatsAppConnectURL(agentName)` | `string` | Get WhatsApp connection URL for agent |
-| `getTelegramConnectURL(agentName)` | `string` | Get Telegram connection URL for agent |
 
 ## Examples
 
@@ -126,15 +125,6 @@ const whatsappUrl = base44.agents.getWhatsAppConnectURL("support-agent");
 console.log(whatsappUrl);
 ```
 
-### Get Telegram Connection URL
-
-```javascript
-const telegramUrl = base44.agents.getTelegramConnectURL("support-agent");
-// When the user opens this URL, Telegram redirects them to the agent's bot
-// with an activation code that securely links their account
-console.log(telegramUrl);
-```
-
 ## Message Structure
 
 ```javascript
@@ -146,16 +136,14 @@ console.log(telegramUrl);
   
   // Optional fields
   reasoning: {
-    start_date: "2024-01-15T10:29:58Z",
-    end_date: "2024-01-15T10:30:00Z",
-    content: "Agent's reasoning process"
+    content: "Agent's reasoning process",
+    timing: 1500
   },
   tool_calls: [{
-    id: "call_abc123",
     name: "search",
-    arguments_string: '{"query":"weather"}',  // JSON string, not an object
-    results: "...",                            // string, singular field name is plural
-    status: "success"                          // or: running | error | stopped | waiting_for_user_input
+    arguments: { query: "weather" },
+    result: { ... },
+    status: "success"
   }],
   file_urls: ["https://..."],
   usage: {
@@ -163,8 +151,7 @@ console.log(telegramUrl);
     completion_tokens: 50
   },
   metadata: { ... },
-  custom_context: [{ message: "...", data: { ... }, type: "..." }],  // array, not a bare object
-  additional_message_params: { ... }
+  custom_context: { ... }
 }
 ```
 
@@ -283,8 +270,6 @@ interface AgentMessage {
   checkpoint_id?: string;
   /** Metadata about when and by whom the message was created. */
   metadata?: AgentMessageMetadata;
-  /** Additional custom parameters for the message. */
-  additional_message_params?: Record<string, any>;
 }
 ```
 
@@ -310,7 +295,7 @@ interface AgentMessageToolCall {
   /** Arguments passed to the tool as JSON string. */
   arguments_string: string;
   /** Status of the tool call. */
-  status: "running" | "success" | "error" | "stopped" | "waiting_for_user_input";
+  status: "running" | "success" | "error" | "stopped";
   /** Results from the tool call. */
   results?: string;
 }
@@ -365,8 +350,6 @@ interface ModelFilterParams {
   q?: Record<string, any>;
   /** Sort parameter (e.g., "-created_date" for descending). */
   sort?: string | null;
-  /** Alternate sort-by field. */
-  sort_by?: string | null;
   /** Maximum number of results to return. */
   limit?: number | null;
   /** Number of results to skip for pagination. */
@@ -401,10 +384,5 @@ interface AgentsModule {
 
   /** Gets WhatsApp connection URL for an agent. */
   getWhatsAppConnectURL(agentName: AgentName): string;
-
-  /** Gets Telegram connection URL for an agent. */
-  getTelegramConnectURL(agentName: AgentName): string;
 }
 ```
-
-Also available as `base44.asServiceRole.agents` (same interface, invoked with the service role).

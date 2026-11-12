@@ -8,12 +8,12 @@ Single Sign-On (SSO) support for authenticating Base44 users with external syste
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| `getAccessToken(userid)` | `Promise<SsoAccessTokenResponse>` | Get an SSO access token for the user who made the current request. Refreshes an expired token automatically when a refresh token is available |
-| `getIdToken(userid)` | `Promise<string>` | Get the stored SSO OIDC ID token for the user who made the current request. Never refreshed — fails if already expired |
+| `getAccessToken(userId)` | `Promise<SsoAccessTokenResponse>` | Get an SSO access token for a specific user |
+| `getIdToken(userId)` | `Promise<string>` | Get the stored SSO OIDC ID token for the current app user |
 
-Both methods only work for the **same user the client is acting on behalf of** — create the client with `createClientFromRequest(req)` and pass that request's user ID. Passing any other user's ID makes the call fail; there's no "look up any user's SSO token" mode, even with the service role.
+Use `getIdToken(userId)` when you need identity claims, especially the user's `email` claim. Use `getAccessToken(userId)` when you need a token to authorize requests to an external system.
 
-Use `getIdToken(userid)` when you need identity claims, especially the user's `email` claim. Use `getAccessToken(userid)` when you need a token to authorize requests to an external system.
+The service-role client must include an on-behalf-of token for the same user passed to `getIdToken`.
 
 ## Examples
 
@@ -39,17 +39,15 @@ export default async function (req) {
 }
 ```
 
-### Note: Only the Request's Own User
-
-`getAccessToken()` and `getIdToken()` only work for the user the client is already acting on behalf of — not for an arbitrary user ID. Always build the client with `createClientFromRequest(req)` and pass that same request's user ID; passing a different user's ID fails, even with the service role.
+### Get Token for a Specific User (Service Role)
 
 ```javascript
 export default async function (req) {
   const base44 = createClientFromRequest(req);
-  const user = await base44.auth.me();
+  const { userId } = await req.json();
 
-  // Only works for this same user — not an arbitrary userId from the request body
-  const { access_token } = await base44.asServiceRole.sso.getAccessToken(user.id);
+  // Get SSO token for any user (service role has access to all users)
+  const { access_token } = await base44.asServiceRole.sso.getAccessToken(userId);
 
   return Response.json({ token: access_token });
 }
@@ -95,21 +93,19 @@ interface SsoAccessTokenResponse {
 /** SSO module for managing SSO authentication (service role only). */
 interface SsoModule {
   /**
-   * Gets an SSO access token for the user who made the current request.
-   * Only works for that same user — fails for any other user ID. Refreshes
-   * an expired token automatically when a refresh token is available.
-   * @param userid - The ID of the user who made the current request (e.g. `base44.auth.me()`'s `id`).
+   * Gets an SSO access token for a specific user.
+   * @param userId - The Base44 user ID to get the SSO token for.
    * @returns Promise resolving to the SSO access token response.
    */
-  getAccessToken(userid: string): Promise<SsoAccessTokenResponse>;
+  getAccessToken(userId: string): Promise<SsoAccessTokenResponse>;
 
   /**
-   * Gets the stored SSO OIDC ID token for the user who made the current request.
-   * Only works for that same user. The stored token is returned as-is and is
-   * never refreshed, so the call fails if it has already expired.
-   * @param userid - The ID of the user who made the current request (e.g. `base44.auth.me()`'s `id`).
+   * Gets the stored SSO OIDC ID token for the current app user.
+   * Use this method when you need the user's email claim.
+   * The service-role client must act on behalf of this same user.
+   * @param userId - The current app user's Base44 user ID.
    * @returns Promise resolving to the raw ID token string.
    */
-  getIdToken(userid: string): Promise<string>;
+  getIdToken(userId: string): Promise<string>;
 }
 ```

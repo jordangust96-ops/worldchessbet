@@ -12,8 +12,8 @@ Log user activity in your app via `base44.appLogs`.
 | Method | Signature | Description |
 |--------|-----------|-------------|
 | `logUserInApp(pageName)` | `Promise<void>` | Log user activity on a page |
-
-`fetchLogs(params?)` and `getStats(params?)` also exist on `base44.appLogs`, but are marked `@internal` in the SDK source — they're not part of the module's documented public contract (no stable parameter/return shape is published), so avoid depending on them in app code. `logUserInApp()` is the one public method, and it's available in any authentication mode.
+| `fetchLogs(params?)` | `Promise<any>` | Fetch app logs with optional filter parameters |
+| `getStats(params?)` | `Promise<any>` | Get app usage statistics |
 
 ## Examples
 
@@ -59,17 +59,42 @@ function handleSettingsChange() {
 }
 ```
 
+### Fetch Logs
+
+```javascript
+// Fetch all logs
+const logs = await base44.appLogs.fetchLogs();
+
+// Fetch logs with filters
+const recentLogs = await base44.appLogs.fetchLogs({
+  limit: 50,
+  page: "/dashboard"
+});
+```
+
+### Get Stats
+
+```javascript
+// Get usage statistics for the app
+const stats = await base44.appLogs.getStats();
+
+// Get stats with date range params
+const weekStats = await base44.appLogs.getStats({
+  from: "2024-01-01",
+  to: "2024-01-07"
+});
+```
+
 ## Notes
 
 - Logs appear in the Analytics page of your app dashboard
 - App logs track page-level and feature-level activity
 - Use `analytics.track()` for custom events with properties, `appLogs.logUserInApp()` for simple page/feature tracking
-- `logUserInApp()` silently no-ops when analytics consent isn't granted (it feeds App Analytics, so it follows the same consent gate)
 
 ## Type Definitions
 
 ```typescript
-/** App Logs module for tracking app usage. Available in any authentication mode. */
+/** App Logs module for tracking and analyzing app usage. */
 interface AppLogsModule {
   /**
    * Log user activity in the app.
@@ -78,10 +103,18 @@ interface AppLogsModule {
    */
   logUserInApp(pageName: string): Promise<void>;
 
-  /** @internal Not part of the module's public contract — avoid relying on this. */
+  /**
+   * Fetch app logs with optional filter parameters.
+   * @param params - Optional filter parameters (e.g., limit, page name, date range).
+   * @returns Promise resolving to the logs data.
+   */
   fetchLogs(params?: Record<string, any>): Promise<any>;
 
-  /** @internal Not part of the module's public contract — avoid relying on this. */
+  /**
+   * Get app usage statistics.
+   * @param params - Optional filter parameters (e.g., date range).
+   * @returns Promise resolving to the statistics data.
+   */
   getStats(params?: Record<string, any>): Promise<any>;
 }
 ```
