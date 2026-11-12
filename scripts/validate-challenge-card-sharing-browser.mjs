@@ -25,22 +25,31 @@ for(const width of [390,1280])for(const free of [true,false])for(const status of
    const Hub=(await import('/src/components/play/ChallengeHub.jsx')).default;import '/src/index.css';
    createRoot(document.getElementById('root')).render(React.createElement(MemoryRouter,null,React.createElement('main',{style:{maxWidth:620,margin:'auto'}},React.createElement(Hub,{userId:'host',balance:10}))));
   `});
-  if(u.pathname==='/src/api/base44Client.js')return route.fulfill({contentType:'text/javascript',body:"export const base44={entities:{Match:{filter:async()=>[],subscribe:()=>()=>{}}},functions:{invoke:async(name,body)=>({data:body.action==='list'?{challenges:[window.qa.card]}:{}})}};"});
+  if(u.pathname==='/src/api/base44Client.js')return route.fulfill({contentType:'text/javascript',body:"export const base44={entities:{Match:{filter:async()=>[],subscribe:()=>()=>{}}},functions:{invoke:async(name,body)=>{if(body.action==='recover')window.qa.recovered=true;return {data:body.action==='list'?{challenges:[window.qa.card]}:{}};}}};"});
   if(['/src/components/play/LiveStatsBar.jsx','/src/components/play/ChallengePanel.jsx','/src/components/play/CreateChallengeForm.jsx','/src/components/play/AvailableMatchSection.jsx','/src/components/play/ActiveChallengeCard.jsx','/src/components/play/ChallengeAvailability.jsx'].includes(u.pathname))return route.fulfill({contentType:'text/javascript',body:'export default function Stub(){return null;}'});
   return route.continue();
  });
  await page.routeWebSocket('**/*',ws=>ws.close());
  await page.goto(origin+'/__card');
- await page.getByRole('button',{name:'Share',exact:true}).waitFor();
+ await page.locator('article').waitFor();
  const article=page.locator('article');
  assert.match(await article.innerText(),status==='open'?/Waiting for an opponent/:/Pending/);
  assert.doesNotMatch(await article.innerText(),/Confirming|Open Match|service fee ·|required per player/);
  assert.equal(await article.getByRole('link',{name:'Open Match'}).count(),0);
+ if(status==='processing'){
+  assert.equal(await article.getByRole('button',{name:'Share',exact:true}).count(),0);
+  assert.equal(await article.getByRole('button',{name:'Copy challenge URL only'}).count(),0);
+  assert.equal(await article.getByText(origin+'/challenge/'+'a'.repeat(32)).count(),0);
+  await article.getByRole('button',{name:'Check status',exact:true}).click();
+  assert.equal(await page.evaluate(()=>window.qa.recovered),true);
+  assert.equal(await page.evaluate(()=>window.qa.shared),null);
+ } else {
  await page.getByRole('button',{name:'Share',exact:true}).click();
  assert.equal(await page.evaluate(()=>window.qa.shared.url),origin+'/challenge/'+'a'.repeat(32));
  await page.getByRole('button',{name:'Copy challenge URL only',exact:true}).click();
  assert.equal(await page.evaluate(()=>window.qa.copied),origin+'/challenge/'+'a'.repeat(32));
  assert.equal(await page.getByRole('switch',{name:'Email me when accepted'}).isVisible(),true);
+ }
  assert.deepEqual(errors,[]);
  console.log('PASS '+(free?'free':'money')+' '+status+' '+width+'px sharing, copy, label, no repeated fees or Open Match');
  await context.close();
