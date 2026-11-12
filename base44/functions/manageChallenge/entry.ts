@@ -47,7 +47,9 @@ Deno.serve(async (req) => {
     try { body = JSON.parse(text || '{}'); } catch { return response({ error:'Invalid request' }, 400); }
     const action = String(body.action || 'view');
     const rawClient = createClientFromRequest(req);
-    const base44 = action === 'accept' ? withChallengeReadBackoff(rawClient) : rawClient;
+    // A throttled projection read must not strand a committed creator reservation.
+    // The wrapper retries only explicit entity-list throttles, never writes.
+    const base44 = ['create','accept','recover','cancel'].includes(action) ? withChallengeReadBackoff(rawClient) : rawClient;
     const user = await base44.auth.me().catch(() => null);
     requestStage = ['ready','heartbeat','unready','finalize','list'].includes(action) ? action : 'challenge_action';
     if (action === 'view') {
