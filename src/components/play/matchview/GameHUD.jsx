@@ -38,6 +38,7 @@ function formatClock(ms) {
 export default function GameHUD({
   match,
   game,
+  onGameSync,
   userId,
   movementMode,
   onMovementModeChange,
@@ -52,7 +53,7 @@ export default function GameHUD({
   const [offeringDraw, setOfferingDraw] = useState(false);
   const [respondingDraw, setRespondingDraw] = useState(false);
   const [integrityReviewActive, setIntegrityReviewActive] = useState(false);
-  const displayMs = useChessClock(game);
+  const displayMs = useChessClock(game, onGameSync);
   const { toast } = useToast();
 
   // Admin-only visibility: surfaces whether this contest is linked to an open
