@@ -307,7 +307,8 @@ export function useChessGame(matchId, userId, active) {
       // Keep the confirmed board and turn until the server accepts the move.
       const operation = { gameId: game.id, ply: plyFromFen(previousFen) };
       pendingMoveRef.current = operation;
-      setSyncMessage("Confirming move…");
+      // Routine confirmation is silent and never changes the board layout.
+      setSyncMessage("");
       clearSelection();
 
       // Sanitized, aggregate-only input telemetry helps detect mobile
@@ -339,6 +340,10 @@ export function useChessGame(matchId, userId, active) {
             base44.functions.invoke("submitMove", {
               gameId: game.id, from: sourceSquare, to: targetSquare,
               promotion: "q", expectedFen: previousFen,
+            }).then(response => {
+              // Even after the UI deadline, a late committed response matters.
+              if (activeMatchRef.current === matchId && response?.data?.game) applyLatest(response.data.game);
+              return response;
             }),
             new Promise((_, reject) => {
               deadline = setTimeout(() => reject(new Error("Move confirmation interrupted")), 15000);
@@ -389,7 +394,7 @@ export function useChessGame(matchId, userId, active) {
   // the legal-move highlights on and off.
   const handleSquareClick = useCallback(
     (square, inputMeta = {}) => {
-      if (!game || game.status === "completed") return;
+      if (!game || game.status === "completed" || pendingMoveRef.current) return;
       const chess = chessRef.current;
       const turn = chess.turn();
       const playerColor = color === "white" ? "w" : "b";
@@ -449,6 +454,7 @@ export function useChessGame(matchId, userId, active) {
   return {
     fen,
     syncMessage,
+    applyGameSnapshot: applyLatest,
     handleDrop,
     handleSquareClick,
     selectedSquare,
