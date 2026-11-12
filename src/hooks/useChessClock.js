@@ -45,9 +45,11 @@ export function useChessClock(game, onGameSync) {
       // The sample is computed near response time. A slow server request is
       // not all transit time: bound compensation to avoid a premature zero.
       const latencyMs = Math.min(250, Math.max(0, (receivedAt - operation.startedAt) / 2));
-      if (Number.isFinite(data.server_now_ms)) {
-        serverAnchorRef.current = { gameId: latest.id, serverMs: data.server_now_ms + latencyMs, at: receivedAt };
-      }
+      const updateAnchor = () => {
+        if (Number.isFinite(data.server_now_ms)) {
+          serverAnchorRef.current = { gameId: latest.id, serverMs: data.server_now_ms + latencyMs, at: receivedAt };
+        }
+      };
       const matches = data.status === latest.status &&
         data.active_color === latest.fen?.split(" ")[1] &&
         data.turn_started_at === latest.turn_started_at &&
@@ -55,13 +57,14 @@ export function useChessClock(game, onGameSync) {
       if (!matches) {
         // The clock endpoint can recover a missed realtime move, but the
         // shared monotonic game reducer decides whether that state is newer.
-        if (data.game) currentRef.current.onGameSync?.(data.game);
+        if (data.game && currentRef.current.onGameSync?.(data.game)) updateAnchor();
         return;
       }
+      updateAnchor();
       const activeColor = data.active_color;
       const w = Math.max(0, finiteMs(data.white_remaining_ms) - (activeColor === "w" ? latencyMs : 0));
       const b = Math.max(0, finiteMs(data.black_remaining_ms) - (activeColor === "b" ? latencyMs : 0));
-      snapshotRef.current = { key, w, b, activeColor, anchoredAt: receivedAt };
+      snapshotRef.current = { key, gameId: latest.id, w, b, activeColor, anchoredAt: receivedAt };
       setDisplayMs({ w, b });
       if (data.game) currentRef.current.onGameSync?.(data.game);
     } catch {
@@ -74,7 +77,8 @@ export function useChessClock(game, onGameSync) {
   useEffect(() => {
     syncSequenceRef.current++;
     inFlightRef.current = null;
-    nextTimeoutAtRef.current = 0;
+    // Preserve the retry interval across position refreshes.
+    if (!game || snapshotRef.current?.gameId !== game.id) nextTimeoutAtRef.current = 0;
     const raw = { w: finiteMs(game?.white_time_ms), b: finiteMs(game?.black_time_ms) };
     const key = positionKey(game);
     if (!game || game.status !== "active") {
@@ -94,7 +98,7 @@ export function useChessClock(game, onGameSync) {
     };
     // A new position is projected from calibrated server time, never from the
     // phone's wall clock, and never reset to an unelapsed stored balance.
-    snapshotRef.current = { key, ...remaining, activeColor: calibrated ? activeColor : null, anchoredAt: now };
+    snapshotRef.current = { key, gameId: game.id, ...remaining, activeColor: calibrated ? activeColor : null, anchoredAt: now };
     setDisplayMs(remaining);
     void syncClock();
     return () => { syncSequenceRef.current++; };
@@ -129,15 +133,17 @@ export function useChessClock(game, onGameSync) {
       const b = snapshot.activeColor === "b" ? Math.max(0, snapshot.b - elapsed) : snapshot.b;
       setDisplayMs({ w, b });
       const remaining = snapshot.activeColor === "w" ? w : snapshot.activeColor === "b" ? b : Infinity;
-      if (remaining > 0 || timeoutRequestRef.current || performance.now() < nextTimeoutAtRef.current) return;
+      if (remaining > 0 ||
+          (timeoutRequestRef.current?.gameId === current.id && performance.now() - timeoutRequestRef.current.startedAt < 10000) ||
+          performance.now() < nextTimeoutAtRef.current) return;
       // A display reaching zero is only a request for server verification.
       // Bound retries even when offline; never issue one request per tick.
-      const operation = { gameId: current.id };
+      const operation = { gameId: current.id, startedAt: performance.now() };
       timeoutRequestRef.current = operation;
       nextTimeoutAtRef.current = performance.now() + 3000;
       base44.functions.invoke("checkTimeout", { gameId: current.id })
         .then(({ data }) => {
-          if (currentRef.current.game?.id !== operation.gameId) return;
+          if (timeoutRequestRef.current !== operation || currentRef.current.game?.id !== operation.gameId) return;
           if (data?.game) currentRef.current.onGameSync?.(data.game);
           if (data?.game?.status !== "completed") void syncClock();
         })
