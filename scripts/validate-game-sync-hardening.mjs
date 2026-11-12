@@ -29,6 +29,14 @@ const request = body => new Request('https://test.invalid',{method:'POST',body:J
 const move=await handler('submitMove');
 let r=await move(request({gameId:'g',from:'e2',to:'e4',expectedFen:record.fen}));
 assert.equal(r.status,200);assert.equal(record.move_log.length,1);
+// A routine presence update holds the same lease briefly. The move waits
+// before its only write, then revalidates the original position.
+record=initial();writes=0;
+locks.set('game-mutation:g','heartbeat');
+setTimeout(()=>locks.delete('game-mutation:g'),150);
+r=await move(request({gameId:'g',from:'e2',to:'e4',expectedFen:record.fen}));
+assert.equal(r.status,200,'brief heartbeat contention must not reject a legal move');
+assert.equal(writes,1);
 const saved=structuredClone(record);
 r=await move(request({gameId:'g',from:'e2',to:'e4',expectedFen:initial().fen}));
 assert.equal(r.status,409);assert.deepEqual(record,saved);
