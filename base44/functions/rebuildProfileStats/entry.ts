@@ -2,6 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 
 const PAGE_SIZE = 500;
 const INVALID_RESULTS = new Set(['contest_reversed', 'contest_voided']);
+const STAT_FIELDS = ['games_played', 'games_won', 'games_lost', 'win_percentage'] as const;
 
 async function listAll(entity: any, sort: string) {
   const rows = [];
@@ -69,7 +70,7 @@ Deno.serve(async (req) => {
         games_lost: Number(user.games_lost || 0),
         win_percentage: Number(user.win_percentage || 0),
       };
-      if (Object.keys(next).some((key) => previous[key] !== next[key])) {
+      if (STAT_FIELDS.some((key) => previous[key] !== next[key])) {
         changes.push({ user_id: user.id, previous, next });
       }
     }
@@ -91,7 +92,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error(JSON.stringify({
       event: 'profile_stats_rebuild_failed',
-      diagnostic: String(error?.message || 'unknown_error').slice(0, 500),
+      diagnostic: String(error instanceof Error ? error.message : 'unknown_error').slice(0, 500),
     }));
     return Response.json({ error: 'internal_error' }, { status: 500 });
   }
