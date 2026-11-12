@@ -1,6 +1,19 @@
 import { assertFreeMatch } from './challengePolicy.js';
 import { acquireMatchLock, refreshContestLocks, releaseMatchLock } from './seamlessAtomicStore.ts';
 
+async function incrementPlayerStats(entities: any, playerId: string, outcome: 'win' | 'loss' | 'draw') {
+  const player = await entities.User.get(playerId);
+  const gamesPlayed = Number(player.games_played || 0) + 1;
+  const gamesWon = Number(player.games_won || 0) + (outcome === 'win' ? 1 : 0);
+  const gamesLost = Number(player.games_lost || 0) + (outcome === 'loss' ? 1 : 0);
+  await entities.User.update(playerId, {
+    games_played: gamesPlayed,
+    games_won: gamesWon,
+    games_lost: gamesLost,
+    win_percentage: Math.round((gamesWon / gamesPlayed) * 100),
+  });
+}
+
 // A free game's immutable result record uses the existing contest history.
 // It contains no financial operations; completion never accesses a wallet.
 export async function completeFreeGame(base44: any, matchId: string, gameId: string) {
@@ -43,6 +56,12 @@ export async function completeFreeGame(base44: any, matchId: string, gameId: str
         white_total_disconnected_ms:game.white_total_disconnected_ms || 0,
         black_total_disconnected_ms:game.black_total_disconnected_ms || 0,
       });
+      await Promise.all([
+        incrementPlayerStats(base44.asServiceRole.entities, match.player1_id,
+          winner ? (winner === match.player1_id ? 'win' : 'loss') : 'draw'),
+        incrementPlayerStats(base44.asServiceRole.entities, match.player2_id,
+          winner ? (winner === match.player2_id ? 'win' : 'loss') : 'draw'),
+      ]);
     }
     // A retry repairs a lost final Match write using the same immutable record.
     await checkLease();
