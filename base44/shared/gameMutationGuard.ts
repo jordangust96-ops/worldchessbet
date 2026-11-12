@@ -4,7 +4,7 @@ import { acquireMatchLock, releaseMatchLock, refreshContestLocks } from './seaml
 // Metadata-only heartbeat/focus updates must never invalidate a legal move.
 const fields = ['fen','status','result','winner_id','turn_started_at','white_time_ms','black_time_ms','draw_offered_by'];
 const fingerprint = (game: any) => JSON.stringify(fields.map(key => game?.[key] ?? null));
-export function guardGameMutations(base44: any) {
+export function guardGameMutations(base44: any, options: { waitForLease?: boolean } = {}) {
   const entity = base44.asServiceRole.entities.Game;
   const snapshots = new Map();
   const remember = (game: any) => {
@@ -21,8 +21,15 @@ export function guardGameMutations(base44: any) {
         if (!snapshots.has(id)) throw new Error('Game must be read before updating');
         const scope = 'game-mutation:' + id;
         const owner = crypto.randomUUID();
-        if (!await acquireMatchLock(scope, owner)) {
-          throw Object.assign(new Error('Game update in progress. Reconnecting to the latest position.'), {status:409});
+        // Moves may briefly wait for a presence write, without retrying the
+        // move or its write. Re-check the original state under the lease below.
+        let acquired = await acquireMatchLock(scope, owner);
+        for (let attempt = 0; !acquired && options.waitForLease && attempt < 6; attempt++) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          acquired = await acquireMatchLock(scope, owner);
+        }
+        if (!acquired) {
+          throw Object.assign(new Error('Game update in progress. Reconnecting to the latest position.'), {status:409, code:'game_lease_busy'});
         }
         try {
           const latest = await target.get(id);
