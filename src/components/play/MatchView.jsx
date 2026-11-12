@@ -22,6 +22,7 @@ export default function MatchView({
   onRematchAccepted,
   onStateChange,
   game: receivedGame,
+  onGameSync,
   match,
   onRefresh,
   movementMode,
@@ -101,6 +102,7 @@ export default function MatchView({
             match={match}
             userId={userId}
             game={game}
+            onGameSync={onGameSync}
             movementMode={movementMode}
             onMovementModeChange={onMovementModeChange}
             touchOnlyInput={touchOnlyInput}
