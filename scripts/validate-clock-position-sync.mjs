@@ -57,4 +57,22 @@ await tick(1100);assert.equal(pending('checkTimeout').length,1);
 reply(pending('checkTimeout')[0],{game:{...game,status:'completed',white_time_ms:0}});
 await flush();assert.equal(game.status,'completed');
 for(const slot of slots)slot?.cleanup?.();
-console.log('Clock/board ordering, stale responses, reconnect bursts, turn changes, completion, slow network and timeout backoff passed.');
+// Exercise the actual clock endpoint's authorization and paired response.
+const endpointSource = (await readFile('base44/functions/getGameClock/entry.ts','utf8')).replace(/^import[^\n]+\n/gm,'');
+const clockGame = {...first,launch_epoch:2,match_id:'m',turn_started_at:new Date(Date.now()-10000).toISOString()};
+let caller={id:'outsider'}, endpoint;
+const client={auth:{me:async()=>caller},asServiceRole:{entities:{
+  Game:{get:async()=>clockGame},Match:{get:async()=>({player1_id:'white',player2_id:'black'})}
+}}};
+new Function('Deno','createClientFromRequest',endpointSource)({serve:fn=>{endpoint=fn;}},()=>client);
+const req=()=>new Request('https://test.invalid',{method:'POST',body:JSON.stringify({gameId:'g'})});
+assert.equal((await endpoint(req())).status,403,'outsiders cannot read the game through clock sync');
+caller=null;assert.equal((await endpoint(req())).status,401);
+caller={id:'white'};
+const response=await endpoint(req());assert.equal(response.status,200);
+const data=await response.json();
+assert.equal(data.game.fen,clockGame.fen);assert.equal(data.fen,data.game.fen);
+assert.equal(data.turn_started_at,data.game.turn_started_at);
+assert.ok(data.white_remaining_ms<=170000 && data.white_remaining_ms>165000);
+assert.equal(data.black_remaining_ms,180000);
+console.log('Clock/board ordering, stale responses, reconnect bursts, turn changes, completion, slow network, timeout backoff and server authorization passed.');
