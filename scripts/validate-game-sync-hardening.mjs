@@ -66,7 +66,7 @@ await flush();
 const base=output.fen;
 submit=deferred();assert.equal(output.handleDrop('e2','e4'),true);await flush();
 assert.equal(output.fen,base,'unconfirmed move cannot change the board');
-assert.match(output.syncMessage,/Confirming/);
+assert.equal(output.syncMessage,'','routine move confirmation must stay silent');
 assert.equal(output.handleDrop('d2','d4'),false,'no second in-flight move');
 const chess=new Chess();chess.move('e4');const first={...initial(),fen:chess.fen(),updated_date:'2026-10-31T22:00:01Z'};
 submit.resolve({data:{game:first}});await flush();
