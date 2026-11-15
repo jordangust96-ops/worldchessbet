@@ -54,7 +54,7 @@ const sources={
  batch('fee-refund',[{ledger_account:'platform_revenue',debit_amount:1,transaction_type:'reversal'},{ledger_account:'user_account',credit_amount:1}]),
  batch('returned-deposit',[{ledger_account:'user_account',user_id:'old-user',debit_amount:3,total_deposited_delta:-3},{ledger_account:'settlement',credit_amount:3}]),
  batch('withdrawal-settle',[{ledger_account:'user_account',user_id:'old-user',debit_amount:4,total_withdrawn_delta:4},{ledger_account:'settlement',credit_amount:4}])],
- wallets:[{available_balance:12.34,held_balance:10}],declines:[],
+ wallets:[{id:'wallet',available_balance:12.34,held_balance:10}],declines:[],
  locations:[],identities:[],banks:[]
 };
 const loc={country_confidence:99,subdivision_confidence:99,accuracy_radius_km:5,id:'loc',user_id:'new-user',provider:'MaxMind',verification_result:'approved',pre_bypass_verification_result:'approved',geolocation_enforcement_enabled:true,enforcement_bypassed:false,vpn_or_proxy_detected:false,ip_address:'192.0.2.1',detected_country:'US',detected_state:'GA',trigger_event:'wallet_onboarding',verified_at:at};
