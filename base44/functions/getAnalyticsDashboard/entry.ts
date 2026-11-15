@@ -155,6 +155,8 @@ Deno.serve(async (req) => {
               { dateRanges, dimensions: [{ name: 'pagePath' }], metrics: [{ name: 'screenPageViews' }], limit: 10, orderBys: [{ metric: { metricName: 'screenPageViews' }, desc: true }] },
               { dateRanges, dimensions: [{ name: 'pagePath' }], metrics: [{ name: 'userEngagementDuration' }, { name: 'screenPageViews' }], limit: 10, orderBys: [{ metric: { metricName: 'screenPageViews' }, desc: true }] },
             ]);
+            if (batchB.length !== 5) throw new Error('Incomplete GA4 detail response');
+            if (batchB.some(report => report.metadata?.subjectToThresholding || report.metadata?.dataLossFromOtherRow)) connector.dataWarnings = ['Google applied reporting thresholds or grouped some data.'];
             states = (batchB[0]?.rows || []).map((row) => ({ name: dimVal(row, 0), activeUsers: metricVal(row, 0) }));
             cities = (batchB[1]?.rows || []).map((row) => ({ name: dimVal(row, 0), activeUsers: metricVal(row, 0) }));
             landingPages = (batchB[2]?.rows || []).map((row) => ({ path: dimVal(row, 0), sessions: metricVal(row, 0) }));
@@ -194,12 +196,12 @@ Deno.serve(async (req) => {
     const sinceProduction = { launch_epoch: 2, created_date: { $gte: PRODUCTION_START } };
     const sourceSpecs = [
       ['users', 'User', {}, ['id','created_date']],
-      ['matches', 'Match', sinceProduction, ['id','created_date','launch_epoch','status','wager_amount','preparation_started_at','completed_at','player1_id','player2_id']],
+      ['matches', 'Match', sinceProduction, ['id','created_date','launch_epoch','status','wager_amount','preparation_started_at','completed_at','player1_id','player2_id','play_mode','challenge_version','challenge_expires_at','challenge_rematch_of','challenge_publicly_listed','settlement_hold']],
       ['transactions', 'WalletTransaction', sinceProduction, ['id','created_date','launch_epoch','user_id','type','amount','status','integration_status','source_event','deposit_hold_status']],
       ['journals', 'LedgerJournalBatch', sinceProduction, ['id','created_date','created_at','launch_epoch','ledger_group_id','wallet_transaction_id','trigger_event','legs_json','leg_count','total_credit','total_debit']],
       ['declines', 'MatchDeclineLog', { created_date: { $gte: range.start.toISOString(), $lte: range.end.toISOString() } }, ['id','created_date','match_id']],
       ['wallets', 'Wallet', {}, ['id','created_date','available_balance','held_balance']],
-      ['locations', 'JurisdictionVerificationLog', {}, ['id','created_date','user_id','provider','verification_result','pre_bypass_verification_result','geolocation_enforcement_enabled','enforcement_bypassed','vpn_or_proxy_detected','ip_address','detected_country','detected_state','trigger_event','verified_at']],
+      ['locations', 'JurisdictionVerificationLog', {}, ['id','created_date','user_id','provider','verification_result','pre_bypass_verification_result','geolocation_enforcement_enabled','enforcement_bypassed','vpn_or_proxy_detected','ip_address','detected_country','detected_state','trigger_event','verified_at','country_confidence','subdivision_confidence','accuracy_radius_km','geo_mismatch_flag','is_anonymous_vpn','is_anonymous_proxy','is_public_proxy','is_hosting_provider','is_anonymous','is_tor_exit_node','is_residential_proxy','is_anycast','is_satellite_provider']],
       ['identities', 'SocureIdentityVerification', { environment: 'production' }, ['id','created_date','user_id','status','environment','completed_at','requested_at','expires_at']],
       ['banks', 'SeamlessBankAccount', {}, ['id','created_date','updated_date','user_id','source_id','status','added_at','verified_at']],
     ];
