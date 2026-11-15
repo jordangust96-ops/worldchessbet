@@ -39,9 +39,9 @@ function buildInternalMetrics(i) {
     { label: "Matches Joined", value: i.matchesAccepted },
     { label: "Matches Declined", value: i.matchesDeclined },
     { label: "Matches Completed", value: i.matchesCompleted },
-    { label: "Average Hosted Entry Amount", value: usd(i.avgWager) },
+    { label: "Average Money Challenge Entry", value: usd(i.avgWager) },
     { label: "Funded Entry Volume", value: usd(i.totalWagerVolume) },
-    { label: "Average Challenge Wait", value: Math.round(i.avgMatchWaitSeconds / 60) + "m" },
+    { label: "Average Challenge Wait", value: i.avgMatchWaitSeconds == null ? "—" : Math.round(i.avgMatchWaitSeconds / 60) + "m" },
   ];
 }
 function buildFundsMetrics(i) {
@@ -110,6 +110,41 @@ function WalletSteps({ onboarding: o }) {
   </section>;
 }
 
+function MatchActivity({ activity: a }) {
+  if (!a) return null;
+  return <section className="space-y-3">
+    <h2 className="text-base font-bold text-white">Free and money play</h2>
+    <p className="text-xs text-white/50">Selected UTC range. Hosted uses creation time, joined uses acceptance time, and completed uses completion time. Free games count toward activity but never toward money volume or average entry amounts. Rematches are new challenges.</p>
+    <MetricCardGrid metrics={[
+      {label:"Free Challenges Hosted",value:a.hosted.free},
+      {label:"Money Challenges Hosted",value:a.hosted.money},
+      {label:"Free Challenges Joined",value:a.joined.free},
+      {label:"Money Challenges Joined",value:a.joined.money},
+      {label:"Free Matches Completed",value:a.completed.free},
+      {label:"Money Matches Completed",value:a.completed.money},
+      {label:"Rematches Hosted",value:a.rematchesHosted},
+    ]} />
+    <h2 className="text-base font-bold text-white">Challenges right now</h2>
+    <p className="text-xs text-white/50">Current stored state across all production dates. Open invitations exclude expired links; public listings are a subset. Invitations do not establish creator availability or reserved funds. Expired records awaiting cleanup are shown separately. Settlement holds can overlap other states.</p>
+    <MetricCardGrid metrics={[
+      {label:"Open Invitations",value:a.openInvitations},
+      {label:"Public Listings",value:a.publicListings},
+      {label:"Expired Invitations Awaiting Cleanup",value:a.expiredInvitations},
+      {label:"Preparing / Ready to Start",value:a.preparing},
+      {label:"Free Games in Progress",value:a.active.free},
+      {label:"Money Games in Progress",value:a.active.money},
+      {label:"Settling",value:a.settling},
+      {label:"Disputed",value:a.disputed},
+      {label:"Settlement Holds",value:a.settlementHolds},
+      {label:"Cancellations in Progress",value:a.cancelling},
+    ]} />
+    <div className="flex flex-wrap gap-4 text-sm text-[#C9A84C] underline">
+      <Link to="/admin/challenges">Review challenges</Link>
+      <Link to="/admin/site-health">Open site health</Link>
+    </div>
+  </section>;
+}
+
 export default function AdminSiteActivity() {
   const [authorized, setAuthorized] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
@@ -153,9 +188,9 @@ export default function AdminSiteActivity() {
   }, []);
 
   useEffect(() => {
-    if (authorized) fetchDashboard();
-    return () => { requestId.current++; };
-  }, [authorized, fetchDashboard]);
+    const timer = authorized ? setTimeout(fetchDashboard, preset === "custom" ? 400 : 0) : null;
+    return () => { clearTimeout(timer); requestId.current++; };
+  }, [authorized, fetchDashboard, preset]);
 
   if (checkingAuth) {
     return (
@@ -189,7 +224,7 @@ export default function AdminSiteActivity() {
         </div>
         <div>
           <h1 className="text-xl font-extrabold text-white">Site Activity</h1>
-          <p className="text-xs text-white/40">Site traffic, production funds, and wallet onboarding</p>
+          <p className="text-xs text-white/40">Traffic, free and money play, production funds, and wallet onboarding</p>
         </div>
       </div>
 
@@ -238,6 +273,7 @@ export default function AdminSiteActivity() {
             <MetricCardGrid metrics={buildCurrentFunds(data.internal)} />
           </section>
           <MetricCardGrid title="Match activity · Selected range" metrics={buildInternalMetrics(data.internal)} />
+          <MatchActivity activity={data.matchActivity} />
           {data.ga4 && (
             <>
               <AcquisitionPanel acquisition={data.ga4.acquisition} />
