@@ -45,7 +45,14 @@ export function computeRange(body = {}, now = new Date()) {
 export async function readAll(entity, query = {}, fields) {
   const rows = [], seen = new Set();
   for (let skip = 0; ; skip += 500) {
-    const page = await entity.filter(query, 'created_date', 500, skip, fields);
+    let page;
+    for (let attempt = 0; ; attempt++) {
+      try { page = await entity.filter(query, 'created_date', 500, skip, fields); break; }
+      catch (error) {
+        if (Number(error?.status || error?.response?.status) !== 429 || attempt >= 2) throw error;
+        await new Promise(resolve => setTimeout(resolve, 500 * 2 ** attempt));
+      }
+    }
     if (!Array.isArray(page)) throw new Error('Invalid reporting source response');
     for (const row of page) {
       if (!row.id || seen.has(row.id)) throw new Error('Reporting source changed during pagination. Refresh to retry.');
@@ -96,6 +103,8 @@ export function buildActivityMetrics(sources, range, isWalletLocationEvidence, n
   const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const netRevenue = rows => (rows.reduce((sum, row) => sum + money(row.credit_amount) - money(row.debit_amount), 0)) / 100;
   const hosted = matches.filter(row => within(row.created_date));
+  const moneyHosted = hosted.filter(row => row.play_mode !== 'free');
+  const matchIds = ids(matches, 'id');
   const accepted = matches.filter(row => within(row.preparation_started_at));
   const completed = matches.filter(row => row.status === 'completed' && within(row.completed_at));
   const registrations = sources.users.filter(row => within(row.created_date));
@@ -126,13 +135,30 @@ export function buildActivityMetrics(sources, range, isWalletLocationEvidence, n
     reviewTransfers: txs.filter(row => ['deposit','withdrawal'].includes(row.type) && (row.status === 'review_required' || row.integration_status === 'uncertain')).length,
     availableBalance: sumMoney(sources.wallets, 'available_balance'), heldBalance: sumMoney(sources.wallets, 'held_balance'),
     matchesHosted: hosted.length, matchesAccepted: accepted.length,
-    matchesDeclined: sources.declines.filter(row => within(row.created_date) && matches.some(m => m.id === row.match_id)).length,
+    matchesDeclined: sources.declines.filter(row => within(row.created_date) && matchIds.has(row.match_id)).length,
     matchesCompleted: completed.length, activeGames: matches.filter(row => row.status === 'in_progress').length,
-    avgWager: hosted.length ? Math.round(sumMoney(hosted, 'wager_amount') / hosted.length * 100) / 100 : 0,
+    avgWager: moneyHosted.length ? Math.round(sumMoney(moneyHosted, 'wager_amount') / moneyHosted.length * 100) / 100 : null,
     totalWagerVolume: sumMoney(earnings, 'total_wagered_delta'),
     platformRevenue: netRevenue(revenueLegs), platformRevenueToday: netRevenue(revenueToday),
     feeCredits: sumMoney(revenueLegs, 'credit_amount'), feeRefunds: sumMoney(revenueLegs, 'debit_amount'),
-    avgMatchWaitSeconds: waitTimes.length ? Math.round(waitTimes.reduce((sum,n) => sum+n,0) / waitTimes.length) : 0,
+    avgMatchWaitSeconds: waitTimes.length ? Math.round(waitTimes.reduce((sum,n) => sum+n,0) / waitTimes.length) : null,
+  };
+
+  const modeCounts = rows => ({free: rows.filter(row => row.play_mode === 'free').length, money: rows.filter(row => row.play_mode !== 'free').length});
+  const unexpired = row => !row.challenge_expires_at || ms(row.challenge_expires_at) > +now;
+  const searching = matches.filter(row => row.status === 'searching');
+  const matchActivity = {
+    hosted: modeCounts(hosted), joined: modeCounts(accepted), completed: modeCounts(completed),
+    active: modeCounts(matches.filter(row => row.status === 'in_progress')),
+    rematchesHosted: hosted.filter(row => !!row.challenge_rematch_of).length,
+    openInvitations: searching.filter(unexpired).length,
+    publicListings: searching.filter(row => unexpired(row) && row.challenge_publicly_listed === true).length,
+    expiredInvitations: searching.filter(row => row.challenge_expires_at && ms(row.challenge_expires_at) <= +now).length,
+    preparing: matches.filter(row => ['preparing','both_ready'].includes(row.status)).length,
+    settling: matches.filter(row => row.status === 'settling').length,
+    disputed: matches.filter(row => row.status === 'disputed').length,
+    settlementHolds: matches.filter(row => row.settlement_hold === true && !['completed','cancelled'].includes(row.status)).length,
+    cancelling: matches.filter(row => row.status === 'cancelling').length,
   };
 
   const locationEvents = sources.locations.filter(row => row.trigger_event === 'wallet_onboarding' && within(row.verified_at));
@@ -187,10 +213,11 @@ export function buildActivityMetrics(sources, range, isWalletLocationEvidence, n
   const charts = dayKeys.map(day => {
     const daily = periodLegs.filter(row => dayKey(row.occurred_at) === day);
     const dailyHosted = hosted.filter(row => dayKey(row.created_date) === day);
+    const dailyMoney = dailyHosted.filter(row => row.play_mode !== 'free');
     return {date:day,traffic:null,registrations:registrations.filter(row => dayKey(row.created_date) === day).length,
       deposits:sumMoney(daily.filter(row => row.ledger_account === 'user_account' && money(row.total_deposited_delta)>0),'total_deposited_delta'),
       matches:dailyHosted.length,revenue:netRevenue(daily.filter(row => row.ledger_account === 'platform_revenue')),
-      avgWager:dailyHosted.length ? Math.round(sumMoney(dailyHosted,'wager_amount') / dailyHosted.length * 100) / 100 : 0};
+      avgWager:dailyMoney.length ? Math.round(sumMoney(dailyMoney,'wager_amount') / dailyMoney.length * 100) / 100 : null};
   });
-  return {internal,onboarding,funnel,charts};
+  return {internal,onboarding,matchActivity,funnel,charts};
 }
