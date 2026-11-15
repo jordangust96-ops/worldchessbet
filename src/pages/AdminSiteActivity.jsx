@@ -140,7 +140,7 @@ function MatchActivity({ activity: a }) {
     ]} />
     <div className="flex flex-wrap gap-4 text-sm text-[#C9A84C] underline">
       <Link to="/admin/challenges">Review challenges</Link>
-      <Link to="/admin/site-health">Open site health</Link>
+      <Link to="/admin/health">Open site health</Link>
     </div>
   </section>;
 }
