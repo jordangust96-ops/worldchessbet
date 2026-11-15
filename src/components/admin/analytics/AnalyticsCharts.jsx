@@ -5,9 +5,9 @@ const CHARTS = [
   { key: "traffic", label: "GA4 Sessions (Property Timezone)", color: "#C9A84C" },
   { key: "registrations", label: "Registrations", color: "#8FBF8F" },
   { key: "deposits", label: "Deposit Principal Received ($)", color: "#7FB3D5" },
-  { key: "matches", label: "Matches", color: "#D48BC9" },
+  { key: "matches", label: "Challenges Hosted (Free + Money)", color: "#D48BC9" },
   { key: "revenue", label: "Net Platform Fee Revenue ($)", color: "#E8D48B" },
-  { key: "avgWager", label: "Average Hosted Entry Amount ($)", color: "#C97F7F" },
+  { key: "avgWager", label: "Average Money Challenge Entry ($)", color: "#C97F7F" },
 ];
 
 export default function AnalyticsCharts({ charts }) {
