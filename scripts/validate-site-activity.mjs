@@ -94,6 +94,28 @@ for(const path of ['base44/functions/getAnalyticsDashboard/entry.ts','src/pages/
  eq((output.diagnostics||[]).filter(d=>d.category===ts.DiagnosticCategory.Error).length,0);
 }
 
+// Mixed free/money activity, rematches, expired invitations, and empty averages.
+const mixed = {...sources, matches:[...sources.matches,
+ {id:'free',launch_epoch:2,play_mode:'free',created_date:at,wager_amount:0,status:'completed',preparation_started_at:at,completed_at:at,challenge_rematch_of:'match'},
+ {id:'free-active',launch_epoch:2,play_mode:'free',created_date:before,wager_amount:0,status:'in_progress'},
+ {id:'expired',launch_epoch:2,created_date:before,status:'searching',challenge_expires_at:before,challenge_publicly_listed:true},
+ {id:'open',launch_epoch:2,created_date:before,status:'searching',challenge_expires_at:'2026-09-13T00:00:00Z',challenge_publicly_listed:true},
+ {id:'hold',launch_epoch:2,created_date:before,status:'disputed',settlement_hold:true},
+]};
+const mixedResult=buildActivityMetrics(mixed,range,validLocation,now);
+eq(mixedResult.internal.matchesHosted,2);eq(mixedResult.internal.avgWager,5);
+eq(mixedResult.matchActivity.hosted.free,1);eq(mixedResult.matchActivity.hosted.money,1);
+eq(mixedResult.matchActivity.completed.free,1);eq(mixedResult.matchActivity.rematchesHosted,1);
+eq(mixedResult.matchActivity.active.free,1);eq(mixedResult.matchActivity.openInvitations,1);
+eq(mixedResult.matchActivity.publicListings,1);eq(mixedResult.matchActivity.expiredInvitations,1);
+eq(mixedResult.matchActivity.settlementHolds,1);eq(mixedResult.matchActivity.disputed,1);
+const emptyResult=buildActivityMetrics({...sources,matches:[]},range,validLocation,now);
+eq(emptyResult.internal.avgWager,null);eq(emptyResult.internal.avgMatchWaitSeconds,null);eq(emptyResult.charts[0].avgWager,null);
+let retryCalls=0;
+eq((await readAll({filter:async()=>{retryCalls++;if(retryCalls<3)throw {status:429};return [{id:'recovered'}];}})).length,1);
+eq(retryCalls,3);
+retryCalls=0;await assert.rejects(readAll({filter:async()=>{retryCalls++;throw {response:{status:429}};}}));checks++;eq(retryCalls,3);
+
 const handlerSource=fs.readFileSync('base44/functions/getAnalyticsDashboard/entry.ts','utf8').replace(/^import .*;\n/gm,'');
 let caller={role:'admin',email:'jordangust96@gmail.com'}, failSource=false, reads=0;
 const service=new Proxy({}, {get:()=>({filter:async()=>{reads++;if(failSource)throw new Error('unavailable');return [];}})});
@@ -113,6 +135,19 @@ const healthy=await handler({json:async()=>({preset:'today'})});
 eq(healthy.status,200);
 const json=await healthy.json();eq(json.ga4,null);eq(json.charts[0].traffic,null);eq(json.internal.depositVolume,0);
 assert.equal(JSON.stringify(json).includes('ip_address'),false);checks++;
+// Exercise the real handler's selected-field projection, not just full fixtures.
+const entities={User:'users',Match:'matches',WalletTransaction:'transactions',LedgerJournalBatch:'journals',MatchDeclineLog:'declines',Wallet:'wallets',JurisdictionVerificationLog:'locations',SocureIdentityVerification:'identities',SeamlessBankAccount:'banks'};
+const projectedService=new Proxy({}, {get:(_,name)=>({filter:async(q,sort,limit,skip,fields)=>
+  (mixed[entities[name]]||[]).slice(skip,skip+limit).map(row=>Object.fromEntries(fields.filter(field=>field in row).map(field=>[field,row[field]])))
+})});
+apiContext.createClientFromRequest=()=>({auth:{me:async()=>caller},asServiceRole:{entities:projectedService}});
+const projectedResponse=await handler({json:async()=>({preset:'custom',startDate:'2026-09-12',endDate:'2026-09-12'})});
+eq(projectedResponse.status,200);
+const projected=await projectedResponse.json();
+eq(projected.onboarding.locationAccepted,2);eq(projected.onboarding.locationUnresolved,2);
+eq(projected.matchActivity.hosted.free,1);eq(projected.internal.avgWager,5);
+assert.equal(JSON.stringify(projected).includes('192.0.2.1'),false);checks++;
+apiContext.createClientFromRequest=()=>({auth:{me:async()=>caller},asServiceRole:{entities:service}});
 failSource=true;eq((await handler({json:async()=>({preset:'today'})})).status,500);
 
 // Execute the real privacy bootstrap and ESM analytics modules with a local
