@@ -210,11 +210,23 @@ export function buildActivityMetrics(sources, range, isWalletLocationEvidence, n
     {step:'Hosted or joined a challenge',count:matchPlayers.size},
     {step:'Completed a match',count:completedPlayers.size},
   ];
+  const groupDays = (rows, field) => {
+    const grouped = new Map();
+    for (const row of rows) {
+      const key = dayKey(row[field]);
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key).push(row);
+    }
+    return grouped;
+  };
+  const legsByDay = groupDays(periodLegs, 'occurred_at');
+  const hostedByDay = groupDays(hosted, 'created_date');
+  const registrationsByDay = groupDays(registrations, 'created_date');
   const charts = dayKeys.map(day => {
-    const daily = periodLegs.filter(row => dayKey(row.occurred_at) === day);
-    const dailyHosted = hosted.filter(row => dayKey(row.created_date) === day);
+    const daily = legsByDay.get(day) || [];
+    const dailyHosted = hostedByDay.get(day) || [];
     const dailyMoney = dailyHosted.filter(row => row.play_mode !== 'free');
-    return {date:day,traffic:null,registrations:registrations.filter(row => dayKey(row.created_date) === day).length,
+    return {date:day,traffic:null,registrations:(registrationsByDay.get(day) || []).length,
       deposits:sumMoney(daily.filter(row => row.ledger_account === 'user_account' && money(row.total_deposited_delta)>0),'total_deposited_delta'),
       matches:dailyHosted.length,revenue:netRevenue(daily.filter(row => row.ledger_account === 'platform_revenue')),
       avgWager:dailyMoney.length ? Math.round(sumMoney(dailyMoney,'wager_amount') / dailyMoney.length * 100) / 100 : null};
