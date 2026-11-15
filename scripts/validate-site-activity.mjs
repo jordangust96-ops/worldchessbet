@@ -142,6 +142,7 @@ const projectedService=new Proxy({}, {get:(_,name)=>({filter:async(q,sort,limit,
 })});
 apiContext.createClientFromRequest=()=>({auth:{me:async()=>caller},asServiceRole:{entities:projectedService}});
 const projectedResponse=await handler({json:async()=>({preset:'custom',startDate:'2026-09-12',endDate:'2026-09-12'})});
+if(projectedResponse.status!==200) throw new Error(await projectedResponse.text());
 eq(projectedResponse.status,200);
 const projected=await projectedResponse.json();
 eq(projected.onboarding.locationAccepted,2);eq(projected.onboarding.locationUnresolved,2);
