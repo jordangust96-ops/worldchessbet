@@ -10,6 +10,8 @@ const fixture=`
 import React, {useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import GameHUD from '@/components/play/matchview/GameHUD';
+import PlayLayout from '@/components/play/PlayLayout';
+import ChessboardPreview from '@/components/play/ChessboardPreview';
 const start=Date.parse('2026-11-24T12:00:00Z');
 const origin=performance.now();
 let serverOffset=0;
@@ -42,10 +44,17 @@ window.mockSdk={auth:{me:async()=>({id:'white',role:'user'})},entities:new Proxy
  }}};
 function App(){
  const [current,setGame]=useState(game);renderGame=setGame;
- return <div style={{maxWidth:400,padding:20,background:'#151515',color:'white'}}>
- <GameHUD game={current} match={match} userId="white" onGameSync={()=>false}
- movementMode="click" touchOnlyInput soundEnabled={false} />
- <div data-testid="board-marker" style={{height:80,marginTop:12,border:'1px solid #C9A84C'}}>Layout reference</div>
+ return <div className="lg:flex lg:h-[100dvh] lg:flex-col">
+   <header className="h-[88px] shrink-0" />
+   <main className="app-page-with-nav play-page-with-nav lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
+     <PlayLayout showMobileBoard board={<ChessboardPreview state="in_progress" fen={current.fen} />}>
+       <div className="game-match-panel px-3 lg:h-full lg:overflow-y-auto">
+         <GameHUD game={current} match={match} userId="white" onGameSync={()=>false}
+           movementMode="click" touchOnlyInput soundEnabled={false} />
+       </div>
+     </PlayLayout>
+   </main>
+   <nav className="app-bottom-nav fixed inset-x-0 bottom-0 h-[74px]" />
  </div>;
 }
 createRoot(document.getElementById('root')).render(<App/>);
@@ -58,41 +67,62 @@ const result=await build({stdin:{contents:fixture,resolveDir:process.cwd(),loade
  }}]});
 const cssFiles=(await readdir('dist/assets')).filter(name=>name.endsWith('.css'));
 const css=(await Promise.all(cssFiles.map(name=>readFile('dist/assets/'+name,'utf8')))).join('\n');
-// This sandbox supplies browser libraries/fonts outside app dependencies.
-for(const width of [390,1280]){
- const browser=await chromium.launch({args:serverChromium.args,executablePath:await serverChromium.executablePath(),env:{...process.env,FONTCONFIG_PATH:'/tmp/fonts',LD_LIBRARY_PATH:'/tmp/chessbet-browser-check/lib'}});
- try{
-  const page=await browser.newPage({viewport:{width,height:900},hasTouch:width===390,isMobile:width===390});
-  const errors=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.route('**/*',route=>route.abort());
-  await page.setContent('<meta name="viewport" content="width=device-width,initial-scale=1"><div id="root"></div>');
-  await page.addStyleTag({content:css});
-  await page.addScriptTag({content:result.outputFiles[0].text});
-  await page.waitForSelector('[data-testid="opponent-connection-slot"]');
-  const slot=page.getByTestId('opponent-connection-slot');
-  const initial=await slot.boundingBox();
-  assert.equal(await page.getByText('Opponent disconnected',{exact:true}).count(),0);
-  await page.evaluate(()=>window.qa.change('disconnected'));
-  await page.getByText('Opponent disconnected',{exact:true}).waitFor({timeout:8000}).catch(async error=>{console.log(JSON.stringify({errors,text:await page.locator('body').innerText(),qa:await page.evaluate(()=>({calls:window.qa.calls,html:document.body.outerHTML.slice(0,500),ancestors:[...document.querySelectorAll('body, #root, #root > div, [data-testid="opponent-connection-slot"], [data-testid="opponent-connection-slot"] *')].map(e=>({tag:e.tagName,display:getComputedStyle(e).display,visibility:getComputedStyle(e).visibility,height:e.getBoundingClientRect().height}))}))}));throw error;});
-  await page.getByText(/Forfeits in 1:0/).waitFor();
-  assert.equal(await page.getByText('Opponent disconnected',{exact:true}).count(),1,'one notice');
-  const disconnected=await slot.boundingBox();
-  assert.equal(disconnected.height,initial.height);assert.equal(disconnected.y,initial.y);
-  const firstCountdown=await page.getByText(/Forfeits in/).innerText();
-  await page.waitForFunction(before=>[...document.querySelectorAll('p')].some(p=>p.textContent.startsWith('Forfeits in')&&p.textContent!==before),firstCountdown);
-  await page.screenshot({path:'/tmp/chessbet-disconnect-'+width+'.png',fullPage:true});
-  await page.evaluate(()=>window.qa.change('connected'));
-  await page.getByText('Opponent disconnected',{exact:true}).waitFor({state:'hidden'});
-  assert.equal((await slot.boundingBox()).y,initial.y);
-  await page.evaluate(()=>window.qa.change('notturn'));
-  await page.getByText('Countdown starts on their turn',{exact:true}).waitFor();
-  await page.evaluate(()=>window.qa.change('expired'));
-  await page.getByText('Confirming result…',{exact:true}).waitFor();
-  assert.equal(await page.getByText('Opponent disconnected',{exact:true}).count(),1);
-  await page.waitForFunction(()=>window.qa.calls.includes('gameHeartbeat'));
-  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
-  assert.deepEqual(errors,[]);
-  await page.close();
-  console.log('PASS '+width+'px: one notice, ticking server countdown, fixed layout, reconnect removal, waiting turn and final confirmation');
- }finally{await browser.close();}
-}
+// The sandbox browser uses fonts and shared libraries outside app dependencies.
+const browser=await chromium.launch({
+  args:serverChromium.args,
+  executablePath:await serverChromium.executablePath(),
+  env:{...process.env,FONTCONFIG_PATH:'/tmp/fonts',FONTCONFIG_FILE:'/tmp/fonts/fonts.conf',LD_LIBRARY_PATH:'/tmp/chessbet-browser-check/lib'},
+});
+try {
+  const context=await browser.newContext({reducedMotion:'reduce'});
+  for (const [width,height] of [[320,568],[390,844],[568,320],[1024,600],[1280,480]]) {
+    const page=await context.newPage();
+    await page.setViewportSize({width,height});
+    const errors=[];
+    page.on('pageerror',error=>errors.push(error.message));
+    await page.route('**/*',route=>route.abort());
+    await page.setContent('<meta name="viewport" content="width=device-width,initial-scale=1"><div id="root"></div>');
+    await page.addStyleTag({content:css});
+    await page.addScriptTag({content:result.outputFiles[0].text});
+    const board=page.locator('[data-boardid]');
+    const slot=page.getByTestId(width<1024?'opponent-connection-mobile':'opponent-connection-desktop');
+    await board.waitFor();
+    const connectedBoard=await board.boundingBox();
+    assert.equal(await page.locator('[data-testid^="opponent-connection-"]:visible').count(),0);
+    await page.evaluate(()=>window.qa.change('disconnected'));
+    await slot.getByText('Opponent disconnected',{exact:true}).waitFor({timeout:8000});
+    await slot.getByText(/Forfeits in 1:0/).waitFor();
+    assert.equal(await page.locator('[data-testid^="opponent-connection-"]:visible').count(),1);
+    const notice=await slot.boundingBox();
+    const playing=await board.boundingBox();
+    const nav=await page.locator('nav').boundingBox();
+    assert.ok(notice.y>=0&&notice.y+notice.height<=nav.y);
+    assert.ok(playing.y+playing.height<=notice.y||playing.x+playing.width<=notice.x||notice.x+notice.width<=playing.x);
+    if(width>=1024) {
+      const panel=await page.locator('.game-match-panel').boundingBox();
+      assert.ok(notice.y>=panel.y&&notice.y-panel.y<55);
+      await page.locator('.game-match-panel').evaluate(el=>{el.scrollTop=1000;});
+      const scrolled=await slot.boundingBox();
+      assert.ok(Math.abs(scrolled.y-panel.y)<12);
+    } else {
+      await page.evaluate(()=>window.scrollTo(0,document.body.scrollHeight));
+      assert.equal((await slot.boundingBox()).y,notice.y);
+    }
+    const firstCountdown=await slot.getByText(/Forfeits in/).innerText();
+    await page.waitForFunction(before=>[...document.querySelectorAll('p')].some(p=>p.textContent.startsWith('Forfeits in')&&p.textContent!==before),firstCountdown);
+    await page.evaluate(()=>window.qa.change('connected'));
+    await slot.waitFor({state:'detached'});
+    await page.evaluate(()=>window.scrollTo(0,0));
+    await page.waitForFunction(width=>Math.abs(document.querySelector('[data-boardid]').getBoundingClientRect().width-width)<1,connectedBoard.width);
+    await page.evaluate(()=>window.qa.change('notturn'));
+    await slot.getByText('Countdown starts on their turn',{exact:true}).waitFor();
+    await page.evaluate(()=>window.qa.change('expired'));
+    await slot.getByText('Confirming result…',{exact:true}).waitFor();
+    await page.waitForFunction(()=>window.qa.calls.includes('gameHeartbeat'));
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+    assert.deepEqual(errors,[]);
+    await page.close();
+    console.log('PASS '+width+' × '+height+': visible pinned notice, unobstructed board, countdown, reconnect, and confirmation.');
+  }
+} finally {await browser.close();}
+
