@@ -35,6 +35,7 @@ Deno.serve(async (req) => {
         disconnect_timeout_candidate_at: '', disconnect_timeout_candidate_color: '',
       } : {}),
     });
+    // A confirmed disconnect can expire on either side's turn.
     const result = await checkDisconnectTimeout(base44, updated, match, now);
     const latest = result.game || updated;
     return Response.json({ game: latest, server_now_ms: Date.now(), disconnect: getDisconnectState(match, latest) });
