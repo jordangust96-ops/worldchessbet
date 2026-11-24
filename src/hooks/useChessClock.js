@@ -15,9 +15,11 @@ function positionKey(game) {
 
 function currentDisconnect(game, sample) {
   const result = { white: null, black: null };
-  if (game?.status !== "active" || sample?.key !== positionKey(game)) return result;
+  if (!game?.id || game.status !== "active" || sample?.game.id !== game.id) return result;
   for (const color of ["white", "black"]) {
     const state = sample.disconnect?.[color];
+    // Presence is independent of whose turn it is. Keep a known deadline
+    // during board updates while rejecting samples from an earlier disconnect.
     if (state && state.disconnectedAt === game[color + "_disconnected_at"] &&
         sample.game[color + "_disconnect_policy_version"] === game[color + "_disconnect_policy_version"] &&
         !(serverTime(game[color + "_last_seen_at"]) >= serverTime(state.disconnectedAt))) result[color] = state;
@@ -61,7 +63,7 @@ export function useChessClock(game, onGameSync) {
       const updateAnchor = () => {
         if (Number.isFinite(data.server_now_ms)) {
           serverAnchorRef.current = { gameId: latest.id, serverMs: data.server_now_ms + latencyMs, at: receivedAt };
-          if (data.game) connectionRef.current = { key: positionKey(data.game), game: data.game, disconnect: data.disconnect };
+          if (data.game) connectionRef.current = { game: data.game, disconnect: data.disconnect };
         }
       };
       const matches = data.status === latest.status &&
