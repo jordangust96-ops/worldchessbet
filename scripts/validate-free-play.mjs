@@ -16,7 +16,7 @@ for(const publiclyListed of [false,true])for(const timeControl of ['blitz','rapi
  const anchor=game.turn_started_at;await call(f,'p2','finalize',{matchId:m.id});equal(f.table('Game').length,1);equal(f.table('Game')[0].turn_started_at,anchor);
  if(end==='resignation')await f.makeSdk('p1').functions.invoke('resignGame',{gameId:game.id});
  if(end==='draw'){await f.makeSdk('p1').functions.invoke('respondDraw',{gameId:game.id,action:'offer'});await f.makeSdk('p2').functions.invoke('respondDraw',{gameId:game.id,action:'accept'});}
- if(end==='checkmate'){for(const [who,from,to] of [['p1','f2','f3'],['p2','e7','e5'],['p1','g2','g4'],['p2','d8','h4']]){f.state.now+=1000;await f.makeSdk(who).functions.invoke('submitMove',{gameId:game.id,from,to});}}
+ if(end==='checkmate'){for(const [who,from,to] of [['p1','f2','f3'],['p2','e7','e5'],['p1','g2','g4'],['p2','d8','h4']]){f.state.now+=1000;await f.makeSdk(who).functions.invoke('submitMove',{gameId:game.id,from,to,expectedFen:f.table('Game')[0].fen});}}
  if(end==='timeout'){f.state.now+=game.white_time_ms+5000;await f.makeSdk('p2').functions.invoke('checkTimeout',{gameId:game.id});}
  equal(f.table('Game')[0].status,'completed');equal(f.table('Game')[0].end_reason,end==='draw'?'draw_agreement':end);
  await Promise.allSettled(['p1','p2','p1'].map(who=>f.makeSdk(who).functions.invoke('settleMatch',{gameId:game.id})));await f.makeSdk('p1').functions.invoke('settleMatch',{gameId:game.id});equal(f.table('ContestRecord').length,1);equal(f.get(m.id).status,'completed');equal(f.get(m.id).result,end==='draw'?'draw':'player2_win');
