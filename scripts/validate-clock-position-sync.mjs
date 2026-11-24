@@ -57,6 +57,21 @@ assert.equal(requests.filter(r=>r.name==='checkTimeout').length,1,'failed timeou
 await tick(1100);assert.equal(pending('checkTimeout').length,1);
 reply(pending('checkTimeout')[0],{game:{...game,status:'completed',white_time_ms:0}});
 await flush();assert.equal(game.status,'completed');
+// A server deadline stays accurate even when the phone's wall clock differs.
+game={...first,id:'disconnect-game',white_disconnected_at:'2026-11-12T20:00:00Z',
+  white_last_seen_at:'2026-11-12T19:59:30Z',white_disconnect_policy_version:'chessbet-reconnect-v2'};
+dirty=true;await flush();
+const serverNow=Date.parse('2026-11-12T20:00:10Z');
+reply(pending('getGameClock')[0],{...snapshot(game),disconnect:{
+  white:{disconnectedAt:game.white_disconnected_at,deadlineMs:serverNow+1000},black:null}});
+await flush();
+assert.equal(output.serverNowMs,serverNow);
+assert.equal(output.disconnect.white.deadlineMs-output.serverNowMs,1000);
+await tick(1100);
+assert.equal(pending('gameHeartbeat').length,1,'deadline requests server verification');
+assert.equal(game.status,'active','client never decides the result');
+reply(pending('gameHeartbeat')[0],{game:{...game,white_disconnected_at:'',white_last_seen_at:'2026-11-12T20:00:11Z'}});
+await flush();assert.equal(output.disconnect.white,null,'reconnect removes stale deadline immediately');
 for(const slot of slots)slot?.cleanup?.();
 // Exercise the actual clock endpoint's authorization and paired response.
 const endpointSource = (await readFile('base44/functions/getGameClock/entry.ts','utf8')).replace(/^import[^\n]+\n/gm,'');
