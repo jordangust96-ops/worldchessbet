@@ -167,6 +167,7 @@ export default function GameHUD({
   const myColor = isP1 ? "w" : "b";
   const opponentId = isP1 ? match.player2_id : match.player1_id;
   const opponentColorFull = isP1 ? "black" : "white";
+  const opponentConnection = displayMs.disconnect?.[opponentColorFull];
 
   useEffect(() => {
     const load = async () => {
@@ -277,16 +278,24 @@ export default function GameHUD({
   };
 
   return (
-    <div className="game-hud flex flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <div className="flex items-center gap-2">
-          <span className="size-1.5 rounded-full bg-green-500" />
-          <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Live Match</p>
+    <div className="game-hud flex flex-col gap-3" data-opponent-disconnected={opponentConnection ? "" : undefined}>
+      <div className={`flex flex-wrap items-center justify-between gap-x-3 gap-y-1 ${opponentConnection ? "lg:sticky lg:top-0 lg:z-10 lg:rounded-xl lg:bg-[#151515]" : ""}`}>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <div className="flex items-center gap-2">
+            <span className="size-1.5 rounded-full bg-green-500" />
+            <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Live Match</p>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <span className="text-xs text-white/40">Move {moveNumber}</span>
+            <span className="text-xs font-semibold text-white/80">{statusLabel}</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2.5">
-          <span className="text-xs text-white/40">Move {moveNumber}</span>
-          <span className="text-xs font-semibold text-white/80">{statusLabel}</span>
-        </div>
+        {opponentConnection && (
+          <OpponentConnectionBanner
+            connection={opponentConnection}
+            serverNowMs={displayMs.serverNowMs}
+          />
+        )}
       </div>
       {integrityReviewActive && (
         <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-3 py-2">
@@ -321,22 +330,16 @@ export default function GameHUD({
         </div>
       </div>
 
-      <OpponentConnectionBanner
-        connection={displayMs.disconnect?.[opponentColorFull]}
-        serverNowMs={displayMs.serverNowMs}
-        fallback={
-          <div className="flex h-full flex-col justify-center gap-0.5 rounded-xl bg-white/[0.03] px-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-white/40">Current Turn</span>
-              <span className="text-xs font-semibold text-white/80">{activeColor === "w" ? "White" : "Black"}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-white/40">Last Move</span>
-              <span className="font-mono text-xs font-semibold text-white/80">{lastMove || "Opening Position"}</span>
-            </div>
-          </div>
-        }
-      />
+      <div className="flex h-12 flex-col justify-center gap-0.5 rounded-xl bg-white/[0.03] px-3">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-white/40">Current Turn</span>
+          <span className="text-xs font-semibold text-white/80">{activeColor === "w" ? "White" : "Black"}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-white/40">Last Move</span>
+          <span className="font-mono text-xs font-semibold text-white/80">{lastMove || "Opening Position"}</span>
+        </div>
+      </div>
 
       <div className="flex justify-center">
         <ReportContestButton matchId={match.id} gameId={game?.id} />
