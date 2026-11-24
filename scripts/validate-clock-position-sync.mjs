@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { getDisconnectState } from '../base44/shared/disconnectPolicy.js';
+import { getDisconnectState, DISCONNECT_POLICY_VERSION } from '../base44/shared/disconnectPolicy.js';
 import { readFile } from 'node:fs/promises';
 const pause = () => new Promise(resolve => setImmediate(resolve));
 const deferred = () => { let resolve, reject; const promise = new Promise((a,b)=>{resolve=a;reject=b;}); return {promise,resolve,reject}; };
@@ -59,7 +59,7 @@ reply(pending('checkTimeout')[0],{game:{...game,status:'completed',white_time_ms
 await flush();assert.equal(game.status,'completed');
 // A server deadline stays accurate even when the phone's wall clock differs.
 game={...first,id:'disconnect-game',white_disconnected_at:'2026-11-12T20:00:00Z',
-  white_last_seen_at:'2026-11-12T19:59:30Z',white_disconnect_policy_version:'chessbet-reconnect-v2'};
+  white_last_seen_at:'2026-11-12T19:59:30Z',white_disconnect_policy_version:DISCONNECT_POLICY_VERSION};
 dirty=true;await flush();
 const serverNow=Date.parse('2026-11-12T20:00:10Z');
 reply(pending('getGameClock')[0],{...snapshot(game),disconnect:{
@@ -67,6 +67,9 @@ reply(pending('getGameClock')[0],{...snapshot(game),disconnect:{
 await flush();
 assert.equal(output.serverNowMs,serverNow);
 assert.equal(output.disconnect.white.deadlineMs-output.serverNowMs,1000);
+game={...game,fen:'position b - - 0 1',turn_started_at:new Date(serverNow).toISOString()};
+dirty=true;await flush();
+assert.equal(output.disconnect.white.deadlineMs,serverNow+1000,'a move keeps the known deadline visible before the new clock sample');
 await tick(1100);
 assert.equal(pending('gameHeartbeat').length,1,'deadline requests server verification');
 assert.equal(game.status,'active','client never decides the result');
