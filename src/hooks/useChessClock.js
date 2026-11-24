@@ -13,12 +13,25 @@ function positionKey(game) {
     game?.white_time_ms, game?.black_time_ms].join("|");
 }
 
+function currentDisconnect(game, sample) {
+  const result = { white: null, black: null };
+  if (game?.status !== "active" || sample?.key !== positionKey(game)) return result;
+  for (const color of ["white", "black"]) {
+    const state = sample.disconnect?.[color];
+    if (state && state.disconnectedAt === game[color + "_disconnected_at"] &&
+        sample.game[color + "_disconnect_policy_version"] === game[color + "_disconnect_policy_version"] &&
+        !(serverTime(game[color + "_last_seen_at"]) >= serverTime(state.disconnectedAt))) result[color] = state;
+  }
+  return result;
+}
+
 // Board, turn and clocks must describe the SAME server position. Never let an
 // independently arriving clock response switch the running side on an old board.
 export function useChessClock(game, onGameSync) {
   const [displayMs, setDisplayMs] = useState({ w: 0, b: 0 });
   const snapshotRef = useRef(null);
   const serverAnchorRef = useRef(null);
+  const connectionRef = useRef(null);
   const currentRef = useRef({ game, onGameSync });
   currentRef.current = { game, onGameSync };
   const syncSequenceRef = useRef(0);
@@ -48,6 +61,7 @@ export function useChessClock(game, onGameSync) {
       const updateAnchor = () => {
         if (Number.isFinite(data.server_now_ms)) {
           serverAnchorRef.current = { gameId: latest.id, serverMs: data.server_now_ms + latencyMs, at: receivedAt };
+          if (data.game) connectionRef.current = { key: positionKey(data.game), game: data.game, disconnect: data.disconnect };
         }
       };
       const matches = data.status === latest.status &&
@@ -133,7 +147,11 @@ export function useChessClock(game, onGameSync) {
       const b = snapshot.activeColor === "b" ? Math.max(0, snapshot.b - elapsed) : snapshot.b;
       setDisplayMs({ w, b });
       const remaining = snapshot.activeColor === "w" ? w : snapshot.activeColor === "b" ? b : Infinity;
-      if (remaining > 0 ||
+      const anchor = serverAnchorRef.current;
+      const serverNow = anchor?.gameId === current.id ? anchor.serverMs + performance.now() - anchor.at : null;
+      const disconnectDue = serverNow !== null && Object.values(currentDisconnect(current, connectionRef.current))
+        .some(state => Number.isFinite(state?.deadlineMs) && serverNow >= state.deadlineMs);
+      if ((remaining > 0 && !disconnectDue) ||
           (timeoutRequestRef.current?.gameId === current.id && performance.now() - timeoutRequestRef.current.startedAt < 10000) ||
           performance.now() < nextTimeoutAtRef.current) return;
       // A display reaching zero is only a request for server verification.
@@ -141,7 +159,7 @@ export function useChessClock(game, onGameSync) {
       const operation = { gameId: current.id, startedAt: performance.now() };
       timeoutRequestRef.current = operation;
       nextTimeoutAtRef.current = performance.now() + 3000;
-      base44.functions.invoke("checkTimeout", { gameId: current.id })
+      base44.functions.invoke(remaining <= 0 ? "checkTimeout" : "gameHeartbeat", { gameId: current.id })
         .then(({ data }) => {
           if (timeoutRequestRef.current !== operation || currentRef.current.game?.id !== operation.gameId) return;
           if (data?.game) currentRef.current.onGameSync?.(data.game);
@@ -156,6 +174,11 @@ export function useChessClock(game, onGameSync) {
     const interval = setInterval(tick, 100);
     return () => clearInterval(interval);
   }, [game?.id, game?.status, syncClock]);
-  return displayMs;
+  const anchor = serverAnchorRef.current;
+  return {
+    ...displayMs,
+    disconnect: currentDisconnect(game, connectionRef.current),
+    serverNowMs: anchor?.gameId === game?.id ? anchor.serverMs + performance.now() - anchor.at : null,
+  };
 }
 
