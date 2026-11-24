@@ -156,6 +156,12 @@ Deno.serve(async (req) => {
       pgn: chess.pgn(),
       [moverTimeField]: moverRemainingMs,
       turn_started_at: moveTimestamp,
+      // A legal move is also proof of contact, even if a heartbeat was delayed.
+      [move.color === 'w' ? 'white_last_seen_at' : 'black_last_seen_at']: moveTimestamp,
+      [move.color === 'w' ? 'white_disconnected_at' : 'black_disconnected_at']: '',
+      [move.color === 'w' ? 'white_disconnect_policy_version' : 'black_disconnect_policy_version']: '',
+      disconnect_timeout_candidate_at: '',
+      disconnect_timeout_candidate_color: '',
       // A pending draw offer lapses the moment either side makes another
       // move — standard chess convention, and load-bearing here: without
       // it an offer made many moves ago stays acceptable indefinitely,
