@@ -20,12 +20,13 @@ const match={id:'m',player1_id:'white',player2_id:'black',play_mode:'free',wager
 let game={id:'g',match_id:'m',launch_epoch:2,status:'active',fen:'r3k1nr/pp3pp1/2pb1q1p/3p4/3Nn3/1QP1BB1P/PP3PP1/R4RK1 b kq - 2 15',
   pgn:'',white_time_ms:385387,black_time_ms:371220,turn_started_at:new Date(start).toISOString(),
   black_last_seen_at:new Date(start-30000).toISOString(),black_disconnected_at:'',
-  black_disconnect_policy_version:'chessbet-reconnect-v2'};
+  black_disconnect_policy_version:'chessbet-reconnect-v3'};
 let renderGame;
 window.qa={calls:[],change(mode){
   game={...game,black_disconnected_at:mode==='connected'?'':new Date(start).toISOString()};
-  if(mode==='notturn')game.fen=game.fen.replace(' b ',' w ');
+  if(mode==='offturn')game.fen=game.fen.replace(' b ',' w ');
   else game.fen=game.fen.replace(' w ',' b ');
+  if(mode==='offturn')serverOffset=0;
   if(mode==='expired')serverOffset=68001;
   renderGame(game);
   window.dispatchEvent(new Event('focus'));
@@ -38,7 +39,7 @@ window.mockSdk={auth:{me:async()=>({id:'white',role:'user'})},entities:new Proxy
     server_now_ms:serverNow(),active_color:game.fen.split(' ')[1],turn_started_at:game.turn_started_at,
     white_remaining_ms:game.white_time_ms,black_remaining_ms:game.black_time_ms,
     disconnect:{white:null,black:game.black_disconnected_at?{disconnectedAt:game.black_disconnected_at,
-      deadlineMs:game.fen.split(' ')[1]==='b'?start+68000:null}:null}}};
+      deadlineMs:start+68000}:null}}};
   if(name==='gameHeartbeat')return {data:{game}};
   return {data:{}};
  }}};
@@ -114,8 +115,9 @@ try {
     await slot.waitFor({state:'detached'});
     await page.evaluate(()=>window.scrollTo(0,0));
     await page.waitForFunction(width=>Math.abs(document.querySelector('[data-boardid]').getBoundingClientRect().width-width)<1,connectedBoard.width);
-    await page.evaluate(()=>window.qa.change('notturn'));
-    await slot.getByText('Countdown starts on their turn',{exact:true}).waitFor();
+    await page.evaluate(()=>window.qa.change('offturn'));
+    await slot.getByText(/Forfeits in 1:0/).waitFor();
+    await page.getByText('Your Move',{exact:true}).waitFor();
     await page.evaluate(()=>window.qa.change('expired'));
     await slot.getByText('Confirming result…',{exact:true}).waitFor();
     await page.waitForFunction(()=>window.qa.calls.includes('gameHeartbeat'));
