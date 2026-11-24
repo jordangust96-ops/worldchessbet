@@ -240,9 +240,10 @@ export default function GameHUD({
 
   const PlayerCard = ({ name, isFounder, colorLabel, colorKey }) => {
     const isActive = activeColor === colorKey;
+    const clock = formatClock(displayMs[colorKey]);
     return (
       <div
-        className={`rounded-2xl p-3.5 border transition-all ${
+        className={`game-player-card rounded-2xl border p-3 transition-colors ${
           isActive
             ? "bg-[#C9A84C]/[0.07] border-[#C9A84C]/30 shadow-[0_0_16px_rgba(201,168,76,0.15)]"
             : "bg-white/[0.03] border-white/5"
@@ -263,8 +264,12 @@ export default function GameHUD({
               className="col-start-2 row-start-2 flex h-[15px] items-center gap-0.5 lg:row-start-1 lg:h-5"
             />
           </div>
-          <p className={`shrink-0 font-mono text-lg font-bold tabular-nums ${isActive ? "text-[#C9A84C]" : "text-white/60"}`}>
-            {formatClock(colorKey === "w" ? displayMs.w : displayMs.b)}
+          <p
+            className={`shrink-0 font-mono text-xl font-bold leading-none tabular-nums ${isActive ? "text-[#C9A84C]" : "text-white/60"}`}
+            role="timer"
+            aria-label={`${colorLabel} clock, ${clock}`}
+          >
+            {clock}
           </p>
         </div>
       </div>
@@ -272,83 +277,22 @@ export default function GameHUD({
   };
 
   return (
-    <div className="space-y-5 lg:space-y-3">
-      {/* Section 1 — Match Status */}
-      <div className="space-y-2.5">
+    <div className="game-hud flex flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
         <div className="flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+          <span className="size-1.5 rounded-full bg-green-500" />
           <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Live Match</p>
         </div>
-        {integrityReviewActive && (
-          <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-3 py-2">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-red-400">Integrity Review Active</p>
-          </div>
-        )}
-        <OpponentConnectionBanner
-          connection={displayMs.disconnect?.[opponentColorFull]}
-          serverNowMs={displayMs.serverNowMs}
-        />
-        {/* Mobile prioritizes the live clocks above all match metadata. These
-            values come from the same server-authoritative useChessClock hook
-            used by the full player cards below. */}
-        <div className="grid grid-cols-2 gap-2.5 lg:hidden">
-          {["w", "b"].map((colorKey) => {
-            const isClockActive = activeColor === colorKey;
-            const colorLabel = colorKey === "w" ? "White" : "Black";
-            const ownerLabel = myColor === colorKey ? "You" : "Opponent";
-            const clockMs = colorKey === "w" ? displayMs.w : displayMs.b;
-            return (
-              <div
-                key={colorKey}
-                className={`rounded-2xl border p-3.5 transition-colors ${
-                  isClockActive
-                    ? "bg-[#C9A84C]/10 border-[#C9A84C]/40 shadow-[0_0_16px_rgba(201,168,76,0.12)]"
-                    : "bg-white/[0.03] border-white/[0.06]"
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <p
-                    className={`text-[10px] font-bold uppercase tracking-widest ${
-                      isClockActive ? "text-[#C9A84C]" : "text-white/40"
-                    }`}
-                  >
-                    {colorLabel}
-                  </p>
-                  <span className="text-[9px] uppercase tracking-wider text-white/35">{ownerLabel}</span>
-                </div>
-                <p
-                  className={`font-mono text-2xl font-bold tabular-nums leading-none ${
-                    isClockActive ? "text-[#E8C85A]" : "text-white/75"
-                  }`}
-                  role="timer"
-                  aria-label={`${colorLabel} clock, ${formatClock(clockMs)}`}
-                >
-                  {formatClock(clockMs)}
-                </p>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Desktop retains the compact contest summary because both clocks are
-            already visible beside the player names above the fold. */}
-        <div className="hidden lg:grid grid-cols-2 gap-2.5">
-          <div className="rounded-2xl bg-[#C9A84C]/5 border border-[#C9A84C]/20 p-3">
-            <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]/60 mb-0.5">{match.play_mode==='free'?'Play mode':'Entry Amount'}</p>
-            <p className="text-base font-bold text-[#C9A84C]">{match.play_mode==='free'?'Free play':`$${match.wager_amount.toFixed(2)}`}</p>
-          </div>
-          <div className="rounded-2xl bg-white/[0.03] p-3">
-            <p className="text-[10px] uppercase tracking-widest text-white/30 mb-0.5">Time Control</p>
-            <p className="text-sm font-bold text-white">{match.display_name}</p>
-          </div>
-        </div>
-        <div className="flex items-center justify-between px-1">
+        <div className="flex items-center gap-2.5">
           <span className="text-xs text-white/40">Move {moveNumber}</span>
           <span className="text-xs font-semibold text-white/80">{statusLabel}</span>
         </div>
       </div>
-
-      <div className="h-px bg-white/[0.06]" />
+      {integrityReviewActive && (
+        <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-3 py-2">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-red-400">Integrity Review Active</p>
+        </div>
+      )}
 
       {/* Section 2 — Players */}
       <div className="space-y-2">
@@ -366,26 +310,40 @@ export default function GameHUD({
         />
       </div>
 
-      <div className="h-px bg-white/[0.06]" />
-
-      {/* Section 3 — Game Information */}
-      <div className="rounded-2xl bg-white/[0.03] p-3.5 space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-white/40">Current Turn</span>
-          <span className="text-xs font-semibold text-white/80">{activeColor === "w" ? "White" : "Black"}</span>
+      <div className="hidden lg:grid grid-cols-2 gap-2.5">
+        <div className="game-contest-stat rounded-2xl bg-[#C9A84C]/5 border border-[#C9A84C]/20 p-3">
+          <p className="text-[10px] uppercase tracking-widest text-[#C9A84C]/60 mb-0.5">{match.play_mode==='free'?'Play mode':'Entry Amount'}</p>
+          <p className="text-base font-bold text-[#C9A84C]">{match.play_mode==='free'?'Free play':`$${match.wager_amount.toFixed(2)}`}</p>
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-white/40">Last Move</span>
-          <span className="text-xs font-semibold text-white/80 font-mono">{lastMove || "Opening Position"}</span>
+        <div className="game-contest-stat rounded-2xl bg-white/[0.03] p-3">
+          <p className="text-[10px] uppercase tracking-widest text-white/30 mb-0.5">Time Control</p>
+          <p className="text-sm font-bold text-white">{match.display_name}</p>
         </div>
       </div>
+
+      <OpponentConnectionBanner
+        connection={displayMs.disconnect?.[opponentColorFull]}
+        serverNowMs={displayMs.serverNowMs}
+        fallback={
+          <div className="flex h-full flex-col justify-center gap-0.5 rounded-xl bg-white/[0.03] px-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-white/40">Current Turn</span>
+              <span className="text-xs font-semibold text-white/80">{activeColor === "w" ? "White" : "Black"}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-white/40">Last Move</span>
+              <span className="font-mono text-xs font-semibold text-white/80">{lastMove || "Opening Position"}</span>
+            </div>
+          </div>
+        }
+      />
 
       <div className="flex justify-center">
         <ReportContestButton matchId={match.id} gameId={game?.id} />
       </div>
 
-      {/* Section 4.5 — Player Controls */}
-      <div className="space-y-2">
+      {/* Player preferences */}
+      <div className="game-hud-preferences space-y-2">
         <div className="flex items-center justify-between gap-3 px-1">
           <p className="text-[10px] uppercase tracking-widest text-white/30">Match Sound</p>
           <SoundToggle enabled={soundEnabled} onChange={onSoundEnabledChange} compact />
@@ -403,7 +361,7 @@ export default function GameHUD({
       </div>
 
       {/* Section 5 — Game Controls */}
-      <div className="flex items-center gap-2 pt-1">
+      <div className="game-hud-actions flex items-center gap-2">
         <Button
           variant="outline"
           size="sm"
