@@ -66,9 +66,31 @@
     column-gap: var(--play-column-gap);
     height: 100%;
   }
+
+  .play-layout-columns[data-game-board] {
+    /* Reserve equal space on both sides so the HUD cannot offset the board. */
+    --desktop-board-size: min(
+      var(--play-layout-height, 0px),
+      calc(var(--play-layout-width, 100vw) - 2 * (var(--play-hud-width) + var(--play-column-gap)))
+    );
+    max-width: none;
+    grid-template-columns: minmax(0, 1fr) var(--desktop-board-size) minmax(0, 1fr);
+    grid-template-rows: minmax(0, var(--desktop-board-size));
+    align-content: center;
+  }
+
+  .play-layout-columns[data-game-board] .play-board-area {
+    grid-column: 2;
+  }
+
+  .play-layout-columns[data-game-board] .play-match-area {
+    grid-column: 3;
+    width: var(--play-hud-width);
+  }
 }
 
-@media (min-width: 1024px) and (max-height: 760px) {
+@media (min-width: 1024px) and (max-height: 760px),
+       (min-width: 1024px) and (max-width: 1120px) {
   .game-match-panel { padding-block: 0.5rem; }
   .game-hud { gap: 0.25rem; }
   .game-player-card { padding-block: 0.3125rem; }
