@@ -52,7 +52,7 @@ assert.equal(getDisconnectState(match,record).black.deadlineMs,null,'non-moving 
 record.fen='position b - - 0 15';record.turn_started_at=iso(t+50000);now=t+50000;record.white_last_seen_at=iso(now);
 await policy();assert.equal(getDisconnectState(match,record).black.deadlineMs,t+118000,'new turn gets the full return window');
 
-reset();record.black_disconnected_at=iso(t-100000);record.black_disconnect_policy_version='chesscom-reconnect-v1';await policy();
+reset();record.black_last_seen_at=iso(t-121000);record.black_disconnected_at=iso(t-100000);record.black_disconnect_policy_version='chesscom-reconnect-v1';await policy();
 assert.equal(getDisconnectState(match,record).black.deadlineMs,t+68000,'migration never shortens an existing player window');
 reset();await policy();now=t+68000;record.white_last_seen_at=iso(now);record.black_time_ms=10000;
 assert.equal((await policy()).clockExpired,true);assert.equal(record.status,'active','ordinary clock expiry keeps its material-aware path');
@@ -91,7 +91,10 @@ assert.equal((await heartbeat(req())).status,200);assert.deepEqual(record,termin
 caller='outsider';assert.equal((await heartbeat(req())).status,403,'completed data is participant-authorized too');
 caller=null;assert.equal((await heartbeat(req())).status,401);
 reset();record.black_last_seen_at=iso(now);
-const responses=await Promise.all([heartbeat(req()),heartbeat(req())]);
+const firstContact=heartbeat(req());caller='black';
+const responses=await Promise.all([firstContact,heartbeat(req())]);
 assert.ok(responses.every(r=>[200,409].includes(r.status)));
 assert.equal(record.status,'active');
+assert.equal((await heartbeat(req())).status,200,'a colliding contact succeeds after a fresh read');
+assert.equal(record.black_last_seen_at,iso(now));
 console.log('Disconnect deadlines, migration, timezone offsets, clock precedence, both offline, reconnect races, heartbeat ordering and authorization passed.');
