@@ -72,7 +72,7 @@ try{
   const initial=await slot.boundingBox();
   assert.equal(await page.getByText('Opponent disconnected',{exact:true}).count(),0);
   await page.evaluate(()=>window.qa.change('disconnected'));
-  await page.getByText('Opponent disconnected',{exact:true}).waitFor({timeout:8000}).catch(async error=>{console.log(JSON.stringify({errors,text:await page.locator('body').innerText(),qa:await page.evaluate(()=>window.qa.calls)}));throw error;});
+  await page.getByText('Opponent disconnected',{exact:true}).waitFor({timeout:8000}).catch(async error=>{console.log(JSON.stringify({errors,text:await page.locator('body').innerText(),qa:await page.evaluate(()=>({calls:window.qa.calls,html:document.body.outerHTML.slice(0,500),ancestors:[...document.querySelectorAll('body, #root, #root > div')].map(e=>({tag:e.tagName,display:getComputedStyle(e).display,visibility:getComputedStyle(e).visibility,height:e.getBoundingClientRect().height}))}))}));throw error;});
   await page.getByText(/Forfeits in 1:0/).waitFor();
   assert.equal(await page.getByText('Opponent disconnected',{exact:true}).count(),1,'one notice');
   const disconnected=await slot.boundingBox();
