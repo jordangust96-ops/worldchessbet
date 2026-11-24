@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
-import { readFile, readdir, writeFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 const qaRequire=createRequire('/tmp/chessbet-browser-check/package.json');
 const { chromium }=qaRequire('playwright');
 const serverChromium=qaRequire('@sparticuz/chromium').default;
@@ -58,9 +58,10 @@ const result=await build({stdin:{contents:fixture,resolveDir:process.cwd(),loade
  }}]});
 const cssFiles=(await readdir('dist/assets')).filter(name=>name.endsWith('.css'));
 const css=(await Promise.all(cssFiles.map(name=>readFile('dist/assets/'+name,'utf8')))).join('\n');
-const browser=await chromium.launch({args:serverChromium.args,executablePath:await serverChromium.executablePath()});
-try{
- for(const width of [390,1280]){
+// This sandbox supplies browser libraries/fonts outside app dependencies.
+for(const width of [390,1280]){
+ const browser=await chromium.launch({args:serverChromium.args,executablePath:await serverChromium.executablePath(),env:{...process.env,FONTCONFIG_PATH:'/tmp/fonts',LD_LIBRARY_PATH:'/tmp/chessbet-browser-check/lib'}});
+ try{
   const page=await browser.newPage({viewport:{width,height:900},hasTouch:width===390,isMobile:width===390});
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.route('**/*',route=>route.abort());
@@ -93,5 +94,5 @@ try{
   assert.deepEqual(errors,[]);
   await page.close();
   console.log('PASS '+width+'px: one notice, ticking server countdown, fixed layout, reconnect removal, waiting turn and final confirmation');
- }
-}finally{await browser.close();}
+ }finally{await browser.close();}
+}
