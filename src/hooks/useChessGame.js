@@ -197,19 +197,50 @@ export function useChessGame(matchId, userId, active, onMovePreview) {
     };
   }, [active, loadGame, clearSelection, clearPendingMove]);
 
-  // Server-authoritative presence heartbeat, for disconnect/reconnect
-  // detection only. Never affects clocks, moves, or outcomes â€” see
-  // gameHeartbeat backend function.
+  // Coalesce presence checks and recover immediately when the board returns.
+  // A busy lease is transient; retry promptly rather than losing eight seconds.
   useEffect(() => {
-    if (!active || !game?.id || game.status === "completed") return;
-    const HEARTBEAT_INTERVAL_MS = 8000;
-    const sendHeartbeat = () => {
-      base44.functions.invoke("gameHeartbeat", { gameId: game.id }).catch(() => {});
+    if (!active || !game?.id || game.status !== "active") return;
+    let stopped = false;
+    let inFlight = false;
+    let retryTimer = null;
+    let retries = 0;
+    const sendHeartbeat = async () => {
+      if (stopped || inFlight) return;
+      if (retryTimer) window.clearTimeout(retryTimer);
+      retryTimer = null;
+      inFlight = true;
+      try {
+        const { data } = await base44.functions.invoke("gameHeartbeat", { gameId: game.id });
+        retries = 0;
+        if (!stopped && data?.game) applyLatest(data.game);
+      } catch (error) {
+        const status = error?.response?.status || error?.status;
+        if (!stopped && status === 409 && retries < 2) {
+          retries++;
+          retryTimer = window.setTimeout(sendHeartbeat, 400 * retries);
+        }
+      } finally {
+        inFlight = false;
+      }
     };
-    sendHeartbeat();
-    const heartbeatInterval = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
-    return () => clearInterval(heartbeatInterval);
-  }, [active, game?.id, game?.status]);
+    const onReturn = () => {
+      if (document.visibilityState === "visible") void sendHeartbeat();
+    };
+    void sendHeartbeat();
+    const interval = setInterval(sendHeartbeat, 8000);
+    document.addEventListener("visibilitychange", onReturn);
+    window.addEventListener("focus", onReturn);
+    window.addEventListener("online", onReturn);
+    return () => {
+      stopped = true;
+      clearInterval(interval);
+      if (retryTimer) window.clearTimeout(retryTimer);
+      document.removeEventListener("visibilitychange", onReturn);
+      window.removeEventListener("focus", onReturn);
+      window.removeEventListener("online", onReturn);
+    };
+  }, [active, game?.id, game?.status, applyLatest]);
 
   // Browser visibility telemetry supplements the server move/clock record. It
   // is intentionally not enforcement logic: the backend only stores it for
