@@ -52,6 +52,8 @@
 }
 
 @media (min-width: 1024px) {
+  .game-player-card { padding-block: 0.75rem; }
+
   .play-page-with-nav {
     padding-bottom: calc(5rem + var(--app-safe-bottom));
   }
