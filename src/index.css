@@ -116,8 +116,8 @@
 @media (min-width: 1024px) and (max-height: 640px) {
   .game-hud { gap: 0.1875rem; }
   .game-player-card { padding-block: 0.1875rem; }
-  .game-position-details { height: 2.25rem; }
-  .game-contest-stat { padding-block: 0.25rem; }
+  .game-position-details { height: 2.125rem; }
+  .game-contest-stat { padding-block: 0.1875rem; }
 }
 
 @media (max-width: 1023px) {
