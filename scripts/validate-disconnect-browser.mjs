@@ -89,7 +89,7 @@ for(const width of [390,1280]){
   await page.evaluate(()=>window.qa.change('expired'));
   await page.getByText('Confirming result…',{exact:true}).waitFor();
   assert.equal(await page.getByText('Opponent disconnected',{exact:true}).count(),1);
-  assert.ok((await page.evaluate(()=>window.qa.calls)).includes('gameHeartbeat'),'deadline asks server to verify');
+  await page.waitForFunction(()=>window.qa.calls.includes('gameHeartbeat'));
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   assert.deepEqual(errors,[]);
   await page.close();
