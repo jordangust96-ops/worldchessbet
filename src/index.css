@@ -45,6 +45,19 @@
   padding-bottom: calc(6rem + var(--app-safe-bottom));
 }
 
+@media (min-width: 1024px) {
+  .play-page-with-nav {
+    padding-bottom: calc(5rem + var(--app-safe-bottom));
+  }
+}
+
+@media (max-width: 1023px) and (max-height: 480px) and (orientation: landscape) {
+  .play-board-area {
+    width: min(100%, max(8rem, calc(100dvh - 11rem - var(--app-safe-top) - var(--app-safe-bottom))));
+    margin-inline: auto;
+  }
+}
+
 .app-bottom-nav {
   padding-left: var(--app-safe-left);
   padding-right: var(--app-safe-right);
