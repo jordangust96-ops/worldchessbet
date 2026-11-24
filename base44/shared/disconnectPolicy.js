@@ -1,4 +1,4 @@
-export const DISCONNECT_POLICY_VERSION = "chessbet-reconnect-v2";
+export const DISCONNECT_POLICY_VERSION = "chessbet-reconnect-v3";
 export const HEARTBEAT_STALE_MS = 20_000;
 export const HEARTBEAT_INTERVAL_MS = 8_000;
 export const DISCONNECT_CONFIRMATION_MS = HEARTBEAT_INTERVAL_MS;
@@ -28,11 +28,10 @@ export function getDisconnectState(match, game) {
     const seen = parseTime(game[color + "_last_seen_at"]);
     if (!Number.isFinite(detected) || game[color + "_disconnect_policy_version"] !== DISCONNECT_POLICY_VERSION ||
         (Number.isFinite(seen) && seen >= detected)) continue;
-    const turn = parseTime(game.turn_started_at);
-    const onMove = sideToMove(game) === color;
-    const deadline = onMove && Number.isFinite(turn)
-      ? Math.max(detected, turn) + disconnectGraceMs(match, game) + DISCONNECT_CONFIRMATION_MS : null;
-    result[color] = { disconnectedAt: game[color + "_disconnected_at"], deadlineMs: deadline };
+    result[color] = {
+      disconnectedAt: game[color + "_disconnected_at"],
+      deadlineMs: detected + disconnectGraceMs(match, game) + DISCONNECT_CONFIRMATION_MS,
+    };
   }
   return result;
 }
@@ -67,9 +66,11 @@ export async function checkDisconnectTimeout(base44, candidate, match, now = Dat
     }
   }
 
-  const color = sideToMove(game);
-  const state = getDisconnectState(match, game)[color];
-  if (!state || state.deadlineMs === null) return { game, completed: false };
+  const [pending] = Object.entries(getDisconnectState(match, game))
+    .filter(([, state]) => state)
+    .sort(([, a], [, b]) => a.deadlineMs - b.deadlineMs);
+  if (!pending) return { game, completed: false };
+  const [color, state] = pending;
   const confirmationAt = state.deadlineMs - DISCONNECT_CONFIRMATION_MS;
   if (game.disconnect_timeout_candidate_color !== color ||
       parseTime(game.disconnect_timeout_candidate_at) !== confirmationAt) {
@@ -95,7 +96,8 @@ export async function checkDisconnectTimeout(base44, candidate, match, now = Dat
       now - winnerSeen > HEARTBEAT_STALE_MS) return { game: latest, completed: false };
 
   const turn = parseTime(latest.turn_started_at);
-  const timeField = color === "white" ? "white_time_ms" : "black_time_ms";
+  // Only the side to move spends chess-clock time, even if the other side forfeits.
+  const timeField = sideToMove(latest) === "white" ? "white_time_ms" : "black_time_ms";
   const remaining = Math.max(0, Math.floor((Number(latest[timeField]) || 0) - Math.max(0, now - turn)));
   // Clock expiry has its own material-aware rule and is handled by checkTimeout.
   if (remaining <= 0) return { game: latest, completed: false, clockExpired: true };
