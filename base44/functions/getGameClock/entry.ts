@@ -45,6 +45,7 @@ Deno.serve(async (req) => {
 
     return Response.json({
       game_id: game.id,
+      // Disconnect deadlines follow detection time and survive turn changes.
       disconnect: getDisconnectState(match, game),
       fen: game.fen,
       game,
