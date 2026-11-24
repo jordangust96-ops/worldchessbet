@@ -124,7 +124,7 @@ try {
     await page.waitForFunction(width=>Math.abs(document.querySelector('[data-boardid]').getBoundingClientRect().width-width)<1,connectedBoard.width);
     await page.evaluate(()=>window.qa.change('offturn'));
     await slot.getByText(/Forfeits in 1:0/).waitFor();
-    await page.locator('.game-position-details').getByText('White',{exact:true}).waitFor();
+    await page.waitForFunction(()=>document.querySelector('[aria-label^="White clock"]')?.classList.contains('text-[#C9A84C]'));
     await page.evaluate(()=>window.qa.change('expired'));
     await slot.getByText('Confirming result…',{exact:true}).waitFor();
     await page.waitForFunction(()=>window.qa.calls.includes('gameHeartbeat'));
