@@ -24,7 +24,7 @@ export default function OpponentConnectionBanner({ connection, serverNowMs }) {
     <>
       <div className="hidden lg:block" data-testid="opponent-connection-desktop">{notice}</div>
       {typeof document !== "undefined" && createPortal(
-        <div className="mobile-opponent-connection fixed z-[51] mx-auto max-w-lg lg:hidden" data-testid="opponent-connection-mobile">
+        <div className="mobile-opponent-connection fixed z-40 mx-auto max-w-lg lg:hidden" data-testid="opponent-connection-mobile">
           {notice}
         </div>,
         document.body
