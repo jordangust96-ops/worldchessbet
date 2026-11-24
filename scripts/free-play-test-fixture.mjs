@@ -113,7 +113,7 @@ function fixture() {
       return load(resolved).exports;
     };
     vm.runInNewContext(compiled,{module,exports:module.exports,require:req,Date:Clock,Request,Response,Headers,URL,AbortSignal,
-      TextEncoder,TextDecoder,Map,Set,structuredClone,crypto:crypto.webcrypto,console:{error:(...x)=>state.errors.push(x),log:()=>{}},
+      TextEncoder,TextDecoder,Map,Set,structuredClone,crypto:crypto.webcrypto,console:{error:(...x)=>state.errors.push(x),log:()=>{},info:()=>{},warn:()=>{}},
       setInterval:()=>1,clearInterval:()=>{},setTimeout:fn=>{fn();return 1;},clearTimeout:()=>{},
       Deno:{env:{get:()=>undefined},serve:handler=>{result.handler=handler;}},
     },{filename:file});
