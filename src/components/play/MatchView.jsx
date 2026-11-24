@@ -142,7 +142,7 @@ export default function MatchView({
   }
 
   return (
-    <div className={`rounded-3xl border border-white/5 bg-gradient-to-br from-[#1A1A1A] to-[#111] lg:h-full lg:overflow-y-auto ${stateKey === "in_progress" ? "game-match-panel p-3 sm:p-4" : "p-6 lg:p-4"}`}>
+    <div className={`rounded-3xl border border-white/5 bg-gradient-to-br from-[#1A1A1A] to-[#111] lg:h-full lg:overflow-y-auto ${stateKey === "in_progress" ? "game-match-panel px-3 sm:px-4" : "p-6 lg:p-4"}`}>
       <AnimatePresence mode="wait">
         <motion.div
           key={stateKey}
