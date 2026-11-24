@@ -1,6 +1,4 @@
-import AccountBalance from '@/components/layout/AccountBalance';
-import Logo from '@/components/Logo';
-import { Link } from 'react-router-dom';
+import AppHeader from "@/components/layout/AppHeader";
 import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -78,6 +76,7 @@ function RoutedApplication() {
     user &&
     APP_HEADER_PATHS.some((p) => location.pathname.startsWith(p));
 
+  const isPlayPage = /^\/play\/?$/i.test(location.pathname);
   const publicInvitation = /^\/(challenge|join)\//.test(location.pathname);
   // An expired optional session must not turn a public invitation preview
   // into a signup wall. Protected actions still enforce auth/MFA server-side.
@@ -93,10 +92,7 @@ function RoutedApplication() {
 
   return (
     <Suspense fallback={<LoadingScreen />}>
-      {showAppHeader && <header className="flex min-h-[88px] items-center justify-between gap-4 bg-background px-5 py-4">
-        <Link to="/play" aria-label="ChessBet home"><Logo size="sm" /></Link>
-        <AccountBalance />
-      </header>}
+      {showAppHeader && !isPlayPage && <AppHeader />}
       <Routes>
         <Route path="/" element={isAuthenticated ? <Navigate to="/play" replace /> : <Landing />} />
         <Route path="/features" element={<Navigate to="/about#features" replace />} />
@@ -139,7 +135,7 @@ function RoutedApplication() {
                   <Route path="/admin/user-financials" element={<AdminUserFinancials />} />
                   <Route path="/admin/transaction-ledger" element={<AdminTransactionLedger />} />
                 </Route>
-                <Route element={<AppLayout />}>
+                <Route element={<AppLayout playScreen={isPlayPage} header={showAppHeader && isPlayPage ? <AppHeader /> : null} />}>
                   <Route path="/play" element={<Home />} />
                   <Route path="/wallet" element={<WalletPage />} />
                   <Route path="/profile" element={<Profile />} />
