@@ -48,11 +48,23 @@ assert.equal(getDisconnectState(match,record).black,null);
 reset();await policy();now=t+68000;await policy();
 assert.equal(record.status,'active','both offline cannot produce a disconnect victory');
 reset();record.fen='position w - - 0 15';await policy();
-assert.equal(getDisconnectState(match,record).black.deadlineMs,null,'non-moving opponent has no active deadline');
-record.fen='position b - - 0 15';record.turn_started_at=iso(t+50000);now=t+50000;record.white_last_seen_at=iso(now);
-await policy();assert.equal(getDisconnectState(match,record).black.deadlineMs,t+118000,'new turn gets the full return window');
+assert.equal(getDisconnectState(match,record).black.deadlineMs,t+68000,'the deadline starts even if the disconnected player is off turn');
+now=t+68000;record.white_last_seen_at=iso(now);await policy();
+assert.equal(record.status,'completed','an off-turn disconnect can forfeit');
+assert.equal(record.winner_id,'white');
+assert.equal(record.black_time_ms,400000,'the disconnected player’s stopped clock does not spend time');
+assert.equal(record.white_time_ms,332000,'only the active clock spends time');
 
-reset();record.black_last_seen_at=iso(t-121000);record.black_disconnected_at=iso(t-100000);record.black_disconnect_policy_version='chesscom-reconnect-v1';await policy();
+reset();record.fen='position w - - 0 15';await policy();
+record.fen='position b - - 0 15';record.turn_started_at=iso(t+50000);now=t+50000;record.white_last_seen_at=iso(now);
+await policy();assert.equal(getDisconnectState(match,record).black.deadlineMs,t+68000,'a move does not reset the original countdown');
+
+reset();record.fen='position w - - 0 15';record.white_time_ms=10000;await policy();
+now=t+68000;record.white_last_seen_at=iso(now);
+assert.equal((await policy()).clockExpired,true,'the active clock still has precedence');
+assert.equal(record.status,'active');
+
+reset();record.black_last_seen_at=iso(t-121000);record.black_disconnected_at=iso(t-100000);record.black_disconnect_policy_version='chessbet-reconnect-v2';await policy();
 assert.equal(getDisconnectState(match,record).black.deadlineMs,t+68000,'migration never shortens an existing player window');
 reset();await policy();now=t+68000;record.white_last_seen_at=iso(now);record.black_time_ms=10000;
 assert.equal((await policy()).clockExpired,true);assert.equal(record.status,'active','ordinary clock expiry keeps its material-aware path');
