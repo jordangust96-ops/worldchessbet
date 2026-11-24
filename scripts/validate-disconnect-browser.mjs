@@ -44,8 +44,8 @@ window.mockSdk={auth:{me:async()=>({id:'white',role:'user'})},entities:new Proxy
  }}};
 function App(){
  const [current,setGame]=useState(game);renderGame=setGame;
- return <div className="lg:flex lg:h-[100dvh] lg:flex-col">
-   <header className="h-[88px] shrink-0" />
+ return <div className="lg:flex lg:h-[calc(100dvh-var(--app-safe-top))] lg:flex-col">
+   <header className="min-h-[88px] shrink-0" />
    <main className="app-page-with-nav play-page-with-nav lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
      <PlayLayout showMobileBoard board={<ChessboardPreview state="in_progress" fen={current.fen} />}>
        <div className="game-match-panel px-3 lg:h-full lg:overflow-y-auto">
@@ -54,7 +54,7 @@ function App(){
        </div>
      </PlayLayout>
    </main>
-   <nav className="app-bottom-nav fixed inset-x-0 bottom-0 h-[74px]" />
+   <nav className="app-bottom-nav fixed bottom-0 left-0 right-0" style={{height:74}} />
  </div>;
 }
 createRoot(document.getElementById('root')).render(<App/>);
