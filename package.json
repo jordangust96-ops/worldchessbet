@@ -41,8 +41,8 @@
     "test:game-sync": "node scripts/validate-game-sync-hardening.mjs && node scripts/validate-clock-position-sync.mjs"
   },
   "dependencies": {
-    "@base44/sdk": "^0.8.62",
-    "@base44/vite-plugin": "^1.0.52",
+    "@base44/sdk": "^0.8.63",
+    "@base44/vite-plugin": "^1.0.54",
     "@hello-pangea/dnd": "^17.0.0",
     "@heycatch/sdk": "^0.7.0",
     "@hookform/resolvers": "^4.1.2",
