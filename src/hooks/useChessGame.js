@@ -6,10 +6,8 @@ import { useToast } from "@/components/ui/use-toast";
 const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 // Derives the ply (half-move index) a FEN represents, so board updates can be
-// ordered and compared regardless of which source (poll, realtime, optimistic
-// local move) produced them. This is the single monotonic progress signal —
-// any incoming state with a lower ply than what's already rendered is stale
-// and must never be applied, or the board would visibly move backwards.
+// ordered regardless of source. Compare confirmed positions only, so a
+// temporary local preview cannot interfere with server reconciliation.
 function plyFromFen(fenStr) {
   const parts = fenStr.split(" ");
   const turn = parts[1];
@@ -31,14 +29,14 @@ function recordUpdatedAtMs(record) {
 export function useChessGame(matchId, userId, active) {
   const [fen, setFen] = useState(START_FEN);
   const [game, setGame] = useState(null);
+  const [previewFen, setPreviewFen] = useState(null);
   const pendingMoveRef = useRef(null);
   const [syncMessage, setSyncMessage] = useState("");
   const activeMatchRef = useRef(matchId);
   activeMatchRef.current = matchId;
   const [color, setColor] = useState("white");
   const chessRef = useRef(new Chess());
-  // Ply of the position currently rendered — the single source of truth for
-  // ordering of confirmed states. Never let a lower-ply update overwrite it.
+  // These refs track confirmed state even while the board shows a local preview.
   const renderedPlyRef = useRef(0);
   const renderedUpdatedAtRef = useRef(0);
   const renderedStatusRef = useRef(null);
@@ -69,11 +67,15 @@ export function useChessGame(matchId, userId, active) {
     setLegalTargets(targets);
   }, []);
 
+  const clearPendingMove = useCallback(() => {
+    pendingMoveRef.current = null;
+    setPreviewFen(null);
+    setSyncMessage("");
+  }, []);
+
   const applyLatest = useCallback((latest) => {
       if (!latest?.fen || latest.match_id !== activeMatchRef.current) return false;
-      // Reject any state that is behind what's already rendered — this is what
-      // stops a delayed/in-flight poll or subscription event from ever
-      // rolling the board back to an earlier position.
+      // Delayed polls and realtime updates cannot undo a confirmed move.
       const latestPly = plyFromFen(latest.fen);
       const latestUpdatedAt = recordUpdatedAtMs(latest);
       if (latestPly < renderedPlyRef.current) return;
@@ -90,8 +92,7 @@ export function useChessGame(matchId, userId, active) {
       renderedStatusRef.current = latest.status;
       setGame(latest);
       if (pendingMoveRef.current && (latestPly > pendingMoveRef.current.ply || gameEnded)) {
-        pendingMoveRef.current = null;
-        setSyncMessage("");
+        clearPendingMove();
       }
 
       // Keep a valid click-to-move selection across same-position refreshes.
@@ -104,11 +105,23 @@ export function useChessGame(matchId, userId, active) {
         clearSelection();
       }
       return true;
-  }, [clearSelection]);
+  }, [clearSelection, clearPendingMove]);
+
+  const reconcilePendingMove = useCallback((latest, operation) => {
+    if (pendingMoveRef.current !== operation) return false;
+    if (!applyLatest(latest)) return false;
+    if (pendingMoveRef.current === operation) {
+      clearPendingMove();
+      toast({
+        title: "Move not confirmed",
+        description: "The confirmed position has been restored. Check whose turn it is before trying again.",
+      });
+    }
+    return true;
+  }, [applyLatest, clearPendingMove, toast]);
 
   useEffect(() => {
-    pendingMoveRef.current = null;
-    setSyncMessage("");
+    clearPendingMove();
     renderedPlyRef.current = 0;
     renderedUpdatedAtRef.current = 0;
     renderedStatusRef.current = null;
@@ -116,7 +129,7 @@ export function useChessGame(matchId, userId, active) {
     setFen(START_FEN);
     setGame(null);
     clearSelection();
-  }, [matchId, clearSelection]);
+  }, [matchId, clearSelection, clearPendingMove]);
 
   const loadGame = useCallback(async () => {
     if (!matchId || !userId) return;
@@ -136,8 +149,7 @@ export function useChessGame(matchId, userId, active) {
     if (!active) {
       // Clear any previous match's game data so a dismissed/completed game can
       // never bleed into the next match's initial render.
-      pendingMoveRef.current = null;
-      setSyncMessage("");
+      clearPendingMove();
       setGame(null);
       setFen(START_FEN);
       chessRef.current = new Chess();
@@ -183,7 +195,7 @@ export function useChessGame(matchId, userId, active) {
       window.removeEventListener("online", recoverNow);
       window.removeEventListener("focus", recoverNow);
     };
-  }, [active, loadGame, clearSelection]);
+  }, [active, loadGame, clearSelection, clearPendingMove]);
 
   // Server-authoritative presence heartbeat, for disconnect/reconnect
   // detection only. Never affects clocks, moves, or outcomes â€” see
@@ -247,13 +259,16 @@ export function useChessGame(matchId, userId, active) {
     const recoverLatest = async () => {
       if (document.visibilityState !== "visible" || recoveryInFlight) return;
       recoveryInFlight = true;
+      // Only a read started after uncertainty began can discard the preview.
+      const pending = pendingMoveRef.current;
+      const uncertainMove = pending?.uncertain ? pending : null;
       try {
         const latest = await base44.entities.Game.get(game.id);
         if (!stopped) {
-          const applied = applyLatest(latest);
-          if (applied && pendingMoveRef.current?.uncertain) {
-            pendingMoveRef.current = null;
-            setSyncMessage("");
+          if (uncertainMove && pendingMoveRef.current === uncertainMove) {
+            reconcilePendingMove(latest, uncertainMove);
+          } else {
+            applyLatest(latest);
           }
         }
       } catch {
@@ -275,7 +290,7 @@ export function useChessGame(matchId, userId, active) {
       window.removeEventListener("focus", recoverLatest);
       window.removeEventListener("online", recoverLatest);
     };
-  }, [active, game?.id, clearSelection, applyLatest]);
+  }, [active, game?.id, applyLatest, reconcilePendingMove]);
 
   // Shared core used by both Drag & Drop (handleDrop) and Click to Move
   // (handleSquareClick) — one confirmation and recovery path for both input modes.
@@ -293,7 +308,8 @@ export function useChessGame(matchId, userId, active) {
 
       // Quick client-side legality check purely for instant snap-back UX.
       // The server remains the sole authority over the persisted game state.
-      const preview = new Chess(currentPosition.fen());
+      const previousFen = currentPosition.fen();
+      const preview = new Chess(previousFen);
       let previewMove;
       try {
         previewMove = preview.move({ from: sourceSquare, to: targetSquare, promotion: "q" });
@@ -302,11 +318,10 @@ export function useChessGame(matchId, userId, active) {
       }
       if (!previewMove) return false;
 
-      const previousFen = chessRef.current.fen();
-
-      // Keep the confirmed board and turn until the server accepts the move.
-      const operation = { gameId: game.id, ply: plyFromFen(previousFen) };
+      // Preview only the board. Game, turn, and clocks use the confirmed state.
+      const operation = { ply: plyFromFen(previousFen) };
       pendingMoveRef.current = operation;
+      setPreviewFen(preview.fen());
       // Routine confirmation is silent and never changes the board layout.
       setSyncMessage("");
       clearSelection();
@@ -336,7 +351,7 @@ export function useChessGame(matchId, userId, active) {
         let deadline;
         try {
           // Never resubmit automatically: a lost response may still have committed.
-          const response = await Promise.race([
+          await Promise.race([
             base44.functions.invoke("submitMove", {
               gameId: game.id, from: sourceSquare, to: targetSquare,
               promotion: "q", expectedFen: previousFen,
@@ -350,8 +365,9 @@ export function useChessGame(matchId, userId, active) {
             }),
           ]);
           if (activeMatchRef.current !== matchId) return;
-          if (response?.data?.game) applyLatest(response.data.game);
-          if (pendingMoveRef.current === operation) { pendingMoveRef.current = null; setSyncMessage(""); }
+          if (pendingMoveRef.current === operation) {
+            throw new Error("Move response did not confirm a new position");
+          }
         } catch (error) {
           if (activeMatchRef.current !== matchId || pendingMoveRef.current !== operation) return;
           operation.uncertain = true;
@@ -359,14 +375,8 @@ export function useChessGame(matchId, userId, active) {
           try {
             const latest = await base44.entities.Game.get(game.id);
             if (activeMatchRef.current !== matchId || pendingMoveRef.current !== operation) return;
-            applyLatest(latest);
-            if (pendingMoveRef.current === operation) pendingMoveRef.current = null;
-            setSyncMessage("");
-            if (plyFromFen(latest.fen) === operation.ply && latest.status !== "completed") {
-              toast({
-                title: "Move not confirmed",
-                description: "The confirmed position has been restored. Check whose turn it is before trying again.",
-              });
+            if (!reconcilePendingMove(latest, operation)) {
+              setSyncMessage("Reconnecting — waiting to confirm your move. Please keep this game open.");
             }
           } catch {
             // Keep input blocked until a later authoritative update proves the
@@ -380,7 +390,7 @@ export function useChessGame(matchId, userId, active) {
 
       return true;
     },
-    [game, color, toast, clearSelection, matchId, applyLatest]
+    [game, color, clearSelection, matchId, applyLatest, reconcilePendingMove]
   );
 
   const handleDrop = useCallback(
@@ -452,7 +462,7 @@ export function useChessGame(matchId, userId, active) {
   );
 
   return {
-    fen,
+    fen: previewFen ?? fen,
     syncMessage,
     applyGameSnapshot: applyLatest,
     handleDrop,
