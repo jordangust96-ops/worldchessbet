@@ -1,5 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 
+import { getDisconnectState } from '../../shared/disconnectPolicy.js';
+
 function parseServerTime(dateStr, fallbackMs) {
   if (!dateStr) return fallbackMs;
   const hasTz = /Z$|[+-]\d{2}:?\d{2}$/.test(dateStr);
@@ -43,6 +45,7 @@ Deno.serve(async (req) => {
 
     return Response.json({
       game_id: game.id,
+      disconnect: getDisconnectState(match, game),
       fen: game.fen,
       game,
       status: game.status,
