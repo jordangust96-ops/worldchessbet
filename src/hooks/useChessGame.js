@@ -26,7 +26,7 @@ function recordUpdatedAtMs(record) {
 // Manages loading/creating the Game entity for a match, hydrating the board,
 // and submitting moves to the submitMove backend function (the sole authority
 // over FEN, PGN, status, result, and winner_id).
-export function useChessGame(matchId, userId, active) {
+export function useChessGame(matchId, userId, active, onMovePreview) {
   const [fen, setFen] = useState(START_FEN);
   const [game, setGame] = useState(null);
   const [previewFen, setPreviewFen] = useState(null);
@@ -325,6 +325,7 @@ export function useChessGame(matchId, userId, active) {
       // Routine confirmation is silent and never changes the board layout.
       setSyncMessage("");
       clearSelection();
+      onMovePreview?.(previewMove, game.id, operation.ply + 1);
 
       // Sanitized, aggregate-only input telemetry helps detect mobile
       // interaction regressions without recording game IDs, squares, moves,
@@ -390,7 +391,7 @@ export function useChessGame(matchId, userId, active) {
 
       return true;
     },
-    [game, color, clearSelection, matchId, applyLatest, reconcilePendingMove]
+    [game, color, clearSelection, matchId, applyLatest, reconcilePendingMove, onMovePreview]
   );
 
   const handleDrop = useCallback(
