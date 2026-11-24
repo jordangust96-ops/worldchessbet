@@ -4,12 +4,12 @@ import { checkDisconnectTimeout } from '../../shared/disconnectPolicy.js';
 
 // System sweep for active games. It preserves the chess clock as the
 // independent authority when a clock reaches zero, and also completes a
-// disconnected side-to-move only after the time-control-specific reconnect
+// disconnect forfeit only after the time-control-specific reconnect
 // window plus a fresh-heartbeat confirmation interval. A missed heartbeat is
 // never treated as proof of intentional abandonment.
 function parseServerTime(dateStr, fallbackMs) {
   if (!dateStr) return fallbackMs;
-  const hasTz = /Z$|[+-]\\d{2}:?\\d{2}$/.test(dateStr);
+  const hasTz = /Z$|[+-]\d{2}:?\d{2}$/.test(dateStr);
   const parsedMs = new Date(hasTz ? dateStr : `${dateStr}Z`).getTime();
   return Number.isFinite(parsedMs) ? parsedMs : fallbackMs;
 }
@@ -36,6 +36,9 @@ function hasSufficientMatingMaterial(fen, color) {
 Deno.serve(async (req) => {
   try {
     const base44 = guardGameMutations(createClientFromRequest(req));
+    const caller = await base44.auth.me().catch(() => null);
+    if (!caller) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (caller.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 });
 
     const activeGames = await base44.asServiceRole.entities.Game.filter(
       { launch_epoch: 2, status: 'active' },

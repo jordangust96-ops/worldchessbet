@@ -2,36 +2,28 @@ import React from "react";
 import { Move, MousePointer2 } from "lucide-react";
 
 // Compact Drag & Drop / Click to Move selector shown in the live Match HUD.
-export default function MovementModeToggle({ mode, onChange, touchOnlyInput = false }) {
-  if (touchOnlyInput) {
-    return (
-      <div
-        className="flex items-center justify-center gap-1.5 h-9 rounded-xl bg-[#C9A84C]/10 border border-[#C9A84C]/25 text-[11px] font-semibold text-[#E8D48B]"
-        role="status"
-        aria-label="Mobile movement mode: tap a piece, then tap its destination"
-      >
-        <MousePointer2 size={13} /> Tap a piece, then a highlighted square
-      </div>
-    );
-  }
-
+export default function MovementModeToggle({ mode, onChange }) {
   return (
-    <div className="flex items-center gap-1 p-1 rounded-xl bg-white/[0.03] border border-white/5">
+    <div role="group" aria-label="Movement mode" className="grid grid-cols-2 gap-1.5 rounded-xl border border-white/5 bg-white/[0.03] p-1">
       <button
+        type="button"
         onClick={() => onChange("drag")}
-        className={`flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg text-[11px] font-semibold transition-colors ${
+        aria-pressed={mode === "drag"}
+        className={`flex h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2 text-[11px] font-semibold leading-tight transition-colors ${
           mode === "drag" ? "bg-[#C9A84C] text-black" : "text-white/40 hover:text-white/70"
         }`}
       >
-        <Move size={13} /> Drag & Drop
+        <Move size={13} className="shrink-0" /> <span>Drag &amp; Drop</span>
       </button>
       <button
+        type="button"
         onClick={() => onChange("click")}
-        className={`flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg text-[11px] font-semibold transition-colors ${
+        aria-pressed={mode === "click"}
+        className={`flex h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2 text-[11px] font-semibold leading-tight transition-colors ${
           mode === "click" ? "bg-[#C9A84C] text-black" : "text-white/40 hover:text-white/70"
         }`}
       >
-        <MousePointer2 size={13} /> Click to Move
+        <MousePointer2 size={13} className="shrink-0" /> <span>Click to Move</span>
       </button>
     </div>
   );

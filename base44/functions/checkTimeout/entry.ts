@@ -54,15 +54,15 @@ Deno.serve(async (req) => {
     if (!game) return Response.json({ error: 'Game not found' }, { status: 404 });
     if (Number(game.launch_epoch) !== 2) return Response.json({ error: 'Game not available' }, { status: 410 });
 
-    if (game.status === 'completed') {
-      return Response.json({ game });
-    }
-
     const match = await base44.asServiceRole.entities.Match.get(game.match_id);
     if (!match) return Response.json({ error: 'Match not found' }, { status: 404 });
 
     if (match.player1_id !== user.id && match.player2_id !== user.id) {
       return Response.json({ error: 'You are not a player in this match' }, { status: 403 });
+    }
+
+    if (game.status === 'completed') {
+      return Response.json({ game });
     }
 
     // Determine side to move from FEN, and check if their authoritative clock has expired.

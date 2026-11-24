@@ -60,8 +60,9 @@
       "type": "string"
     },
     "disconnect_timeout_candidate_color": {
-      "description": "Side awaiting a final fresh-heartbeat check before a disconnect timeout can be recorded.",
+      "description": "Side awaiting a final fresh-heartbeat check before a disconnect timeout can be recorded. An empty string clears the candidate.",
       "enum": [
+        "",
         "white",
         "black"
       ],

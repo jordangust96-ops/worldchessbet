@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { getDisconnectState } from '../base44/shared/disconnectPolicy.js';
+import { getDisconnectState, DISCONNECT_POLICY_VERSION } from '../base44/shared/disconnectPolicy.js';
 import { readFile } from 'node:fs/promises';
 const pause = () => new Promise(resolve => setImmediate(resolve));
 const deferred = () => { let resolve, reject; const promise = new Promise((a,b)=>{resolve=a;reject=b;}); return {promise,resolve,reject}; };
@@ -59,7 +59,7 @@ reply(pending('checkTimeout')[0],{game:{...game,status:'completed',white_time_ms
 await flush();assert.equal(game.status,'completed');
 // A server deadline stays accurate even when the phone's wall clock differs.
 game={...first,id:'disconnect-game',white_disconnected_at:'2026-11-12T20:00:00Z',
-  white_last_seen_at:'2026-11-12T19:59:30Z',white_disconnect_policy_version:'chessbet-reconnect-v2'};
+  white_last_seen_at:'2026-11-12T19:59:30Z',white_disconnect_policy_version:DISCONNECT_POLICY_VERSION};
 dirty=true;await flush();
 const serverNow=Date.parse('2026-11-12T20:00:10Z');
 reply(pending('getGameClock')[0],{...snapshot(game),disconnect:{
@@ -67,6 +67,9 @@ reply(pending('getGameClock')[0],{...snapshot(game),disconnect:{
 await flush();
 assert.equal(output.serverNowMs,serverNow);
 assert.equal(output.disconnect.white.deadlineMs-output.serverNowMs,1000);
+game={...game,fen:'position b - - 0 1',turn_started_at:new Date(serverNow).toISOString()};
+dirty=true;await flush();
+assert.equal(output.disconnect.white.deadlineMs,serverNow+1000,'a move keeps the known deadline visible before the new clock sample');
 await tick(1100);
 assert.equal(pending('gameHeartbeat').length,1,'deadline requests server verification');
 assert.equal(game.status,'active','client never decides the result');
@@ -91,4 +94,47 @@ assert.equal(data.game.fen,clockGame.fen);assert.equal(data.fen,data.game.fen);
 assert.equal(data.turn_started_at,data.game.turn_started_at);
 assert.ok(data.white_remaining_ms<=170000 && data.white_remaining_ms>165000);
 assert.equal(data.black_remaining_ms,180000);
+// Timeout endpoints must enforce their respective access controls before returning game data or sweeping.
+const timeoutSource=(await readFile('base44/functions/checkTimeout/entry.ts','utf8')).replace(/^import[^\n]+\n/gm,'');
+const finishedGame={...clockGame,status:'completed'};
+let timeoutEndpoint;
+const timeoutClient={...client,asServiceRole:{entities:{...client.asServiceRole.entities,Game:{get:async()=>finishedGame}}}};
+new Function('Deno','createClientFromRequest','guardGameMutations',timeoutSource)(
+  {serve:handler=>{timeoutEndpoint=handler;}},()=>timeoutClient,value=>value
+);
+caller={id:'outsider',role:'user'};
+const forbiddenTimeout=await timeoutEndpoint(req());
+assert.equal(forbiddenTimeout.status,403);
+assert.equal((await forbiddenTimeout.json()).game,undefined);
+caller={id:'white'};
+assert.deepEqual((await (await timeoutEndpoint(req())).json()).game,finishedGame);
+
+const sweepSource=(await readFile('base44/functions/checkGameTimeouts/entry.ts','utf8')).replace(/^import[^\n]+\n/gm,'');
+const overdueGame={...clockGame,fen:'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+  turn_started_at:'2026-11-12T15:00:00-05:00',white_time_ms:10000};
+class SweepDate extends Date {
+  static now(){return Date.parse('2026-11-12T20:00:20Z');}
+}
+let sweepEndpoint, gameReads=0, disconnectChecks=0, timeoutUpdate;
+const sweepClient={...client,asServiceRole:{entities:{...client.asServiceRole.entities,Game:{
+  filter:async()=>{gameReads++;return [overdueGame];},
+  get:async()=>overdueGame,
+  update:async(id,updates)=>{assert.equal(id,overdueGame.id);timeoutUpdate=updates;}
+}}}};
+new Function('Deno','createClientFromRequest','guardGameMutations','checkDisconnectTimeout','Date',sweepSource)(
+  {serve:handler=>{sweepEndpoint=handler;}},()=>sweepClient,value=>value,
+  async()=>{disconnectChecks++;return {completed:false};},SweepDate
+);
+caller=null;
+assert.equal((await sweepEndpoint(req())).status,401);
+caller={id:'white',role:'user'};
+assert.equal((await sweepEndpoint(req())).status,403);
+assert.equal(gameReads,0);
+caller={id:'workflow',role:'admin'};
+assert.deepEqual(await (await sweepEndpoint(req())).json(),{resolvedCount:1,resolvedIds:[overdueGame.id]});
+assert.equal(timeoutUpdate?.end_reason,'timeout');
+assert.equal(timeoutUpdate.winner_id,'black');
+assert.equal(timeoutUpdate.white_time_ms,0);
+assert.equal(disconnectChecks,0,'an expired chess clock wins over the disconnect path');
+
 console.log('Clock/board ordering, stale responses, reconnect bursts, turn changes, completion, slow network, timeout backoff and server authorization passed.');

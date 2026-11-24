@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import PlayLayout from "@/components/play/PlayLayout";
 import { base44 } from "@/api/base44Client";
 import ChessboardPreview from "@/components/play/ChessboardPreview";
 import MatchCenter from "@/components/play/MatchCenter";
 import MatchView from "@/components/play/MatchView";
 import { useChessGame } from "@/hooks/useChessGame";
-import { useSize } from "@/hooks/use-size";
 import { useTouchOnlyInput } from "@/hooks/use-touch-only-input";
 import { mergeMatchDisplay, isMatchFinalizing } from "@/lib/matchDisplayState";
 import {
@@ -63,12 +62,6 @@ export default function Home() {
   const [movementMode, setMovementMode] = useState(() => (touchOnlyInput ? "click" : "drag"));
   const [soundEnabled, setSoundEnabled] = useState(getStoredSoundPreference);
   const soundEnabledRef = useRef(soundEnabled);
-  const boardAreaRef = useRef(null);
-  const boardAreaSize = useSize(boardAreaRef);
-  const desktopBoardSize =
-    boardAreaSize?.width > 0 && boardAreaSize?.height > 0
-      ? Math.floor(Math.min(boardAreaSize.width, boardAreaSize.height))
-      : null;
   const moveSoundStateRef = useRef({ gameId: null, moveCount: 0 });
   const previewSoundRef = useRef(null);
   const handleMovePreview = useCallback((move, gameId, ply) => {
@@ -395,17 +388,9 @@ export default function Home() {
   }, [activeMatch?.id, activeMatch?.status, activeMatch?.result, activeMatch?.winner_id, user?.id]);
 
   return (
-    <div className="min-h-screen px-5 pt-2 lg:min-h-0 lg:h-[calc(100dvh-88px)] lg:overflow-hidden lg:flex lg:flex-col lg:pb-24">
-      {/* Main Layout */}
-      <div className="flex flex-col lg:flex-row gap-6 max-w-6xl mx-auto lg:flex-1 lg:min-h-0 w-full lg:items-stretch">
-        {/* Board */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          ref={boardAreaRef}
-          className={`${gameActive || boardState === "countdown" ? "w-full" : "hidden lg:flex"} min-w-0 min-h-0 lg:h-full lg:flex-[62_1_0%] lg:flex lg:flex-col lg:items-center lg:justify-center lg:overflow-hidden gap-3`}
-          style={desktopBoardSize ? /** @type {any} */ ({ "--desktop-board-size": `${desktopBoardSize}px` }) : undefined}
-        >
+    <PlayLayout
+      showMobileBoard={gameActive}
+      board={<>
           {gameActive && syncMessage && <p role="status" aria-live="polite" className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 max-w-[calc(100vw-2.5rem)] rounded-xl border border-white/10 bg-[#151515]/95 px-4 py-2 text-center text-xs text-[#E5CA7A] shadow-lg pointer-events-none">{syncMessage}</p>}
           <ChessboardPreview
             state={boardState}
@@ -417,15 +402,8 @@ export default function Home() {
             boardOrientation={orientation}
             arePiecesDraggable={isLive && !touchOnlyInput && movementMode === "drag"}
           />
-        </motion.div>
-
-        {/* Match Center */}
-        <motion.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="w-full min-w-0 lg:h-full lg:min-h-0 lg:flex-[38_1_0%]"
-        >
+      </>}
+    >
           {myMatchId ? (
             <MatchView
               key={myMatchId}
@@ -471,8 +449,6 @@ export default function Home() {
               onMatchAccepted={handleMatchAccepted}
             />
           )}
-        </motion.div>
-      </div>
-    </div>
+    </PlayLayout>
   );
 }

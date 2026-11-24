@@ -45,6 +45,131 @@
   padding-bottom: calc(6rem + var(--app-safe-bottom));
 }
 
+.game-match-panel { padding-block: 0.75rem; }
+
+@media (min-width: 640px) {
+  .game-match-panel { padding-block: 1rem; }
+}
+
+@media (min-width: 1024px) {
+  .game-player-card { padding-block: 0.75rem; }
+
+  .play-page-with-nav {
+    padding-bottom: calc(5rem + var(--app-safe-bottom));
+  }
+
+  .play-layout-columns {
+    --play-hud-width: clamp(16rem, 21vw, 18rem);
+    --play-column-gap: clamp(1rem, 1.6vw, 1.5rem);
+    --desktop-board-size: min(var(--play-layout-height, 0px), calc(min(var(--play-layout-width, 100vw), 72rem) - var(--play-hud-width) - var(--play-column-gap)));
+    display: grid;
+    grid-template-columns: var(--desktop-board-size) var(--play-hud-width);
+    justify-content: center;
+    column-gap: var(--play-column-gap);
+    height: 100%;
+  }
+
+  .play-layout-columns[data-game-board] {
+    /* Reserve equal space on both sides so the HUD cannot offset the board. */
+    --desktop-board-size: min(
+      var(--play-layout-height, 0px),
+      calc(var(--play-layout-width, 100vw) - 2 * (var(--play-hud-width) + var(--play-column-gap)))
+    );
+    max-width: none;
+    grid-template-columns: minmax(0, 1fr) var(--desktop-board-size) minmax(0, 1fr);
+    grid-template-rows: minmax(0, var(--desktop-board-size));
+    align-content: center;
+  }
+
+  .play-layout-columns[data-game-board] .play-board-area {
+    grid-column: 2;
+  }
+
+  .play-layout-columns[data-game-board] .play-match-area {
+    grid-column: 3;
+    width: var(--play-hud-width);
+  }
+}
+
+@media (min-width: 1024px) and (max-height: 760px),
+       (min-width: 1024px) and (max-width: 1120px) {
+  .game-match-panel { padding-block: 0.5rem; }
+  .game-hud { gap: 0.25rem; }
+  .game-player-card { padding-block: 0.3125rem; }
+  .game-position-details { height: 2.5rem; }
+  .game-contest-stat { padding-block: 0.375rem; }
+  .game-hud-preferences {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.25rem;
+  }
+  .game-hud-preferences .game-hud-sound { grid-area: 1 / 2; padding-inline: 0; }
+  .game-hud-preferences .game-hud-sound > p { display: none; }
+  .game-hud-preferences .game-hud-sound > button { height: 1.5rem; }
+  .game-hud-preferences .game-hud-movement { display: contents; }
+  .game-hud-preferences .game-hud-movement-label { grid-area: 1 / 1; }
+  .game-hud-preferences .game-hud-movement > div { grid-column: 1 / -1; margin-top: 0; }
+  .game-hud-preferences .game-hud-movement button { height: 1.75rem; }
+  .game-hud-preferences .game-hud-movement button svg { display: none; }
+  .game-hud-actions > button { height: 2rem; }
+}
+
+@media (min-width: 1024px) and (max-height: 640px) {
+  .game-hud { gap: 0.1875rem; }
+  .game-player-card { padding-block: 0.1875rem; }
+  .game-position-details { height: 2.125rem; }
+  .game-contest-stat { padding-block: 0.1875rem; }
+}
+
+@media (max-width: 1023px) {
+  .mobile-opponent-connection {
+    inset-inline: max(1.25rem, var(--app-safe-left)) max(1.25rem, var(--app-safe-right));
+    bottom: calc(5rem + var(--app-safe-bottom));
+  }
+
+  .play-page-with-nav:has(.game-hud[data-opponent-disconnected]) {
+    padding-bottom: calc(9rem + var(--app-safe-bottom));
+  }
+
+  .play-layout-columns[data-game-board]:has(.game-hud) {
+    --play-mobile-board-reserve: 17rem;
+  }
+
+  .play-layout-columns[data-game-board]:has(.game-hud[data-opponent-disconnected]) {
+    --play-mobile-board-reserve: 20rem;
+  }
+
+  .play-layout-columns[data-game-board]:has(.game-hud) .play-board-area {
+    width: min(100%, max(7rem, calc(100dvh - var(--play-mobile-board-reserve) - var(--app-safe-top) - var(--app-safe-bottom))));
+    margin-inline: auto;
+  }
+}
+
+@media (max-width: 1023px) and (max-height: 480px) and (orientation: landscape) {
+  :root {
+    --play-landscape-board-width: max(8rem, calc(100dvh - 11.25rem - var(--app-safe-top) - var(--app-safe-bottom)));
+  }
+
+  .play-layout-columns[data-game-board]:has(.game-hud) {
+    display: grid;
+    grid-template-columns: var(--play-landscape-board-width) minmax(0, 1fr);
+    align-items: start;
+    gap: 0.75rem;
+  }
+
+  .play-board-area,
+  .play-layout-columns[data-game-board]:has(.game-hud) .play-board-area {
+    width: min(100%, var(--play-landscape-board-width));
+    margin-inline: auto;
+  }
+
+  .mobile-opponent-connection {
+    inset-inline: auto max(0.75rem, var(--app-safe-right));
+    width: min(12rem, calc((100vw - var(--play-landscape-board-width)) / 2 - 1rem - var(--app-safe-right)));
+  }
+}
+
 .app-bottom-nav {
   padding-left: var(--app-safe-left);
   padding-right: var(--app-safe-right);
