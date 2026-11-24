@@ -118,6 +118,13 @@ export function useChessClock(game, onGameSync) {
     return () => { syncSequenceRef.current++; };
   }, [game?.id, game?.status, game?.fen, game?.white_time_ms, game?.black_time_ms, game?.turn_started_at, syncClock]);
 
+  // Fetch the server deadline as soon as presence changes, without resetting
+  // the clocks or waiting for the periodic recovery read.
+  useEffect(() => {
+    void syncClock();
+  }, [game?.white_disconnected_at, game?.black_disconnected_at,
+    game?.white_disconnect_policy_version, game?.black_disconnect_policy_version, syncClock]);
+
   useEffect(() => {
     if (!game?.id || game.status !== "active") return;
     const resyncWhenVisible = () => {
