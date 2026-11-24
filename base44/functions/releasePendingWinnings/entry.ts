@@ -14,8 +14,8 @@ Deno.serve(async (req) => {
     const heldPayouts = await allLedgerRows(base44.asServiceRole.entities.WalletTransaction,
       { type: 'payout', status: 'completed', payout_hold_status: 'held',
         payout_release_at: { $lte: cutoff } }, 'payout_release_at');
-    const releasedIds = [];
-    const failedIds = [];
+    let releasedCount = 0;
+    let failedCount = 0;
     for (const candidate of heldPayouts) {
       if (!candidate.match_id || !candidate.user_id || !(candidate.amount > 0)) continue;
       try {
@@ -53,14 +53,14 @@ Deno.serve(async (req) => {
             await base44.asServiceRole.entities.WalletTransaction.update(candidate.id, { payout_hold_status: 'released' });
           },
         });
-        if (entries) releasedIds.push(candidate.id);
+        if (entries) releasedCount++;
       } catch (error) {
-        failedIds.push(candidate.id);
+        failedCount++;
         console.error(JSON.stringify({ event: 'pending_winnings_release_failed',
           wallet_transaction_id: candidate.id, error: error?.message || 'unknown_error' }));
       }
     }
-    return Response.json({ releasedCount: releasedIds.length, releasedIds, failedIds });
+    return Response.json({ releasedCount, failedCount });
   } catch (error) {
     console.error(JSON.stringify({ event: 'backend_function_failed', error: error?.message || 'unknown_error' }));
     return Response.json({ error: 'internal_error' }, { status: 500 });

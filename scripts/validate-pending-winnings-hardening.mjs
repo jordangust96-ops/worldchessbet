@@ -103,7 +103,7 @@ for (const kind of ['case','flag']) {
 {
   const db=database([due('retry')]); const e=db.asServiceRole.entities;
   e.WalletTransaction.failNextUpdate();
-  assert.equal((await sweep(db)).failedIds.length,1);
+  assert.deepEqual(await sweep(db), { releasedCount: 0, failedCount: 1 });
   assert.equal(e.Wallet.rows[0].available_balance,10);
   assert.equal((await sweep(db)).releasedCount,1);
   assert.equal(e.Wallet.rows[0].available_balance,10);

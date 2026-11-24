@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
       (m) => m.preparation_started_at && now - new Date(m.preparation_started_at).getTime() > PREPARATION_TIMEOUT_MS
     );
 
-    const cancelledIds = [];
+    let cancelledCount = 0;
     for (const candidate of stale) {
       // Re-fetch fresh state immediately before claiming — never act on the
       // query snapshot taken above.
@@ -185,10 +185,10 @@ Deno.serve(async (req) => {
           refunded_user_ids: refundTargets,
         },
       });
-      cancelledIds.push(match.id);
+      cancelledCount++;
     }
 
-    return Response.json({ cancelledCount: cancelledIds.length, cancelledIds, challengeRecovery });
+    return Response.json({ cancelledCount, challengeRecovery });
   } catch (error) {
     console.error(JSON.stringify({ event: 'backend_function_failed', error: error?.message || 'unknown_error' }));
     return Response.json({ error: 'internal_error' }, { status: 500 });
