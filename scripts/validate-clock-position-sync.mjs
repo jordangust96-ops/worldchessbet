@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { getDisconnectState } from '../base44/shared/disconnectPolicy.js';
 import { readFile } from 'node:fs/promises';
 const pause = () => new Promise(resolve => setImmediate(resolve));
 const deferred = () => { let resolve, reject; const promise = new Promise((a,b)=>{resolve=a;reject=b;}); return {promise,resolve,reject}; };
@@ -44,7 +45,7 @@ assert.ok(output.b<179500);
 for(const fn of events.focus)fn();const late=pending('getGameClock')[0];
 game={...second,status:'completed',black_time_ms:0};dirty=true;await flush();
 reply(late,snapshot(second));await flush();await tick(500);
-assert.deepEqual(output,{w:169000,b:0},'late response cannot revive a completed clock');
+assert.deepEqual({w:output.w,b:output.b},{w:169000,b:0},'late response cannot revive a completed clock');
 // Fresh game + slow response must not subtract seconds of server processing.
 game={...first,id:'g2'};dirty=true;await flush();now+=8000;
 reply(pending('getGameClock')[0],{...snapshot(game,1000),game_id:'g2'});await flush();
@@ -64,7 +65,7 @@ let caller={id:'outsider'}, endpoint;
 const client={auth:{me:async()=>caller},asServiceRole:{entities:{
   Game:{get:async()=>clockGame},Match:{get:async()=>({player1_id:'white',player2_id:'black'})}
 }}};
-new Function('Deno','createClientFromRequest',endpointSource)({serve:fn=>{endpoint=fn;}},()=>client);
+new Function('Deno','createClientFromRequest','getDisconnectState',endpointSource)({serve:fn=>{endpoint=fn;}},()=>client,getDisconnectState);
 const req=()=>new Request('https://test.invalid',{method:'POST',body:JSON.stringify({gameId:'g'})});
 assert.equal((await endpoint(req())).status,403,'outsiders cannot read the game through clock sync');
 caller=null;assert.equal((await endpoint(req())).status,401);
