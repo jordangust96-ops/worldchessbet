@@ -2,19 +2,7 @@ import React from "react";
 import { Move, MousePointer2 } from "lucide-react";
 
 // Compact Drag & Drop / Click to Move selector shown in the live Match HUD.
-export default function MovementModeToggle({ mode, onChange, touchOnlyInput = false }) {
-  if (touchOnlyInput) {
-    return (
-      <div
-        className="flex items-center justify-center gap-1.5 h-9 rounded-xl bg-[#C9A84C]/10 border border-[#C9A84C]/25 text-[11px] font-semibold text-[#E8D48B]"
-        role="status"
-        aria-label="Mobile movement mode: tap a piece, then tap its destination"
-      >
-        <MousePointer2 size={13} /> Tap a piece, then a highlighted square
-      </div>
-    );
-  }
-
+export default function MovementModeToggle({ mode, onChange }) {
   return (
     <div role="group" aria-label="Movement mode" className="grid grid-cols-2 gap-1.5 rounded-xl border border-white/5 bg-white/[0.03] p-1">
       <button
