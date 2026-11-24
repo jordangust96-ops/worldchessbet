@@ -98,7 +98,8 @@ export async function checkDisconnectTimeout(base44, candidate, match, now = Dat
   const turn = parseTime(latest.turn_started_at);
   // Only the side to move spends chess-clock time, even if the other side forfeits.
   const timeField = sideToMove(latest) === "white" ? "white_time_ms" : "black_time_ms";
-  const remaining = Math.max(0, Math.floor((Number(latest[timeField]) || 0) - Math.max(0, now - turn)));
+  const elapsed = Number.isFinite(turn) ? Math.max(0, now - turn) : 0;
+  const remaining = Math.max(0, Math.floor((Number(latest[timeField]) || 0) - elapsed));
   // Clock expiry has its own material-aware rule and is handled by checkTimeout.
   if (remaining <= 0) return { game: latest, completed: false, clockExpired: true };
   const completed = await entity.update(game.id, {
