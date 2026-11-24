@@ -37,13 +37,15 @@ function fixture(count = 0, generation = 0) {
   state.entities = Object.fromEntries(Object.keys(tables).map((name) => [name, {
     async filter(query, sort, limit) {
       calls.push({ name, query, limit });
-      assert.ok(limit > 0 && limit <= 21);
+      assert.ok(limit > 0 && limit <= (name === 'RatingOperation' ? 22 : 21));
       if (name === 'RatingSystemConfig') {
         configReads++;
         state.onConfigRead?.(configReads);
       }
       let rows = tables[name].filter((row) => Object.entries(query).every(([key, value]) =>
-        value && typeof value === 'object' ? row[key] < value.$lt : row[key] === value));
+        value && typeof value === 'object'
+          ? ('$in' in value ? value.$in.includes(row[key]) : row[key] < value.$lt)
+          : row[key] === value));
       const descending = sort.startsWith('-');
       const key = descending ? sort.slice(1) : sort;
       rows = [...rows].sort((a, b) => (a[key] < b[key] ? -1 : a[key] > b[key] ? 1 : 0) * (descending ? -1 : 1));
@@ -61,6 +63,10 @@ check(result.pools[0].status, 'established');
 check(result.pools[0].rating, 1546);
 check(result.history.entries.map((e) => e.game_number), Array.from({ length: 20 }, (_, i) => 46 - i));
 check(result.history.next_before_game, 27);
+const operationReads = f.calls.filter((c) => c.name === 'RatingOperation');
+check(operationReads.length, 2);
+check(operationReads.map((c) => c.query.id.$in.length), [1, 20]);
+check(operationReads.every((c) => c.query.id.$in.every((id) => /^op-\d+$/.test(id))), true);
 let second = await readMyRating(f.entities, 'me', { time_control: 'blitz', before_game: 27, generation: 0 });
 check(second.history.entries[0].game_number, 26);
 let third = await readMyRating(f.entities, 'me', { before_game: second.history.next_before_game, generation: 0 });
@@ -82,6 +88,8 @@ check((await readMyRating(f.entities, 'me', { before_game: 1, generation: 2 })).
 
 for (const mutation of [
   (t) => { t.RatingOperation[0].status = 'applying'; },
+  (t) => { t.RatingOperation.push({ ...t.RatingOperation[0] }); },
+  (t) => { t.RatingOperation.length = 0; },
   (t) => { t.RatingOperation[0].status = 'invalidated'; },
   (t) => { t.PlayerRating[0].generation = 99; },
   (t) => { t.PlayerRating.push({ ...t.PlayerRating[0] }); },
@@ -98,6 +106,11 @@ for (const mutation of [
   check(result.pools[0].rating, null);
   check(result.history, null);
 }
+f = fixture(3);
+f.tables.RatingOperation[1].player1_id = 'other';
+result = await readMyRating(f.entities, 'me');
+check(result.history, null);
+check(result.pools[0].status, 'updating');
 f = fixture(30);
 f.tables.RatingEvent = f.tables.RatingEvent.filter((e) => e.games_rated_after !== 15);
 check((await readMyRating(f.entities, 'me')).history, null);
