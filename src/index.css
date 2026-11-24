@@ -45,6 +45,12 @@
   padding-bottom: calc(6rem + var(--app-safe-bottom));
 }
 
+.game-match-panel { padding-block: 0.75rem; }
+
+@media (min-width: 640px) {
+  .game-match-panel { padding-block: 1rem; }
+}
+
 @media (min-width: 1024px) {
   .play-page-with-nav {
     padding-bottom: calc(5rem + var(--app-safe-bottom));
