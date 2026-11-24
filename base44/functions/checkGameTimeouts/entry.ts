@@ -36,6 +36,9 @@ function hasSufficientMatingMaterial(fen, color) {
 Deno.serve(async (req) => {
   try {
     const base44 = guardGameMutations(createClientFromRequest(req));
+    const caller = await base44.auth.me().catch(() => null);
+    if (!caller) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (caller.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 });
 
     const activeGames = await base44.asServiceRole.entities.Game.filter(
       { launch_epoch: 2, status: 'active' },
