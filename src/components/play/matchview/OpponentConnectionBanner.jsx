@@ -6,8 +6,7 @@ export default function OpponentConnectionBanner({ connection, serverNowMs }) {
   const seconds = connection.deadlineMs != null && Number.isFinite(serverNowMs)
     ? Math.max(0, Math.ceil((connection.deadlineMs - serverNowMs) / 1000)) : null;
   const countdown = seconds === null ? null : `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
-  const message = connection.deadlineMs === null ? "Countdown starts on their turn"
-    : seconds === null ? "Syncing countdown…"
+  const message = seconds === null ? "Syncing countdown…"
     : seconds > 0 ? `Forfeits in ${countdown}` : "Confirming result…";
 
   const notice = (
