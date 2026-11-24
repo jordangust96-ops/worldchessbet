@@ -44,13 +44,23 @@ export async function readMyRating(entities, userId, input = {}) {
   const threshold = validCount(config.provisional_games) && config.provisional_games > 0
     ? config.provisional_games : 10;
   const operations = new Map();
-  async function completed(event) {
-    if (!event.operation_id) return false;
-    if (!operations.has(event.operation_id)) {
-      operations.set(event.operation_id, entities.RatingOperation.filter({ id: event.operation_id }, '-created_date', 2));
+  async function loadOperations(events) {
+    const ids = [...new Set(events.map((event) => event.operation_id)
+      .filter((id) => typeof id === 'string' && id && !operations.has(id)))];
+    if (!ids.length) return;
+    // The profile deadline must not depend on the number of games on the page.
+    const rows = await entities.RatingOperation.filter({ id: { $in: ids } }, '-created_date', ids.length + 1);
+    const requested = new Set(ids);
+    for (const operation of rows) {
+      if (!requested.has(operation.id)) continue;
+      operations.set(operation.id, operations.has(operation.id) ? null : operation);
     }
-    const rows = await operations.get(event.operation_id);
-    const operation = rows.length === 1 ? rows[0] : null;
+    for (const id of ids) {
+      if (!operations.has(id)) operations.set(id, null);
+    }
+  }
+  function completed(event) {
+    const operation = operations.get(event.operation_id);
     return operation?.status === 'completed' &&
       (operation.player1_id === userId || operation.player2_id === userId) &&
       operation.game_id === event.game_id && operation.time_control === event.time_control &&
@@ -69,11 +79,16 @@ export async function readMyRating(entities, userId, input = {}) {
       ['normal', 'rebuild'].includes(event.source) &&
       Number.isFinite(Date.parse(event.settlement_timestamp));
   }
-  const pools = await Promise.all(RATING_POOLS.map(async (timeControl) => {
+  const snapshots = await Promise.all(RATING_POOLS.map(async (timeControl) => {
     const [rows, events] = await Promise.all([
       entities.PlayerRating.filter({ user_id: userId, time_control: timeControl }, '-created_date', 2),
       entities.RatingEvent.filter({ user_id: userId, time_control: timeControl, generation }, '-games_rated_after', 2),
     ]);
+    return { timeControl, rows, events };
+  }));
+  await loadOperations(snapshots.flatMap(({ timeControl, rows, events }) =>
+    rows[0]?.games_rated > 0 && events[0] && validEvent(events[0], timeControl) ? [events[0]] : []));
+  const pools = snapshots.map(({ timeControl, rows, events }) => {
     const row = rows[0];
     if (rows.length > 1 || (row && (row.generation !== generation ||
         row.algorithm_version !== config.algorithm_version || !validCount(row.games_rated)))) {
@@ -89,13 +104,13 @@ export async function readMyRating(entities, userId, input = {}) {
         latest.games_rated_after !== row.games_rated || !close(latest.rating_after, row.rating) ||
         latest.game_id !== row.last_game_id ||
         (events[1] && events[1].games_rated_after !== latest.games_rated_after - 1) ||
-        !(await completed(latest))) return emptyPool(timeControl, 'updating');
+        !completed(latest)) return emptyPool(timeControl, 'updating');
     return {
       time_control: timeControl,
       status: row.games_rated < threshold ? 'provisional' : 'established',
       rating: Math.round(row.rating), games_rated: row.games_rated,
     };
-  }));
+  });
   const selected = pools.find((item) => item.time_control === pool);
   let history = null;
   if (selected && ['provisional', 'established'].includes(selected.status)) {
@@ -104,12 +119,13 @@ export async function readMyRating(entities, userId, input = {}) {
       user_id: userId, time_control: pool, generation,
       games_rated_after: { $lt: before },
     }, '-games_rated_after', PAGE_SIZE + 1);
+    await loadOperations(events.filter((event) => validEvent(event, pool)));
     let expected = before - 1;
     let valid = true;
     let newer = null;
     for (const event of events) {
       if (!validEvent(event, pool) || event.games_rated_after !== expected ||
-          (newer && !close(newer.rating_before, event.rating_after)) || !(await completed(event))) {
+          (newer && !close(newer.rating_before, event.rating_after)) || !completed(event)) {
         valid = false;
         break;
       }

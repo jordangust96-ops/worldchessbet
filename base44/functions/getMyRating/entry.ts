@@ -18,6 +18,13 @@ Deno.serve(async (req) => {
     return Response.json(result, { headers });
   } catch (error) {
     const invalid = error instanceof Error && error.message === 'invalid_request';
+    if (!invalid) {
+      const upstreamStatus = error?.status ?? error?.response?.status;
+      console.warn(JSON.stringify({
+        event: 'profile_rating_read_failed',
+        upstream_status: Number.isInteger(upstreamStatus) ? upstreamStatus : null,
+      }));
+    }
     return Response.json({ error: invalid ? 'invalid_request' : 'rating_unavailable' },
       { status: invalid ? 400 : 503, headers });
   }
