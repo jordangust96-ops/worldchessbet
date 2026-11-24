@@ -7,8 +7,12 @@ const fingerprint = (game: any) => JSON.stringify(fields.map(key => game?.[key] 
 export function guardGameMutations(base44: any, options: { waitForLease?: boolean } = {}) {
   const entity = base44.asServiceRole.entities.Game;
   const snapshots = new Map();
+  const presenceSnapshots = new Map();
+  const presenceFields = ['white_last_seen_at','black_last_seen_at','white_disconnected_at','black_disconnected_at','white_disconnect_policy_version','black_disconnect_policy_version','disconnect_timeout_candidate_at','disconnect_timeout_candidate_color'];
+  const presenceFingerprint = (game: any) => JSON.stringify(presenceFields.map(key => game?.[key] ?? null));
   const remember = (game: any) => {
     if (game?.id && !snapshots.has(game.id)) snapshots.set(game.id, fingerprint(game));
+    if (game?.id) presenceSnapshots.set(game.id, presenceFingerprint(game));
     return game;
   };
   const guarded = new Proxy(entity, {
@@ -35,10 +39,17 @@ export function guardGameMutations(base44: any, options: { waitForLease?: boolea
           const latest = await target.get(id);
           if (!latest || fingerprint(latest) !== snapshots.get(id))
             throw Object.assign(new Error('Game state changed; reconnect to the latest position.'), {status:409});
+          // Presence writes and disconnect results must use the most recent
+          // contact state. Legal moves still ignore unrelated heartbeat changes.
+          const presenceSensitive = patch.end_reason === 'disconnect_timeout' ||
+            (!patch.fen && presenceFields.some(key => Object.hasOwn(patch, key)));
+          if (presenceSensitive && presenceFingerprint(latest) !== presenceSnapshots.get(id))
+            throw Object.assign(new Error('Player connection changed; retry with the latest state.'), {status:409});
           if (!await refreshContestLocks(scope, [], owner))
             throw Object.assign(new Error('Game update could not be confirmed. Reconnect before trying again.'), {status:503});
           const updated = await target.update(id, patch);
           snapshots.set(id, fingerprint(updated));
+          presenceSnapshots.set(id, presenceFingerprint(updated));
           return updated;
         } finally {
           // A release failure cannot turn an already-committed move into a failed response.
