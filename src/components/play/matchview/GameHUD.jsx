@@ -278,7 +278,7 @@ export default function GameHUD({
   };
 
   return (
-    <div className="game-hud flex flex-col gap-3" data-opponent-disconnected={opponentConnection ? "" : undefined}>
+    <div className="game-hud flex flex-col gap-3 lg:justify-between" data-opponent-disconnected={opponentConnection ? "" : undefined}>
       <div className={`flex flex-wrap items-center justify-between gap-x-3 gap-y-1 ${opponentConnection ? "lg:sticky lg:top-0 lg:z-10 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:rounded-xl lg:bg-[#151515]" : ""}`}>
         <div className={`flex w-full flex-wrap items-center justify-between gap-x-3 gap-y-1 ${opponentConnection ? "lg:justify-start" : ""}`}>
           <div className="flex items-center gap-2">
