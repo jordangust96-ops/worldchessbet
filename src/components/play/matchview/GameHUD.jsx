@@ -344,21 +344,19 @@ export default function GameHUD({
       </div>
 
       {/* Player preferences */}
-      <div className="game-hud-preferences space-y-2">
+      <div className={touchOnlyInput ? undefined : "game-hud-preferences space-y-2"}>
         <div className="game-hud-sound flex items-center justify-between gap-3 px-1">
           <p className="text-[10px] uppercase tracking-widest text-white/30">Match Sound</p>
           <SoundToggle enabled={soundEnabled} onChange={onSoundEnabledChange} compact />
         </div>
-        <div className="game-hud-movement space-y-1.5">
-          <p className="game-hud-movement-label text-[10px] uppercase tracking-widest text-white/30 px-1">
-            {touchOnlyInput ? "How to Move" : "Movement Mode"}
-          </p>
-          <MovementModeToggle
-            mode={movementMode}
-            onChange={onMovementModeChange}
-            touchOnlyInput={touchOnlyInput}
-          />
-        </div>
+        {!touchOnlyInput && (
+          <div className="game-hud-movement space-y-1.5">
+            <p className="game-hud-movement-label text-[10px] uppercase tracking-widest text-white/30 px-1">
+              Movement Mode
+            </p>
+            <MovementModeToggle mode={movementMode} onChange={onMovementModeChange} />
+          </div>
+        )}
       </div>
 
       {/* Section 5 — Game Controls */}
