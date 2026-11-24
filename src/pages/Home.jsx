@@ -70,8 +70,13 @@ export default function Home() {
       ? Math.floor(Math.min(boardAreaSize.width, boardAreaSize.height))
       : null;
   const moveSoundStateRef = useRef({ gameId: null, moveCount: 0 });
+  const previewSoundRef = useRef(null);
+  const handleMovePreview = useCallback((move, gameId, ply) => {
+    previewSoundRef.current = { gameId, ply, san: move.san, color: move.color };
+    void playGameSound(getMoveSoundCue(move, move.color), soundEnabledRef.current);
+  }, []);
   const { fen, syncMessage, applyGameSnapshot, handleDrop, handleSquareClick, selectedSquare, legalTargets, orientation, game } =
-    useChessGame(myMatchId, user?.id, gameActive);
+    useChessGame(myMatchId, user?.id, gameActive, handleMovePreview);
 
   const handleMovementModeChange = (mode) => {
     // Touch-first phones and tablets are tap-only. Do not persist this
@@ -94,7 +99,7 @@ export default function Home() {
     storeSoundPreference(soundEnabled);
   }, [soundEnabled]);
 
-  useEffect(() => installGameAudioUnlock(), []);
+  useEffect(() => installGameAudioUnlock(() => soundEnabledRef.current), []);
 
   const handleSoundEnabledChange = useCallback(async (enabled) => {
     const previous = soundEnabledRef.current;
@@ -365,11 +370,16 @@ export default function Home() {
     }
     if (moveCount > moveSoundStateRef.current.moveCount) {
       const lastMove = game.move_log[moveCount - 1];
-      const myColor = activeMatch?.player1_id === user?.id ? "w" : "b";
-      playGameSound(getMoveSoundCue(lastMove, myColor), soundEnabledRef.current);
+      const myColor = orientation === "white" ? "w" : "b";
+      const preview = previewSoundRef.current;
+      const alreadyPlayed = preview?.gameId === game.id && preview.ply === moveCount &&
+        preview.san === lastMove?.san && preview.color === lastMove?.color;
+      if (!alreadyPlayed) {
+        void playGameSound(getMoveSoundCue(lastMove, myColor), soundEnabledRef.current);
+      }
     }
     moveSoundStateRef.current.moveCount = Math.max(moveSoundStateRef.current.moveCount, moveCount);
-  }, [game?.id, game?.move_log?.length, activeMatch?.player1_id, user?.id]);
+  }, [game?.id, game?.move_log, orientation]);
 
   useEffect(() => {
     if (!activeMatch?.id || activeMatch.status !== "completed" || !user?.id) return;
