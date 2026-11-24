@@ -8,7 +8,7 @@ function getAudioContext() {
   const AudioContextClass = window.AudioContext || (/** @type {any} */ (window)).webkitAudioContext;
   if (!AudioContextClass) return null;
 
-  if (!audioContext) {
+  if (!audioContext || audioContext.state === "closed") {
     audioContext = new AudioContextClass();
     masterGain = audioContext.createGain();
     masterGain.gain.value = 0.72;
@@ -115,49 +115,50 @@ export function storeSoundPreference(enabled) {
   }
 }
 
-export function primeGameAudio() {
-  const context = getAudioContext();
-  if (context?.state === "suspended") {
-    context.resume().catch(() => {});
-  }
+function needsResume(context) {
+  return context?.state === "suspended" || context?.state === "interrupted";
 }
 
-export function installGameAudioUnlock() {
+export function installGameAudioUnlock(isEnabled) {
   if (typeof window === "undefined") return () => {};
-  // The AudioContext can be suspended by the browser at any time (mobile Safari
-  // does this routinely between gestures). A one-shot unlock only resumes once;
-  // if the context is later suspended, every playGameSound call silently bails
-  // and the user hears nothing. Resume on every gesture instead — resume() on
-  // an already-running context is a cheap no-op.
   const unlock = () => {
-    const context = getAudioContext();
-    if (context?.state === "suspended") {
-      context.resume().catch(() => {});
+    if (!isEnabled()) return;
+    try {
+      const context = getAudioContext();
+      if (needsResume(context)) void context.resume().catch(() => {});
+    } catch {
+      // Audio is optional, including when a browser blocks context creation.
     }
   };
-  window.addEventListener("pointerdown", unlock, { passive: true });
-  window.addEventListener("keydown", unlock, { passive: true });
+  const onVisible = () => {
+    if (document.visibilityState === "visible" && needsResume(audioContext)) unlock();
+  };
+  // Touch activation is granted on release. Capture runs before board input.
+  const events = ["pointerdown", "pointerup", "touchend", "keydown", "click"];
+  for (const event of events) window.addEventListener(event, unlock, { capture: true, passive: true });
+  document.addEventListener("visibilitychange", onVisible);
   return () => {
-    window.removeEventListener("pointerdown", unlock);
-    window.removeEventListener("keydown", unlock);
+    for (const event of events) window.removeEventListener(event, unlock, true);
+    document.removeEventListener("visibilitychange", onVisible);
   };
 }
 
 export async function playGameSound(cue, enabled = true) {
   if (!enabled) return false;
-  const context = getAudioContext();
-  if (!context) return false;
-
   try {
-    if (context.state === "suspended") await context.resume();
-    // Schedule the cue even when the context is still resuming. A resumed/suspended
-    // context does not advance currentTime, so the oscillators will fire the moment
-    // a user gesture completes the resume — instead of dropping the sound entirely.
+    const context = getAudioContext();
+    if (!context) return false;
+    if (needsResume(context)) {
+      const requestedAt = performance.now();
+      await context.resume();
+      // A gesture may unlock audio much later. Old cues would sound out of order.
+      if (performance.now() - requestedAt > 250) return false;
+    }
+    if (context.state !== "running") return false;
     scheduleCue(context, cue);
     return true;
   } catch {
-    // Audio is progressive enhancement. Browser autoplay policies or missing
-    // Web Audio support must never interrupt match state or controls.
+    // Browser audio availability must never interrupt a match.
     return false;
   }
 }
