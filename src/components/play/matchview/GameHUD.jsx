@@ -59,7 +59,7 @@ function CapturedPieces({ counts, color, className }) {
       {groups.map(([piece]) => (
         <span key={piece} aria-hidden="true" className="inline-flex shrink-0 items-center">
           <svg
-            className={`size-[13px] lg:size-4 ${color === "b" ? "drop-shadow-[0_0_0.65px_#e5ca7a]" : ""}`}
+            className={`size-[13px] lg:size-[15px] ${color === "b" ? "drop-shadow-[0_0_0.65px_#e5ca7a]" : ""}`}
             viewBox="0 0 45 45"
             focusable="false"
           >
@@ -251,8 +251,8 @@ export default function GameHUD({
         }`}
       >
         <div className="flex items-center justify-between gap-2">
-          <div className="grid min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-1.5 lg:grid-cols-[auto_minmax(0,7.75rem)]">
-            <p className="col-span-2 flex min-w-0 items-center gap-1.5 text-sm font-bold text-white lg:col-span-1">
+          <div className="grid min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-1.5">
+            <p className="col-span-2 flex min-w-0 items-center gap-1.5 text-sm font-bold text-white">
               <span className="truncate" title={name}>{name}</span>
               {isFounder && <span className="flex shrink-0"><FoundingPlayerBadge /></span>}
             </p>
@@ -262,7 +262,7 @@ export default function GameHUD({
             <CapturedPieces
               counts={capturedBy[colorKey]}
               color={colorKey === "w" ? "b" : "w"}
-              className="col-start-2 row-start-2 flex h-[15px] items-center gap-0.5 lg:row-start-1 lg:h-5"
+              className="col-start-2 row-start-2 flex h-[15px] items-center gap-0.5"
             />
           </div>
           <p
