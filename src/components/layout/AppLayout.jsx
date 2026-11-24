@@ -14,7 +14,7 @@ export default function AppLayout({ playScreen = false, header = null }) {
   // Home, Wallet, and Profile each render their own notice beneath their
   // header logo, so avoid a duplicate here.
   const NOTICE_RENDERED_BY_PAGE = ["/play", "/wallet", "/profile"];
-  const showHere = !NOTICE_RENDERED_BY_PAGE.includes(location.pathname);
+  const showHere = !playScreen && !NOTICE_RENDERED_BY_PAGE.includes(location.pathname);
 
   return (
     <div className={`bg-background ${playScreen ? "min-h-dvh lg:flex lg:h-[calc(100dvh-var(--app-safe-top))] lg:min-h-0 lg:flex-col" : "min-h-screen"}`}>
