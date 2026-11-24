@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { readFile, readdir, writeFile } from 'node:fs/promises';
 const qaRequire=createRequire('/tmp/chessbet-browser-check/package.json');
 const { chromium }=qaRequire('playwright');
-const serverChromium=qaRequire('@sparticuz/chromium');
+const serverChromium=qaRequire('@sparticuz/chromium').default;
 const { build }=createRequire(resolve('package.json'))('esbuild');
 const fixture=`
 import React, {useState} from 'react';
