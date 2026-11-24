@@ -53,7 +53,7 @@ createRoot(document.getElementById('root')).render(<App/>);
 const result=await build({stdin:{contents:fixture,resolveDir:process.cwd(),loader:'jsx'},bundle:true,write:false,jsx:'automatic',define:{'process.env.NODE_ENV':'"production"'},
  plugins:[{name:'isolated-transport',setup(b){
   b.onResolve({filter:/^@\/(api\/base44Client|components\/ui\/use-toast)$/},({path})=>({path,namespace:'mock'}));
-  b.onLoad({filter:/.*/,namespace:'mock'},({path})=>({contents:path.includes('base44Client')?'export const base44 = window.mockSdk;':'const toast=()=>{};export const useToast=()=>({toast});'}));
+  b.onLoad({filter:/.*/,namespace:'mock'},({path})=>({contents:path.includes('base44Client')?'export const base44 = new Proxy({}, {get:(_,key)=>window.mockSdk[key]});':'const toast=()=>{};export const useToast=()=>({toast});'}));
   b.onResolve({filter:/^@\//},({path})=>b.resolve(resolve('src',path.slice(2)),{kind:'import-statement',resolveDir:process.cwd()}));
  }}]});
 const cssFiles=(await readdir('dist/assets')).filter(name=>name.endsWith('.css'));
