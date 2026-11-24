@@ -330,7 +330,7 @@ export default function GameHUD({
         </div>
       </div>
 
-      <div className="flex h-12 flex-col justify-center gap-0.5 rounded-xl bg-white/[0.03] px-3">
+      <div className="game-position-details flex h-12 flex-col justify-center gap-0.5 rounded-xl bg-white/[0.03] px-3">
         <div className="flex items-center justify-between">
           <span className="text-xs text-white/40">Current Turn</span>
           <span className="text-xs font-semibold text-white/80">{activeColor === "w" ? "White" : "Black"}</span>
