@@ -186,10 +186,10 @@ export default function GameHUD({
     load();
   }, [userId, opponentId]);
 
-  const { activeColor, moveNumber, lastMove, capturedBy, statusLabel } = useMemo(() => {
+  const { activeColor, moveNumber, lastMove, capturedBy, positionStatus } = useMemo(() => {
     const fen = game?.fen;
     if (!fen) {
-      return { activeColor: "w", moveNumber: 1, lastMove: null, capturedBy: {}, statusLabel: "Waiting for Server" };
+      return { activeColor: "w", moveNumber: 1, lastMove: null, capturedBy: {}, positionStatus: "Waiting for Server" };
     }
     const chess = new Chess(fen);
     const active = fen.split(" ")[1] === "b" ? "b" : "w";
@@ -224,20 +224,19 @@ export default function GameHUD({
       counts[move.captured] = (counts[move.captured] ?? 0) + 1;
     }
 
-    let label;
-    if (chess.isCheckmate()) label = "Checkmate";
-    else if (chess.isDraw()) label = "Draw";
-    else if (chess.isCheck()) label = "Check";
-    else label = active === myColor ? "Your Move" : "Opponent's Turn";
+    let positionStatus = null;
+    if (chess.isCheckmate()) positionStatus = "Checkmate";
+    else if (chess.isDraw()) positionStatus = "Draw";
+    else if (chess.isCheck()) positionStatus = "Check";
 
     return {
       activeColor: active,
       moveNumber: fullMoveNumber,
       lastMove: last ? `${last.from} → ${last.to}` : null,
       capturedBy,
-      statusLabel: label,
+      positionStatus,
     };
-  }, [game?.fen, game?.pgn, game?.move_log, myColor]);
+  }, [game?.fen, game?.pgn, game?.move_log]);
 
   const PlayerCard = ({ name, isFounder, colorLabel, colorKey }) => {
     const isActive = activeColor === colorKey;
@@ -285,10 +284,13 @@ export default function GameHUD({
             <span className="size-1.5 rounded-full bg-green-500" />
             <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Live Match</p>
           </div>
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 lg:hidden">
             <span className="text-xs text-white/40">Move {moveNumber}</span>
-            <span className="text-xs font-semibold text-white/80">{statusLabel}</span>
+            <span className="text-xs font-semibold text-white/80">
+              {positionStatus ?? (activeColor === myColor ? "Your Move" : "Opponent's Turn")}
+            </span>
           </div>
+          {positionStatus && <span className="hidden text-xs font-semibold text-white/80 lg:inline">{positionStatus}</span>}
         </div>
         {opponentConnection && (
           <OpponentConnectionBanner
