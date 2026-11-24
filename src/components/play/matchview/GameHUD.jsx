@@ -243,7 +243,7 @@ export default function GameHUD({
     const clock = formatClock(displayMs[colorKey]);
     return (
       <div
-        className={`game-player-card min-w-0 rounded-2xl border p-2 transition-colors lg:p-3 ${
+        className={`game-player-card min-w-0 rounded-2xl border p-2 transition-colors lg:px-3 ${
           isActive
             ? "bg-[#C9A84C]/[0.07] border-[#C9A84C]/30 shadow-[0_0_16px_rgba(201,168,76,0.15)]"
             : "bg-white/[0.03] border-white/5"
