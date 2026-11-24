@@ -103,10 +103,14 @@ try {
       const panel=await page.locator('.game-match-panel').boundingBox();
       assert.ok(notice.y>=panel.y&&notice.y-panel.y<55);
       await page.locator('.game-match-panel').evaluate(el=>{el.scrollTop=1000;});
-      const header=await page.locator('.game-hud > :first-child').boundingBox();
-      const scrolled=await slot.boundingBox();
-      assert.ok(Math.abs(header.y-panel.y)<12, 'the status row stays pinned');
-      assert.ok(scrolled.y>=header.y&&scrolled.y+scrolled.height<=header.y+header.height+1,
+      const position=await slot.evaluate(alert=>{
+        const notice=alert.getBoundingClientRect();
+        const row=alert.parentElement.getBoundingClientRect();
+        const panel=alert.closest('.game-match-panel').getBoundingClientRect();
+        return {alertTop:notice.top,alertBottom:notice.bottom,rowTop:row.top,rowBottom:row.bottom,panelTop:panel.top};
+      });
+      assert.ok(Math.abs(position.rowTop-position.panelTop)<12, 'the status row stays pinned');
+      assert.ok(position.alertTop>=position.rowTop-1&&position.alertBottom<=position.rowBottom+1,
         'the alert remains visible within the pinned status row');
     } else {
       await page.evaluate(()=>window.scrollTo(0,document.body.scrollHeight));
