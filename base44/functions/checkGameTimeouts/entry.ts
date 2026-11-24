@@ -4,7 +4,7 @@ import { checkDisconnectTimeout } from '../../shared/disconnectPolicy.js';
 
 // System sweep for active games. It preserves the chess clock as the
 // independent authority when a clock reaches zero, and also completes a
-// disconnected side-to-move only after the time-control-specific reconnect
+// disconnect forfeit only after the time-control-specific reconnect
 // window plus a fresh-heartbeat confirmation interval. A missed heartbeat is
 // never treated as proof of intentional abandonment.
 function parseServerTime(dateStr, fallbackMs) {
