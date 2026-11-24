@@ -341,18 +341,14 @@ export default function GameHUD({
         </div>
       </div>
 
-      <div className="flex justify-center">
-        <ReportContestButton matchId={match.id} gameId={game?.id} />
-      </div>
-
       {/* Player preferences */}
       <div className="game-hud-preferences space-y-2">
-        <div className="flex items-center justify-between gap-3 px-1">
+        <div className="game-hud-sound flex items-center justify-between gap-3 px-1">
           <p className="text-[10px] uppercase tracking-widest text-white/30">Match Sound</p>
           <SoundToggle enabled={soundEnabled} onChange={onSoundEnabledChange} compact />
         </div>
-        <div className="space-y-1.5">
-          <p className="text-[10px] uppercase tracking-widest text-white/30 px-1">
+        <div className="game-hud-movement space-y-1.5">
+          <p className="game-hud-movement-label text-[10px] uppercase tracking-widest text-white/30 px-1">
             {touchOnlyInput ? "How to Move" : "Movement Mode"}
           </p>
           <MovementModeToggle
@@ -382,6 +378,10 @@ export default function GameHUD({
         >
           {drawOfferedByMe ? "Draw Offered" : "Offer Draw"}
         </Button>
+      </div>
+
+      <div className="flex justify-center">
+        <ReportContestButton matchId={match.id} gameId={game?.id} />
       </div>
 
       <AlertDialog open={showResignConfirm} onOpenChange={setShowResignConfirm}>
