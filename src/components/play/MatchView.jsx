@@ -146,6 +146,7 @@ export default function MatchView({
       <AnimatePresence mode="wait">
         <motion.div
           key={stateKey}
+          className={stateKey === "in_progress" ? "lg:grid lg:min-h-full" : undefined}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
