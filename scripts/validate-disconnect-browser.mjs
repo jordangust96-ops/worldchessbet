@@ -125,4 +125,3 @@ try {
     console.log('PASS '+width+' × '+height+': visible pinned notice, unobstructed board, countdown, reconnect, and confirmation.');
   }
 } finally {await browser.close();}
-
