@@ -256,7 +256,7 @@ export default function ChessboardPreview({
             customDarkSquareStyle={{ backgroundColor: style.squares.dark }}
             customLightSquareStyle={{ backgroundColor: style.squares.light }}
             customBoardStyle={{ borderRadius: "0px" }}
-            animationDuration={state === "in_progress" ? 0 : 200}
+            animationDuration={200}
           />
         ) : null}
       </div>
