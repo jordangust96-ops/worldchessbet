@@ -59,7 +59,7 @@ function CapturedPieces({ counts, color, className }) {
       {groups.map(([piece]) => (
         <span key={piece} aria-hidden="true" className="inline-flex shrink-0 items-center">
           <svg
-            className={`size-[13px] lg:size-[15px] ${color === "b" ? "drop-shadow-[0_0_0.65px_#e5ca7a]" : ""}`}
+            className={`size-3 lg:size-[15px] ${color === "b" ? "drop-shadow-[0_0_0.65px_#e5ca7a]" : ""}`}
             viewBox="0 0 45 45"
             focusable="false"
           >
@@ -243,29 +243,27 @@ export default function GameHUD({
     const clock = formatClock(displayMs[colorKey]);
     return (
       <div
-        className={`game-player-card rounded-2xl border p-3 transition-colors ${
+        className={`game-player-card min-w-0 rounded-2xl border p-2 transition-colors lg:p-3 ${
           isActive
             ? "bg-[#C9A84C]/[0.07] border-[#C9A84C]/30 shadow-[0_0_16px_rgba(201,168,76,0.15)]"
             : "bg-white/[0.03] border-white/5"
         }`}
       >
-        <div className="flex items-center justify-between gap-2">
-          <div className="grid min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-1.5">
-            <p className="col-span-2 flex min-w-0 items-center gap-1.5 text-sm font-bold text-white">
-              <span className="truncate" title={name}>{name}</span>
-              {isFounder && <span className="flex shrink-0"><FoundingPlayerBadge /></span>}
-            </p>
-            <span className="col-start-1 row-start-2 text-[10px] uppercase leading-[15px] tracking-widest text-white/30">
-              {colorLabel}
-            </span>
-            <CapturedPieces
-              counts={capturedBy[colorKey]}
-              color={colorKey === "w" ? "b" : "w"}
-              className="col-start-2 row-start-2 flex h-[15px] items-center gap-0.5"
-            />
-          </div>
+        <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-1.5 gap-y-0.5 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:gap-y-0">
+          <p className="col-span-2 col-start-1 row-start-2 flex min-w-0 items-center gap-1.5 text-xs font-bold text-white lg:row-start-1 lg:text-sm">
+            <span className="truncate" title={name}>{name}</span>
+            {isFounder && <span className="flex shrink-0"><FoundingPlayerBadge /></span>}
+          </p>
+          <span className="col-start-2 row-start-1 justify-self-end text-[10px] uppercase leading-[15px] tracking-widest text-white/30 lg:col-start-1 lg:row-start-2 lg:justify-self-start">
+            {colorLabel}
+          </span>
+          <CapturedPieces
+            counts={capturedBy[colorKey]}
+            color={colorKey === "w" ? "b" : "w"}
+            className="col-span-2 col-start-1 row-start-3 flex h-[15px] items-center gap-px lg:col-span-1 lg:col-start-2 lg:row-start-2 lg:gap-0.5"
+          />
           <p
-            className={`shrink-0 font-mono text-xl font-bold leading-none tabular-nums ${isActive ? "text-[#C9A84C]" : "text-white/60"}`}
+            className={`col-start-1 row-start-1 shrink-0 font-mono text-xl font-bold leading-none tabular-nums lg:col-start-3 lg:row-span-2 ${isActive ? "text-[#C9A84C]" : "text-white/60"}`}
             role="timer"
             aria-label={`${colorLabel} clock, ${clock}`}
           >
@@ -282,14 +280,11 @@ export default function GameHUD({
         <div className={`flex w-full flex-wrap items-center justify-between gap-x-3 gap-y-1 ${opponentConnection ? "lg:justify-start" : ""}`}>
           <div className="flex items-center gap-2">
             <span className="size-1.5 rounded-full bg-green-500" />
-            <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Live Match</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">
+              {match.play_mode === "free" ? "Free Match" : "Money Match"}
+            </p>
           </div>
-          <div className={`flex items-center gap-2.5 ${positionStatus ? "" : "lg:hidden"}`}>
-            <span className="text-xs text-white/40 lg:hidden">Move {moveNumber}</span>
-            <span className="text-xs font-semibold text-white/80">
-              {positionStatus ?? (activeColor === myColor ? "Your Move" : "Opponent's Turn")}
-            </span>
-          </div>
+          {positionStatus && <span className="text-xs font-semibold text-white/80">{positionStatus}</span>}
         </div>
         {opponentConnection && (
           <OpponentConnectionBanner
@@ -305,7 +300,7 @@ export default function GameHUD({
       )}
 
       {/* Section 2 — Players */}
-      <div className="space-y-2">
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-1">
         <PlayerCard
           name={myColor === "w" ? names.me : names.opponent}
           isFounder={myColor === "w" ? founding.me : founding.opponent}
@@ -333,8 +328,8 @@ export default function GameHUD({
 
       <div className="game-position-details flex h-12 flex-col justify-center gap-0.5 rounded-xl bg-white/[0.03] px-3">
         <div className="flex items-center justify-between">
-          <span className="text-xs text-white/40">Current Turn</span>
-          <span className="text-xs font-semibold text-white/80">{activeColor === "w" ? "White" : "Black"}</span>
+          <span className="text-xs text-white/40">Move Number</span>
+          <span className="text-xs font-semibold tabular-nums text-white/80">{moveNumber}</span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-xs text-white/40">Last Move</span>
