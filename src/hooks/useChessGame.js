@@ -202,26 +202,28 @@ export function useChessGame(matchId, userId, active, onMovePreview) {
   useEffect(() => {
     if (!active || !game?.id || game.status !== "active") return;
     let stopped = false;
-    let inFlight = false;
+    let inFlight = null;
     let retryTimer = null;
     let retries = 0;
     const sendHeartbeat = async () => {
-      if (stopped || inFlight) return;
+      if (stopped || (inFlight && performance.now() - inFlight.startedAt < 10000)) return;
       if (retryTimer) window.clearTimeout(retryTimer);
       retryTimer = null;
-      inFlight = true;
+      const operation = { startedAt: performance.now() };
+      inFlight = operation;
       try {
         const { data } = await base44.functions.invoke("gameHeartbeat", { gameId: game.id });
+        if (stopped || inFlight !== operation) return;
         retries = 0;
-        if (!stopped && data?.game) applyLatest(data.game);
+        if (data?.game) applyLatest(data.game);
       } catch (error) {
         const status = error?.response?.status || error?.status;
-        if (!stopped && status === 409 && retries < 2) {
+        if (!stopped && inFlight === operation && status === 409 && retries < 2) {
           retries++;
           retryTimer = window.setTimeout(sendHeartbeat, 400 * retries);
         }
       } finally {
-        inFlight = false;
+        if (inFlight === operation) inFlight = null;
       }
     };
     const onReturn = () => {
