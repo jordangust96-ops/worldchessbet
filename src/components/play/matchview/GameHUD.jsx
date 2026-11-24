@@ -128,16 +128,6 @@ export default function GameHUD({
   const myColor = isP1 ? "w" : "b";
   const opponentId = isP1 ? match.player2_id : match.player1_id;
   const opponentColorFull = isP1 ? "black" : "white";
-  const opponentPolicyVersion = game?.[`${opponentColorFull}_disconnect_policy_version`];
-  const opponentDisconnectedAt = opponentPolicyVersion === "chesscom-reconnect-v1"
-    ? game?.[`${opponentColorFull}_disconnected_at`] || null
-    : null;
-  const activeSideFull = game?.fen?.split(" ")[1] === "b" ? "black" : "white";
-  const opponentToMove = activeSideFull === opponentColorFull;
-  const baseTimeDefaults = { blitz: 180000, rapid: 600000, classical: 900000 };
-  const disconnectBaseTimeMs = Number(match?.clock_initial_ms) > 0
-    ? Number(match.clock_initial_ms)
-    : baseTimeDefaults[match?.time_control] || 300000;
 
   useEffect(() => {
     const load = async () => {
@@ -232,11 +222,8 @@ export default function GameHUD({
           </div>
         )}
         <OpponentConnectionBanner
-          disconnectedAt={opponentDisconnectedAt}
-          opponentToMove={opponentToMove}
-          turnStartedAt={game?.turn_started_at}
-          baseTimeMs={disconnectBaseTimeMs}
-          incrementMs={game?.increment_ms}
+          connection={displayMs.disconnect?.[opponentColorFull]}
+          serverNowMs={displayMs.serverNowMs}
         />
         {/* Mobile prioritizes the live clocks above all match metadata. These
             values come from the same server-authoritative useChessClock hook
@@ -328,12 +315,6 @@ export default function GameHUD({
           <span className="text-xs text-white/40">Last Move</span>
           <span className="text-xs font-semibold text-white/80 font-mono">{lastMove || "Opening Position"}</span>
         </div>
-      </div>
-
-      {/* Section 4 — Connection Status */}
-      <div className="flex items-center justify-center gap-1.5 pt-1">
-        <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-        <span className="text-[10px] text-white/30">Live</span>
       </div>
 
       <div className="flex justify-center">
