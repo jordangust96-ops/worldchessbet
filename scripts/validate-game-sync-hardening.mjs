@@ -66,17 +66,23 @@ function useCallback(fn,deps){const i=cursor++;if(!slots[i]||!depsEqual(slots[i]
 function useEffect(fn,deps){const i=cursor++;if(!slots[i]||!depsEqual(slots[i].deps,deps)){const previous=slots[i];slots[i]={deps,cleanup:previous?.cleanup};effects.push(()=>{previous?.cleanup?.();slots[i].cleanup=fn();});}}
 const sdk={entities:{Match:{get:async()=>match},Game:{get:async()=>structuredClone(latest),subscribe:cb=>{subscriptions.push(cb);return()=>{subscriptions=subscriptions.filter(x=>x!==cb);};}}},analytics:{track:async()=>{}},functions:{invoke:async(name)=>name==='getOrCreateGame'?{data:{game:structuredClone(latest)}}:name==='submitMove'?submit.promise:{data:{}}}};
 const events={addEventListener(){},removeEventListener(){},setTimeout,clearTimeout};
-const hook=new Function('useState','useEffect','useCallback','useRef','Chess','base44','useToast','window','document','setInterval','clearInterval',source+'\nreturn useChessGame;')(useState,useEffect,useCallback,useRef,Chess,sdk,()=>({toast:x=>notices.push(x)}),events,{...events,visibilityState:'visible',hidden:false},(fn,ms)=>{const id=++timerId;intervals.set(id,{fn,ms});return id;},id=>intervals.delete(id));
+const toast = notice => notices.push(notice);
+const hook=new Function('useState','useEffect','useCallback','useRef','Chess','base44','useToast','window','document','setInterval','clearInterval',source+'\nreturn useChessGame;')(useState,useEffect,useCallback,useRef,Chess,sdk,()=>({toast}),events,{...events,visibilityState:'visible',hidden:false},(fn,ms)=>{const id=++timerId;intervals.set(id,{fn,ms});return id;},id=>intervals.delete(id));
 function render(){cursor=0;dirty=false;output=hook('m','w',true);const pending=effects;effects=[];pending.forEach(fn=>fn());}
 async function flush(){for(let i=0;i<12;i++){if(dirty||!output)render();await pause();}}
 function emit(game){latest=game;subscriptions.forEach(cb=>cb({type:'update',data:structuredClone(game)}));}
 await flush();
 const base=output.fen;
-submit=deferred();assert.equal(output.handleDrop('e2','e4'),true);await flush();
-assert.equal(output.fen,base,'unconfirmed move cannot change the board');
+const chess=new Chess();chess.move('e4');const first={...initial(),fen:chess.fen(),updated_date:'2026-10-31T22:00:01Z'};
+submit=deferred();output.handleSquareClick('e2',{pointerType:'touch'});await flush();
+assert.ok(output.legalTargets.includes('e4'),'touch selects a legal destination');
+output.handleSquareClick('e4',{pointerType:'touch'});await flush();
+assert.equal(output.fen,first.fen,'a tap shows the move while the request is still pending');
+assert.equal(output.game.fen,base,'clock and official game retain the confirmed position');
+emit({...initial(),updated_date:'2026-10-31T22:00:00Z'});await flush();
+assert.equal(output.fen,first.fen,'a same-position server event preserves the preview');
 assert.equal(output.syncMessage,'','routine move confirmation must stay silent');
 assert.equal(output.handleDrop('d2','d4'),false,'no second in-flight move');
-const chess=new Chess();chess.move('e4');const first={...initial(),fen:chess.fen(),updated_date:'2026-10-31T22:00:01Z'};
 submit.resolve({data:{game:first}});await flush();
 assert.equal(output.fen,first.fen,'HTTP response confirms even without realtime');
 assert.equal(output.syncMessage,'');
@@ -86,18 +92,19 @@ emit(first);await flush();assert.equal(output.fen,second.fen,'late realtime cann
 submit=deferred();output.handleDrop('g1','f3');await flush();chess.move('Nf3');
 latest={...second,fen:chess.fen(),updated_date:'2026-10-31T22:00:03Z'};
 submit.reject(new Error('network lost'));await flush();assert.equal(output.fen,latest.fen);assert.equal(output.syncMessage,'');
-// A rejected move keeps the confirmed board and becomes actionable again.
+// A rejected move restores the confirmed board and becomes actionable again.
 emit({...latest,fen:(()=>{chess.move('Nc6');return chess.fen();})(),updated_date:'2026-10-31T22:00:04Z'});await flush();
-const confirmed=output.fen;submit=deferred();output.handleDrop('f1','b5');await flush();submit.reject(new Error('not saved'));await flush();assert.equal(output.fen,confirmed);assert.equal(output.syncMessage,'');assert.ok(notices.length);
-// Castling is displayed only after acknowledgement, survives refresh, and
+const confirmed=output.fen;submit=deferred();output.handleDrop('f1','b5');await flush();assert.notEqual(output.fen,confirmed);submit.reject(new Error('not saved'));await flush();assert.equal(output.fen,confirmed);assert.equal(output.syncMessage,'');assert.ok(notices.length);
+// Castling previews both pieces, survives refresh after confirmation, and
 // cannot be undone by a delayed pre-castle snapshot.
 const castle = new Chess();
 for (const san of ['e4','e5','Nf3','Nc6','Bc4','Nf6']) castle.move(san);
 const preCastle={...initial(),fen:castle.fen(),updated_date:'2026-10-31T22:00:05Z'};
 emit(preCastle);await flush();submit=deferred();
 assert.equal(output.handleDrop('e1','g1'),true);await flush();
-assert.equal(output.fen,preCastle.fen);
 castle.move('O-O');
+assert.equal(output.fen,castle.fen(),'dragging to castle previews both pieces');
+assert.equal(output.game.fen,preCastle.fen);
 const castled={...preCastle,fen:castle.fen(),updated_date:'2026-10-31T22:00:06Z'};
 latest=castled;submit.resolve({data:{game:castled}});await flush();
 assert.equal(output.fen,castled.fen);
