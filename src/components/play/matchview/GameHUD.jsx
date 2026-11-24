@@ -35,6 +35,45 @@ function formatClock(ms) {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
+const CAPTURE_PIECES = [
+  ["q", "queen"],
+  ["r", "rook"],
+  ["b", "bishop"],
+  ["n", "knight"],
+  ["p", "pawn"],
+];
+
+function CapturedPieces({ counts, color, className }) {
+  const groups = CAPTURE_PIECES.filter(([piece]) => counts?.[piece]);
+  const description = groups.map(([piece, name]) => {
+    const count = counts[piece];
+    return `${count} ${name}${count === 1 ? "" : "s"}`;
+  }).join(", ");
+
+  return (
+    <span
+      className={className}
+      role={description ? "img" : undefined}
+      aria-label={description ? `Captured ${color === "w" ? "white" : "black"} pieces: ${description}` : undefined}
+    >
+      {groups.map(([piece]) => (
+        <span key={piece} aria-hidden="true" className="inline-flex shrink-0 items-center">
+          <svg
+            className={`size-[13px] lg:size-4 ${color === "b" ? "drop-shadow-[0_0_0.65px_#e5ca7a]" : ""}`}
+            viewBox="0 0 45 45"
+            focusable="false"
+          >
+            <use href={`/captured-pieces.svg#${color}${piece.toUpperCase()}`} />
+          </svg>
+          {counts[piece] > 1 && (
+            <span className="text-[9px] tabular-nums leading-none text-white/70">{counts[piece]}</span>
+          )}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 export default function GameHUD({
   match,
   game,
@@ -146,10 +185,10 @@ export default function GameHUD({
     load();
   }, [userId, opponentId]);
 
-  const { activeColor, moveNumber, lastMove, totalMoves, statusLabel } = useMemo(() => {
+  const { activeColor, moveNumber, lastMove, capturedBy, statusLabel } = useMemo(() => {
     const fen = game?.fen;
     if (!fen) {
-      return { activeColor: "w", moveNumber: 1, lastMove: null, totalMoves: 0, statusLabel: "Waiting for Server" };
+      return { activeColor: "w", moveNumber: 1, lastMove: null, capturedBy: {}, statusLabel: "Waiting for Server" };
     }
     const chess = new Chess(fen);
     const active = fen.split(" ")[1] === "b" ? "b" : "w";
@@ -165,7 +204,24 @@ export default function GameHUD({
         history = [];
       }
     }
+    // Use the same replay as the status display. Replay the saved move log if
+    // an older record does not have a usable PGN.
+    if (!history.length && game.move_log?.length) {
+      try {
+        const replay = new Chess();
+        for (const entry of game.move_log) replay.move(entry.san);
+        history = replay.history({ verbose: true });
+      } catch {
+        history = [];
+      }
+    }
     const last = history[history.length - 1];
+    const capturedBy = { w: {}, b: {} };
+    for (const move of history) {
+      if (!move.captured) continue;
+      const counts = capturedBy[move.color];
+      counts[move.captured] = (counts[move.captured] ?? 0) + 1;
+    }
 
     let label;
     if (chess.isCheckmate()) label = "Checkmate";
@@ -177,10 +233,10 @@ export default function GameHUD({
       activeColor: active,
       moveNumber: fullMoveNumber,
       lastMove: last ? `${last.from} → ${last.to}` : null,
-      totalMoves: history.length,
+      capturedBy,
       statusLabel: label,
     };
-  }, [game?.fen, game?.pgn, myColor]);
+  }, [game?.fen, game?.pgn, game?.move_log, myColor]);
 
   const PlayerCard = ({ name, isFounder, colorLabel, colorKey }) => {
     const isActive = activeColor === colorKey;
@@ -192,15 +248,22 @@ export default function GameHUD({
             : "bg-white/[0.03] border-white/5"
         }`}
       >
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-bold text-white flex items-center gap-1.5">
-              {name}
-              {isFounder && <FoundingPlayerBadge />}
+        <div className="flex items-center justify-between gap-2">
+          <div className="grid min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-1.5 lg:grid-cols-[auto_minmax(0,7.75rem)]">
+            <p className="col-span-2 flex min-w-0 items-center gap-1.5 text-sm font-bold text-white lg:col-span-1">
+              <span className="truncate" title={name}>{name}</span>
+              {isFounder && <span className="flex shrink-0"><FoundingPlayerBadge /></span>}
             </p>
-            <p className="text-[10px] uppercase tracking-widest text-white/30">{colorLabel}</p>
+            <span className="col-start-1 row-start-2 text-[10px] uppercase leading-[15px] tracking-widest text-white/30">
+              {colorLabel}
+            </span>
+            <CapturedPieces
+              counts={capturedBy[colorKey]}
+              color={colorKey === "w" ? "b" : "w"}
+              className="col-start-2 row-start-2 flex h-[15px] items-center gap-0.5 lg:row-start-1 lg:h-5"
+            />
           </div>
-          <p className={`font-mono text-lg font-bold tabular-nums ${isActive ? "text-[#C9A84C]" : "text-white/60"}`}>
+          <p className={`shrink-0 font-mono text-lg font-bold tabular-nums ${isActive ? "text-[#C9A84C]" : "text-white/60"}`}>
             {formatClock(colorKey === "w" ? displayMs.w : displayMs.b)}
           </p>
         </div>
