@@ -108,4 +108,3 @@ export async function checkDisconnectTimeout(base44, candidate, match, now = Dat
   });
   return { game: completed, completed: true };
 }
-
