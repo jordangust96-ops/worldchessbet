@@ -56,14 +56,10 @@
     padding-bottom: calc(5rem + var(--app-safe-bottom));
   }
 
-  .play-layout {
-    container-type: size;
-  }
-
   .play-layout-columns {
     --play-hud-width: clamp(16rem, 21vw, 18rem);
     --play-column-gap: clamp(1rem, 1.6vw, 1.5rem);
-    --desktop-board-size: min(100cqh, calc(min(100cqw, 72rem) - var(--play-hud-width) - var(--play-column-gap)));
+    --desktop-board-size: min(var(--play-layout-height, 0px), calc(min(var(--play-layout-width, 100vw), 72rem) - var(--play-hud-width) - var(--play-column-gap)));
     display: grid;
     grid-template-columns: var(--desktop-board-size) var(--play-hud-width);
     justify-content: center;
