@@ -70,10 +70,36 @@
   .game-hud-actions > button { height: 2rem; }
 }
 
-@media (max-width: 1023px) and (max-height: 480px) and (orientation: landscape) {
-  .play-board-area {
-    width: min(100%, max(8rem, calc(100dvh - 11rem - var(--app-safe-top) - var(--app-safe-bottom))));
+@media (max-width: 1023px) {
+  .mobile-opponent-connection {
+    inset-inline: max(1.25rem, var(--app-safe-left)) max(1.25rem, var(--app-safe-right));
+    bottom: calc(5rem + var(--app-safe-bottom));
+  }
+
+  .play-page-with-nav:has(.game-hud[data-opponent-disconnected]) {
+    padding-bottom: calc(9rem + var(--app-safe-bottom));
+  }
+
+  .play-page-with-nav:has(.game-hud[data-opponent-disconnected]) .play-board-area {
+    width: min(100%, max(5rem, calc(100dvh - 15rem - var(--app-safe-top) - var(--app-safe-bottom))));
     margin-inline: auto;
+  }
+}
+
+@media (max-width: 1023px) and (max-height: 480px) and (orientation: landscape) {
+  :root {
+    --play-landscape-board-width: max(8rem, calc(100dvh - 11rem - var(--app-safe-top) - var(--app-safe-bottom)));
+  }
+
+  .play-board-area,
+  .play-page-with-nav:has(.game-hud[data-opponent-disconnected]) .play-board-area {
+    width: min(100%, var(--play-landscape-board-width));
+    margin-inline: auto;
+  }
+
+  .mobile-opponent-connection {
+    inset-inline: auto max(0.75rem, var(--app-safe-right));
+    width: min(12rem, calc((100vw - var(--play-landscape-board-width)) / 2 - 1rem - var(--app-safe-right)));
   }
 }
 
