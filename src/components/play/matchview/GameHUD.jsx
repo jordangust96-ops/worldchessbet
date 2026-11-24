@@ -284,13 +284,12 @@ export default function GameHUD({
             <span className="size-1.5 rounded-full bg-green-500" />
             <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Live Match</p>
           </div>
-          <div className="flex items-center gap-2.5 lg:hidden">
-            <span className="text-xs text-white/40">Move {moveNumber}</span>
+          <div className={`flex items-center gap-2.5 ${positionStatus ? "" : "lg:hidden"}`}>
+            <span className="text-xs text-white/40 lg:hidden">Move {moveNumber}</span>
             <span className="text-xs font-semibold text-white/80">
               {positionStatus ?? (activeColor === myColor ? "Your Move" : "Opponent's Turn")}
             </span>
           </div>
-          {positionStatus && <span className="hidden text-xs font-semibold text-white/80 lg:inline">{positionStatus}</span>}
         </div>
         {opponentConnection && (
           <OpponentConnectionBanner
