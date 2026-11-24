@@ -9,7 +9,7 @@ import { checkDisconnectTimeout } from '../../shared/disconnectPolicy.js';
 // never treated as proof of intentional abandonment.
 function parseServerTime(dateStr, fallbackMs) {
   if (!dateStr) return fallbackMs;
-  const hasTz = /Z$|[+-]\\d{2}:?\\d{2}$/.test(dateStr);
+  const hasTz = /Z$|[+-]\d{2}:?\d{2}$/.test(dateStr);
   const parsedMs = new Date(hasTz ? dateStr : `${dateStr}Z`).getTime();
   return Number.isFinite(parsedMs) ? parsedMs : fallbackMs;
 }
