@@ -52,6 +52,7 @@
 }
 
 @media (min-width: 1024px) and (max-height: 760px) {
+  .game-match-panel { padding-block: 0.5rem; }
   .game-hud { gap: 0.375rem; }
   .game-player-card { padding-block: 0.4375rem; }
   .game-contest-stat { padding-block: 0.375rem; }
