@@ -1,9 +1,17 @@
-import React from "react";
+import React, { useRef } from "react";
 import { motion } from "framer-motion";
+import { useSize } from "@/hooks/use-size";
 
 export default function PlayLayout({ board, showMobileBoard, children }) {
+  const layoutRef = useRef(null);
+  const size = useSize(layoutRef);
+  const desktopSpace = size ? /** @type {any} */ ({
+    "--play-layout-width": `${Math.floor(size.width)}px`,
+    "--play-layout-height": `${Math.floor(size.height)}px`,
+  }) : undefined;
+
   return (
-    <div className="play-layout px-5 pt-4 lg:min-h-0 lg:flex-1 lg:py-3">
+    <div ref={layoutRef} style={desktopSpace} className="px-5 pt-4 lg:min-h-0 lg:flex-1 lg:py-3">
       <div className="play-layout-columns mx-auto flex w-full max-w-6xl flex-col gap-5">
         <motion.div
           initial={{ opacity: 0 }}
