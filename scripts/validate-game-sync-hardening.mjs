@@ -64,10 +64,13 @@ function useState(value){const i=cursor++;if(!(i in slots))slots[i]=value;return
 function useRef(value){const i=cursor++;if(!(i in slots))slots[i]={current:value};return slots[i];}
 function useCallback(fn,deps){const i=cursor++;if(!slots[i]||!depsEqual(slots[i].deps,deps))slots[i]={fn,deps};return slots[i].fn;}
 function useEffect(fn,deps){const i=cursor++;if(!slots[i]||!depsEqual(slots[i].deps,deps)){const previous=slots[i];slots[i]={deps,cleanup:previous?.cleanup};effects.push(()=>{previous?.cleanup?.();slots[i].cleanup=fn();});}}
-const sdk={entities:{Match:{get:async()=>match},Game:{get:async()=>structuredClone(latest),subscribe:cb=>{subscriptions.push(cb);return()=>{subscriptions=subscriptions.filter(x=>x!==cb);};}}},analytics:{track:async()=>{}},functions:{invoke:async(name)=>name==='getOrCreateGame'?{data:{game:structuredClone(latest)}}:name==='submitMove'?submit.promise:{data:{}}}};
-const events={addEventListener(){},removeEventListener(){},setTimeout,clearTimeout};
+let heartbeatReply = async () => ({data:{}}), heartbeatCalls = 0, monotonicNow = 1000;
+const sdk={entities:{Match:{get:async()=>match},Game:{get:async()=>structuredClone(latest),subscribe:cb=>{subscriptions.push(cb);return()=>{subscriptions=subscriptions.filter(x=>x!==cb);};}}},analytics:{track:async()=>{}},functions:{invoke:async(name)=>name==='gameHeartbeat'?(heartbeatCalls++,heartbeatReply()):name==='getOrCreateGame'?{data:{game:structuredClone(latest)}}:name==='submitMove'?submit.promise:{data:{}}}};
+const listeners = {};
+const events={addEventListener(name,fn){(listeners[name]??=new Set()).add(fn);},removeEventListener(name,fn){listeners[name]?.delete(fn);},setTimeout,clearTimeout};
+const dispatch=name=>listeners[name]?.forEach(fn=>fn());
 const toast = notice => notices.push(notice);
-const hook=new Function('useState','useEffect','useCallback','useRef','Chess','base44','useToast','window','document','setInterval','clearInterval',source+'\nreturn useChessGame;')(useState,useEffect,useCallback,useRef,Chess,sdk,()=>({toast}),events,{...events,visibilityState:'visible',hidden:false},(fn,ms)=>{const id=++timerId;intervals.set(id,{fn,ms});return id;},id=>intervals.delete(id));
+const hook=new Function('useState','useEffect','useCallback','useRef','Chess','base44','useToast','window','document','setInterval','clearInterval','performance',source+'\nreturn useChessGame;')(useState,useEffect,useCallback,useRef,Chess,sdk,()=>({toast}),events,{...events,visibilityState:'visible',hidden:false},(fn,ms)=>{const id=++timerId;intervals.set(id,{fn,ms});return id;},id=>intervals.delete(id),{now:()=>monotonicNow});
 function render(){cursor=0;dirty=false;output=hook('m','w',true);const pending=effects;effects=[];pending.forEach(fn=>fn());}
 async function flush(){for(let i=0;i<12;i++){if(dirty||!output)render();await pause();}}
 function emit(game){latest=game;subscriptions.forEach(cb=>cb({type:'update',data:structuredClone(game)}));}
@@ -113,5 +116,23 @@ latest=castled;
 for(const slot of slots)slot?.cleanup?.();
 slots=[];cursor=0;effects=[];output=undefined;dirty=true;
 await flush();assert.equal(output.fen,castled.fen,'refresh restores the confirmed castle');
+// Focus, online and visibility bursts share one contact request.
+const slowContact=deferred();heartbeatReply=()=>slowContact.promise;
+const beforeContacts=heartbeatCalls;
+dispatch('focus');dispatch('online');dispatch('visibilitychange');await flush();
+assert.equal(heartbeatCalls,beforeContacts+1);
+monotonicNow+=10001;
+const recoveredContact=deferred();heartbeatReply=()=>recoveredContact.promise;
+dispatch('online');await flush();
+assert.equal(heartbeatCalls,beforeContacts+2,'a hung heartbeat cannot block future recovery');
+const freshContact={...castled,white_last_seen_at:'2026-10-31T22:00:07Z',updated_date:'2026-10-31T22:00:07Z'};
+recoveredContact.resolve({data:{game:freshContact}});await flush();
+slowContact.resolve({data:{game:preCastle}});await flush();
+assert.equal(output.game.white_last_seen_at,freshContact.white_last_seen_at,'late superseded contact cannot undo recovery');
+let attempts=0;
+heartbeatReply=async()=>{if(++attempts===1)throw Object.assign(new Error('busy'),{response:{status:409}});return {data:{game:freshContact}};};
+dispatch('focus');await flush();
+await new Promise(resolve=>setTimeout(resolve,450));await flush();
+assert.equal(attempts,2,'a lease conflict is retried promptly');
 for(const slot of slots)slot?.cleanup?.();
 console.log('Actual handler races, stale sweep, duplicate requests, response confirmation, pending input, stale updates, lost responses and rejected-move recovery passed.');
