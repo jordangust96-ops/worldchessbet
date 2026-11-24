@@ -59,17 +59,24 @@
   }
 
   .play-layout-columns {
-    --play-hud-width: clamp(16rem, 21vw, 18rem);
-    --play-column-gap: clamp(1rem, 1.6vw, 1.5rem);
-    --desktop-board-size: min(var(--play-layout-height, 0px), calc(min(var(--play-layout-width, 100vw), 72rem) - var(--play-hud-width) - var(--play-column-gap)));
     display: grid;
-    grid-template-columns: var(--desktop-board-size) var(--play-hud-width);
     justify-content: center;
     column-gap: var(--play-column-gap);
     height: 100%;
   }
 
+  .play-layout-columns:not([data-game-board]) {
+    /* Restore the Play screen's 62:38 split between the board and Match Center. */
+    --play-column-gap: 1.5rem;
+    --play-board-track: calc((min(var(--play-layout-width, 100vw), 72rem) - var(--play-column-gap)) * 0.62);
+    --desktop-board-size: min(var(--play-layout-height, 0px), var(--play-board-track));
+    grid-template-columns: minmax(0, var(--play-board-track)) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
+
   .play-layout-columns[data-game-board] {
+    --play-hud-width: clamp(16rem, 21vw, 18rem);
+    --play-column-gap: clamp(1rem, 1.6vw, 1.5rem);
     /* Reserve equal space on both sides so the HUD cannot offset the board. */
     --desktop-board-size: min(
       var(--play-layout-height, 0px),
