@@ -12,7 +12,10 @@ export default function PlayLayout({ board, showMobileBoard, children }) {
 
   return (
     <div ref={layoutRef} style={desktopSpace} className="px-5 pt-4 lg:min-h-0 lg:flex-1 lg:py-3">
-      <div className="play-layout-columns mx-auto flex w-full max-w-6xl flex-col gap-5">
+      <div
+        className="play-layout-columns mx-auto flex w-full max-w-6xl flex-col gap-5"
+        data-game-board={showMobileBoard ? "" : undefined}
+      >
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -23,7 +26,7 @@ export default function PlayLayout({ board, showMobileBoard, children }) {
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full min-w-0 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain"
+          className="play-match-area w-full min-w-0 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain"
           aria-label="Match panel"
         >
           {children}
