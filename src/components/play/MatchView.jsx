@@ -142,7 +142,7 @@ export default function MatchView({
   }
 
   return (
-    <div className="rounded-3xl bg-gradient-to-br from-[#1A1A1A] to-[#111] border border-white/5 p-6 lg:p-4 lg:h-full lg:overflow-y-auto">
+    <div className={`rounded-3xl border border-white/5 bg-gradient-to-br from-[#1A1A1A] to-[#111] lg:h-full lg:overflow-y-auto ${stateKey === "in_progress" ? "p-3 sm:p-4" : "p-6 lg:p-4"}`}>
       <AnimatePresence mode="wait">
         <motion.div
           key={stateKey}
