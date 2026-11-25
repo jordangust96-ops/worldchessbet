@@ -241,6 +241,7 @@ for (const role of ['user','admin']) for (const scenario of [
     const matchHelpers=load('base44/shared/matchLocation.ts',{'./requestJurisdiction.ts':geo,'./jurisdictionGates.js':gates,'./matchLocationPolicy.js':policyModule}).exports;
     const reservation=load('base44/shared/lockWager.ts',{
       ...dependencies,'./matchLocation.ts':matchHelpers,
+      './walletRetention.ts':load('base44/shared/walletRetention.ts',{}).exports,
       './ledger.ts':{postLedgerLegs:async()=>{writes++;throw Error('unexpected ledger write');}},
       './integrationEvents.ts':{recordIntegrationEvent:async()=>{}},
       './seamlessAtomicStore.ts':{acquireUserWalletLock:async()=>true,releaseUserWalletLock:async()=>{}}
