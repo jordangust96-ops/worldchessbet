@@ -8,7 +8,7 @@ import {
   isLocationTestAccount,
   getLocationDenialMessage,
 } from './jurisdictionGates.js';
-import { isLocationApproved } from './jurisdictionRegions.js';
+import { getBlockedJurisdictionMessage, isLocationApproved } from './jurisdictionRegions.js';
 
 // ============================================================================
 // Centralized jurisdiction abstraction for ChessBet's paid platform.
@@ -53,9 +53,6 @@ const PROVIDER = 'MaxMind';
 
 const UNKNOWN_MESSAGE =
   'Your connection did not provide enough location information. Try another Wi-Fi or mobile connection, then check your location again.';
-const BLOCKED_MESSAGE =
-  "Paid contests are not currently available in your jurisdiction.\n\nChessBet currently offers paid gameplay only in approved jurisdictions.\n\nYour account remains active for informational purposes, but paid contests are unavailable from your current location.";
-
 // A mismatch beyond this distance between the MaxMind IP-derived location and
 // the browser-reported location is flagged for administrative/forensic
 // review. A credible conflict rejects approval; browser coordinates can
@@ -203,7 +200,9 @@ async function getReusableVerification(base44, userId, ip) {
   const computedStatus = latest.pre_bypass_verification_result || latest.verification_result;
   return {
     status: computedStatus,
-    reason: latest.pre_bypass_reason || '',
+    reason: computedStatus === 'blocked'
+      ? getBlockedJurisdictionMessage(latest.detected_country)
+      : latest.pre_bypass_reason || '',
     state: latest.detected_state || '',
     country: latest.detected_country || '',
     vpnDetected: !!latest.vpn_or_proxy_detected,
@@ -333,7 +332,7 @@ export async function getRequestJurisdiction(req, context = null, policy = { fre
             // Country alone can establish ineligibility, never eligibility.
             // Keep anonymizer checks above and all US approval evidence below.
             status = 'blocked';
-            reason = 'Money play is not available in your country. You can still create and play free challenges.';
+            reason = getBlockedJurisdictionMessage(country);
           } else if (!country || !state) {
             status = 'unknown';
             reason = getLocationDenialMessage(lookup) || UNKNOWN_MESSAGE;
@@ -350,7 +349,7 @@ export async function getRequestJurisdiction(req, context = null, policy = { fre
             status = 'approved';
           } else {
             status = 'blocked';
-            reason = BLOCKED_MESSAGE;
+            reason = getBlockedJurisdictionMessage(country);
           }
         }
       }

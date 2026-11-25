@@ -354,6 +354,22 @@ export function getRegionName(code) {
   return found ? found.name : '';
 }
 
+const supportedStateNames = new Intl.ListFormat('en-US', { type: 'disjunction' })
+  .format(APPROVED_STATES.map(getRegionName));
+
+// Call only after the location check returns a confirmed block.
+export function getBlockedJurisdictionMessage(country) {
+  const countryCode = normalizeCountryCode(country);
+  if (countryCode && countryCode !== 'US') {
+    return 'Paid contests are unavailable in your current country.\n\nYou can still create or join free challenges.';
+  }
+  return [
+    'Paid contests are unavailable in your current location.',
+    `You can enter paid contests when you’re in ${supportedStateNames}.`,
+    'You can still play free games with players worldwide. When you’re in a supported state, try the location check again.',
+  ].join('\n\n');
+}
+
 // The single server-side approval test, shared by geogating and the launch
 // notification processor. Returns true only for U.S. locations whose
 // normalized region code is in APPROVED_STATES. Non-U.S. and missing regions

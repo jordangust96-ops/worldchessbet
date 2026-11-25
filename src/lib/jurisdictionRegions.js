@@ -12,5 +12,6 @@ export {
   isValidUsRegion,
   getCountryName,
   getRegionName,
+  getBlockedJurisdictionMessage,
   isLocationApproved,
 } from "../../base44/shared/jurisdictionRegions.js";

@@ -90,7 +90,7 @@ export default function CreateChallengeForm({ initialAmount = 10, initialMode = 
     {!free && funding && !ENTRY_AMOUNTS.some(canAfford) && <Button type="button" variant="outline" onClick={()=>navigate('/wallet')} className="w-full rounded-xl">Add funds to play for money</Button>}
     <ChallengeVisibilityToggle checked={publiclyListed} onChange={setPubliclyListed} disabled={busy} rematch={Boolean(rematchOf)} />
     {rematchOf && <p className="text-xs text-[#C9A84C]">This rematch link is for your previous opponent. Share it with them after creation.</p>}
-    {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
+    {error && <p role="alert" className="whitespace-pre-line text-sm text-red-300">{error}</p>}
     {!free && gate==='location_required' && <Button type="button" onClick={()=>{setPlayMode('free');setError('');setGate('');}} className="w-full rounded-xl gold-gradient text-black">Make this a free match</Button>}
     {['funds_required','identity_required','bank_required'].includes(gate) && <Button type="button" variant="outline" onClick={()=>navigate('/wallet')} className="w-full rounded-xl border-[#C9A84C]/30 text-[#E5CA7A]">{gate==='funds_required'?'Fund Wallet':'Complete Wallet Setup'}</Button>}
     <Button type="submit" disabled={busy || !valid} className="h-12 w-full rounded-2xl gold-gradient font-bold text-black disabled:opacity-40">

@@ -140,7 +140,8 @@ export async function createChallenge(base44: any, user: any, body: any, req: Re
       if (!req) fail('location_required', 'Verify your current location before creating a money challenge.', 403);
       const location = await verifyChallengeCreationLocation(req, body.requestKey);
       if (location.status !== 'approved')
-        fail('location_required', 'Money play is not available from your current location. You can create this as a free match instead.', 403);
+        fail('location_required', location.status === 'blocked' ? location.reason :
+          'Money play is not available from your current location. You can create this as a free match instead.', 403);
     }
     await requireChallengePlayer(base44, user.id, terms);
     await checkLease();
@@ -273,7 +274,7 @@ export async function maintainCreatorPresence(req: Request, base44: any, user: a
       await requireChallengePlayer(base44,user.id,fresh);
       if (!isFreeMatch(fresh)) {
         const location=await verifyMatchLocation(req,fresh,body);
-        if(location.status!=='approved')fail('location_required','Money play is unavailable from this location.',403);
+        if(location.status!=='approved')fail('location_required',location.status==='blocked' ? location.reason : 'Money play is unavailable from this location.',403);
       }
     }
     const updated=await base44.asServiceRole.entities.Match.update(fresh.id,{
@@ -667,7 +668,8 @@ export async function readyChallenge(req: Request, base44: any, user: any, match
           !Number.isFinite(old) || old > Date.now() || Date.now() - old >= CHALLENGE_READY_MS) return { match, needsReady: true };
     } else if (!isFreeMatch(match)) {
       const location = await verifyMatchLocation(req, match, body);
-      if (location.status !== 'approved') fail('location_required', location.reason || 'Recheck your location before play.', 403);
+      if (location.status !== 'approved') fail('location_required', location.reason || 'Recheck your location before play.', 403,
+        location.status === 'blocked' ? { locationStatus: 'blocked' } : {});
     }
     const updated = await base44.asServiceRole.entities.Match.update(match.id, {
       [`${role}_certified`]: true, [`${role}_certified_at`]: match[`${role}_certified_at`] || nowIso(),

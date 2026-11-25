@@ -149,7 +149,11 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
       } catch(err) {
         const action=err?.response?.data?.action;
         if(active && action==='ready_expired') setError('');
-        else if(active && action==='location_required') {clearIntent();setError('Your location needs to be checked before play. Please confirm readiness after resolving it.');}
+        else if(active && action==='location_required') {
+          clearIntent();
+          setError(err?.response?.data?.locationStatus === 'blocked' ? challengeErrorMessage(err) :
+            'Your location needs to be checked before play. Please confirm readiness after resolving it.');
+        }
         else if(active && action==='recovery_pending') {
           setConnectionMessage('Confirming your match…');
           try { await challengeRequest('recover',{matchId:match.id}); await latest.current.onRefresh?.(); } catch {}
@@ -205,7 +209,7 @@ export default function ChallengeReadyScreen({ match, userId, opponentId, onCanc
       <Button onClick={ready} disabled={busy || !agree || armed} className="h-12 w-full rounded-2xl gold-gradient font-bold text-black disabled:opacity-60">{busy && <Loader2 size={16} className="mr-2 animate-spin"/>}{armed?(myReady?'Waiting for opponent…':'Reconnecting…'):'I’m Ready'}</Button>
     </> : <p className="rounded-xl bg-white/5 p-3 text-sm text-white/60">{free?'The start window ended. This unstarted free game is closing.':'The start window ended. The system is closing this unstarted match and releasing both entries and fees.'}</p>}
     {connectionMessage && <p role="status" className="text-sm text-white/60">{connectionMessage}</p>}
-    {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
+    {error && <p role="alert" className="whitespace-pre-line text-sm text-red-300">{error}</p>}
     <Button onClick={cancel} disabled={busy} variant="outline" className="h-10 w-full rounded-xl border-white/15 text-white/55">Cancel Before Start</Button>
   </section>;
 }

@@ -242,7 +242,7 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
         </section>
         {!free && <details className="text-xs leading-relaxed text-white/50"><summary className="cursor-pointer text-center">Fees & eligibility</summary><p className="mt-3">The winner receives both entry amounts. The service fee is separate and returned if there is no decisive result. Settlement and winnings-release rules apply.</p><p className="mt-2">Money play requires account, identity and location eligibility, a verified bank, and available funds. Pending deposits cannot be used.</p></details>}
       </> : <div className="rounded-2xl border border-white/10 p-6"><h1 className="text-xl font-bold">{error ? "Unable to load challenge" : "Challenge unavailable"}</h1><button onClick={() => { setLoading(true); refresh(); }} className="mt-4 block font-semibold text-[#C9A84C]">Try again</button><Link to="/play" className="mt-4 inline-block text-[#C9A84C]">Create your own challenge</Link></div>}
-      {error && <p role="alert" className="rounded-xl border border-red-500/20 bg-red-500/5 p-3 text-sm text-red-300">{error}</p>}
+      {error && <p role="alert" className="whitespace-pre-line rounded-xl border border-red-500/20 bg-red-500/5 p-3 text-sm text-red-300">{error}</p>}
       {message && <p role="status" className="flex items-start gap-2 rounded-xl bg-white/5 p-3 text-sm text-[#E5CA7A]"><Check size={16} className="mt-0.5 shrink-0" />{message}</p>}
       {!free && <div className="flex justify-center gap-5 text-xs text-white/40"><Link to="/official-rules">Official Rules</Link><Link to="/fair-play-integrity">Fair Play</Link><Link to="/terms-of-service">Terms</Link></div>}
     </div>

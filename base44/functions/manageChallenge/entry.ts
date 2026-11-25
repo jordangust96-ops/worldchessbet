@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
       const result = await (await getRequestJurisdiction(req,{triggerEvent:'wallet_onboarding'},{fresh:true,requireLocation:true})).json();
       return response({approved:result.status==='approved',status:result.status || 'verification_failed',
         message:result.status==='approved'?'Your location is approved for money play. Continue wallet setup to verify your identity and fund your wallet.':
-          result.status==='blocked'?'Money play isn’t available in your current location. You can still play for free.':
+          result.status==='blocked'?result.reason:
           'We could not verify your location for money play. You can still play for free or check again.'});
     }
     if (action === 'list') return response(await listMyChallenges(base44, user));

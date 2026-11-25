@@ -3,7 +3,7 @@ import React, { useRef, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
 import { APPROVED_STATES } from "@/lib/jurisdictionConfig";
-import { getRegionName } from "@/lib/jurisdictionRegions";
+import { getRegionName, getBlockedJurisdictionMessage } from "@/lib/jurisdictionRegions";
 import JurisdictionWaitlistOptIn from "@/components/jurisdiction/JurisdictionWaitlistOptIn";
 import WalletSetupStep from "./WalletSetupStep";
 
@@ -17,7 +17,7 @@ export default function DepositLocationStep({ decision, onDecision }) {
   const hasResult = !!decision && decision.status !== "not_started" && !checking;
   const blocked = decision?.status === "blocked";
   const failed = hasResult && !approved;
-  const resultTitle = blocked ? "Money play unavailable here" : "Location verification failed";
+  const [blockedTitle, ...blockedDetails] = blocked ? getBlockedJurisdictionMessage(decision.country).split("\n\n") : [];
   const checkLocation = async () => {
     if (approved || inProgress.current || !user?.id) return;
     inProgress.current = true;
@@ -40,9 +40,18 @@ export default function DepositLocationStep({ decision, onDecision }) {
       {hasResult && !approved && (
         <div role="status" aria-live="polite" aria-atomic="true"
           className="mt-3 rounded-xl border border-amber-400/50 bg-amber-400/10 p-4 sm:p-5">
-          <p className="text-lg font-bold leading-6 text-amber-200">{resultTitle}</p>
-          <p className="mt-2 text-base font-medium leading-6 text-white">Money play requires an approved location. You can still create and play free challenges.</p>
-          <p className="mt-2 text-base leading-6 text-white/90">{decision.reason || "The location check did not complete. Please try again."}</p>
+          {blocked ? (
+            <>
+              <p className="text-lg font-bold leading-6 text-amber-200">{blockedTitle}</p>
+              {blockedDetails.map((paragraph) => <p key={paragraph} className="mt-2 text-base leading-6 text-white/90">{paragraph}</p>)}
+            </>
+          ) : (
+            <>
+              <p className="text-lg font-bold leading-6 text-amber-200">Location verification failed</p>
+              <p className="mt-2 text-base font-medium leading-6 text-white">Money play requires an approved location. You can still create and play free challenges.</p>
+              <p className="mt-2 text-base leading-6 text-white/90">{decision.reason || "The location check did not complete. Please try again."}</p>
+            </>
+          )}
           {decision.retryMessage ? (
             <p className="mt-2 text-sm leading-6 text-white/80">{decision.retryMessage}</p>
           ) : !blocked && (
@@ -59,7 +68,7 @@ export default function DepositLocationStep({ decision, onDecision }) {
       {decision && decision.status !== "not_started" && !approved && (
         <div className="mt-4 space-y-3 text-sm leading-6 text-white/70">
           <Link to="/play" className="inline-block font-semibold text-[#E5CA7A]">Play for Free</Link>
-          <p>Approved U.S. jurisdictions: {APPROVED_STATES.map(s => getRegionName(s) || s).join(", ")}.</p>
+          {!blocked && <p>Approved U.S. jurisdictions: {APPROVED_STATES.map(s => getRegionName(s) || s).join(", ")}.</p>}
           {blocked && !checking && decision.promptEligible && <JurisdictionWaitlistOptIn key={`${decision.country}:${decision.state}`} userEmail={user?.email} initialCountry={decision.country} initialRegion={decision.state} />}
         </div>
       )}

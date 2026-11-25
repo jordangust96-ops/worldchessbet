@@ -1,5 +1,5 @@
 import { getLocationDenialMessage, hasReliableLocationEvidence, isLocationTestAccountId, isLocationTestAccount } from './jurisdictionGates.js';
-import { isLocationApproved } from './jurisdictionRegions.js';
+import { getBlockedJurisdictionMessage, isLocationApproved } from './jurisdictionRegions.js';
 // Wallet onboarding evidence must continue to satisfy the current quality policy.
 // Reuse genuine approvals recorded before this policy change, never User fields
 // or an identity/bank status. Later gameplay checks cannot grant/revoke onboarding.
@@ -23,7 +23,7 @@ function publicStatus(row) {
     promptEligible: blocked,
     country: row?.detected_country || '', state: row?.detected_state || '',
     reason: approved || !row ? '' : blocked
-      ? (row.pre_bypass_reason || 'Money play is not available from your location. You can still create and play free challenges.')
+      ? getBlockedJurisdictionMessage(row.detected_country)
       : getLocationDenialMessage(row) ||
         (row.pre_bypass_reason && !row.pre_bypass_reason.includes('VPN, proxy, or location-masking software')
           ? row.pre_bypass_reason

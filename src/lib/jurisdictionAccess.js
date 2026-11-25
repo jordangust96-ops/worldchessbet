@@ -8,6 +8,7 @@
 // redefining a list anywhere else.
 
 import { APPROVED_STATES } from "./jurisdictionConfig.js";
+import { getBlockedJurisdictionMessage } from "./jurisdictionRegions.js";
 
 // Top-level anonymizer/proxy boolean fields that may appear on a
 // getCurrentJurisdiction response. `vpnDetected` is the aggregate the server
@@ -31,8 +32,6 @@ const REASON_UNVERIFIED =
   "We could not verify your current location reliably enough for real-money play. Try another connection, such as switching between Wi-Fi and mobile data, then check your location again.";
 const REASON_ANONYMIZER =
   "We could not verify your current location. If you use a VPN, proxy, or location-masking service, turn it off and check your location again.";
-const REASON_BLOCKED =
-  "Unfortunately, real-money play is not currently available in your location. ChessBet has not yet enabled real-money play in your state or country under its current launch requirements.";
 
 // Returns { allowed, reason }.
 //
@@ -97,7 +96,7 @@ export function evaluateJurisdictionAccess(response) {
 
   // Positively determined outside the approved jurisdictions.
   if (response.status === "blocked") {
-    return { allowed: false, reason: REASON_BLOCKED, promptEligible: true };
+    return { allowed: false, reason: getBlockedJurisdictionMessage(response.country), promptEligible: true };
   }
 
   // An unresolved check is not evidence that the location is unsupported.
