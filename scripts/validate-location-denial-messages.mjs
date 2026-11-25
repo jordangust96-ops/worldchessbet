@@ -54,6 +54,49 @@ for(const shape of ['traits','anonymizer']) for(const [condition,expected] of ca
  if(condition!=='is_anonymous_vpn') assert.doesNotMatch(saved.reason,/identified as a VPN/);
  checks++;
 }
+for (const {country, state, expected} of [
+  {country:'US', state:'MI', expected:/^Paid contests are unavailable in your current location\.\n\nYou can enter paid contests/},
+  {country:'CA', state:'', expected:/^Paid contests are unavailable in your current country\.\n\nYou can still create or join free challenges\.$/},
+]) {
+  const rows = [];
+  const sdk = {
+    auth:{me:async()=>({id:'u',role:'user'})},
+    asServiceRole:{entities:{
+      User:{update:async()=>{}},
+      JurisdictionVerificationLog:{
+        create:async row=>rows.push(row),
+        filter:async query=>rows.filter(row=>!query.verification_result || row.verification_result===query.verification_result),
+      },
+    }},
+  };
+  const env = {MAXMIND_GEOIP_ENABLED:'true', MAXMIND_ACCOUNT_ID:'test', MAXMIND_LICENSE_KEY:'test'};
+  const lookup = {
+    country:{iso_code:country, confidence:99},
+    subdivisions:state ? [{iso_code:state, confidence:99}] : [],
+    location:{accuracy_radius:5},
+  };
+  const {getRequestJurisdiction} = load('base44/shared/requestJurisdiction.ts', {
+    'npm:@base44/sdk@0.8.38':{createClientFromRequest:()=>sdk},
+    './jurisdictionGates.js':gates,
+    './jurisdictionRegions.js':regions,
+  }, {Deno:{env:{get:key=>env[key]}}, fetch:async()=>Response.json(lookup)}).exports;
+  const request = new Request('https://test.invalid', {headers:{'true-client-ip':'192.0.2.1'}});
+  const context = {triggerEvent:'wallet_onboarding'};
+  const fresh = await (await getRequestJurisdiction(request, context, {fresh:true, requireLocation:true})).json();
+  assert.equal(fresh.status, 'blocked');
+  assert.match(fresh.reason, expected);
+  assert.equal(rows.length, 1);
+  rows[0].pre_bypass_reason = 'Old rejection copy';
+  const saved = await wallet.walletOnboardingLocation(sdk, 'u');
+  assert.equal(saved.reason, fresh.reason, 'wallet reload replaces old saved copy');
+  assert.equal(saved.promptEligible, true);
+  if (state) {
+    const cached = await (await getRequestJurisdiction(request, context)).json();
+    assert.equal(cached.cached, true);
+    assert.equal(cached.reason, fresh.reason, 'cached result replaces old saved copy');
+    assert.equal(rows.length, 1);
+  }
+}
 const multiple=gates.getLocationDenialMessage({is_anonymous_vpn:true,is_tor_exit_node:true,is_anonymous:true});
 assert.match(multiple,/VPN/);assert.match(multiple,/Tor exit node/);assert.doesNotMatch(multiple,/anonymous or location-masking/);
 assert.doesNotMatch(gates.getLocationDenialMessage({vpn_or_proxy_detected:true}),/identified as a VPN/);
