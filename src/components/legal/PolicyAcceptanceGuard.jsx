@@ -1,3 +1,4 @@
+import LoadingScreen from "@/components/LoadingScreen";
 import React, { useState, useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
@@ -41,11 +42,7 @@ export default function PolicyAcceptanceGuard() {
   };
 
   if (loading) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-[#0A0A0A]">
-        <div className="w-8 h-8 border-4 border-white/10 border-t-[#C9A84C] rounded-full animate-spin"></div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (pendingQueue.length > 0) {
