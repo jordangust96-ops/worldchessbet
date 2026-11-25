@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Loader2 } from "lucide-react";
+import LoadingPanel from "@/components/LoadingPanel";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import PreparingMatchScreen from "@/components/play/matchview/PreparingMatchScreen";
@@ -136,7 +136,7 @@ export default function MatchView({
   if (!isActive) {
     return (
       <div className="rounded-3xl bg-gradient-to-br from-[#1A1A1A] to-[#111] border border-white/5 p-6 lg:p-4 lg:h-full flex items-center justify-center">
-        <Loader2 className="animate-spin text-[#C9A84C]" size={22} />
+        <LoadingPanel label="Loading your match" />
       </div>
     );
   }
