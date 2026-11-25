@@ -33,9 +33,18 @@ export default function AdminAccountDeletion(){
       <p>Review each request manually. This page never moves money, changes eligibility, closes accounts or deletes records.</p>
       <ol className="list-decimal pl-5"><li>Explain timing and confirm ownership. Review outstanding games, balances, transfers, holds and disputes using existing tools.</li>
       <li>Return funds only through existing authorized payout/closure controls. Preserve required financial, identity and authorization evidence with a documented retention basis and review date.</li>
-      <li>Delete data not required for retention from ChessBet and affected providers. Remove the Base44 app user/authentication record only after settlement and retention review.</li>
-      <li>Handle Sign in with Apple revocation through Base44/provider support. If tokens are unavailable, follow Apple's documented manual-revocation instructions and tell the player.</li>
+      <li>Delete personal data not required for retention from ChessBet and affected providers. After settlement and retention review, remove the exact ChessBet user through Base44 App Users → More actions → Remove user. Removing the User does not delete records in other tables; review those separately.</li>
+      <li>For Sign in with Apple, explain the shared Base44 Apple-link effects before removal. Use ChessBet's own supported removal path; a deletion performed by Base44 support does not revoke Apple access. Verify and record the Apple outcome separately from User removal. Missing Apple tokens must not indefinitely delay account-data deletion; record any unresolved revocation limitation and explain it to the player.</li>
       <li>Send the player a completion notice describing retained categories and reasons. Record the case/evidence reference below. Mark complete only after fulfillment.</li></ol>
+      <details className="my-3 rounded-lg border border-white/10 p-3">
+        <summary className="cursor-pointer font-semibold text-white/80">Apple sign-in fulfillment notes — Base44 support, November 25, 2026</summary>
+        <ul className="mt-3 list-disc space-y-2 pl-5">
+          <li>Support says supported User removal revokes Apple grants captured after November 15. Older grants are not automatically covered unless that person signed in with Apple again. Record the evidence; do not assume revocation from a deletion receipt.</li>
+          <li>The Apple authorization is shared under Base44. Revocation removes that person's Apple link across Base44 apps; support says their other app sessions remain signed in. Explain this consequence before final removal. A different email choice on return can create a separate empty account; never automatically merge accounts, transfer wallets or copy verified eligibility.</li>
+          <li>Base44 does not handle Apple's credential-revoked notifications. Giving manual Apple instructions alone is not proof that the complete Apple fallback is implemented. Escalate legacy or unverified outcomes and document the limitation without promising it is resolved.</li>
+          <li>End-to-end iOS verification is still pending. Use only an approved, disposable, unfunded Apple-sign-in test account. Confirm the exact User is absent, old sessions lose access, the Apple grant is removed and fresh consent appears. Keep owner, review and friends' accounts out of deletion tests.</li>
+        </ul>
+      </details>
       <a className="underline" target="_blank" rel="noopener noreferrer" href="https://developer.apple.com/documentation/technotes/tn3194-handling-account-deletions-and-revoking-tokens-for-sign-in-with-apple">Apple deletion and token-revocation guidance</a>
     </div>
     {error&&<p role="alert" className="text-red-300">{error}</p>}
@@ -56,7 +65,7 @@ export default function AdminAccountDeletion(){
       {status==="completed"&&<>
         <label className="block text-sm">Retained categories, legal/processor basis and retention review date<textarea maxLength={3000} className="mt-2 w-full rounded border border-white/20 bg-black p-3" value={retention} onChange={e=>setRetention(e.target.value)}/></label>
         <label className="block text-sm">Fulfillment case/evidence reference (no credentials or identity documents)<textarea maxLength={2000} className="mt-2 w-full rounded border border-white/20 bg-black p-3" value={reference} onChange={e=>setReference(e.target.value)}/></label>
-        {[["data","Non-required associated data was deleted; required records were reviewed and preserved."],["apple","Apple access was revoked, or documented manual instructions were provided where tokens are unavailable (or Apple was not used)."],["confirmation","The player was sent a deletion-completion notice explaining retained records."]].map(([key,label])=><label key={key} className="flex gap-3 text-sm"><input type="checkbox" checked={checks[key]===true} onChange={e=>setChecks({...checks,[key]:e.target.checked})}/>{label}</label>)}
+        {[["data","Non-required associated data was deleted; required records were reviewed and preserved."],["apple","The Apple sign-in outcome was recorded: revocation evidence, or a token-unavailable case with unresolved limits explained to the player (or Apple was not used)."],["confirmation","The player was sent a deletion-completion notice explaining retained records."]].map(([key,label])=><label key={key} className="flex gap-3 text-sm"><input type="checkbox" checked={checks[key]===true} onChange={e=>setChecks({...checks,[key]:e.target.checked})}/>{label}</label>)}
       </>}
       <div className="flex gap-2"><Button disabled={busy||message.trim().length<10} onClick={save}>{busy?"Saving…":"Save review"}</Button><Button variant="outline" disabled={busy} onClick={()=>setSelected(null)}>Cancel</Button></div>
     </section>}
