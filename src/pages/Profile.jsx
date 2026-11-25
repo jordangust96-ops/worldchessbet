@@ -1,3 +1,4 @@
+import LoadingScreen from "@/components/LoadingScreen";
 import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
@@ -118,13 +119,7 @@ export default function Profile() {
     base44.auth.logout("/");
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="animate-spin text-[#C9A84C]" size={28} />
-      </div>);
-
-  }
+  if (loading) return <LoadingScreen />;
 
   if (loadError) {
     return (
