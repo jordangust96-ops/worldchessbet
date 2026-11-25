@@ -3,7 +3,7 @@
 - **Platform requirements.** The fair-play, identity-verification, and financial-integrity requirements described in these documents apply to use of the Platform.
 
 ## Eligibility
-- **Who can play for money.** Real-money features require verified identity, age 21 or older, U.S. residency, and physical presence in an eligible location. New money challenges also require a verified bank account.
+- **Who can play for money.** Real-money features require verified identity, age 21 or older, U.S. residency, and physical presence in an eligible location. Creating or accepting a new money challenge also requires a verified bank account and enough playable funds for the Entry Amount and Platform Service Fee.
 - **Supported states.** The current supported states are Arkansas, Colorado, Georgia, Iowa, Kansas, North Dakota, Texas, Virginia, Wisconsin, and Wyoming. This is ChessBet's access policy, not a representation of government approval or a legal determination for any state. Availability can change and remains subject to applicable law, account restrictions, and enabled payment and contest services.
 - **One account.** Each player may maintain only one Account.
 - **Location checks.** ChessBet checks location during wallet setup, before identity verification. For later deposits, ChessBet verifies that your saved wallet location approval is still valid. Depositing does not trigger a new location lookup. Paid challenge creation, acceptance, and match readiness check your current location.
@@ -66,14 +66,14 @@
 - **Human review and holds.** Automated flags can trigger review and may delay pending winnings when a blocking issue is open. A person reviews the available game, technical, account, and dispute evidence before an enforcement decision. Flags alone do not prove cheating, change results, or impose penalties.
 - **Review without a violation.** An Integrity Review does not itself establish a violation. If no violation is found, the result and ordinary decisive-result fees stand.
 - **Voids and reversals.** If a Contest is voided, both players' Entry Amounts and Platform Service Fees are returned. A reversal of a settled decisive result removes the original winner's Contest Prize, returns the original loser's Entry Amount, and leaves the remaining entry funds reserved for a separate disposition; it does not automatically award the full prize to the other player. On a reversal, the administrator records whether the separately charged Platform Service Fees are retained or refunded. Contest entry funds are not recorded as platform fee revenue.
-- **Appeals.** A participant can appeal a resolved case with an adverse decision once per case. Contact {{SUPPORT_EMAIL}} with your case number, the decision you want reviewed, and any supporting details. Use that address if account restrictions prevent access.
+- **Appeals.** A participant can appeal a resolved case with an adverse decision once per case. Email {{SUPPORT_EMAIL}} with your case number, the decision you want reviewed, and any supporting details.
 
 ## Account Suspension, Restrictions, and Closure
 - **When ChessBet can restrict an account.** ChessBet may suspend, restrict, or close an Account, or hold funds, for suspected fraud, prohibited conduct, unresolved verification, bank returns, or legal or processor requirements. Holds and case remedies follow the recorded review and settlement process; a restriction does not convert Contest Entry Amounts into platform revenue.
 - **Closure and remaining funds.** Account closure does not erase financial or compliance records, cancel a live game's clock, or accelerate pending funds. Remaining funds can require settlement, verification, review, or one or more supported bank transfers before they can be returned. Contact {{SUPPORT_EMAIL}} for help accessing existing funds when self-service access is restricted.
 
 ## Dispute Handling
-- **Contest disputes.** Use Report Contest in the app. For a settled contest, report within 24 hours of recorded settlement. For a report opened from Wallet History, follow the deadline shown for that transaction. The Official Rules govern contest outcomes and settlement disputes.
+- **Contest disputes.** You can use Report Contest during a match. From a settled match, use Report Contest within 24 hours of recorded settlement. From Wallet History, follow the deadline shown for that transaction. The Official Rules govern contest outcomes and settlement disputes.
 - **Other account or platform disputes.** For other Account or Platform disputes, you agree to first attempt informal resolution with ChessBet before pursuing formal dispute resolution.
 
 ## Disclaimer of Warranties and Limitation of Liability

@@ -49,7 +49,7 @@ export const FAIR_PLAY_SECTIONS = [
     title: "How to report a concern",
     items: [
       ["Use Report Contest","Open Report Contest during or after a match, or from an eligible Wallet History transaction. Describe the concern and save your case number."],
-      ["Reporting window","For a settled contest, report within 24 hours of settlement. If you report from Wallet History, follow the deadline shown for that transaction."],
+      ["Reporting window","From a settled match, use Report Contest within 24 hours of recorded settlement. From Wallet History, follow the deadline shown for that transaction."],
       ["What reporting does","Your report opens a case for review. An open case can delay release of pending winnings. The report itself does not change the result or move funds."],
     ],
   },
@@ -58,7 +58,7 @@ export const FAIR_PLAY_SECTIONS = [
     title: "How to request a review of a decision",
     items: [
       ["Appeal eligibility","A participant can appeal a resolved case with an adverse decision once per case."],
-      ["Contact support","Email ChessBet Support with your case number, the decision you want reviewed, and any supporting details. This is also the contact if an account restriction prevents access."],
+      ["Contact support","Email ChessBet Support with your case number, the decision you want reviewed, and any supporting details. Use the same address if an account restriction prevents access."],
     ],
   },
 ];

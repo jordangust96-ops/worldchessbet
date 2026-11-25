@@ -12,7 +12,7 @@ export const FAQ_SECTIONS = [
       {
         "question": "Where can I play for money?",
         "paragraphs": [
-          "Paid play requires verified identity, age 21 or older, U.S. residency, and physical presence in a supported state. See the Official Rules for the current list. Free play is available worldwide."
+          "Paid play requires verified identity, age 21 or older, U.S. residency, physical presence in a supported state, a verified bank account, and enough playable funds for the entry and fee. See the Official Rules for supported states. Free play is available worldwide."
         ]
       },
       {
@@ -64,7 +64,7 @@ export const FAQ_SECTIONS = [
         "list": [
           "The reconnect countdown starts when ChessBet detects the disconnect, even on the other player’s turn. The chess clock keeps running.",
           "The displayed countdown is 38 seconds for 3+0, 68 for 10+0, and 98 for 15+0, including the final connection check.",
-          "If a chess clock expires first, the normal clock-timeout rule applies. If the reconnect countdown expires first, ChessBet checks that the opponent is connected before awarding a disconnect win."
+          "If a chess clock expires first, the normal clock-timeout rule applies. If the reconnect countdown expires first, ChessBet checks that the player is still offline and the opponent is connected before awarding a disconnect win."
         ]
       }
     ]
@@ -85,7 +85,7 @@ export const FAQ_SECTIONS = [
         "list": [
           "Deposits have a processing fee shown in Wallet before you submit.",
           "Money matches have a fixed Platform Service Fee disclosed separately from the Entry Amount.",
-          "Withdrawals below $10 carry a flat $2.50 fee unless you withdraw your entire Available Balance. Withdrawals of $10 or more have no separate fee. When it applies, the wallet fee is added to the amount you request and charged when Seamless accepts the payout."
+          "Withdrawals below $10 carry a flat $2.50 fee unless you withdraw your entire Available Balance. Withdrawals of $10 or more have no separate fee. ChessBet charges the fee separately from your requested payout after Seamless accepts the withdrawal."
         ]
       },
       {
@@ -119,8 +119,8 @@ export const FAQ_SECTIONS = [
       {
         "question": "How do I report a concern or appeal a decision?",
         "list": [
-          "Use Report Contest during or after a match, or from an eligible Wallet History transaction. For a settled contest, report within 24 hours of settlement. In Wallet History, follow the deadline shown for the transaction.",
-          "To appeal an adverse decision on a resolved case, email ChessBet Support with the case number and supporting details. Participants can appeal once per case."
+          "You can use Report Contest during a match. From a settled match, use Report Contest within 24 hours of recorded settlement. From Wallet History, follow the deadline shown for that transaction.",
+          "A participant can appeal a resolved case with an adverse decision once per case. Email ChessBet Support with your case number, the decision you want reviewed, and any supporting details."
         ]
       },
       {
