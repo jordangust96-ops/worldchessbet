@@ -36,7 +36,7 @@ function parseSections(markdown, supportEmail) {
 
 function OfficialRulesSection({ section }) {
   const bullets = getOfficialRulesBullets(section.title, section.content);
-  const markdownStyles = "space-y-2 [&_a]:text-[#E5CA7A] [&_a]:underline [&_strong]:text-white [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5";
+  const markdownStyles = "space-y-2 [&_a]:text-[#E5CA7A] [&_a]:underline [&_strong]:text-white [&_ul]:list-disc [&_ul]:space-y-2 [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:space-y-2 [&_ol]:pl-5";
   if (!bullets) {
     return <div className={markdownStyles}><ReactMarkdown>{section.content}</ReactMarkdown></div>;
   }
@@ -147,7 +147,7 @@ export default function LegalDocumentPage({ policyType }) {
           >
             <h2 id="eligibility-title" className="text-base font-bold text-white">Where can I play?</h2>
             <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-relaxed text-white/80 marker:text-[#C9A84C]">
-              <li><strong className="text-white">Who can play.</strong> Cash-prize play requires identity verification, verified age 21+, and physical presence in a supported location when entering and playing.</li>
+              <li><strong className="text-white">Who can play.</strong> Cash-prize play requires identity verification, verified age 21+, U.S. residency, and physical presence in a supported location when entering and playing.</li>
               <li><strong className="text-white">Supported states.</strong> Arkansas, Colorado, Georgia, Iowa, Kansas, North Dakota, Texas, Virginia, Wisconsin, and Wyoming.</li>
               <li><strong className="text-white">Availability.</strong> ChessBet sets its own access policy, subject to applicable law and the Official Rules. A home address alone does not establish eligibility.</li>
             </ul>

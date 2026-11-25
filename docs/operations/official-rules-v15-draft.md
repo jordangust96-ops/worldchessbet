@@ -51,7 +51,7 @@ Contest Entry Amount $5.00–$10.00: $1.00 per player. $10.01–$25.00: $2.00. $
 - **How a contest ends.** A Contest can end by checkmate, resignation, timeout, or a draw.
 - **Draws.** The app automatically recognizes stalemate, threefold repetition, the fifty-move rule, and insufficient material through its chess engine; players can also agree to a draw.
 - **Timeout rule.** For timeout decisions, ChessBet currently uses a material-count rule: the non-timed-out player has sufficient material if they have a pawn, rook, queen, or at least two bishops/knights in total.
-- **Insufficient material.** A lone king, or a king with only one bishop or knight, is insufficient. If the player whose clock is still running has insufficient material under ChessBet’s material-count rule, the game is a draw.
+- **Insufficient material.** A lone king, or a king with only one bishop or knight, is insufficient. If the opponent of the player who ran out of time has insufficient material under this rule, the game is a draw.
 
 ## Disconnections and Technical Issues
 - **What a missed heartbeat means.** ChessBet detects a disconnect when it stops receiving signals from a player’s device. A missed signal does not establish intentional abandonment. Taking time to think while connected does not trigger a disconnect.
