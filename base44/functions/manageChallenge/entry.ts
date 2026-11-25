@@ -12,6 +12,7 @@ import { getRequestJurisdiction } from '../../shared/requestJurisdiction.ts';
 import { getOriginalClientIp } from '../../shared/jurisdictionGates.js';
 import { sha256Hex } from '../../shared/mfaCore.js';
 import { requireAdminMfa } from '../../shared/mfa.ts';
+import { readInviteHostRating } from '../../shared/publicMatchRatings.js';
 
 // Do not return service-role Match records verbatim: field-level permissions
 // are bypassed in backend functions, including private operation/lease data.
@@ -67,10 +68,17 @@ Deno.serve(async (req) => {
       const match = await resolveChallenge(base44, body.inviteCode);
       requestStage = 'preview_details';
       const data = await viewChallenge(base44, match, user);
+      const ratingRead = data.challenge.status === 'open' &&
+        data.role !== 'player1' && (!match.challenge_target_id || user?.id === match.challenge_target_id)
+        ? readInviteHostRating(base44.asServiceRole.entities, match)
+        : null;
       if (await takeChallengeRateLimit(`view-event:${match.id}:${bucket}`, 1, 3600)) {
         await challengeEvent(base44, match, 'viewed', user?.id || '', 'invitation_view', `${bucket.slice(0,16)}:${Math.floor(Date.now()/3600000)}`);
       }
-      return response(data);
+      const hostRating = await ratingRead;
+      return response(hostRating ? {
+        ...data, challenge: { ...data.challenge, timeControl: match.time_control, ...hostRating },
+      } : data);
     }
     await requireChallengeSession(req, base44, user, body.sessionToken);
     if (action.startsWith('rematch_')) return response(await rematchControl(req,base44,user,body));

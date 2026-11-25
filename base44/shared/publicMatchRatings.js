@@ -1,4 +1,5 @@
-// Read-only, display-only rating projection for public marketplace cards.
+// Read-only rating projection for marketplace cards and authorized invite previews.
+import { isChallenge } from './challengePolicy.js';
 // It never filters, ranks, accepts, creates, or updates matches or ratings.
 const VALID_POOLS = new Set(['blitz', 'rapid', 'classical']);
 const MAX_PUBLIC_MATCHES = 20;
@@ -51,6 +52,34 @@ export async function readPublicMatchRatings(entities, matches) {
   const unavailable = everyMatch(matches, 'unavailable');
   if (publicMatches.length !== matches.length) return unavailable;
 
+  return readMatchHostRatings(entities, publicMatches);
+}
+
+// The caller must resolve the invite and check who may see it before calling.
+export async function readInviteHostRating(entities, match) {
+  const unavailable = { ratingStatus: 'unavailable', rating: null };
+  if (!isChallenge(match) || !match.id || !match.player1_id ||
+      match.status !== 'searching' || !VALID_POOLS.has(match.time_control)) {
+    return unavailable;
+  }
+
+  // Keep a slow optional rating lookup from delaying challenge review.
+  let timer;
+  try {
+    const ratings = await Promise.race([
+      readMatchHostRatings(entities, [match]),
+      new Promise(resolve => { timer = setTimeout(() => resolve({}), 1500); }),
+    ]);
+    return ratings[match.id] ?? unavailable;
+  } catch {
+    return unavailable;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function readMatchHostRatings(entities, matches) {
+  const unavailable = everyMatch(matches, 'unavailable');
   const config = await readConfig(entities);
   if (!config || config.public_enabled !== true) return unavailable;
   if (config.rebuild_in_progress === true || !validCount(config.current_generation)) {
@@ -61,8 +90,8 @@ export async function readPublicMatchRatings(entities, matches) {
   const threshold = validCount(config.provisional_games) && Number(config.provisional_games) > 0
     ? Number(config.provisional_games)
     : 10;
-  const userIds = [...new Set(publicMatches.map((match) => match.player1_id))];
-  const timeControls = [...new Set(publicMatches.map((match) => match.time_control))];
+  const userIds = [...new Set(matches.map((match) => match.player1_id))];
+  const timeControls = [...new Set(matches.map((match) => match.time_control))];
 
   const rows = await entities.PlayerRating.filter({
     user_id: { $in: userIds },
@@ -78,7 +107,7 @@ export async function readPublicMatchRatings(entities, matches) {
     else byKey.set(key, row);
   }
 
-  const candidateRows = publicMatches.map((match) => byKey.get(keyFor(match.player1_id, match.time_control)))
+  const candidateRows = matches.map((match) => byKey.get(keyFor(match.player1_id, match.time_control)))
     .filter((row) => row && Number(row.games_rated) > 0);
   const lastGameIds = [...new Set(candidateRows.map((row) => row.last_game_id).filter(Boolean))];
 
@@ -124,7 +153,7 @@ export async function readPublicMatchRatings(entities, matches) {
     return everyMatch(matches, 'updating');
   }
 
-  return Object.fromEntries(publicMatches.map((match) => {
+  return Object.fromEntries(matches.map((match) => {
     const key = keyFor(match.player1_id, match.time_control);
     const row = byKey.get(key);
 

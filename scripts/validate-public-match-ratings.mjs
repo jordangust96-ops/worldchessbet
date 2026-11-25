@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { readPublicMatchRatings } from '../base44/shared/publicMatchRatings.js';
+import { readInviteHostRating, readPublicMatchRatings } from '../base44/shared/publicMatchRatings.js';
 
 let assertions = 0;
 const check = (actual, expected) => { assert.deepEqual(actual, expected); assertions += 1; };
@@ -178,6 +178,16 @@ const playerQuery = f.calls.find((call) => call.name === 'PlayerRating').query;
 check(playerQuery.user_id, { $in: ['host-1'] });
 check(playerQuery.time_control, { $in: ['rapid', 'blitz'] });
 
+const invite = match({ is_private: true, challenge_version: 1 });
+f = fixture({ games: 10 });
+check(await readInviteHostRating(f.entities, invite), { ratingStatus: 'established', rating: 1544 });
+check(await readInviteHostRating(f.entities, { ...invite, time_control: 'blitz' }), { ratingStatus: 'provisional', rating: null });
+check(await readInviteHostRating(f.entities, { ...invite, status: 'completed' }), { ratingStatus: 'unavailable', rating: null });
+check(await readInviteHostRating(f.entities, { ...invite, challenge_version: undefined }), { ratingStatus: 'unavailable', rating: null });
+f.tables.RatingSystemConfig[0].public_enabled = false;
+check(await readInviteHostRating(f.entities, invite), { ratingStatus: 'unavailable', rating: null });
+check(await readInviteHostRating({}, invite), { ratingStatus: 'unavailable', rating: null });
+
 // Source-level isolation: presentation reads may add fields to existing public
 // matches, but cannot affect marketplace selection, ordering, or acceptance.
 const read = (path) => fs.readFileSync(path, 'utf8');
@@ -191,7 +201,7 @@ const create = read('base44/functions/createMatch/entry.ts');
 assert.doesNotMatch(helper, /\.(create|update|delete|bulkCreate|invoke)\s*\(/);
 assert.doesNotMatch(endpoint, /\.(create|update|delete|bulkCreate|invoke)\s*\(/);
 assert.doesNotMatch(card, /base44\.entities\.(PlayerRating|RatingEvent|RatingOperation|RatingSystemConfig)|asServiceRole/);
-assert.match(card, /Rating:\{" "\}/);
+assert.match(card, /<HostRating timeControl=\{current\.time_control\}/);
 assert.match(card, /current\.gamesPlayed/);
 assert.match(card, /current\.winPercentage/);
 assert.match(query, /status: 'searching'/);

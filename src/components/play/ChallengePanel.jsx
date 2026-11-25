@@ -5,6 +5,7 @@ import LoadingPanel from '@/components/LoadingPanel';
 import { Copy, Share2, Loader2, ArrowLeft, Clock, Check, CircleAlert } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import ChallengeAvailability from '@/components/play/ChallengeAvailability';
+import HostRating from '@/components/play/HostRating';
 import ChallengeVisibilityToggle from '@/components/play/ChallengeVisibilityToggle';
 import Logo from '@/components/Logo';
 import SEO from '@/components/seo/SEO';
@@ -185,7 +186,9 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
         <section className={embedded ? "space-y-4" : "space-y-5 rounded-3xl border border-[#C9A84C]/20 bg-gradient-to-br from-[#191610] to-[#111] p-5 sm:p-7"}>
           <div className="space-y-2"><p className="text-xs font-semibold uppercase tracking-widest text-[#C9A84C]">{free ? 'Free chess' : card.isRematch ? 'Rematch invitation' : 'Chess for money'}</p>
             <h1 className="text-2xl font-extrabold sm:text-3xl">{creator ? (open ? 'Your challenge is ready' : 'Your challenge') : card.creatorName && card.creatorName !== 'ChessBet player' ? `${card.creatorName}’s challenge` : 'Chess challenge'}</h1>
-            <p className="flex items-center gap-2 text-sm text-white/55"><Clock size={15} />{card.displayName}</p></div>
+            <p className="flex items-center gap-2 text-sm text-white/55"><Clock size={15} />{card.displayName}</p>
+            {open && !creator && <HostRating timeControl={card.timeControl} status={card.ratingStatus} rating={card.rating} />}
+          </div>
           {free ? <p className="rounded-2xl border border-[#C9A84C]/20 bg-[#C9A84C]/5 p-4 text-sm text-[#E5CA7A]">Free play · Play worldwide and build your rating.</p> : <><div className="grid grid-cols-2 gap-3">
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4"><p className="text-xs text-white/55">Your total</p><p className="mt-1 text-3xl font-bold">{usd(card.totalRequired)}</p><p className="mt-1 text-xs text-white/50">{usd(card.entryAmount)} entry + {usd(card.serviceFee)} fee</p></div>
             <div className="rounded-2xl border border-[#C9A84C]/20 bg-[#C9A84C]/5 p-4"><p className="text-xs text-white/55">Winner award</p><p className="mt-1 text-3xl font-bold text-[#C9A84C]">{usd(card.winnerAward)}</p></div>

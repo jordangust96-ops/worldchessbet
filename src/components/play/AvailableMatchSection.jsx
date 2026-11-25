@@ -5,6 +5,7 @@ import { User, Loader2, SearchX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import LoadingPanel from "@/components/LoadingPanel";
 import FoundingPlayerBadge from "@/components/profile/FoundingPlayerBadge";
+import HostRating from "@/components/play/HostRating";
 import { base44 } from "@/api/base44Client";
 import { challengeRequest, challengeErrorMessage, handleChallengeGate } from "@/lib/challengeApi";
 import { trackPixelEvent } from "@/lib/metaPixel";
@@ -242,18 +243,7 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
                   ? `${current.gamesPlayed} Games • ${current.winPercentage}% Win Rate`
                   : "New Player"}
               </p>
-              <p className="text-xs text-white/50">
-                Rating:{" "}
-                <span className="font-semibold text-white/70">
-                  {current.ratingStatus === "established" && Number.isFinite(current.rating)
-                    ? Number(current.rating).toLocaleString()
-                    : current.ratingStatus === "provisional"
-                      ? "Provisional"
-                      : current.ratingStatus === "updating"
-                        ? "Updating"
-                        : "Unavailable"}
-                </span>
-              </p>
+              <HostRating timeControl={current.time_control} status={current.ratingStatus} rating={current.rating} />
             </div>
           </div>
 
