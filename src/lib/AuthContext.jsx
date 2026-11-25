@@ -3,6 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { appParams } from '@/lib/app-params';
 import { createAxiosClient } from '@base44/sdk/dist/utils/axios-client';
 import { clearMfaVerified } from '@/lib/mfaSession';
+import { queryClientInstance } from '@/lib/query-client';
 import { trackCompletedOAuthLogin } from '@/lib/googleAnalytics';
 
 const AuthContext = createContext(null);
@@ -110,7 +111,28 @@ export const AuthProvider = ({ children }) => {
       // a false logout. Keep the protected app in its reconnecting state until
       // auth succeeds or the server explicitly rejects the session.
       setIsLoadingAuth(true);
-      const currentUser = await base44.auth.me();
+      let currentUser;
+      try {
+        currentUser = await base44.auth.me();
+      } catch (error) {
+        const status = error?.status ?? error?.response?.status;
+        // Only the authoritative current-user check can reject this session.
+        // A 404 from a game, wallet or other resource is never a logout signal.
+        if (![401, 403, 404].includes(status)) throw error;
+        setUser(null);
+        setIsAuthenticated(false);
+        setIsLoadingAuth(false);
+        setAuthChecked(true);
+        setAuthError(null);
+        setJurisdictionStatus(null);
+        setJurisdictionReason('');
+        clearMfaVerified();
+        queryClientInstance.clear();
+        // SDK logout clears stored credentials and the app auth cookie before
+        // returning here. Otherwise a removed user's 404 can loop at sign-in.
+        base44.auth.logout(window.location.href);
+        return;
+      }
       setUser(currentUser);
       setIsAuthenticated(true);
       setAuthError(null);
@@ -133,19 +155,6 @@ export const AuthProvider = ({ children }) => {
       setJurisdictionReason('');
     } catch (error) {
       console.error('User auth check failed:', error);
-      const status = error?.status ?? error?.response?.status;
-      if (status === 401 || status === 403) {
-        setUser(null);
-        setIsLoadingAuth(false);
-        setIsAuthenticated(false);
-        setAuthChecked(true);
-        setAuthError({
-          type: 'auth_required',
-          message: 'Authentication required'
-        });
-        return;
-      }
-
       // Network/5xx failures are not evidence that the token is invalid.
       // Retry with bounded backoff while the global loading screen keeps the
       // live route mounted as reconnecting rather than redirecting to login.
