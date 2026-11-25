@@ -1,5 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import ReactMarkdown from "react-markdown";
 import { FAQ_SECTIONS, getFaqJsonLdEntities } from "../src/lib/faqContent.js";
 import { PUBLIC_LEGAL_DOCUMENTS } from "./public-legal-snapshot.mjs";
 import { getOfficialRulesBullets } from "../src/lib/officialRulesFormatting.js";
@@ -207,7 +210,7 @@ function renderOfficialRules(doc) {
       ? `<ul style="padding-left:24px;color:#ccc">${bullets.map(({ label, text }) =>
           `<li style="margin-bottom:12px"><strong>${escapeHtml(label)}</strong><br>${escapeHtml(text).replaceAll("\n\n", "<br><br>")}</li>`
         ).join("")}</ul>`
-      : markdownToHtml(text, doc.supportEmail);
+      : renderToStaticMarkup(React.createElement(ReactMarkdown, null, text));
     return `<section style="margin:34px 0"><h2>${escapeHtml(title)}</h2>${content}</section>`;
   }).join("");
 }
