@@ -1,6 +1,7 @@
 import NotifyOnAcceptToggle from '@/components/play/NotifyOnAcceptToggle';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
+import LoadingPanel from '@/components/LoadingPanel';
 import { Copy, Share2, Loader2, ArrowLeft, Clock, Check, CircleAlert } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import ChallengeAvailability from '@/components/play/ChallengeAvailability';
@@ -180,7 +181,7 @@ export default function ChallengePanel({ inviteCode:providedInviteCode, embedded
     <div className={embedded ? "space-y-4" : "mx-auto max-w-lg space-y-6"}>
       {embedded ? <button onClick={onClose} className="inline-flex items-center gap-1 text-sm text-white/50"><ArrowLeft size={15} />Challenges</button> : <div className="flex items-center justify-between gap-4"><Link to="/" aria-label="ChessBet"><Logo size="sm" /></Link>
         <Link to="/play" className="inline-flex items-center gap-1 text-sm text-white/50"><ArrowLeft size={15} />Play</Link></div>}
-      {loading ? <div role="status" className="py-16 text-center"><Loader2 className="mx-auto animate-spin text-[#C9A84C]" /><p className="mt-3 text-sm text-white/55">Loading challenge…</p></div> : card ? <>
+      {loading ? <LoadingPanel label="Loading challenge" /> : card ? <>
         <section className={embedded ? "space-y-4" : "space-y-5 rounded-3xl border border-[#C9A84C]/20 bg-gradient-to-br from-[#191610] to-[#111] p-5 sm:p-7"}>
           <div className="space-y-2"><p className="text-xs font-semibold uppercase tracking-widest text-[#C9A84C]">{free ? 'Free chess' : card.isRematch ? 'Rematch invitation' : 'Chess for money'}</p>
             <h1 className="text-2xl font-extrabold sm:text-3xl">{creator ? (open ? 'Your challenge is ready' : 'Your challenge') : card.creatorName && card.creatorName !== 'ChessBet player' ? `${card.creatorName}’s challenge` : 'Chess challenge'}</h1>
