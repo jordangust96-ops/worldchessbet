@@ -1,3 +1,4 @@
+import LoadingScreen from "@/components/LoadingScreen";
 import { useEffect, useState } from "react";
 import { Navigate, Outlet } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
@@ -41,11 +42,7 @@ export default function MfaGuard() {
   }, [token, user]);
 
   if (status === "checking") {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-[#0A0A0A]">
-        <div className="w-8 h-8 border-4 border-white/10 border-t-[#C9A84C] rounded-full animate-spin" />
-      </div>
-    );
+    return <LoadingScreen />;
   }
   if (status !== "valid") return <Navigate to="/verify-mfa" replace />;
   return <Outlet />;
