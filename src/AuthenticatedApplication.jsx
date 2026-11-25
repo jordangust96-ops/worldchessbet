@@ -51,7 +51,8 @@ const MfaGuard = lazy(() => import("@/components/MfaGuard"));
 const AdminGuard = lazy(() => import("@/components/AdminGuard"));
 const PolicyAcceptanceGuard = lazy(() => import("@/components/legal/PolicyAcceptanceGuard"));
 
-import LoadingScreen, { AppReady } from "@/components/LoadingScreen";
+import LoadingScreen from "@/components/LoadingScreen";
+import useNativeShell from "@/lib/useNativeShell";
 
 // Paths where the global app header (Logo + AccountBalance) is the intended
 // header. Public pages (blog, faq, about, unsubscribe, legal docs, etc.) each
@@ -68,6 +69,7 @@ function RoutedApplication() {
     navigateToLogin,
   } = useAuth();
   const location = useLocation();
+  const nativeShell = useNativeShell();
 
   if (isLoadingPublicSettings || isLoadingAuth) return <LoadingScreen />;
 
@@ -94,11 +96,12 @@ function RoutedApplication() {
     <Suspense fallback={<LoadingScreen />}>
       {showAppHeader && !isPlayPage && <AppHeader />}
       <Routes>
-        <Route path="/" element={isAuthenticated ? <Navigate to="/play" replace /> : <Landing />} />
+        <Route path="/" element={isAuthenticated ? <Navigate to="/play" replace /> : nativeShell ? <Login nativeWelcome /> : <Landing />} />
         <Route path="/features" element={<Navigate to="/about#features" replace />} />
         <Route path="/pricing" element={<Navigate to="/about#fees-and-eligibility" replace />} />
         <Route path="/about" element={<AboutChessBet />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/welcome" element={<Login nativeWelcome />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
@@ -147,7 +150,6 @@ function RoutedApplication() {
 
         <Route path="*" element={<PageNotFound />} />
       </Routes>
-      <AppReady />
     </Suspense>
   );
 }
