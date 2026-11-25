@@ -5,6 +5,7 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import crypto from 'node:crypto';
 import { Chess } from 'chess.js';
+import { getBlockedJurisdictionMessage } from '../base44/shared/jurisdictionRegions.js';
 
 // Runs the actual challenge and journal modules with isolated in-memory
 // storage, locks and provider adapters. Never calls Base44, Redis or a bank.
@@ -102,7 +103,7 @@ function fixture() {
       if(resolved.endsWith('/seamlessAtomicStore.ts'))return atomic;
       if(resolved.endsWith('/seamlessFundingConfig.ts'))return {paidContestsEnabled:()=>state.paid};
       if(resolved.endsWith('/identityEligibility.js'))return {hasVerifiedIdentity:async(sdk,user)=>!!user && (await sdk.asServiceRole.entities.User.get(user.id)).verified===true};
-      if(resolved.endsWith('/requestJurisdiction.ts'))return {getRequestJurisdiction:async(req,context,options)=>{equal(req.headers.get('cf-connecting-ip'),'198.51.100.5');equal(context.triggerEvent,'wallet_onboarding');equal(options.fresh,true);state.lookups++;return Response.json({status:state.location?'approved':'blocked'});}};
+      if(resolved.endsWith('/requestJurisdiction.ts'))return {getRequestJurisdiction:async(req,context,options)=>{equal(req.headers.get('cf-connecting-ip'),'198.51.100.5');equal(context.triggerEvent,'wallet_onboarding');equal(options.fresh,true);state.lookups++;return Response.json({status:state.location?'approved':'blocked',reason:state.location?'':getBlockedJurisdictionMessage('US')});}};
       if(resolved.endsWith('/matchLocation.ts'))return {
         verifyChallengeCreationLocation:async(r,key)=>{check(r instanceof Request,'Creation receives original request');state.creationLookups=(state.creationLookups||0)+1;if(state.afterCreationLocation)state.afterCreationLocation();return {status:state.location?'approved':'blocked',reason:'location denied'};},
         verifyMatchLocation:async(r,m)=>{state.lookups++;return {status:state.location?'approved':'blocked',reason:'location denied'};},
