@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import useNativeShell from "@/lib/useNativeShell";
 import useAcquisitionMode from "@/lib/useAcquisitionMode";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
@@ -15,7 +16,9 @@ import SEO from "@/components/seo/SEO";
 import { SITE_URL } from "@/lib/seoConfig";
 import { clearPendingOAuthLogin, rememberOAuthLogin, trackGoogleAnalyticsEvent } from "@/lib/googleAnalytics";
 
-export default function Login() {
+export default function Login({ nativeWelcome = false }) {
+  const nativeShell = useNativeShell();
+  const minimal = nativeWelcome || nativeShell;
   const acquisitionMode = useAcquisitionMode();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -70,14 +73,23 @@ export default function Login() {
       />
       <AuthLayout
         icon={LogIn}
-        title="Welcome back"
-        subtitle="Log in to your account"
+        minimal={minimal}
+        title={minimal ? "Play chess. Win cash." : "Welcome back"}
+        subtitle={minimal ? "" : "Log in to your account"}
         footer={
           <>
             Don't have an account?{" "}
             <Link to={acquisitionMode ? "/register?mode=" + acquisitionMode : "/register"} className="text-primary font-medium hover:underline">
               Create one
             </Link>
+            {minimal && <>
+              <p className="mt-4 text-[11px] leading-relaxed text-white/45">Free play worldwide. Cash play: 21+, in 10 eligible US states. Identity and location checks required.</p>
+              <nav aria-label="Legal information" className="mt-3 flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs">
+                <Link to="/privacy-policy" className="py-1 hover:text-white">Privacy</Link>
+                <Link to="/terms-of-service" className="py-1 hover:text-white">Terms</Link>
+                <Link to="/official-rules" className="py-1 hover:text-white">Rules</Link>
+              </nav>
+            </>}
           </>
         }
       >
@@ -132,7 +144,7 @@ export default function Login() {
                 id="email"
                 type="email"
                 autoComplete="email"
-                autoFocus
+                autoFocus={!minimal}
                 placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
