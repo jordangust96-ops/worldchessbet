@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { FAQ_SECTIONS, getFaqJsonLdEntities } from "../src/lib/faqContent.js";
 import { PUBLIC_LEGAL_DOCUMENTS } from "./public-legal-snapshot.mjs";
+import { getOfficialRulesBullets } from "../src/lib/officialRulesFormatting.js";
 
 const SITE_URL = "https://worldchessbet.com";
 const BLOG_API = `${SITE_URL}/api/apps/6a4ed72536c51cb3280d2bc6/functions/getPublishedBlog`;
@@ -195,11 +196,27 @@ function markdownToHtml(markdown, supportEmail) {
     .join("");
 }
 
+function renderOfficialRules(doc) {
+  const markdown = doc.markdown.replaceAll("{{SUPPORT_EMAIL}}", doc.supportEmail);
+  return markdown.split(/\n(?=## )/g).map((section) => {
+    const [heading, ...lines] = section.split("\n");
+    const title = heading.replace(/^## /, "").trim();
+    const text = lines.join("\n").trim();
+    const bullets = getOfficialRulesBullets(title, text);
+    const content = bullets
+      ? `<ul style="padding-left:24px;color:#ccc">${bullets.map(({ label, text }) =>
+          `<li style="margin-bottom:12px"><strong>${escapeHtml(label)}</strong><br>${escapeHtml(text).replaceAll("\n\n", "<br><br>")}</li>`
+        ).join("")}</ul>`
+      : markdownToHtml(text, doc.supportEmail);
+    return `<section style="margin:34px 0"><h2>${escapeHtml(title)}</h2>${content}</section>`;
+  }).join("");
+}
+
 function renderLegal(doc) {
   const body = `
     <h1 style="font-size:34px;line-height:1.15;margin:0 0 8px">${escapeHtml(doc.label)}</h1>
     <p style="color:#888;margin-top:0">Last Updated: ${escapeHtml(doc.lastUpdated)} · Version ${escapeHtml(doc.version)}</p>
-    ${markdownToHtml(doc.markdown, doc.supportEmail)}`;
+    ${doc.route === "/official-rules" ? renderOfficialRules(doc) : markdownToHtml(doc.markdown, doc.supportEmail)}`;
   return renderPage({
     title: doc.title,
     description: doc.description,

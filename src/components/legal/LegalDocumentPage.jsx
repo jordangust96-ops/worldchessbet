@@ -13,6 +13,7 @@ import {
 import ReactMarkdown from "react-markdown";
 import PlatformServiceFeeScheduleTable from "@/components/legal/PlatformServiceFeeScheduleTable";
 import { LEGAL_DOCUMENT_TYPES } from "@/lib/legalDocumentTypes";
+import { getOfficialRulesBullets } from "@/lib/officialRulesFormatting";
 import SEO from "@/components/seo/SEO";
 import { SITE_URL } from "@/lib/seoConfig";
 
@@ -31,6 +32,25 @@ function parseSections(markdown, supportEmail) {
     const title = firstLine.replace(/^##\s*/, "").trim();
     return { id: slugify(title), title, content: rest.join("\n").trim() };
   });
+}
+
+function OfficialRulesSection({ section }) {
+  const bullets = getOfficialRulesBullets(section.title, section.content);
+  const markdownStyles = "space-y-2 [&_a]:text-[#E5CA7A] [&_a]:underline [&_strong]:text-white [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5";
+  if (!bullets) {
+    return <div className={markdownStyles}><ReactMarkdown>{section.content}</ReactMarkdown></div>;
+  }
+
+  return (
+    <ul className="list-disc space-y-3 pl-5 marker:text-[#C9A84C]">
+      {bullets.map(({ label, text }) => (
+        <li key={label} className="pl-1">
+          <strong className="block font-semibold text-white">{label}</strong>
+          <div className={markdownStyles}><ReactMarkdown>{text}</ReactMarkdown></div>
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 // Generic viewer for any legal document type (Privacy Policy, Terms of
@@ -125,20 +145,12 @@ export default function LegalDocumentPage({ policyType }) {
             aria-labelledby="eligibility-title"
             className="mb-6 scroll-mt-28 rounded-2xl border border-[#C9A84C]/25 bg-[#C9A84C]/[0.07] p-5"
           >
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#C9A84C]">Quick answer</p>
-            <h2 id="eligibility-title" className="mt-2 text-base font-bold text-white">Where can I play?</h2>
-            <p className="mt-2 text-sm leading-relaxed text-white/65">
-              Cash-prize play requires verified age 21+ and eligibility in supported U.S. states.
-            </p>
-            <p className="mt-2 text-sm leading-relaxed text-white/65">
-              Current supported states are Arkansas, Colorado, Georgia, Iowa, Kansas, North Dakota, Texas, Virginia, Wisconsin, and Wyoming. This is a platform access policy, not government approval. Access requires identity and physical-location eligibility and remains unavailable
-              anywhere applicable law or ChessBet rules do not permit it. A home address alone does not
-              establish eligibility; a player must be physically located in a supported location when
-              entering and playing.
-            </p>
-            <p className="mt-3 text-xs leading-relaxed text-white/40">
-              The detailed, versioned Official Rules below govern contest participation and settlement.
-            </p>
+            <h2 id="eligibility-title" className="text-base font-bold text-white">Where can I play?</h2>
+            <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-relaxed text-white/80 marker:text-[#C9A84C]">
+              <li><strong className="text-white">Who can play.</strong> Cash-prize play requires identity verification, verified age 21+, and physical presence in a supported location when entering and playing.</li>
+              <li><strong className="text-white">Supported states.</strong> Arkansas, Colorado, Georgia, Iowa, Kansas, North Dakota, Texas, Virginia, Wisconsin, and Wyoming.</li>
+              <li><strong className="text-white">Availability.</strong> ChessBet sets its own access policy, subject to applicable law and the Official Rules. A home address alone does not establish eligibility.</li>
+            </ul>
           </section>
         )}
 
@@ -164,12 +176,14 @@ export default function LegalDocumentPage({ policyType }) {
                   id={s.id}
                   className="rounded-2xl bg-white/[0.03] border border-white/5 px-4 scroll-mt-24"
                 >
-                  <AccordionTrigger className="text-sm font-semibold text-white hover:no-underline">
+                  <AccordionTrigger className="gap-3 text-left text-sm font-semibold leading-5 text-white hover:no-underline">
                     {s.title}
                   </AccordionTrigger>
                   <AccordionContent>
                     {policyType === "official_rules" && s.id === "platform-service-fee-schedule" ? (
                       <PlatformServiceFeeScheduleTable />
+                    ) : policyType === "official_rules" ? (
+                      <div className="text-sm leading-relaxed text-white/80"><OfficialRulesSection section={s} /></div>
                     ) : (
                       <div className="prose prose-invert prose-sm max-w-none text-white/60 prose-headings:text-white/80 prose-strong:text-white/80">
                         <ReactMarkdown>{s.content}</ReactMarkdown>
