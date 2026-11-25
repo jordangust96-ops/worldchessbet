@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { User, Loader2, SearchX } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import LoadingPanel from "@/components/LoadingPanel";
 import FoundingPlayerBadge from "@/components/profile/FoundingPlayerBadge";
 import { base44 } from "@/api/base44Client";
 import { challengeRequest, challengeErrorMessage, handleChallengeGate } from "@/lib/challengeApi";
@@ -152,7 +153,7 @@ export default function AvailableMatchSection({ userId, balance, activeMatch, on
   if (loading) {
     return (
       <div className="flex items-center justify-center h-48 lg:h-24">
-        <Loader2 className="animate-spin text-[#C9A84C]" size={22} />
+        <LoadingPanel label="Loading available matches" compact />
       </div>
     );
   }
