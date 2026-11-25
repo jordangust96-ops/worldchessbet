@@ -2,7 +2,7 @@ import { clearPostAuthRedirect, getPostAuthRedirect } from '@/lib/postAuthRedire
 import NotifyOnAcceptToggle from '@/components/play/NotifyOnAcceptToggle';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Share2, Swords, Plus, Loader2, Copy, Check } from 'lucide-react';
+import { Share2, Swords, Plus, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 import { challengeRequest, challengeErrorMessage } from '@/lib/challengeApi';
@@ -11,6 +11,7 @@ import ChallengePanel from '@/components/play/ChallengePanel';
 import CreateChallengeForm from '@/components/play/CreateChallengeForm';
 import AvailableMatchSection from '@/components/play/AvailableMatchSection';
 import ActiveChallengeCard from '@/components/play/ActiveChallengeCard';
+import LoadingPanel from '@/components/LoadingPanel';
 import LiveStatsBar from '@/components/play/LiveStatsBar';
 
 export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
@@ -133,7 +134,7 @@ export default function ChallengeHub({ userId, balance, onMatchAccepted }) {
 
   return <section className="space-y-5 rounded-3xl border border-white/5 bg-gradient-to-br from-[#1A1A1A] to-[#111] p-5 lg:h-full lg:overflow-y-auto lg:p-5">
     {userId && <LiveStatsBar />}
-    {selectedCode ? <ChallengePanel key={selectedCode} inviteCode={selectedCode} embedded onClose={()=>navigate("/play")} onChanged={refresh}/> : loading ? <Loader2 aria-label="Loading your challenge" size={20} className="animate-spin text-white/40"/> : creating && !creationBlocked ? <CreateChallengeForm initialMode={acquisitionMode || 'free'} onCreated={async()=>{ await refresh(); setCreating(false); navigate('/play', { replace:true }); }} onCancel={()=>setCreating(false)}/> : !creationBlocked ? <div className="space-y-3">
+    {selectedCode ? <ChallengePanel key={selectedCode} inviteCode={selectedCode} embedded onClose={()=>navigate("/play")} onChanged={refresh}/> : loading ? <LoadingPanel label="Loading your challenge" /> : creating && !creationBlocked ? <CreateChallengeForm initialMode={acquisitionMode || 'free'} onCreated={async()=>{ await refresh(); setCreating(false); navigate('/play', { replace:true }); }} onCancel={()=>setCreating(false)}/> : !creationBlocked ? <div className="space-y-3">
       <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#C9A84C]/10 text-[#C9A84C]"><Swords size={21}/></div>
       <div><h1 className="text-2xl font-extrabold text-white">Challenge Someone</h1><p className="mt-2 text-sm leading-relaxed text-white/55">Your friend. Your rival. Your next opponent. Create a link and play chess for free or for money.</p></div>
       <Button disabled={creationBlocked} onClick={()=>setCreating(true)} className="h-12 w-full rounded-2xl gold-gradient font-bold text-black"><Plus size={18} className="mr-2"/>Create Challenge</Button>
