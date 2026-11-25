@@ -14,6 +14,7 @@ import ReactMarkdown from "react-markdown";
 import PlatformServiceFeeScheduleTable from "@/components/legal/PlatformServiceFeeScheduleTable";
 import { LEGAL_DOCUMENT_TYPES } from "@/lib/legalDocumentTypes";
 import { getOfficialRulesBullets } from "@/lib/officialRulesFormatting";
+import { getTermsOfServiceBullets } from "@/lib/termsOfServiceFormatting";
 import SEO from "@/components/seo/SEO";
 import { SITE_URL } from "@/lib/seoConfig";
 
@@ -34,8 +35,8 @@ function parseSections(markdown, supportEmail) {
   });
 }
 
-function OfficialRulesSection({ section }) {
-  const bullets = getOfficialRulesBullets(section.title, section.content);
+function FormattedLegalSection({ section, formatBullets }) {
+  const bullets = formatBullets(section.title, section.content);
   const markdownStyles = "space-y-2 [&_a]:text-[#E5CA7A] [&_a]:underline [&_strong]:text-white [&_ul]:list-disc [&_ul]:space-y-2 [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:space-y-2 [&_ol]:pl-5";
   if (!bullets) {
     return <div className={markdownStyles}><ReactMarkdown>{section.content}</ReactMarkdown></div>;
@@ -62,6 +63,9 @@ export default function LegalDocumentPage({ policyType }) {
   const [openSections, setOpenSections] = useState([]);
   const { hash } = useLocation();
   const docMeta = LEGAL_DOCUMENT_TYPES[policyType];
+  const formatBullets = policyType === "official_rules" ? getOfficialRulesBullets
+    : policyType === "terms_of_service" ? getTermsOfServiceBullets
+    : null;
 
   useEffect(() => {
     const load = async () => {
@@ -182,8 +186,10 @@ export default function LegalDocumentPage({ policyType }) {
                   <AccordionContent>
                     {policyType === "official_rules" && s.id === "platform-service-fee-schedule" ? (
                       <PlatformServiceFeeScheduleTable />
-                    ) : policyType === "official_rules" ? (
-                      <div className="text-sm leading-relaxed text-white/80"><OfficialRulesSection section={s} /></div>
+                    ) : formatBullets ? (
+                      <div className="text-sm leading-relaxed text-white/80">
+                        <FormattedLegalSection section={s} formatBullets={formatBullets} />
+                      </div>
                     ) : (
                       <div className="prose prose-invert prose-sm max-w-none text-white/60 prose-headings:text-white/80 prose-strong:text-white/80">
                         <ReactMarkdown>{s.content}</ReactMarkdown>
