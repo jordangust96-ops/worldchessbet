@@ -8,7 +8,9 @@ import Landing from "@/pages/Landing";
 
 const AuthenticatedApplication = lazy(() => import("@/AuthenticatedApplication"));
 
-import LoadingScreen, { AppReady, LaunchProvider } from "@/components/LoadingScreen";
+import LoadingScreen from "@/components/LoadingScreen";
+import useNativeShell from "@/lib/useNativeShell";
+const Login = lazy(() => import("@/pages/Login"));
 
 function hasBase44Session(search) {
   const params = new URLSearchParams(search);
@@ -28,6 +30,7 @@ function hasBase44Session(search) {
 
 function ApplicationRouter() {
   const location = useLocation();
+  const nativeShell = useNativeShell();
   const showLeanPublicLanding =
     location.pathname === "/" && !hasBase44Session(location.search);
 
@@ -37,7 +40,7 @@ function ApplicationRouter() {
       <GoogleAnalyticsTracker />
       <CookiePreferences />
       {showLeanPublicLanding ? (
-        <><Landing /><AppReady /></>
+        nativeShell ? <Suspense fallback={<LoadingScreen />}><Login nativeWelcome /></Suspense> : <Landing />
       ) : (
         <Suspense fallback={<LoadingScreen />}>
           <AuthenticatedApplication />
@@ -50,11 +53,9 @@ function ApplicationRouter() {
 export default function App() {
   return (
     <HelmetProvider>
-      <LaunchProvider>
-        <Router>
-          <ApplicationRouter />
-        </Router>
-      </LaunchProvider>
+      <Router>
+        <ApplicationRouter />
+      </Router>
     </HelmetProvider>
   );
 }
