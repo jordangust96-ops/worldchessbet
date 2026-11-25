@@ -4,6 +4,7 @@ import vm from "node:vm";
 import ts from "typescript";
 import React from "react";
 import { evaluateJurisdictionAccess, getJurisdictionCheck } from "../src/lib/jurisdictionAccess.js";
+import * as jurisdictionRegions from "../src/lib/jurisdictionRegions.js";
 
 const source = fs.readFileSync("src/components/wallet/DepositLocationStep.jsx", "utf8");
 const code = ts.transpileModule(source, { compilerOptions: {
@@ -18,7 +19,7 @@ function mount(invoke, decision = null, user = { id: "test-user", email: "test@e
     "@/api/base44Client": { base44: { functions: { invoke } } },
     "@/lib/jurisdictionAccess": { evaluateJurisdictionAccess, getJurisdictionCheck },
     "@/lib/jurisdictionConfig": { APPROVED_STATES: ["GA"] },
-    "@/lib/jurisdictionRegions": { getRegionName: () => "Georgia" },
+    "@/lib/jurisdictionRegions": jurisdictionRegions,
     "@/components/jurisdiction/JurisdictionWaitlistOptIn": () => null,
     "./WalletSetupStep": () => null,
   };
@@ -65,6 +66,24 @@ await anonymous.button.props.onClick();
 assert.equal(anonymous.delivered.length, 0);
 console.log("Deposit intent passed: no render lookup; explicit start; pending-click deduplication; approval; failure; uncertainty; retry; anonymous refusal.");
 
-const denied = mount(() => { throw Error("must not run during render"); }, {allowed:false,status:"blocked"});
 const descendants=node=>[node,...React.Children.toArray(node?.props?.children).flatMap(descendants)];
-assert.ok(descendants(denied.tree).some(node=>node.type==="a" && node.props.to==="/play" && node.props.children==="Play for Free"));
+for (const [country, state, expectedCopy] of [
+  ["US", "MI", [
+    "Paid contests are unavailable in your current location.",
+    "You can enter paid contests when you’re in Arkansas, Colorado, Georgia, Iowa, Kansas, North Dakota, Texas, Virginia, Wisconsin, or Wyoming.",
+    "You can still play free games with players worldwide. When you’re in a supported state, try the location check again.",
+  ]],
+  ["CA", "", [
+    "Paid contests are unavailable in your current country.",
+    "You can still create or join free challenges.",
+  ]],
+]) {
+  const denied = mount(() => { throw Error("must not run during render"); }, {
+    allowed: false, status: "blocked", country, state, reason: "Old rejection copy",
+  });
+  const nodes = descendants(denied.tree);
+  const notice = nodes.find(node => node.props?.role === "status");
+  assert.deepEqual(descendants(notice).filter(node => typeof node === "string"), expectedCopy);
+  assert.ok(nodes.some(node => node.type === "a" && node.props.to === "/play" && node.props.children === "Play for Free"));
+}
+console.log("Wallet renders the approved copy for blocked U.S. states and for blocked countries.");
