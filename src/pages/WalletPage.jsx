@@ -1,6 +1,6 @@
+import LoadingScreen from "@/components/LoadingScreen";
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import RestrictedModeBanner from "@/components/RestrictedModeBanner";
 import TransactionHistory from "@/components/wallet/TransactionHistory";
@@ -216,13 +216,7 @@ export default function WalletPage() {
   };
 
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="animate-spin text-[#C9A84C]" size={28} />
-      </div>
-    );
-  }
+  if (loading) return <LoadingScreen />;
 
   if (loadError) return <div role="alert" className="mx-auto max-w-md p-6 text-center text-white"><p>Unable to load your wallet. Check Transaction History after reconnecting before retrying a transfer.</p><button onClick={() => {setLoading(true); loadData();}} className="mt-4 rounded-xl gold-gradient px-4 py-3 text-black">Retry wallet connection</button></div>;
 
