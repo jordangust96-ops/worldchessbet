@@ -4,6 +4,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import ReactMarkdown from "react-markdown";
 import { FAQ_SECTIONS, getFaqJsonLdEntities } from "../src/lib/faqContent.js";
+import { FAIR_PLAY_METADATA, FAIR_PLAY_OVERVIEW, FAIR_PLAY_SECTIONS, FAIR_PLAY_SUPPORT_EMAIL } from "../src/lib/fairPlayPolicyContent.js";
 import { PUBLIC_LEGAL_DOCUMENTS } from "./public-legal-snapshot.mjs";
 import { getOfficialRulesBullets } from "../src/lib/officialRulesFormatting.js";
 
@@ -155,28 +156,29 @@ function renderAbout() {
 }
 
 function renderFairPlay() {
+  const sections = FAIR_PLAY_SECTIONS.map(({ id, title, items }) => `
+    <section id="${escapeHtml(id)}">
+      <h2>${escapeHtml(title)}</h2>
+      <ul style="padding-left:24px;color:#ccc">${items.map(([label, text]) =>
+        `<li style="margin-bottom:12px"><strong>${escapeHtml(label)}</strong><br>${escapeHtml(text)}</li>`
+      ).join("")}</ul>
+      ${id === "appeals" ? `<p><a href="mailto:${escapeHtml(FAIR_PLAY_SUPPORT_EMAIL)}">${escapeHtml(FAIR_PLAY_SUPPORT_EMAIL)}</a></p>` : ""}
+    </section>`).join("");
   const body = `
     <h1 style="font-size:34px;line-height:1.15;margin:0 0 16px">Fair Play &amp; Integrity Policy</h1>
-    <p style="color:#ccc">ChessBet is a peer-to-peer skill competition platform. Every contest should be decided solely by the participating players' chess skill.</p>
-    <h2>How ChessBet protects matches</h2>
-    <p style="color:#ccc">ChessBet validates moves, clocks, game state, and results on its servers. Completed contests may be screened with Stockfish and behavioral checks, and player reports can supply evidence for review.</p>
-    <h2>Human review before enforcement</h2>
-    <p style="color:#ccc">Automated screening signals and rule-based flags are indicators for confidential human review. They do not, by themselves, establish wrongdoing, change a result, or impose a penalty. Open blocking integrity or settlement-reconciliation flags can delay automatic release of pending winnings.</p>
-    <h2>Prohibited conduct</h2>
-    <p style="color:#ccc">Engine assistance, AI assistance, collusion, account sharing, geolocation circumvention, identity manipulation, outcome manipulation, and exploitation of platform errors are prohibited.</p>
-    <h2>Reports and appeals</h2>
-    <p style="color:#ccc">ChessBet may review game records, technical records, reports, payment records, and account history. Users affected by an enforcement decision may provide additional information and request reconsideration.</p>
-    <p><a href="/official-rules" style="color:#C9A84C">Read the Official Rules</a></p>`;
+    <p id="fair-play-and-appeals" style="color:#ccc">${escapeHtml(FAIR_PLAY_OVERVIEW)}</p>
+    <p><a href="#11-reporting-fair-play-concerns">How to report</a> · <a href="#appeals">How to appeal</a></p>
+    ${sections}
+    <p><a href="/official-rules">Official Rules</a> · <a href="/terms-of-service">Terms of Service</a> · <a href="/privacy-policy">Privacy Policy</a></p>`;
   return renderPage({
-    title: "Chess Anti-Cheat & Fair Play — Human Review & Appeals | ChessBet",
-    description: "Learn how ChessBet protects head-to-head chess with server-verified games, Stockfish screening, player reports, evidence review, and appeals.",
+    ...FAIR_PLAY_METADATA,
     canonical: "/fair-play-integrity",
     body,
     structuredData: {
       "@context": "https://schema.org",
       "@type": "WebPage",
       name: "ChessBet Fair Play & Integrity",
-      description: "ChessBet's integrity controls, human review process, reporting, disputes, and appeals for skill-based chess contests.",
+      description: FAIR_PLAY_METADATA.description,
       url: `${SITE_URL}/fair-play-integrity`,
     },
   });

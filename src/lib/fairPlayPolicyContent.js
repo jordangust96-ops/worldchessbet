@@ -1,126 +1,64 @@
-// Structured content for the Fair Play & Integrity policy page. Kept separate
-// from the page component so the (lengthy) policy text can be updated without
-// touching layout/rendering logic.
+// Shared by the interactive policy page and the prerendered public page.
+export const FAIR_PLAY_METADATA = {
+  "title": "Chess Anti-Cheat & Fair Play — Human Review & Appeals | ChessBet",
+  "description": "Learn what ChessBet prohibits, how matches are checked, and how to report a concern or request a review of a decision."
+};
+export const FAIR_PLAY_OVERVIEW = "Play your own moves. ChessBet uses server-verified game records, post-game checks, and player reports to investigate concerns.";
+export const FAIR_PLAY_SUPPORT_EMAIL = "hello@worldchessbet.com";
 
-export const PROHIBITED_CATEGORIES = [
+export const FAIR_PLAY_SECTIONS = [
   {
-    title: "Gameplay",
+    id: "4-prohibited-conduct",
+    title: "What’s prohibited",
     items: [
-      "Using chess engines during a live contest.",
-      "Using AI assistance of any kind to determine moves.",
-      "Using position analysis tools during a live contest.",
-      "Using browser extensions that provide move suggestions.",
-      "Using automation, bots, or macros to play or assist moves.",
-      "Using any external software assistance not built into ChessBet.",
-      "Receiving human coaching or advice from another person during a live contest.",
+      ["Outside help","Make every move yourself. Engines, AI, analysis tools, move-suggestion extensions, bots, macros, and live coaching are prohibited."],
+      ["Match and rating manipulation","No match fixing, deliberate losses to manipulate results, collusion, rating manipulation, or using contests to transfer prizes."],
+      ["Account abuse","Use one account of your own. Account sharing or sales, false identity information, and impersonation are prohibited."],
+      ["Payment abuse","No stolen payment methods, fraudulent chargebacks, money laundering, artificial transfers, or transactions structured to evade detection or reporting."],
+      ["Bypassing safeguards","Do not misrepresent your location or work around location checks, identity checks, or other platform safeguards. Do not exploit platform errors."],
     ],
   },
   {
-    title: "Account Abuse",
+    id: "how-cheating-is-caught",
+    title: "How games are checked",
     items: [
-      "Sharing an account with another person.",
-      "Buying or selling ChessBet accounts.",
-      "Creating or using multiple accounts.",
-      "Providing false information to commit identity fraud.",
-      "Impersonating another player or person.",
+      ["During play","ChessBet’s servers validate moves and record the board position, move history, clocks, and result. The same gameplay rules apply to public and private challenges."],
+      ["After a money match","Stockfish screening may compare moves with engine choices and look at move quality, critical positions, timing, and focus changes. Screening depends on available game data and service availability."],
+      ["After a free match","ChessBet runs behavioral checks and skips automatic Stockfish screening. Behavioral indicators can include repeated opponents, unusual resignations, and unusual timeouts."],
     ],
   },
   {
-    title: "Match Integrity",
+    id: "7-investigations",
+    title: "What happens during a review",
     items: [
-      "Match fixing.",
-      "Intentionally losing a contest.",
-      "Colluding with another player to influence a result.",
-      "Participating in prize transfer schemes.",
-      "Attempting to manipulate ratings.",
-      "Creating artificial contest outcomes.",
+      ["Evidence and decisions","ChessBet may review game records, player reports, device and connection data, and relevant account, location, and payment activity. Flags can trigger review. A person evaluates the evidence before deciding whether a violation occurred."],
+      ["While a case is open","Pending winnings can remain held past the standard 24-hour reporting window while a dispute or blocking integrity or settlement issue is unresolved. An investigation may also delay settlement or withdrawals, or require additional identity checks."],
+      ["Possible outcomes","ChessBet may issue a warning, void or reverse a contest, suspend or close an account, or refer a case externally when appropriate. A flag alone never changes a result or imposes an account penalty."],
     ],
   },
   {
-    title: "Payment Abuse",
+    id: "3-contest-fee-integrity",
+    title: "How entries, fees, and prizes work",
     items: [
-      "Using stolen payment methods.",
-      "Chargeback abuse.",
-      "Payment fraud.",
-      "Money laundering.",
-      "Structuring transactions to avoid detection or reporting thresholds.",
-      "Artificial movement of funds between accounts.",
+      ["Money matches","Each player’s Entry Amount and fixed Platform Service Fee are shown separately. The winner of a decisive contest earns the combined Entry Amounts. The fee is separate from the prize."],
+      ["Refunds and reversals","A draw, accepted cancellation, or void returns the Entry Amount and fee actually reserved. If a review finds no violation, decisive-result fees stand. If a settled result is reversed, the reviewer records whether the fees are retained or refunded."],
     ],
   },
   {
-    title: "Location Abuse",
+    id: "11-reporting-fair-play-concerns",
+    title: "How to report a concern",
     items: [
-      "Using VPNs to misrepresent your location.",
-      "Using proxy services to misrepresent your location.",
-      "Using remote desktop software to circumvent location controls.",
-      "GPS spoofing.",
-      "Any other attempt to bypass geolocation controls.",
+      ["Use Report Contest","Open Report Contest during or after a match, or from an eligible Wallet History transaction. Describe the concern and save your case number."],
+      ["Reporting window","For a settled contest, report within 24 hours of settlement. If you report from Wallet History, follow the deadline shown for that transaction."],
+      ["What reporting does","Your report opens a case for review. An open case can delay release of pending winnings. The report itself does not change the result or move funds."],
     ],
   },
-];
-
-export const MONITORING_SOURCES = [
-  "Server-authoritative game records, move history, results, and clock data",
-  "Post-game Stockfish screening metrics, including engine agreement and centipawn-loss indicators",
-  "Critical-position performance and available per-move timing data",
-  "Focus-loss events recorded during gameplay",
-  "Rule-based indicators for repeated opponents, unusual resignations, and unusual timeouts",
-  "Account and contest history",
-  "Device and connection information",
-  "Payment activity",
-  "Geolocation information",
-  "Player reports and dispute evidence",
-  "Integrity flags, administrative notes, and audit history",
-  "Other relevant evidence available to ChessBet",
-];
-
-export const RISK_INDICATORS = [
-  "Unusually high engine move agreement",
-  "Centipawn-loss or critical-position patterns that warrant review",
-  "Move-timing patterns that warrant review",
-  "Repeated focus-loss events during gameplay",
-  "Repeated contests between the same players",
-  "Unusual resignation patterns",
-  "Unusual timeout patterns",
-  "Linked devices",
-  "Linked payment methods",
-  "Rapid funding and withdrawal activity",
-  "Abnormal contest behavior",
-  "Suspicious account relationships",
-];
-
-export const INVESTIGATION_ACTIONS = [
-  "Temporarily delay Contest Settlement",
-  "Temporarily delay withdrawals",
-  "Request additional identity verification",
-  "Review game history",
-  "Review payment activity",
-  "Review technical logs",
-  "Review reports submitted by users",
-];
-
-export const ENFORCEMENT_ACTIONS = [
-  "A warning",
-  "Contest forfeiture",
-  "Cancellation of contests",
-  "Return of Entry Amounts where appropriate",
-  "Withholding Contest Settlement pending investigation",
-  "Temporary account suspension",
-  "Permanent account termination",
-  "Reporting to payment processors or law enforcement where legally required",
-];
-
-export const PRIVATE_CHALLENGE_REVIEW_ITEMS = [
-  "Repeated contests",
-  "Unusual outcomes",
-  "Linked accounts",
-  "Suspicious financial behavior",
-];
-
-export const REPORTING_ITEMS = [
-  "Suspected cheating",
-  "Suspicious behavior",
-  "Collusion",
-  "Bugs",
-  "Payment abuse",
+  {
+    id: "appeals",
+    title: "How to request a review of a decision",
+    items: [
+      ["Appeal eligibility","A participant can appeal a resolved case with an adverse decision once per case."],
+      ["Contact support","Email ChessBet Support with your case number, the decision you want reviewed, and any supporting details. This is also the contact if an account restriction prevents access."],
+    ],
+  },
 ];
