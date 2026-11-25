@@ -262,6 +262,8 @@ console.log('Cross-path integration passed: preserved admin create/join bypass; 
 // Explicit test-account exception is session-bound and cannot waive required evidence.
 for(const c of [
  {id:'6a791a1983246f5f71e66c09',email:'jordan.gust@na.scio-automation.com',bypass:true},
+ {id:'6ac3f495f62a4f5975c19648',email:'chess.bet.world@gmail.com',bypass:false},
+ {id:'6ac3f495f62a4f5975c19648',email:'chess.bet.world@gmail.com',requireLocation:true,bypass:false},
  {id:'other-user',email:'jordan.gust@na.scio-automation.com',bypass:false},
  {id:'6a791a1983246f5f71e66c09',email:'other@example.invalid',bypass:false},
  {id:'6a791a1983246f5f71e66c09',email:'jordan.gust@na.scio-automation.com',requireLocation:true,bypass:true},
@@ -291,6 +293,17 @@ assert.equal((await testHelpers.getMatchLocationReadiness(testClient,{...match,p
 const mixed=await testHelpers.getMatchLocationReadiness(testClient,{...match,player1_id:testers[0].id,player2_id:'ordinary-user'});
 assert.equal(mixed.ready,false);assert.deepEqual([...mixed.requiredUserIds],['ordinary-user']);
 console.log('Both named testers pass wallet and final match gates without location evidence; ordinary opponents remain gated.');
+
+// The Apple reviewer uses ordinary wallet/start gates even with its historical ID.
+const reviewer = {id:'6ac3f495f62a4f5975c19648',email:'chess.bet.world@gmail.com',role:'user'};
+const reviewerClient = {asServiceRole:{entities:{User:{get:async id=>id===reviewer.id?reviewer:testers.find(u=>u.id===id)},JurisdictionVerificationLog:{filter:async()=>[]}}}};
+assert.equal(gates.isLocationTestAccountId(reviewer.id),false);
+assert.equal(gates.isLocationTestAccount(reviewer),false);
+assert.equal((await walletHelper.walletOnboardingLocation(reviewerClient,reviewer.id)).allowed,false);
+const reviewerStart = await testHelpers.getMatchLocationReadiness(reviewerClient,{...match,player1_id:testers[0].id,player2_id:reviewer.id});
+assert.equal(reviewerStart.ready,false);
+assert.deepEqual([...reviewerStart.requiredUserIds],[reviewer.id]);
+console.log('Apple reviewer: no designated bypass; MI and spoofed request bypass denied; wallet/start require ordinary location evidence.');
 
 // Offline acceptance checks only the recipient now; actual paid game start
 // still requires fresh, match-bound evidence from BOTH players.
