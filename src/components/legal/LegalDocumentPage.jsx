@@ -15,6 +15,7 @@ import PlatformServiceFeeScheduleTable from "@/components/legal/PlatformServiceF
 import { LEGAL_DOCUMENT_TYPES } from "@/lib/legalDocumentTypes";
 import { getOfficialRulesBullets } from "@/lib/officialRulesFormatting";
 import { getTermsOfServiceBullets } from "@/lib/termsOfServiceFormatting";
+import { getPrivacyPolicyBullets } from "@/lib/privacyPolicyFormatting";
 import SEO from "@/components/seo/SEO";
 import { SITE_URL } from "@/lib/seoConfig";
 
@@ -65,6 +66,7 @@ export default function LegalDocumentPage({ policyType }) {
   const docMeta = LEGAL_DOCUMENT_TYPES[policyType];
   const formatBullets = policyType === "official_rules" ? getOfficialRulesBullets
     : policyType === "terms_of_service" ? getTermsOfServiceBullets
+    : policyType === "privacy_policy" ? getPrivacyPolicyBullets
     : null;
 
   useEffect(() => {

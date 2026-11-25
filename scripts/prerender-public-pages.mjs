@@ -8,6 +8,8 @@ import { FAIR_PLAY_METADATA, FAIR_PLAY_OVERVIEW, FAIR_PLAY_SECTIONS, FAIR_PLAY_S
 import { PUBLIC_LEGAL_DOCUMENTS } from "./public-legal-snapshot.mjs";
 import { getOfficialRulesBullets } from "../src/lib/officialRulesFormatting.js";
 import { getTermsOfServiceBullets } from "../src/lib/termsOfServiceFormatting.js";
+import { getPrivacyPolicyBullets } from "../src/lib/privacyPolicyFormatting.js";
+import { ABOUT_CONTENT } from "../src/lib/aboutContent.js";
 
 const SITE_URL = "https://worldchessbet.com";
 const BLOG_API = `${SITE_URL}/api/apps/6a4ed72536c51cb3280d2bc6/functions/getPublishedBlog`;
@@ -103,15 +105,16 @@ async function writeRoute(route, html) {
 function renderFaq() {
   const body = [
     `<h1 style="font-size:34px;line-height:1.15;margin:0 0 12px">Frequently Asked Questions</h1>`,
-    `<p style="color:#bbb;margin:0 0 30px">Everything you need to know about ChessBet, cash-prize chess contests, account eligibility, funding, payouts, security, and fair play.</p>`,
+    `<p id="contact" style="color:#ccc">For account, contest, or payment questions, email <a href="mailto:hello@worldchessbet.com">ChessBet Support</a>.</p>`,
+    `<p><a href="/official-rules#eligibility">Supported states and Official Rules</a> · <a href="/fair-play-integrity">Fair Play &amp; Integrity</a> · <a href="/privacy-policy">Privacy Policy</a></p>`,
     ...FAQ_SECTIONS.map((section) => `
       <section style="margin:34px 0">
         <h2 style="color:#C9A84C;font-size:15px;text-transform:uppercase;letter-spacing:.12em">${escapeHtml(section.category)}</h2>
         ${section.items.map((item) => `
-          <article style="margin:24px 0">
+          <article${item.id ? ` id="${escapeHtml(item.id)}"` : ""} style="margin:24px 0">
             <h3 style="font-size:20px;margin:0 0 8px">${escapeHtml(item.question)}</h3>
             ${item.list
-              ? `<ol>${item.list.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}</ol>`
+              ? `<ul>${item.list.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}</ul>`
               : item.paragraphs.map((paragraph) => `<p style="color:#ccc">${escapeHtml(paragraph)}</p>`).join("")}
           </article>`).join("")}
       </section>`),
@@ -131,27 +134,28 @@ function renderFaq() {
 }
 
 function renderAbout() {
+  const { title, description, heading, intro, sections } = ABOUT_CONTENT;
   const body = `
-    <h1 style="font-size:34px;line-height:1.15;margin:0 0 16px">Chess competition built around skill and fair play</h1>
-    <p style="color:#ccc">ChessBet is a head-to-head chess platform where eligible adults compete in skill-based chess contests under clear terms.</p>
-    <h2>Head-to-head chess for real money</h2>
-    <p style="color:#ccc">Players can compete in blitz, rapid, and classical chess. Before a paid contest begins, ChessBet shows the Contest Entry Amount and the separate fixed Platform Service Fee.</p>
-    <h2>Clear settlement</h2>
-    <p style="color:#ccc">The winner of a decisive contest receives the combined Contest Entry Amounts as pending winnings, released after the 24-hour reporting window when no open dispute or blocking integrity or reconciliation flag remains. Draws, voids, and cancellations are handled under the Official Rules.</p>
-    <h2>Eligibility and fair play</h2>
-    <p style="color:#ccc">Real-money activity requires verified identity, age 21+, and physical-location eligibility. Server-authoritative gameplay, post-game Stockfish screening, player reporting, and human review support competitive integrity.</p>
-    <p><a href="/official-rules" style="color:#C9A84C">Official Rules</a> · <a href="/fair-play-integrity" style="color:#C9A84C">Fair Play &amp; Integrity</a> · <a href="/faq" style="color:#C9A84C">FAQ</a></p>`;
+    <h1 id="about-chessbet" style="font-size:34px;line-height:1.15;margin:0 0 16px">${escapeHtml(heading)}</h1>
+    <p style="color:#ccc">${escapeHtml(intro)}</p>
+    <p style="color:#ccc">Free matches have no entry fee or cash prize.</p>
+    ${sections.map(({ id, heading, points }) => `
+      <section id="${escapeHtml(id)}">
+        <h2>${escapeHtml(heading)}</h2>
+        <ul>${points.map(([label, text]) => `<li><strong>${escapeHtml(label)}</strong><br>${escapeHtml(text)}</li>`).join("")}</ul>
+      </section>`).join("")}
+    <p><a href="/official-rules">Official Rules</a> · <a href="/fair-play-integrity">Fair Play &amp; Integrity</a> · <a href="/faq">FAQ</a></p>`;
   return renderPage({
-    title: "About ChessBet | Fair, Skill-Based Head-to-Head Chess",
-    description: "Learn how ChessBet combines skill-based head-to-head chess, transparent contest terms, eligibility controls, and human-reviewed fair-play protection.",
+    title,
+    description,
     canonical: "/about",
     body,
     structuredData: {
       "@context": "https://schema.org",
       "@type": "AboutPage",
       url: `${SITE_URL}/about`,
-      name: "About ChessBet",
-      description: "ChessBet is a head-to-head, skill-based chess competition platform for eligible adults.",
+      name: title,
+      description,
     },
   });
 }
@@ -221,6 +225,7 @@ function renderFormattedLegal(doc, formatBullets) {
 function renderLegal(doc) {
   const formatBullets = doc.route === "/official-rules" ? getOfficialRulesBullets
     : doc.route === "/terms-of-service" ? getTermsOfServiceBullets
+    : doc.route === "/privacy-policy" ? getPrivacyPolicyBullets
     : null;
   const body = `
     <h1 style="font-size:34px;line-height:1.15;margin:0 0 8px">${escapeHtml(doc.label)}</h1>

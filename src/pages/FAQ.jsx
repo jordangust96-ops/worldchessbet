@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ChevronLeft, HelpCircle } from "lucide-react";
 import {
@@ -12,13 +12,16 @@ import SEO from "@/components/seo/SEO";
 import { SITE_URL } from "@/lib/seoConfig";
 import { FAQ_SECTIONS, getFaqJsonLdEntities } from "@/lib/faqContent";
 import { useAuth } from "@/lib/AuthContext";
-import PlayerProtectionCallout from "@/components/landing/PlayerProtectionCallout";
 
 export default function FAQ() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated } = useAuth();
   const targetAnswerId = location.hash.slice(1);
+
+  useEffect(() => {
+    if (targetAnswerId) document.getElementById(targetAnswerId)?.scrollIntoView({ block: "start" });
+  }, [targetAnswerId]);
 
   const structuredData = {
     "@context": "https://schema.org",
@@ -52,17 +55,20 @@ export default function FAQ() {
             <HelpCircle size={24} className="text-black" />
           </div>
           <h1 className="text-2xl font-bold text-white">Frequently Asked Questions</h1>
-          <p className="text-sm text-white/40">Everything you need to know about ChessBet</p>
         </div>
 
-        <PlayerProtectionCallout />
-
-        <section id="contact" aria-labelledby="support-title" className="rounded-2xl border border-[#C9A84C]/20 bg-white/[0.03] p-5 space-y-2">
+        <section id="contact" aria-labelledby="support-title" className="scroll-mt-6 space-y-2 rounded-2xl border border-[#C9A84C]/20 bg-white/[0.03] p-4 sm:p-5">
           <h2 id="support-title" className="text-base font-semibold text-white">Contact ChessBet support</h2>
           <p className="text-sm leading-6 text-white/60">For account, contest, or payment questions, email our support team.</p>
           <a href="mailto:hello@worldchessbet.com" className="inline-block break-all text-sm font-medium text-[#C9A84C] underline underline-offset-4">hello@worldchessbet.com</a>
           <p className="text-xs leading-5 text-white/45">Do not email passwords, full bank details, or identity documents.</p>
         </section>
+
+        <nav aria-label="Related policies" className="flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold text-[#E5CA7A]">
+          <Link to="/official-rules#eligibility" className="underline underline-offset-4">Supported states and Official Rules</Link>
+          <Link to="/fair-play-integrity" className="underline underline-offset-4">Fair Play &amp; Integrity</Link>
+          <Link to="/privacy-policy" className="underline underline-offset-4">Privacy Policy</Link>
+        </nav>
 
         <div className="space-y-6">
           {FAQ_SECTIONS.map((section) => (
@@ -74,6 +80,7 @@ export default function FAQ() {
                 {section.category}
               </h2>
               <Accordion
+                key={targetAnswerId}
                 type="single"
                 collapsible
                 defaultValue={section.items.some((item) => item.id === targetAnswerId) ? targetAnswerId : undefined}
@@ -86,16 +93,16 @@ export default function FAQ() {
                     id={item.id}
                     className="border-white/5 scroll-mt-28"
                   >
-                    <AccordionTrigger className="text-white text-sm font-medium hover:no-underline">
+                    <AccordionTrigger className="gap-3 text-left text-sm font-semibold leading-snug text-white hover:no-underline">
                       {item.question}
                     </AccordionTrigger>
-                    <AccordionContent className="text-white/60 text-sm space-y-2">
+                    <AccordionContent className="space-y-2 text-sm leading-relaxed text-white/80">
                       {item.list ? (
-                        <ol className="list-decimal list-inside space-y-1">
+                        <ul className="list-disc space-y-2 pl-5 marker:text-[#C9A84C]">
                           {item.list.map((line, i) => (
                             <li key={i}>{line}</li>
                           ))}
-                        </ol>
+                        </ul>
                       ) : (
                         item.paragraphs.map((p, i) => <p key={i}>{p}</p>)
                       )}

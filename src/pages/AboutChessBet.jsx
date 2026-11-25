@@ -1,126 +1,58 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, CircleCheck } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Logo from "@/components/Logo";
 import SEO from "@/components/seo/SEO";
 import { SITE_URL } from "@/lib/seoConfig";
+import { ABOUT_CONTENT } from "@/lib/aboutContent";
 
-const ABOUT_TITLE = "About ChessBet | Fair, Skill-Based Head-to-Head Chess";
-const ABOUT_DESCRIPTION =
-  "Learn how ChessBet combines skill-based head-to-head chess, transparent contest terms, eligibility controls, and human-reviewed fair-play protection.";
-
-const SECTIONS = [
-  {
-    id: "about-chessbet",
-    eyebrow: "About ChessBet",
-    heading: "Chess competition built around skill and fair play",
-    intro:
-      "ChessBet is a head-to-head chess platform where transparent contest terms and fair-play protections come first.",
-    points: [
-      "Skill-based head-to-head blitz, rapid, and classical chess",
-      "Clear contest terms before a player commits",
-      "A documented report, dispute, and appeals path",
-    ],
-  },
-  {
-    id: "features",
-    eyebrow: "Fair-play features",
-    heading: "Every match is built for reviewable results",
-    intro:
-      "Moves, clocks, and results are server-verified. Screening signals and human review help protect players when a concern is reported.",
-    points: [
-      "Server-verified games and synchronized clocks",
-      "Stockfish screening for engine-detection signals",
-      "Evidence review by a person, with a clear appeals path",
-    ],
-  },
-  {
-    id: "fees-and-eligibility",
-    eyebrow: "Fees and eligibility",
-    heading: "Clear fees and terms before you commit",
-    intro:
-      "Cash-prize activity requires verified identity and age 21+, an eligible location, and a supported funding account. ChessBet shows applicable charges before you authorize them.",
-    points: [
-      "Every deposit shows the wallet credit, separate deposit fee, and total bank debit; the fee helps cover secure bank processing, verification, and standard transfer services through trusted providers",
-      "Every paid contest shows its entry amount and separate Platform Service Fee before commitment",
-      "Standard withdrawals of $10 or more have no separate withdrawal fee; full-balance withdrawals also waive the fee, while other withdrawals below $10 currently carry a $2.50 fee",
-      "The winner receives the combined Entry Amounts as pending winnings; release follows the 24-hour reporting window when no open dispute or blocking integrity or reconciliation flag remains",
-      "Identity and location eligibility are checked before funding or paid contest play",
-    ],
-  },
-];
-
-const STRUCTURED_DATA = {
-  "@context": "https://schema.org",
-  "@type": "AboutPage",
-  "@id": `${SITE_URL}/about#webpage`,
-  url: `${SITE_URL}/about`,
-  name: ABOUT_TITLE,
-  description: ABOUT_DESCRIPTION,
-  isPartOf: { "@id": `${SITE_URL}/#website` },
-  about: { "@id": `${SITE_URL}/#organization` },
-  inLanguage: "en-US",
-};
+const linkStyles = "font-semibold text-[#E5CA7A] underline underline-offset-4 hover:text-white";
 
 export default function AboutChessBet() {
+  const { title, description, heading, intro, sections } = ABOUT_CONTENT;
+
   return (
     <main className="min-h-screen bg-[#0A0A0A] px-5 py-10 text-white">
-      <SEO
-        title={ABOUT_TITLE}
-        description={ABOUT_DESCRIPTION}
-        canonicalUrl={`${SITE_URL}/about`}
-        structuredData={STRUCTURED_DATA}
+      <SEO title={title} description={description} canonicalUrl={`${SITE_URL}/about`}
+        structuredData={{
+          "@context": "https://schema.org",
+          "@type": "AboutPage",
+          "@id": `${SITE_URL}/about#webpage`,
+          url: `${SITE_URL}/about`,
+          name: title,
+          description,
+          isPartOf: { "@id": `${SITE_URL}/#website` },
+          about: { "@id": `${SITE_URL}/#organization` },
+          inLanguage: "en-US",
+        }}
       />
-      <div className="mx-auto max-w-3xl">
-        <Link to="/" className="inline-block">
-          <Logo size="sm" />
-        </Link>
-        <Link
-          to="/"
-          className="mt-8 inline-flex items-center gap-1.5 text-sm text-white/50 hover:text-white"
-        >
+      <div className="mx-auto max-w-2xl">
+        <Link to="/" className="block w-fit"><Logo size="sm" /></Link>
+        <Link to="/" className="mt-5 inline-flex items-center gap-1.5 text-sm text-white/65 hover:text-white">
           <ArrowLeft size={16} /> Back to ChessBet
         </Link>
-
-        <div className="mt-10 space-y-6">
-          {SECTIONS.map((section, index) => (
-            <section
-              id={section.id}
-              key={section.id}
-              className="scroll-mt-6 rounded-3xl border border-[#C9A84C]/20 bg-gradient-to-br from-[#151310] to-[#0F0F0F] p-7 sm:p-10"
-            >
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#C9A84C]">
-                {section.eyebrow}
-              </p>
-              {index === 0 ? (
-                <h1 className="mt-3 text-3xl font-extrabold leading-tight">{section.heading}</h1>
-              ) : (
-                <h2 className="mt-3 text-2xl font-extrabold leading-tight">{section.heading}</h2>
-              )}
-              <p className="mt-5 text-base leading-relaxed text-white/65">{section.intro}</p>
-              <ul className="mt-7 space-y-3 text-sm leading-relaxed text-white/70">
-                {section.points.map((point) => (
-                  <li key={point} className="flex gap-3">
-                    <CircleCheck size={16} className="mt-0.5 shrink-0 text-[#C9A84C]" aria-hidden="true" />
-                    <span>{point}</span>
-                  </li>
+        <header id="about-chessbet" className="mt-6 rounded-2xl border border-[#C9A84C]/25 bg-[#C9A84C]/[0.07] p-5 sm:p-7">
+          <h1 className="text-3xl font-extrabold leading-tight">{heading}</h1>
+          <p className="mt-3 leading-relaxed text-white/80">{intro}</p>
+          <p className="mt-2 text-sm leading-relaxed text-white/80">Free matches have no entry fee or cash prize.</p>
+        </header>
+        <div className="mt-4 space-y-3">
+          {sections.map(({ id, heading, points }) => (
+            <section key={id} id={id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-6">
+              <h2 className="text-lg font-bold">{heading}</h2>
+              <ul className="mt-3 list-disc space-y-3 pl-5 text-sm leading-relaxed text-white/80 marker:text-[#C9A84C]">
+                {points.map(([label, text]) => (
+                  <li key={label}><strong className="block text-white">{label}</strong>{text}</li>
                 ))}
               </ul>
             </section>
           ))}
         </div>
-
-        <p className="mt-8 text-center text-sm text-white/45">
-          Read the{" "}
-          <Link to="/official-rules" className="font-semibold text-[#C9A84C] hover:underline">
-            Official Rules
-          </Link>{" "}
-          and{" "}
-          <Link to="/fair-play-integrity" className="font-semibold text-[#C9A84C] hover:underline">
-            Fair Play & Integrity Policy
-          </Link>{" "}
-          for the complete details.
-        </p>
+        <nav aria-label="Learn more" className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+          <Link to="/official-rules" className={linkStyles}>Official Rules</Link>
+          <Link to="/fair-play-integrity" className={linkStyles}>Fair Play &amp; Integrity</Link>
+          <Link to="/faq" className={linkStyles}>FAQ</Link>
+        </nav>
       </div>
     </main>
   );
