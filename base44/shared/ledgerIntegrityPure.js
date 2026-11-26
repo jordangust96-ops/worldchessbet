@@ -3,6 +3,25 @@
 const round = (value) => Math.round(Number(value || 0) * 100) / 100;
 const sameMoney = (a, b) => Math.abs(round(a) - round(b)) < 0.01;
 
+export function calculateSettlementInvariant(wallets, accounts, settlementEntries) {
+  const balance = (name) => Number(accounts.find((account) => account.account_name === name)?.balance || 0);
+  const userTotal = wallets.reduce((sum, wallet) =>
+    sum + Number(wallet.available_balance || 0) + Number(wallet.held_balance || 0), 0);
+  const revenue = balance('platform_revenue');
+  const suspense = balance('suspense');
+  const processorFeeClearing = balance('processor_fee_clearing');
+  const depositFeeRevenue = balance('deposit_fee_revenue');
+  // Pending contest fees in suspense are already in player held balances.
+  // Count only the fee accounts that represent proceeds outside player wallets.
+  const lhs = round(userTotal + revenue + processorFeeClearing + depositFeeRevenue);
+  const deposits = settlementEntries.reduce((sum, entry) => sum + Number(entry.debit_amount || 0), 0);
+  const withdrawals = settlementEntries.reduce((sum, entry) => sum + Number(entry.credit_amount || 0), 0);
+  const rhs = round(deposits - withdrawals);
+  const diff = round(lhs - rhs);
+  return { userTotal, revenue, suspense, processorFeeClearing, depositFeeRevenue, deposits, withdrawals,
+    lhs, rhs, diff, balanced: Math.abs(diff) < 0.01 };
+}
+
 export function auditLedgerSnapshot({ entries = [], wallets = [], accounts = [], transactions = [], seamlessOperations = [] }) {
   const groups = new Map();
   const userEntries = new Map();
@@ -53,7 +72,6 @@ export function auditLedgerSnapshot({ entries = [], wallets = [], accounts = [],
     }
   }
 
-  const accountByName = new Map(accounts.map((account) => [account.account_name, account]));
   // Settlement is a contra account: incoming cash is recorded as a debit,
   // so its normal posted balance is negative in the account projection.
   const negative_system_accounts = accounts.filter((account) =>
@@ -81,15 +99,7 @@ export function auditLedgerSnapshot({ entries = [], wallets = [], accounts = [],
     .map((operation) => ({ id: operation.id, operation_type: operation.operation_type, wallet_transaction_id: operation.wallet_transaction_id || '', status: operation.status }));
 
   const settlementEntries = entries.filter((entry) => entry.ledger_account === 'settlement');
-  // Include every settlement leg, including deposit fee pass-through and reversals.
-  const settlementNet = settlementEntries.reduce((sum, entry) =>
-    sum + Number(entry.debit_amount || 0) - Number(entry.credit_amount || 0), 0);
-  const userTotal = wallets.reduce((sum, wallet) => sum + Number(wallet.available_balance || 0) + Number(wallet.held_balance || 0), 0);
-  // These fee accounts hold evidenced bank proceeds outside player wallets.
-  // Omitting them makes a correctly balanced deposit appear short by its fees.
-  const accountedSystemTotal = ['platform_revenue', 'suspense', 'processor_fee_clearing', 'deposit_fee_revenue']
-    .reduce((sum, name) => sum + Number(accountByName.get(name)?.balance || 0), 0);
-  const aggregate_diff = round(userTotal + accountedSystemTotal - settlementNet);
+  const { diff: aggregate_diff } = calculateSettlementInvariant(wallets, accounts, settlementEntries);
 
   return {
     checked: { entries: entries.length, wallets: wallets.length, accounts: accounts.length, transactions: transactions.length },
