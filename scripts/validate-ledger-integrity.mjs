@@ -41,6 +41,25 @@ const feeDeposit = auditLedgerSnapshot({
 assert.equal(feeDeposit.aggregate_diff, 0, 'evidenced deposit fees are included in the aggregate invariant');
 assert.equal(feeDeposit.balanced, true, 'balanced fee posting does not raise a false ledger alarm');
 
+const openChallenge = auditLedgerSnapshot({
+  ...base,
+  entries: [
+    ...base.entries,
+    { id: 'e3', ledger_group_id: 'g2', ledger_account: 'user_account', user_id: 'u1', debit_amount: 5, credit_amount: 0 },
+    { id: 'e4', ledger_group_id: 'g2', ledger_account: 'contest_clearing', debit_amount: 0, credit_amount: 5 },
+    { id: 'e5', ledger_group_id: 'g2', ledger_account: 'user_account', user_id: 'u1', debit_amount: 1, credit_amount: 0, resulting_available_balance: 94, resulting_held_balance: 6, resulting_total_balance: 100, created_date: '2026-01-02T00:00:00Z' },
+    { id: 'e6', ledger_group_id: 'g2', ledger_account: 'suspense', debit_amount: 0, credit_amount: 1 },
+  ],
+  wallets: [{ user_id: 'u1', available_balance: 94, held_balance: 6, total_balance: 100 }],
+  accounts: [
+    ...base.accounts.filter((account) => account.account_name !== 'suspense'),
+    { account_name: 'contest_clearing', balance: 5 },
+    { account_name: 'suspense', balance: 1 },
+  ],
+});
+assert.equal(openChallenge.aggregate_diff, 0, 'held challenge fees are counted once');
+assert.equal(openChallenge.requires_manual_review, false, 'an open challenge does not raise a false ledger alarm');
+
 const unbalanced = auditLedgerSnapshot({ ...base, entries: base.entries.slice(0, 1) });
 assert.equal(unbalanced.unbalanced_groups.length, 1, 'unbalanced group is detected');
 
