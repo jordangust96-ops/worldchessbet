@@ -1,4 +1,5 @@
 import { healthSummary } from "../../shared/siteHealthPolicy.ts";
+import { calculateSettlementInvariant } from "../../shared/ledgerIntegrityPure.js";
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 
 // Daily founder operations briefing for the chessbet_operations intelligence path.
@@ -66,23 +67,10 @@ Deno.serve(async (req) => {
       svc['seamless-pooled-funds-reconciliation'].list('-created_at', 1),
     ]);
 
-    // --- Internal ledger invariant (mirrors checkLedgerIntegrity, read-only here) ---
-    const userTotalSum = wallets.reduce((s, w) => s + (w.available_balance || 0) + (w.held_balance || 0), 0);
-    const systemBalance = (name) => Number(ledgerAccounts.find((a) => a.account_name === name)?.balance || 0);
-    const revenue = systemBalance('platform_revenue');
-    const suspense = systemBalance('suspense');
-    const processorFeeClearing = systemBalance('processor_fee_clearing');
-    const depositFeeRevenue = systemBalance('deposit_fee_revenue');
-    // Sum across all launch-era settlement-account rows regardless of transaction_type.
-    // Deposits post a debit (credit_amount: 0) and withdrawals post a credit
-    // (debit_amount: 0); reversal rows swap the two and so net out exactly, and
-    // any future settlement-account activity is incorporated transparently.
-    const deposits = settlementEntries.reduce((s, e) => s + (e.debit_amount || 0), 0);
-    const withdrawals = settlementEntries.reduce((s, e) => s + (e.credit_amount || 0), 0);
-    const lhs = userTotalSum + revenue + suspense + processorFeeClearing + depositFeeRevenue;
-    const rhs = deposits - withdrawals;
-    const ledgerDiff = Math.round((lhs - rhs) * 100) / 100;
-    const ledgerBalanced = Math.abs(ledgerDiff) < 0.01;
+    const {
+      userTotal: userTotalSum, revenue, suspense, processorFeeClearing, depositFeeRevenue,
+      deposits, withdrawals, lhs, rhs, diff: ledgerDiff, balanced: ledgerBalanced,
+    } = calculateSettlementInvariant(wallets, ledgerAccounts, settlementEntries);
 
     // --- Derived exception sets ---
     const pendingReconciliations = reconciliations.filter((r) => r.status !== 'applied');
